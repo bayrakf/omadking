@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/theme';
 import FastingRing from '@/components/FastingRing';
 import EnergyChart from '@/components/EnergyChart';
+import MicronutrientsCard from '@/components/MicronutrientsCard';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -136,6 +137,9 @@ export default function DashboardScreen() {
             <Text style={[styles.statLabel, textSecondaryStyle]}>Fasting</Text>
           </View>
         </View>
+
+        {/* Daily Science & Micronutrients Protocol */}
+        <MicronutrientsCard weightKg={weightNum} proteinG={proteinTarget} />
 
         {/* Today's Plan Card */}
         <View style={cardStyle}>
