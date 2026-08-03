@@ -7,6 +7,7 @@ import { Colors } from '@/constants/theme';
 import FastingRing from '@/components/FastingRing';
 import EnergyChart from '@/components/EnergyChart';
 import MicronutrientsCard from '@/components/MicronutrientsCard';
+import StreakCard from '@/components/StreakCard';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -151,6 +152,22 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </Link>
         </View>
+
+        {/* Fasting Streak & Badges Widget */}
+        <StreakCard streakDays={7} />
+
+        {/* Weekly Grocery List Banner */}
+        <TouchableOpacity
+          style={[styles.coachBanner, { backgroundColor: colors.card, borderColor: colors.accent }]}
+          onPress={() => router.push('/grocery' as any)}
+        >
+          <Text style={{ fontSize: 24 }}>🛒</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.coachTitle, { color: colors.text }]}>Weekly Grocery List</Text>
+            <Text style={[styles.coachSub, { color: colors.textSecondary }]}>Checklist for OMAD ingredients</Text>
+          </View>
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>View ›</Text>
+        </TouchableOpacity>
 
         {/* AI Coach Banner */}
         <TouchableOpacity
