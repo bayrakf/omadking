@@ -61,7 +61,12 @@ export default function OnboardingScreen() {
     } catch (e) {
       console.error(e);
     }
-    router.replace('/');
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.href = '/';
+    } else {
+      router.replace('/');
+    }
   };
 
   const updateData = (key: keyof typeof data, value: any) => {

@@ -13,7 +13,7 @@ export default function Index() {
       try {
         const value = await AsyncStorage.getItem('onboarding_complete');
         if (value === 'true') {
-          setTarget('/(tabs)');
+          setTarget('/(tabs)/index');
         } else {
           setTarget('/onboarding');
         }
