@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import RecipeCard from '@/components/RecipeCard';
 
 const SPORTS = [
+  { id: 'rest', label: '🛋️ Rest Day (No Workout)' },
   { id: 'running', label: '🏃 Running' },
   { id: 'weights', label: '🏋️ Weights' },
   { id: 'cycling', label: '🚴 Cycling' },
@@ -58,7 +59,7 @@ export default function PlannerScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
-  const [sport, setSport] = useState<string | null>(null);
+  const [sport, setSport] = useState<string>('rest');
   const [duration, setDuration] = useState<number>(60);
   const [intensity, setIntensity] = useState<string>('medium');
   const [trainingTime, setTrainingTime] = useState<string>('18:00');
@@ -267,20 +268,20 @@ export default function PlannerScreen() {
 
         {/* Generate Button */}
         <Pressable
-          disabled={!sport || loading}
+          disabled={loading}
           onPress={handleGenerate}
           style={({ pressed }) => [
             styles.generateButton,
             {
-              backgroundColor: !sport ? colors.backgroundElement : colors.primary,
-              opacity: pressed || loading ? 0.8 : !sport ? 0.6 : 1,
+              backgroundColor: colors.primary,
+              opacity: pressed || loading ? 0.8 : 1,
             },
           ]}
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={[styles.generateButtonText, { color: !sport ? colors.textSecondary : '#FFFFFF' }]}>
+            <Text style={[styles.generateButtonText, { color: '#FFFFFF' }]}>
               Generate Meal Plan 🍽️
             </Text>
           )}
