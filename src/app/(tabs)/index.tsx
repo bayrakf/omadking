@@ -54,18 +54,21 @@ export default function DashboardScreen() {
     );
   }
 
-  // Calculations
-  const { weight_kg, height_cm, age, sex, goal, omad_window_start, omad_window_hours, default_training_time } = profile;
-  
+  // Safe numeric conversion with defaults
+  const weightNum = Number(profile.weight_kg) || 75;
+  const heightNum = Number(profile.height_cm) || 175;
+  const ageNum = Number(profile.age) || 30;
+  const sexVal = profile.sex || 'male';
+  const goalVal = profile.goal || 'performance';
+  const omadWindowHoursVal = Number(profile.omad_window_hours) || 1;
+  const omadWindowStartVal = profile.omad_window_start || '14:00';
+  const defaultTrainingTimeVal = profile.default_training_time || '18:00';
+
   let bmr = 0;
-  if (sex === 'male') {
-    bmr = 88.362 + (13.397 * weight_kg) + (4.799 * height_cm) - (5.677 * age);
-  } else if (sex === 'female') {
-    bmr = 447.593 + (9.247 * weight_kg) + (3.098 * height_cm) - (4.330 * age);
+  if (sexVal === 'female') {
+    bmr = 447.593 + (9.247 * weightNum) + (3.098 * heightNum) - (4.330 * ageNum);
   } else {
-    const maleBmr = 88.362 + (13.397 * weight_kg) + (4.799 * height_cm) - (5.677 * age);
-    const femaleBmr = 447.593 + (9.247 * weight_kg) + (3.098 * height_cm) - (4.330 * age);
-    bmr = (maleBmr + femaleBmr) / 2;
+    bmr = 88.362 + (13.397 * weightNum) + (4.799 * heightNum) - (5.677 * ageNum);
   }
   
   // Activity multiplier
@@ -76,27 +79,27 @@ export default function DashboardScreen() {
   let targetCalories = Math.round(bmr * activityMultiplier);
   
   // Adjust based on goal
-  if (goal === 'weight_loss') targetCalories -= 500;
-  if (goal === 'muscle_gain') targetCalories += 300;
+  if (goalVal === 'weight_loss') targetCalories -= 500;
+  if (goalVal === 'muscle_gain') targetCalories += 300;
 
   let proteinTarget = 0;
-  if (goal === 'weight_loss') proteinTarget = Math.round(weight_kg * 1.6);
-  else if (goal === 'muscle_gain') proteinTarget = Math.round(weight_kg * 2.2);
-  else proteinTarget = Math.round(weight_kg * 2.0);
+  if (goalVal === 'weight_loss') proteinTarget = Math.round(weightNum * 1.6);
+  else if (goalVal === 'muscle_gain') proteinTarget = Math.round(weightNum * 2.2);
+  else proteinTarget = Math.round(weightNum * 2.0);
 
-  const fastingHours = 24 - omad_window_hours;
+  const fastingHours = 24 - omadWindowHoursVal;
   
   // Fasting Window Parsing
-  const startHour = parseInt(omad_window_start.split(':')[0], 10);
-  const endHour = (startHour + omad_window_hours) % 24;
-  const eatingWindowStr = `${omad_window_start} - ${endHour.toString().padStart(2, '0')}:00`;
+  const startHour = parseInt((omadWindowStartVal || '14:00').split(':')[0], 10) || 14;
+  const endHour = (startHour + omadWindowHoursVal) % 24;
+  const eatingWindowStr = `${omadWindowStartVal} - ${endHour.toString().padStart(2, '0')}:00`;
   
-  const trainingHour = parseInt(default_training_time.split(':')[0], 10);
-  const trainingStr = `${default_training_time}`;
+  const trainingHour = parseInt((defaultTrainingTimeVal || '18:00').split(':')[0], 10) || 18;
+  const trainingStr = `${defaultTrainingTimeVal}`;
   
   // Status logic
   let status = 'Fasting';
-  if (currentHour >= startHour && currentHour < startHour + omad_window_hours) {
+  if (currentHour >= startHour && currentHour < startHour + omadWindowHoursVal) {
     status = 'Eating Window';
   } else if (currentHour >= trainingHour && currentHour < trainingHour + 2) {
     status = 'Post-Training';
@@ -129,7 +132,7 @@ export default function DashboardScreen() {
                 { 
                   backgroundColor: colors.accent,
                   left: `${(startHour / 24) * 100}%`,
-                  width: `${(omad_window_hours / 24) * 100}%` 
+                  width: `${(omadWindowHoursVal / 24) * 100}%` 
                 }
               ]} 
             />
