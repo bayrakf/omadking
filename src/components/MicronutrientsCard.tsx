@@ -137,13 +137,13 @@ export default function MicronutrientsCard({
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 18, marginVertical: 12, borderWidth: 1, gap: 14 },
+  card: { borderRadius: 18, padding: 18, marginVertical: 12, borderWidth: 1, rowGap: 14, columnGap: 14 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { fontSize: 17, fontWeight: '800' },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeTxt: { fontSize: 11, fontWeight: '700' },
   introText: { fontSize: 13, lineHeight: 18 },
-  itemContainer: { gap: 4 },
+  itemContainer: { rowGap: 4, columnGap: 4 },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   itemLabel: { fontSize: 14, fontWeight: '700' },
   itemVal: { fontSize: 13, fontWeight: '800' },

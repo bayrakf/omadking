@@ -150,19 +150,19 @@ export default function RecipeCard({
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 20, padding: 20, borderWidth: 1.5, gap: 10, marginVertical: 8 },
-  badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  card: { borderRadius: 20, padding: 20, borderWidth: 1.5, rowGap: 10, columnGap: 10, marginVertical: 8 },
+  badgeRow: { flexDirection: 'row', rowGap: 8, columnGap: 8, flexWrap: 'wrap' },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeTxt: { fontSize: 12, fontWeight: '700' },
   title: { fontSize: 22, fontWeight: '800', marginTop: 4 },
   reasoning: { fontSize: 14, lineHeight: 20 },
-  macroRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginVertical: 6 },
+  macroRow: { flexDirection: 'row', justifyContent: 'space-between', rowGap: 6, columnGap: 6, marginVertical: 6 },
   macroBox: { flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   macroVal: { fontSize: 16, fontWeight: '800' },
   macroLbl: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   sectionHeading: { fontSize: 16, fontWeight: '700', marginTop: 6 },
   bullet: { fontSize: 14, lineHeight: 22 },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 5 },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', rowGap: 10, columnGap: 10, paddingVertical: 5 },
   checkbox: { fontSize: 18, marginTop: 2 },
   stepText: { fontSize: 14, flex: 1, lineHeight: 20 },
   strikethrough: { textDecorationLine: 'line-through' },

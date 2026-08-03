@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   quickPrompts: {
     paddingHorizontal: 16,
-    gap: 8,
+    rowGap: 8, columnGap: 8,
   },
   quickPromptBtn: {
     paddingHorizontal: 16,
@@ -207,10 +207,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  feed: { padding: 16, gap: 12 },
+  feed: { padding: 16, rowGap: 12, columnGap: 12 },
   bubble: { maxWidth: '80%', padding: 14, borderRadius: 16 },
   bubbleText: { fontSize: 15, lineHeight: 22 },
-  inputBar: { flexDirection: 'row', padding: 12, gap: 8, borderTopWidth: 1, alignItems: 'center' },
+  inputBar: { flexDirection: 'row', padding: 12, rowGap: 8, columnGap: 8, borderTopWidth: 1, alignItems: 'center' },
   input: { flex: 1, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15 },
   sendBtn: { borderRadius: 20, paddingHorizontal: 18, paddingVertical: 10 },
   sendTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },

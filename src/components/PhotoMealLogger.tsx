@@ -63,7 +63,7 @@ export default function PhotoMealLogger() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 18, borderWidth: 1, gap: 10, marginVertical: 8 },
+  card: { borderRadius: 18, padding: 18, borderWidth: 1, rowGap: 10, columnGap: 10, marginVertical: 8 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 16, fontWeight: '700' },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
@@ -71,9 +71,9 @@ const styles = StyleSheet.create({
   desc: { fontSize: 13, lineHeight: 18 },
   scanBtn: { borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
   scanBtnTxt: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  resultBox: { borderRadius: 14, padding: 12, gap: 6, marginTop: 4 },
+  resultBox: { borderRadius: 14, padding: 12, rowGap: 6, columnGap: 6, marginTop: 4 },
   mealName: { fontSize: 15, fontWeight: '700' },
-  macroRow: { flexDirection: 'row', gap: 16 },
+  macroRow: { flexDirection: 'row', rowGap: 16, columnGap: 16 },
   macroTxt: { fontSize: 14, fontWeight: '800' },
   resetBtn: { marginTop: 4 },
   resetTxt: { fontSize: 12, textDecorationLine: 'underline' },

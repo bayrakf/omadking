@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    rowGap: 8, columnGap: 8,
   },
   progressDot: {
     width: 8,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, marginTop: 12, textAlign: 'center', lineHeight: 24 },
   
   label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  inputRow: { flexDirection: 'row', gap: 16, marginBottom: 16 },
+  inputRow: { flexDirection: 'row', rowGap: 16, columnGap: 16, marginBottom: 16 },
   inputGroup: { flex: 1, marginBottom: 16 },
   input: {
     height: 48,
@@ -389,9 +389,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   
-  optionsRow: { flexDirection: 'row', gap: 12 },
-  optionsRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  optionsCol: { flexDirection: 'column', gap: 12 },
+  optionsRow: { flexDirection: 'row', rowGap: 12, columnGap: 12 },
+  optionsRowWrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 8, columnGap: 8 },
+  optionsCol: { flexDirection: 'column', rowGap: 12, columnGap: 12 },
   optionButton: {
     paddingVertical: 12,
     paddingHorizontal: 16,

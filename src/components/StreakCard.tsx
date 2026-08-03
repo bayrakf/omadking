@@ -56,13 +56,13 @@ export default function StreakCard({ streakDays = 7 }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 20, padding: 16, borderWidth: 1.5, gap: 12, marginVertical: 8 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  card: { borderRadius: 20, padding: 16, borderWidth: 1.5, rowGap: 12, columnGap: 12, marginVertical: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', rowGap: 14, columnGap: 14 },
   lionImg: { width: 56, height: 56, borderRadius: 14 },
   streakNum: { fontSize: 18, fontWeight: '800' },
   statusTxt: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  badgesGrid: { flexDirection: 'row', gap: 8 },
-  badgeBox: { flex: 1, borderRadius: 12, padding: 10, alignItems: 'center', gap: 4 },
+  badgesGrid: { flexDirection: 'row', rowGap: 8, columnGap: 8 },
+  badgeBox: { flex: 1, borderRadius: 12, padding: 10, alignItems: 'center', rowGap: 4, columnGap: 4 },
   badgeEmoji: { fontSize: 20 },
   badgeTitle: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
 });

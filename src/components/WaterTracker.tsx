@@ -73,13 +73,13 @@ export default function WaterTracker() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 18, borderWidth: 1, gap: 12, marginVertical: 8 },
+  card: { borderRadius: 18, padding: 18, borderWidth: 1, rowGap: 12, columnGap: 12, marginVertical: 8 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 16, fontWeight: '700' },
   val: { fontSize: 15, fontWeight: '800' },
   track: { height: 10, borderRadius: 5, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 5 },
-  btnRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  btnRow: { flexDirection: 'row', rowGap: 8, columnGap: 8, marginTop: 4 },
   btn: { flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   btnTxt: { fontSize: 13, fontWeight: '700' },
 });

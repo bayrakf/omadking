@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     marginVertical: 8,
-    gap: 8,
+    rowGap: 8, columnGap: 8,
   },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 15, fontWeight: '700' },
