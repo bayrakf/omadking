@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -139,6 +139,19 @@ export default function DashboardScreen() {
           <Text style={[styles.date, textSecondaryStyle]}>{todayStr}</Text>
         </View>
 
+        {/* Hero Banner Asset */}
+        <View style={styles.heroBannerContainer}>
+          <Image
+            source={require('../../../assets/images/hero_banner.jpg')}
+            style={styles.heroBannerImg}
+            resizeMode="cover"
+          />
+          <View style={styles.heroBannerOverlay}>
+            <Text style={styles.heroBannerBadge}>👑 OMAD ATHLETE PROTOCOL</Text>
+            <Text style={styles.heroBannerTitle}>Fuel Your Performance</Text>
+          </View>
+        </View>
+
         {/* Circular Fasting Ring Widget */}
         <View style={cardStyle}>
           <Text style={[styles.cardTitle, textStyle]}>Fasting Window Ring</Text>
@@ -239,4 +252,9 @@ const styles = StyleSheet.create({
   coachBanner: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1.5, gap: 12, marginTop: 4 },
   coachTitle: { fontSize: 16, fontWeight: '700' },
   coachSub: { fontSize: 12 },
+  heroBannerContainer: { height: 160, borderRadius: 20, overflow: 'hidden', marginBottom: 16, position: 'relative' },
+  heroBannerImg: { width: '100%', height: '100%' },
+  heroBannerOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, top: 0, backgroundColor: 'rgba(0,0,0,0.45)', padding: 16, justifyContent: 'flex-end' },
+  heroBannerBadge: { color: '#F59E0B', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  heroBannerTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', marginTop: 2 },
 });

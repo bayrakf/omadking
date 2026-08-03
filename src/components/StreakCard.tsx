@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, Image, useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
 
 type Props = {
@@ -16,16 +16,20 @@ export default function StreakCard({ streakDays = 7 }: Props) {
         styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: colorScheme === 'dark' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.15)',
+          borderColor: colorScheme === 'dark' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(245, 158, 11, 0.2)',
         },
       ]}
     >
       <View style={styles.headerRow}>
-        <View style={styles.streakBadge}>
-          <Text style={styles.flame}>🔥</Text>
-          <Text style={[styles.streakNum, { color: colors.accent }]}>{streakDays} Day Streak</Text>
+        <Image
+          source={require('../../assets/images/streak_badge.jpg')}
+          style={styles.lionImg}
+          resizeMode="cover"
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.streakNum, { color: colors.accent }]}>🔥 {streakDays} Day OMAD Streak</Text>
+          <Text style={[styles.statusTxt, { color: colors.textSecondary }]}>Level 3 Fasting Lion • 100% On Track</Text>
         </View>
-        <Text style={[styles.statusTxt, { color: colors.textSecondary }]}>Active OMAD Fasting</Text>
       </View>
 
       {/* Badges Grid */}
@@ -48,12 +52,11 @@ export default function StreakCard({ streakDays = 7 }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 18, borderWidth: 1.5, gap: 12, marginVertical: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  flame: { fontSize: 24 },
+  card: { borderRadius: 20, padding: 16, borderWidth: 1.5, gap: 12, marginVertical: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  lionImg: { width: 56, height: 56, borderRadius: 14 },
   streakNum: { fontSize: 18, fontWeight: '800' },
-  statusTxt: { fontSize: 12, fontWeight: '600' },
+  statusTxt: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   badgesGrid: { flexDirection: 'row', gap: 8 },
   badgeBox: { flex: 1, borderRadius: 12, padding: 10, alignItems: 'center', gap: 4 },
   badgeEmoji: { fontSize: 20 },
