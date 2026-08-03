@@ -8,6 +8,8 @@ import FastingRing from '@/components/FastingRing';
 import EnergyChart from '@/components/EnergyChart';
 import MicronutrientsCard from '@/components/MicronutrientsCard';
 import StreakCard from '@/components/StreakCard';
+import WaterTracker from '@/components/WaterTracker';
+import PhotoMealLogger from '@/components/PhotoMealLogger';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -182,6 +184,12 @@ export default function DashboardScreen() {
 
         {/* Fasting Streak & Badges Widget */}
         <StreakCard streakDays={7} />
+
+        {/* Water & Electrolyte Tracker */}
+        <WaterTracker />
+
+        {/* AI Photo Meal Logger */}
+        <PhotoMealLogger />
 
         {/* Weekly Grocery List Banner */}
         <TouchableOpacity
