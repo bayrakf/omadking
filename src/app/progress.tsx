@@ -14,12 +14,10 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/theme';
 
-type ProgressEntry = {
+type WeightLogEntry = {
   id: string;
   date: string;
   weight_kg: number;
-  energy_rating: number; // 1-5
-  notes: string;
 };
 
 export default function ProgressScreen() {
@@ -27,37 +25,67 @@ export default function ProgressScreen() {
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const router = useRouter();
 
-  const [entries, setEntries] = useState<ProgressEntry[]>([]);
-  const [weight, setWeight] = useState('');
-  const [energy, setEnergy] = useState<number>(4);
-  const [notes, setNotes] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const [entries, setEntries] = useState<WeightLogEntry[]>([]);
+  const [weightInput, setWeightInput] = useState('');
+  const [dateInput, setDateInput] = useState('');
+  
+  // Profile data
+  const [heightCm, setHeightCm] = useState(175);
+  const [startWeight, setStartWeight] = useState(80);
 
   useEffect(() => {
-    AsyncStorage.getItem('progress_entries').then((raw) => {
-      if (raw) setEntries(JSON.parse(raw));
-    });
+    setMounted(true);
+    const today = new Date().toISOString().split('T')[0];
+    setDateInput(today);
+    
+    const loadData = async () => {
+      try {
+        const profileRaw = await AsyncStorage.getItem('onboarding_profile');
+        if (profileRaw) {
+          const p = JSON.parse(profileRaw);
+          if (p.height_cm) setHeightCm(parseFloat(p.height_cm));
+          if (p.weight_kg) setStartWeight(parseFloat(p.weight_kg));
+        }
+
+        const logsRaw = await AsyncStorage.getItem('weight_log');
+        if (logsRaw) {
+          const parsed = JSON.parse(logsRaw);
+          setEntries(parsed.sort((a: any, b: any) => b.date.localeCompare(a.date)));
+        }
+      } catch (e) {
+        console.error('Failed to load logs', e);
+      }
+    };
+    loadData();
   }, []);
 
+  if (!mounted) return null;
+
   const handleAddLog = async () => {
-    const w = parseFloat(weight);
+    const w = parseFloat(weightInput);
     if (isNaN(w) || w <= 0) {
       Alert.alert('Invalid Weight', 'Please enter a valid weight in kg.');
       return;
     }
+    if (!dateInput.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      Alert.alert('Invalid Date', 'Please use YYYY-MM-DD format.');
+      return;
+    }
 
-    const newEntry: ProgressEntry = {
+    const newEntry: WeightLogEntry = {
       id: Date.now().toString(),
-      date: new Date().toISOString().split('T')[0],
+      date: dateInput,
       weight_kg: w,
-      energy_rating: energy,
-      notes: notes.trim(),
     };
 
-    const updated = [newEntry, ...entries];
+    const updated = [newEntry, ...entries.filter(e => e.date !== dateInput)].sort(
+      (a, b) => b.date.localeCompare(a.date)
+    );
     setEntries(updated);
-    await AsyncStorage.setItem('progress_entries', JSON.stringify(updated));
+    await AsyncStorage.setItem('weight_log', JSON.stringify(updated));
 
-    // Update weight in profile
+    // Update current weight in profile as well to keep in sync
     const profileRaw = await AsyncStorage.getItem('onboarding_profile');
     if (profileRaw) {
       const p = JSON.parse(profileRaw);
@@ -65,75 +93,139 @@ export default function ProgressScreen() {
       await AsyncStorage.setItem('onboarding_profile', JSON.stringify(p));
     }
 
-    setWeight('');
-    setNotes('');
-    Alert.alert('Log Saved! 📈', 'Progress entry logged successfully.');
+    setWeightInput('');
+    Alert.alert('Success', 'Weight logged! 📈');
   };
+
+  const currentWeight = entries.length > 0 ? entries[0].weight_kg : startWeight;
+  const initialWeight = entries.length > 0 ? entries[entries.length - 1].weight_kg : startWeight;
+  const totalChange = currentWeight - initialWeight;
+
+  // Calculate weekly average
+  const last7Days = entries.filter((e) => {
+    const d = new Date(e.date).getTime();
+    const now = new Date().getTime();
+    return now - d <= 7 * 24 * 60 * 60 * 1000;
+  });
+  const weeklyAvg = last7Days.length > 0
+    ? (last7Days.reduce((sum, e) => sum + e.weight_kg, 0) / last7Days.length).toFixed(1)
+    : '--';
+
+  // Trend
+  let trend = '→';
+  if (entries.length >= 2) {
+    const diff = entries[0].weight_kg - entries[1].weight_kg;
+    if (diff > 0) trend = '↑';
+    else if (diff < 0) trend = '↓';
+  }
+
+  // BMI
+  const heightM = heightCm / 100;
+  const bmi = (currentWeight / (heightM * heightM)).toFixed(1);
+
+  // Goal logic (assuming ideal BMI 22 if no goal is set, or 10% less)
+  const targetWeight = parseFloat((22 * heightM * heightM).toFixed(1));
+  
+  // Progress bar
+  const totalToLose = Math.max(0, initialWeight - targetWeight);
+  const lost = Math.max(0, initialWeight - currentWeight);
+  const progressPercent = totalToLose > 0 ? Math.min(100, Math.max(0, (lost / totalToLose) * 100)) : 100;
+
+  // Streak
+  let streak = 0;
+  let d = new Date();
+  for (let i = 0; i < entries.length; i++) {
+    const entryDate = entries[i].date;
+    const checkDate = d.toISOString().split('T')[0];
+    if (entryDate === checkDate) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else if (entryDate < checkDate) {
+      break;
+    }
+  }
+
+  const streakMessage = streak > 3 ? `🔥 ${streak} day streak! You're on fire!` : streak > 0 ? `👍 ${streak} day streak. Keep it up!` : 'Log your weight to start a streak!';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.backgroundElement }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={[styles.backTxt, { color: colors.primary }]}>‹ Back</Text>
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Progress Log 📈</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Progress</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Log Input Card */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Today's Log</Text>
+        
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Change</Text>
+            <Text style={[styles.statValue, { color: totalChange > 0 ? colors.danger : colors.success }]}>
+              {totalChange > 0 ? '+' : ''}{totalChange.toFixed(1)} kg
+            </Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Weekly Avg</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {weeklyAvg} kg {trend}
+            </Text>
+          </View>
+        </View>
 
+        {/* Progress Card */}
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Goal Progress</Text>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, { width: `${progressPercent}%`, backgroundColor: colors.primary }]} />
+          </View>
+          <View style={styles.progressLabels}>
+            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Start: {initialWeight} kg</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Goal: {targetWeight} kg</Text>
+          </View>
+        </View>
+
+        {/* BMI & Streak */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Current BMI</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{bmi}</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: colors.card, flex: 1.5 }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Streak</Text>
+            <Text style={[styles.streakText, { color: colors.text }]} numberOfLines={2}>
+              {streakMessage}
+            </Text>
+          </View>
+        </View>
+
+        {/* Input Form */}
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Log Weight</Text>
           <View style={styles.inputRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Date</Text>
+              <TextInput
+                value={dateInput}
+                onChangeText={setDateInput}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.textSecondary}
+                style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
+              />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.label, { color: colors.textSecondary }]}>Weight (kg)</Text>
               <TextInput
                 placeholder="75.5"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
-                value={weight}
-                onChangeText={setWeight}
+                value={weightInput}
+                onChangeText={setWeightInput}
                 style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
               />
             </View>
           </View>
-
-          {/* Energy Rating 1-5 */}
-          <View>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Workout Energy Level (1-5)</Text>
-            <View style={styles.ratingRow}>
-              {[1, 2, 3, 4, 5].map((lvl) => (
-                <Pressable
-                  key={lvl}
-                  onPress={() => setEnergy(lvl)}
-                  style={[
-                    styles.ratingChip,
-                    {
-                      backgroundColor: energy === lvl ? colors.primary : colors.backgroundElement,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.ratingTxt, { color: energy === lvl ? '#FFFFFF' : colors.text }]}>
-                    {lvl === 1 ? '⚡ 1' : lvl === 5 ? '🔥 5' : lvl}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          {/* Notes */}
-          <View>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Notes (optional)</Text>
-            <TextInput
-              placeholder="Felt great during 19:00 run..."
-              placeholderTextColor={colors.textSecondary}
-              value={notes}
-              onChangeText={setNotes}
-              style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
-            />
-          </View>
-
           <Pressable
             onPress={handleAddLog}
             style={({ pressed }) => [
@@ -146,22 +238,14 @@ export default function ProgressScreen() {
         </View>
 
         {/* History List */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Log History</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Log (Last 10)</Text>
         {entries.length === 0 ? (
           <Text style={[styles.emptyTxt, { color: colors.textSecondary }]}>No progress entries recorded yet.</Text>
         ) : (
-          entries.map((item) => (
+          entries.slice(0, 10).map((item) => (
             <View key={item.id} style={[styles.historyCard, { backgroundColor: colors.card }]}>
-              <View style={styles.historyHeader}>
-                <Text style={[styles.historyDate, { color: colors.textSecondary }]}>{item.date}</Text>
-                <Text style={[styles.historyWeight, { color: colors.primary }]}>{item.weight_kg} kg</Text>
-              </View>
-              <Text style={[styles.historyEnergy, { color: colors.text }]}>
-                Energy Rating: {item.energy_rating} / 5 ⭐
-              </Text>
-              {item.notes ? (
-                <Text style={[styles.historyNotes, { color: colors.textSecondary }]}>"{item.notes}"</Text>
-              ) : null}
+              <Text style={[styles.historyDate, { color: colors.textSecondary }]}>{item.date}</Text>
+              <Text style={[styles.historyWeight, { color: colors.primary }]}>{item.weight_kg.toFixed(1)} kg</Text>
             </View>
           ))
         )}
@@ -182,23 +266,25 @@ const styles = StyleSheet.create({
   backBtn: { paddingRight: 12 },
   backTxt: { fontSize: 16, fontWeight: '600' },
   title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center', marginRight: 40 },
-  scrollContent: { padding: 20, gap: 16 },
+  scrollContent: { padding: 16, gap: 16 },
   card: { borderRadius: 16, padding: 16, gap: 14 },
-  cardTitle: { fontSize: 18, fontWeight: '700' },
+  cardTitle: { fontSize: 16, fontWeight: '700' },
+  statsRow: { flexDirection: 'row', gap: 12 },
+  statBox: { flex: 1, borderRadius: 16, padding: 16, gap: 8, justifyContent: 'center' },
+  statLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
+  statValue: { fontSize: 24, fontWeight: '800' },
+  streakText: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  progressBarBg: { height: 12, backgroundColor: '#E5E7EB', borderRadius: 6, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: 6 },
+  progressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   inputRow: { flexDirection: 'row', gap: 12 },
   label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', marginBottom: 6 },
-  input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 },
-  ratingRow: { flexDirection: 'row', gap: 8 },
-  ratingChip: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
-  ratingTxt: { fontSize: 14, fontWeight: '700' },
+  input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
   saveBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   saveBtnTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   sectionTitle: { fontSize: 18, fontWeight: '700', marginTop: 8 },
   emptyTxt: { fontSize: 14 },
-  historyCard: { borderRadius: 12, padding: 14, gap: 6 },
-  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  historyDate: { fontSize: 12, fontWeight: '600' },
+  historyCard: { borderRadius: 12, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  historyDate: { fontSize: 15, fontWeight: '600' },
   historyWeight: { fontSize: 16, fontWeight: '800' },
-  historyEnergy: { fontSize: 14, fontWeight: '600' },
-  historyNotes: { fontSize: 13, fontStyle: 'italic' },
 });
