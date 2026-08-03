@@ -83,8 +83,42 @@ export default function ChatScreen() {
     setLoading(true);
     scrollToBottom();
 
-    // Mock API call delay
-    setTimeout(() => {
+    try {
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !anonKey) throw new Error('Missing credentials');
+
+      const history = messages
+        .filter(m => m.id !== '1') // skip initial greeting if desired, or keep it
+        .map(m => ({ role: m.sender, content: m.text }));
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({
+          message: text.trim(),
+          history,
+        }),
+      });
+
+      if (!res.ok) throw new Error('API failed');
+
+      const data = await res.json();
+      
+      if (data.response) {
+        setMessages((prev) => [
+          ...prev,
+          { id: (Date.now() + 1).toString(), sender: 'ai', text: data.response },
+        ]);
+      } else {
+        throw new Error('Empty response');
+      }
+    } catch (err) {
+      console.warn('Chat fetch failed, using fallback', err);
       const aiText = OMAD_TIPS[tipIndex % OMAD_TIPS.length];
       setTipIndex(prev => prev + 1);
       
@@ -92,9 +126,10 @@ export default function ChatScreen() {
         ...prev,
         { id: (Date.now() + 1).toString(), sender: 'ai', text: aiText },
       ]);
+    } finally {
       setLoading(false);
       scrollToBottom();
-    }, 1500);
+    }
   };
 
   return (

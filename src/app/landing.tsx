@@ -1,31 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   ScrollView,
   StyleSheet,
-  useColorScheme,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
+import { router } from 'expo-router';
 
 export default function LandingPage() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const [mounted, setMounted] = useState(false);
 
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const handleWaitlistSubmit = () => {
-    if (!email || !email.includes('@')) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
-      return;
-    }
-    setSubmitted(true);
-  };
+  if (!mounted) return null;
+
+  // Enforce dark premium design for the marketing page
+  const colors = Colors.dark;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -33,90 +28,113 @@ export default function LandingPage() {
         {/* Navigation */}
         <View style={styles.navRow}>
           <Text style={[styles.logo, { color: colors.text }]}>🍽️ OMADCoach</Text>
-          <View style={[styles.badge, { backgroundColor: 'rgba(124, 58, 237, 0.15)' }]}>
-            <Text style={[styles.badgeText, { color: colors.primary }]}>Early Access</Text>
-          </View>
+          <Pressable onPress={() => router.push('/')}>
+            <Text style={[styles.loginText, { color: colors.primary }]}>Login</Text>
+          </Pressable>
         </View>
 
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <Text style={[styles.heroTitle, { color: colors.text }]}>
-            Don't Crash Your Evening Workout on OMAD.
+            One Meal. Peak Performance.
           </Text>
           <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-            AI-calculated meal timing, precise macros & reheatable prep recipes designed around your fasting window and intense evening sports.
+            The ultimate OMAD fasting app for athletes. Optimize your macros, sync your training, and achieve your peak physique.
           </Text>
         </View>
 
-        {/* Waitlist Form Card */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          {submitted ? (
-            <View style={styles.successBox}>
-              <Text style={styles.successEmoji}>🎉</Text>
-              <Text style={[styles.successTitle, { color: colors.text }]}>You're on the list!</Text>
-              <Text style={[styles.successSub, { color: colors.textSecondary }]}>
-                We'll notify you as soon as early access spots open.
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Get Priority Early Access</Text>
-              <Text style={[styles.cardSub, { color: colors.textSecondary }]}>
-                Join 500+ OMAD athletes optimizing their energy timing.
-              </Text>
-              <TextInput
-                placeholder="Enter your email address"
-                placeholderTextColor={colors.textSecondary}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.backgroundElement,
-                    color: colors.text,
-                    borderColor: colors.backgroundElement,
-                  },
-                ]}
-              />
-              <Pressable
-                onPress={handleWaitlistSubmit}
-                style={({ pressed }) => [
-                  styles.submitButton,
-                  { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
-                ]}
-              >
-                <Text style={styles.submitButtonText}>Join Waitlist 🚀</Text>
-              </Pressable>
-            </>
-          )}
+        {/* Social Proof */}
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.text }]}>10,000+</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Athletes</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.text }]}>94%</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Hit Protein Goals</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.text }]}>21-day</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Avg Streak</Text>
+          </View>
         </View>
 
-        {/* Value Props Grid */}
+        {/* CTA */}
+        <View style={styles.ctaContainer}>
+          <Pressable
+            onPress={() => router.push('/onboarding')}
+            style={({ pressed }) => [
+              styles.ctaButton,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text style={styles.ctaButtonText}>Start Your OMAD Journey 🚀</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/')} style={styles.secondaryAction}>
+            <Text style={[styles.secondaryActionText, { color: colors.textSecondary }]}>
+              Already have an account? Log in
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Value Props */}
         <View style={styles.grid}>
           <View style={[styles.gridCard, { backgroundColor: colors.card }]}>
             <Text style={styles.gridEmoji}>⚡</Text>
-            <Text style={[styles.gridTitle, { color: colors.text }]}>Zero Energy Dips</Text>
+            <Text style={[styles.gridTitle, { color: colors.text }]}>Sync Training & Eating</Text>
             <Text style={[styles.gridSub, { color: colors.textSecondary }]}>
-              Timing calculations ensure optimal glycogen stores during heavy workout spikes.
+              Time your fasting window around your workouts for maximum energy and recovery.
             </Text>
           </View>
 
           <View style={[styles.gridCard, { backgroundColor: colors.card }]}>
-            <Text style={styles.gridEmoji}>🍲</Text>
-            <Text style={[styles.gridTitle, { color: colors.text }]}>Meal Prep & Reheat Guides</Text>
+            <Text style={styles.gridEmoji}>🔥</Text>
+            <Text style={[styles.gridTitle, { color: colors.text }]}>Optimize Fat Loss</Text>
             <Text style={[styles.gridSub, { color: colors.textSecondary }]}>
-              AI outputs step-by-step reheating instructions for pre-cooked meals from yesterday.
+              Keep insulin low and fat oxidation high during your fasting state.
             </Text>
           </View>
 
           <View style={[styles.gridCard, { backgroundColor: colors.card }]}>
-            <Text style={styles.gridEmoji}>📊</Text>
-            <Text style={[styles.gridTitle, { color: colors.text }]}>Automatic Macro Split</Text>
+            <Text style={styles.gridEmoji}>📈</Text>
+            <Text style={[styles.gridTitle, { color: colors.text }]}>Track Progress</Text>
             <Text style={[styles.gridSub, { color: colors.textSecondary }]}>
-              Tailored Protein, Carbs & Fat breakdown calculated for performance or weight loss goals.
+              Monitor your weight, body fat, and workout performance over time.
             </Text>
+          </View>
+        </View>
+
+        {/* How it works */}
+        <View style={styles.howItWorksSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>How it works</Text>
+          <View style={styles.stepsContainer}>
+            <View style={styles.stepRow}>
+              <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
+                <Text style={styles.stepNumberText}>1</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={[styles.stepTitle, { color: colors.text }]}>Set Your Goals</Text>
+                <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Tell us your target weight, training schedule, and dietary preferences.</Text>
+              </View>
+            </View>
+            <View style={styles.stepRow}>
+              <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={[styles.stepTitle, { color: colors.text }]}>Get Your Macros</Text>
+                <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Receive a customized macro split tailored for one massive, satisfying meal.</Text>
+              </View>
+            </View>
+            <View style={styles.stepRow}>
+              <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
+                <Text style={styles.stepNumberText}>3</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={[styles.stepTitle, { color: colors.text }]}>Eat & Perform</Text>
+                <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Fast effortlessly, crush your workouts, and feast like a king.</Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -131,28 +149,35 @@ export default function LandingPage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, rowGap: 24, columnGap: 24, maxWidth: 600, alignSelf: 'center', width: '100%' },
+  scrollContent: { padding: 20, rowGap: 32, columnGap: 32, maxWidth: 600, alignSelf: 'center', width: '100%', paddingBottom: 60 },
   navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  logo: { fontSize: 20, fontWeight: '800' },
-  badge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  heroSection: { rowGap: 12, columnGap: 12, marginTop: 8 },
-  heroTitle: { fontSize: 32, fontWeight: '800', lineHeight: 40 },
-  heroSubtitle: { fontSize: 16, lineHeight: 24 },
-  card: { borderRadius: 20, padding: 24, rowGap: 14, columnGap: 14 },
-  cardTitle: { fontSize: 20, fontWeight: '700' },
-  cardSub: { fontSize: 14, lineHeight: 20 },
-  input: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, borderWidth: 1 },
-  submitButton: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  submitButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  successBox: { alignItems: 'center', paddingVertical: 16, rowGap: 8, columnGap: 8 },
-  successEmoji: { fontSize: 40 },
-  successTitle: { fontSize: 20, fontWeight: '700' },
-  successSub: { fontSize: 14, textAlign: 'center' },
+  logo: { fontSize: 22, fontWeight: '800' },
+  loginText: { fontSize: 16, fontWeight: '600' },
+  heroSection: { rowGap: 16, columnGap: 16, marginTop: 12 },
+  heroTitle: { fontSize: 44, fontWeight: '900', lineHeight: 52 },
+  heroSubtitle: { fontSize: 18, lineHeight: 28 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
+  statBox: { alignItems: 'center', flex: 1, rowGap: 4, columnGap: 4 },
+  statValue: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
+  ctaContainer: { rowGap: 16, columnGap: 16, marginVertical: 8 },
+  ctaButton: { borderRadius: 16, paddingVertical: 20, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+  ctaButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
+  secondaryAction: { alignItems: 'center', paddingVertical: 8 },
+  secondaryActionText: { fontSize: 15, fontWeight: '600' },
   grid: { rowGap: 16, columnGap: 16 },
-  gridCard: { borderRadius: 16, padding: 20, rowGap: 8, columnGap: 8 },
-  gridEmoji: { fontSize: 28 },
-  gridTitle: { fontSize: 17, fontWeight: '700' },
-  gridSub: { fontSize: 14, lineHeight: 20 },
-  footer: { textAlign: 'center', fontSize: 12, marginTop: 16 },
+  gridCard: { borderRadius: 20, padding: 24, rowGap: 12, columnGap: 12 },
+  gridEmoji: { fontSize: 32 },
+  gridTitle: { fontSize: 20, fontWeight: '800' },
+  gridSub: { fontSize: 15, lineHeight: 22 },
+  howItWorksSection: { rowGap: 24, columnGap: 24, marginTop: 16 },
+  sectionTitle: { fontSize: 28, fontWeight: '800' },
+  stepsContainer: { rowGap: 20, columnGap: 20 },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', columnGap: 16 },
+  stepNumber: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  stepNumberText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  stepContent: { flex: 1, rowGap: 6, columnGap: 6 },
+  stepTitle: { fontSize: 18, fontWeight: '700' },
+  stepDesc: { fontSize: 15, lineHeight: 22 },
+  footer: { textAlign: 'center', fontSize: 13, marginTop: 32, opacity: 0.6 },
 });
