@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import RecipeCard from '@/components/RecipeCard';
 
 const SPORTS = [
   { id: 'running', label: '🏃 Running' },
@@ -287,46 +288,18 @@ export default function PlannerScreen() {
 
         {/* Result Area */}
         {planResult ? (
-          <View style={[styles.resultCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.planTitle, { color: colors.text }]}>{planResult.recipe.title}</Text>
-            <Text style={[styles.reasoning, { color: colors.textSecondary }]}>{planResult.ai_reasoning}</Text>
-
-            {/* Macros Bar */}
-            <View style={styles.macroRow}>
-              <View style={styles.macroBadge}>
-                <Text style={styles.macroVal}>{planResult.total_kcal}</Text>
-                <Text style={styles.macroLbl}>kcal</Text>
-              </View>
-              <View style={styles.macroBadge}>
-                <Text style={styles.macroVal}>{planResult.protein_g}g</Text>
-                <Text style={styles.macroLbl}>Protein</Text>
-              </View>
-              <View style={styles.macroBadge}>
-                <Text style={styles.macroVal}>{planResult.carbs_g}g</Text>
-                <Text style={styles.macroLbl}>Carbs</Text>
-              </View>
-              <View style={styles.macroBadge}>
-                <Text style={styles.macroVal}>{planResult.fat_g}g</Text>
-                <Text style={styles.macroLbl}>Fat</Text>
-              </View>
-            </View>
-
-            {/* Ingredients */}
-            <Text style={[styles.sectionHeading, { color: colors.text }]}>Ingredients</Text>
-            {planResult.recipe.ingredients.map((ing, idx) => (
-              <Text key={idx} style={[styles.bulletText, { color: colors.text }]}>• {ing}</Text>
-            ))}
-
-            {/* Reheat Instructions */}
-            {planResult.recipe.reheat_instructions ? (
-              <>
-                <Text style={[styles.sectionHeading, { color: colors.accent }]}>🔥 Reheat Instructions</Text>
-                <Text style={[styles.instructionsText, { color: colors.textSecondary }]}>
-                  {planResult.recipe.reheat_instructions}
-                </Text>
-              </>
-            ) : null}
-          </View>
+          <RecipeCard
+            title={planResult.recipe.title}
+            reasoning={planResult.ai_reasoning}
+            totalKcal={planResult.total_kcal}
+            proteinG={planResult.protein_g}
+            carbsG={planResult.carbs_g}
+            fatG={planResult.fat_g}
+            ingredients={planResult.recipe.ingredients}
+            instructions={planResult.recipe.instructions}
+            reheatInstructions={planResult.recipe.reheat_instructions}
+            prepTimeMin={planResult.recipe.prep_time_min}
+          />
         ) : (
           <View style={[styles.resultCardEmpty, { backgroundColor: colors.card }]}>
             <Text style={[styles.resultText, { color: colors.textSecondary }]}>
