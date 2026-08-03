@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/theme';
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
@@ -193,12 +194,12 @@ export default function DashboardScreen() {
         {/* Today's Plan Card */}
         <View style={cardStyle}>
           <Text style={[styles.cardTitle, textStyle]}>Today's Plan</Text>
-          <Text style={[styles.emptyText, textSecondaryStyle]}>No meal plan for today</Text>
+          <Text style={[styles.emptyText, textSecondaryStyle]}>No meal plan generated yet</Text>
           <TouchableOpacity 
             style={[styles.button, { backgroundColor: colors.primary }]}
-            onPress={() => console.log('Generate Plan')}
+            onPress={() => router.push('/planner')}
           >
-            <Text style={styles.buttonText}>Generate Plan</Text>
+            <Text style={styles.buttonText}>Generate Plan 🍽️</Text>
           </TouchableOpacity>
         </View>
 
@@ -208,9 +209,9 @@ export default function DashboardScreen() {
           <Text style={[styles.emptyText, textSecondaryStyle]}>No training planned</Text>
           <TouchableOpacity 
             style={[styles.buttonOutline, { borderColor: colors.primary }]}
-            onPress={() => console.log('Add Training')}
+            onPress={() => router.push('/planner')}
           >
-            <Text style={[styles.buttonOutlineText, { color: colors.primary }]}>Add Training</Text>
+            <Text style={[styles.buttonOutlineText, { color: colors.primary }]}>+ Add Workout & Plan</Text>
           </TouchableOpacity>
         </View>
 
