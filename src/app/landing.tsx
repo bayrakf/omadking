@@ -4,8 +4,7 @@ import {
   Text,
   Pressable,
   ScrollView,
-  StyleSheet,
-} from 'react-native';
+  StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 import { router } from 'expo-router';
@@ -149,35 +148,34 @@ export default function LandingPage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, rowGap: 32, columnGap: 32, maxWidth: 600, alignSelf: 'center', width: '100%', paddingBottom: 60 },
+  scrollContent: { padding: 20,  maxWidth: 600, alignSelf: 'center', width: '100%', paddingBottom: 60 },
   navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   logo: { fontSize: 22, fontWeight: '800' },
   loginText: { fontSize: 16, fontWeight: '600' },
-  heroSection: { rowGap: 16, columnGap: 16, marginTop: 12 },
+  heroSection: {  marginTop: 12 },
   heroTitle: { fontSize: 44, fontWeight: '900', lineHeight: 52 },
   heroSubtitle: { fontSize: 18, lineHeight: 28 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
-  statBox: { alignItems: 'center', flex: 1, rowGap: 4, columnGap: 4 },
+  statBox: { alignItems: 'center', flex: 1 },
   statValue: { fontSize: 22, fontWeight: '800' },
   statLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
-  ctaContainer: { rowGap: 16, columnGap: 16, marginVertical: 8 },
+  ctaContainer: {  marginVertical: 8 },
   ctaButton: { borderRadius: 16, paddingVertical: 20, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   ctaButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
   secondaryAction: { alignItems: 'center', paddingVertical: 8 },
   secondaryActionText: { fontSize: 15, fontWeight: '600' },
-  grid: { rowGap: 16, columnGap: 16 },
-  gridCard: { borderRadius: 20, padding: 24, rowGap: 12, columnGap: 12 },
+  grid: {  },
+  gridCard: { borderRadius: 20, padding: 24 },
   gridEmoji: { fontSize: 32 },
   gridTitle: { fontSize: 20, fontWeight: '800' },
   gridSub: { fontSize: 15, lineHeight: 22 },
-  howItWorksSection: { rowGap: 24, columnGap: 24, marginTop: 16 },
+  howItWorksSection: {  marginTop: 16 },
   sectionTitle: { fontSize: 28, fontWeight: '800' },
-  stepsContainer: { rowGap: 20, columnGap: 20 },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', columnGap: 16 },
+  stepsContainer: {  },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start' },
   stepNumber: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   stepNumberText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-  stepContent: { flex: 1, rowGap: 6, columnGap: 6 },
+  stepContent: { flex: 1 },
   stepTitle: { fontSize: 18, fontWeight: '700' },
   stepDesc: { fontSize: 15, lineHeight: 22 },
-  footer: { textAlign: 'center', fontSize: 13, marginTop: 32, opacity: 0.6 },
-});
+  footer: { textAlign: 'center', fontSize: 13, marginTop: 32, opacity: 0.6 } });

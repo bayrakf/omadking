@@ -16,8 +16,7 @@ function CustomTabBar({ state, descriptors, navigation, colors }: BottomTabBarPr
             const event = navigation.emit({
               type: 'tabPress',
               target: route.key,
-              canPreventDefault: true,
-            });
+              canPreventDefault: true });
 
             if (!isFocused && !event.defaultPrevented) {
               navigation.navigate(route.name);
@@ -67,8 +66,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
-      }}
+        headerShown: false }}
       tabBar={(props) => <CustomTabBar {...props} colors={colors} />}
     >
       <Tabs.Screen name="index" />
@@ -85,8 +83,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 30 : 20,
     left: 20,
-    right: 20,
-  },
+    right: 20 },
   tabBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -98,20 +95,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
-    elevation: 10,
-  },
+    elevation: 10 },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 5,
     position: 'relative',
-    minWidth: 50,
-  },
+    minWidth: 50 },
   activeLine: {
     position: 'absolute',
     top: -10,
     width: 20,
     height: 3,
-    borderRadius: 2,
-  }
+    borderRadius: 2 }
 });

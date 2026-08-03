@@ -6,8 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  useColorScheme,
-} from 'react-native';
+  useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
@@ -56,8 +55,7 @@ export default function ChatScreen() {
     {
       id: '1',
       sender: 'ai',
-      text: "👋 Hi! I'm your OMAD Sports Nutrition Coach. Ask me anything about meal timing, electrolytes, or workout fueling!",
-    },
+      text: "👋 Hi! I'm your OMAD Sports Nutrition Coach. Ask me anything about meal timing, electrolytes, or workout fueling!" },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -84,35 +82,35 @@ export default function ChatScreen() {
     scrollToBottom();
 
     try {
-      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      const geminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      if (!geminiKey) throw new Error('Missing Gemini Key');
+
+      const systemPrompt = 'You are OMADCoach, an expert in One Meal A Day fasting, training optimization, and sports nutrition. Give concise, actionable advice. Focus on: fasting window timing, electrolytes (sodium/potassium/magnesium), protein intake, pre/post workout nutrition, and OMAD sustainability. Keep responses under 150 words.';
       
-      if (!supabaseUrl || !anonKey) throw new Error('Missing credentials');
+      const contents = history.map(m => ({
+        role: m.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+      contents.push({ role: 'user', parts: [{ text: text.trim() }] });
 
-      const history = messages
-        .filter(m => m.id !== '1') // skip initial greeting if desired, or keep it
-        .map(m => ({ role: m.sender, content: m.text }));
-
-      const res = await fetch(`${supabaseUrl}/functions/v1/chat`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${anonKey}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: text.trim(),
-          history,
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents,
         }),
       });
 
-      if (!res.ok) throw new Error('API failed');
+      if (!res.ok) throw new Error('Gemini API failed');
 
       const data = await res.json();
+      const aiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
       
-      if (data.response) {
+      if (aiResponseText) {
         setMessages((prev) => [
           ...prev,
-          { id: (Date.now() + 1).toString(), sender: 'ai', text: data.response },
+          { id: (Date.now() + 1).toString(), sender: 'ai', text: aiResponseText },
         ]);
       } else {
         throw new Error('Empty response');
@@ -220,33 +218,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
+    borderBottomWidth: 1 },
   backBtn: { paddingRight: 12 },
   backTxt: { fontSize: 16, fontWeight: '600' },
   title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center', marginRight: 40 },
   quickPromptsContainer: {
-    paddingVertical: 12,
-  },
+    paddingVertical: 12 },
   quickPrompts: {
-    paddingHorizontal: 16,
-    rowGap: 8, columnGap: 8,
-  },
+    paddingHorizontal: 16 },
   quickPromptBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    marginRight: 8,
-  },
+    marginRight: 8 },
   quickPromptTxt: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-  feed: { padding: 16, rowGap: 12, columnGap: 12 },
+    fontWeight: '500' },
+  feed: { padding: 16 },
   bubble: { maxWidth: '80%', padding: 14, borderRadius: 16 },
   bubbleText: { fontSize: 15, lineHeight: 22 },
-  inputBar: { flexDirection: 'row', padding: 12, rowGap: 8, columnGap: 8, borderTopWidth: 1, alignItems: 'center' },
+  inputBar: { flexDirection: 'row', padding: 12,  borderTopWidth: 1, alignItems: 'center' },
   input: { flex: 1, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15 },
   sendBtn: { borderRadius: 20, paddingHorizontal: 18, paddingVertical: 10 },
-  sendTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-});
+  sendTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' } });

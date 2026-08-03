@@ -7,8 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  useColorScheme,
-} from 'react-native';
+  useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
@@ -94,8 +93,7 @@ export default function PaywallScreen() {
               styles.priceCard,
               {
                 backgroundColor: colors.card,
-                borderColor: selectedPlan === 'monthly' ? colors.primary : 'transparent',
-              },
+                borderColor: selectedPlan === 'monthly' ? colors.primary : 'transparent' },
             ]}
           >
             <Text style={[styles.planName, { color: colors.text }]}>Monthly</Text>
@@ -110,8 +108,7 @@ export default function PaywallScreen() {
               styles.priceCard,
               {
                 backgroundColor: colors.card,
-                borderColor: selectedPlan === 'yearly' ? colors.primary : 'transparent',
-              },
+                borderColor: selectedPlan === 'yearly' ? colors.primary : 'transparent' },
             ]}
           >
             <View style={[styles.badge, { backgroundColor: colors.accent }]}>
@@ -152,27 +149,26 @@ export default function PaywallScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, rowGap: 20, columnGap: 20 },
+  scrollContent: { padding: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   closeBtn: { padding: 8 },
   closeTxt: { fontSize: 20, fontWeight: '700' },
-  hero: { alignItems: 'center', rowGap: 8, columnGap: 8 },
+  hero: { alignItems: 'center' },
   heroEmoji: { fontSize: 48 },
   title: { fontSize: 26, fontWeight: '800', textAlign: 'center' },
   subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 22, paddingHorizontal: 12 },
-  card: { borderRadius: 16, padding: 20, rowGap: 14, columnGap: 14 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', rowGap: 12, columnGap: 12 },
+  card: { borderRadius: 16, padding: 20 },
+  featureRow: { flexDirection: 'row', alignItems: 'center' },
   check: { fontSize: 18 },
   featureTxt: { fontSize: 15, fontWeight: '600', flex: 1 },
-  pricingRow: { flexDirection: 'row', rowGap: 12, columnGap: 12 },
+  pricingRow: { flexDirection: 'row' },
   priceCard: {
     flex: 1,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    rowGap: 4, columnGap: 4,
-    borderWidth: 2,
-  },
+    
+    borderWidth: 2 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginBottom: 4 },
   badgeTxt: { fontSize: 10, fontWeight: '800', color: '#000000' },
   planName: { fontSize: 14, fontWeight: '600' },
@@ -181,5 +177,4 @@ const styles = StyleSheet.create({
   subBtn: { borderRadius: 16, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   subBtnTxt: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
   footerRow: { alignItems: 'center', marginTop: 8 },
-  footerTxt: { fontSize: 13, textDecorationLine: 'underline' },
-});
+  footerTxt: { fontSize: 13, textDecorationLine: 'underline' } });

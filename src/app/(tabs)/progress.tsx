@@ -7,8 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   useColorScheme,
-  Alert,
-} from 'react-native';
+  Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -76,8 +75,7 @@ export default function ProgressScreen() {
     const newEntry: WeightLogEntry = {
       id: Date.now().toString(),
       date: dateInput,
-      weight_kg: w,
-    };
+      weight_kg: w };
 
     const updated = [newEntry, ...entries.filter(e => e.date !== dateInput)].sort(
       (a, b) => b.date.localeCompare(a.date)
@@ -261,23 +259,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
+    borderBottomWidth: 1 },
   backBtn: { paddingRight: 12 },
   backTxt: { fontSize: 16, fontWeight: '600' },
   title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center', marginRight: 40 },
-  scrollContent: { padding: 16, rowGap: 16, columnGap: 16 },
-  card: { borderRadius: 16, padding: 16, rowGap: 14, columnGap: 14 },
+  scrollContent: { padding: 16 },
+  card: { borderRadius: 16, padding: 16 },
   cardTitle: { fontSize: 16, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', rowGap: 12, columnGap: 12 },
-  statBox: { flex: 1, borderRadius: 16, padding: 16, rowGap: 8, columnGap: 8, justifyContent: 'center' },
+  statsRow: { flexDirection: 'row' },
+  statBox: { flex: 1, borderRadius: 16, padding: 16,  justifyContent: 'center' },
   statLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   statValue: { fontSize: 24, fontWeight: '800' },
   streakText: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
   progressBarBg: { height: 12, backgroundColor: '#E5E7EB', borderRadius: 6, overflow: 'hidden' },
   progressBarFill: { height: '100%', borderRadius: 6 },
   progressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  inputRow: { flexDirection: 'row', rowGap: 12, columnGap: 12 },
+  inputRow: { flexDirection: 'row' },
   label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', marginBottom: 6 },
   input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
   saveBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
@@ -286,5 +283,4 @@ const styles = StyleSheet.create({
   emptyTxt: { fontSize: 14 },
   historyCard: { borderRadius: 12, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   historyDate: { fontSize: 15, fontWeight: '600' },
-  historyWeight: { fontSize: 16, fontWeight: '800' },
-});
+  historyWeight: { fontSize: 16, fontWeight: '800' } });

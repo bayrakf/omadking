@@ -8,8 +8,7 @@ import {
   StyleSheet,
   Switch,
   Share,
-  Platform,
-} from 'react-native';
+  Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/theme';
@@ -137,8 +136,7 @@ export default function PlannerScreen() {
         sport_type: isRestDay ? 'Rest Day' : (SPORTS.find((s) => s.id === sport)?.label || sport),
         duration_min: isRestDay ? 0 : duration,
         intensity: isRestDay ? 'low' : intensity,
-        planned_start_time: trainingTime,
-      };
+        planned_start_time: trainingTime };
 
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
       const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -147,10 +145,8 @@ export default function PlannerScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
+          Authorization: `Bearer ${anonKey}` },
+        body: JSON.stringify(payload) });
 
       let data;
       if (!res.ok) {
@@ -376,8 +372,7 @@ export default function PlannerScreen() {
             styles.generateButton,
             {
               backgroundColor: colors.primary,
-              opacity: pressed || loading ? 0.8 : 1,
-            },
+              opacity: pressed || loading ? 0.8 : 1 },
           ]}
         >
           {loading ? (
@@ -410,8 +405,7 @@ export default function PlannerScreen() {
                 styles.shareButton,
                 {
                   backgroundColor: colors.backgroundElement,
-                  opacity: pressed ? 0.8 : 1,
-                },
+                  opacity: pressed ? 0.8 : 1 },
               ]}
             >
               <Text style={[styles.shareButtonText, { color: colors.text }]}>
@@ -437,23 +431,23 @@ export default function PlannerScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, rowGap: 20, columnGap: 20, paddingBottom: 60 },
+  scrollContent: { padding: 20,  paddingBottom: 60 },
   header: { marginBottom: 4 },
   title: { fontSize: 28, fontWeight: '800', marginBottom: 4 },
   subtitle: { fontSize: 15, lineHeight: 20 },
   
-  macroBanner: { borderRadius: 16, padding: 16, rowGap: 12, columnGap: 12 },
+  macroBanner: { borderRadius: 16, padding: 16 },
   bannerTitle: { fontSize: 16, fontWeight: '700' },
   bannerRow: { flexDirection: 'row', justifyContent: 'space-between' },
   bannerItem: { alignItems: 'center' },
   bannerVal: { fontSize: 18, fontWeight: '800' },
   bannerLbl: { fontSize: 12, fontWeight: '600', marginTop: 4 },
 
-  card: { borderRadius: 16, padding: 16, rowGap: 16, columnGap: 16 },
+  card: { borderRadius: 16, padding: 16 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  inputGroup: { rowGap: 8, columnGap: 8 },
+  inputGroup: {  },
   label: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  chipRow: { flexDirection: 'row', rowGap: 8, columnGap: 8 },
+  chipRow: { flexDirection: 'row' },
   chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   chipText: { fontSize: 14, fontWeight: '600' },
   
@@ -466,9 +460,8 @@ const styles = StyleSheet.create({
   resultCardEmpty: { borderRadius: 16, padding: 24, alignItems: 'center', justifyContent: 'center', minHeight: 120 },
   resultText: { fontSize: 14, textAlign: 'center' },
 
-  historySection: { marginTop: 10, rowGap: 10, columnGap: 10 },
+  historySection: { marginTop: 10 },
   sectionHeading: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
-  historyCard: { padding: 16, borderRadius: 12, rowGap: 4, columnGap: 4 },
+  historyCard: { padding: 16, borderRadius: 12 },
   historyTitle: { fontSize: 16, fontWeight: '600' },
-  historyMacros: { fontSize: 13 },
-});
+  historyMacros: { fontSize: 13 } });

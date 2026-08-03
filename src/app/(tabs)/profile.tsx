@@ -53,8 +53,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           await AsyncStorage.multiRemove(['onboarding_complete', 'onboarding_profile']);
           router.replace('/onboarding');
-        },
-      },
+        } },
     ]);
   }, [router]);
 
@@ -195,16 +194,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
-  },
+    elevation: 2 },
   cardTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+    borderBottomWidth: StyleSheet.hairlineWidth },
   label: { fontSize: 15 },
   value: { fontSize: 15, fontWeight: '500', textTransform: 'capitalize' },
   input: {
@@ -214,13 +211,10 @@ const styles = StyleSheet.create({
     minWidth: 80,
     textAlign: 'right',
     padding: 0,
-    margin: 0,
-  },
+    margin: 0 },
   resetButton: {
     marginTop: 8,
     paddingVertical: 14,
     borderRadius: 12,
-    alignItems: 'center',
-  },
-  resetText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-});
+    alignItems: 'center' },
+  resetText: { color: '#fff', fontSize: 15, fontWeight: '600' } });

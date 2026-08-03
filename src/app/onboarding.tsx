@@ -19,8 +19,7 @@ export default function OnboardingScreen() {
     goal: null as string | null,
     omad_window_start: '14:00',
     omad_window_hours: 1,
-    default_training_time: '18:00',
-  });
+    default_training_time: '18:00' });
   
   const [step, setStep] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -141,7 +140,7 @@ export default function OnboardingScreen() {
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               The ultimate fasting and training protocol.
             </Text>
-            <View style={{ marginTop: 32, rowGap: 16 }}>
+            <View style={{ marginTop: 32 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ fontSize: 24, marginRight: 12 }}>⚡️</Text>
                 <Text style={{ fontSize: 16, color: colors.text, flex: 1, fontWeight: '500' }}>Sync your eating window with workouts</Text>
@@ -366,62 +365,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 12,
-    height: 44,
-  },
+    height: 44 },
   backButton: {
     position: 'absolute',
     left: 24,
     zIndex: 1,
-    paddingVertical: 8,
-  },
+    paddingVertical: 8 },
   backText: {
     fontSize: 16,
-    fontWeight: '600',
-  },
+    fontWeight: '600' },
   progressContainer: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    rowGap: 8, columnGap: 8,
-  },
+    alignItems: 'center' },
   progressDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-  },
+    borderRadius: 4 },
   progressDotActive: {
-    width: 24,
-  },
+    width: 24 },
   scrollContent: {
-    flexGrow: 1,
-  },
+    flexGrow: 1 },
   animatedContent: {
     flex: 1,
-    padding: 24,
-  },
+    padding: 24 },
   stepContent: {
     flex: 1,
-    justifyContent: 'center',
-  },
+    justifyContent: 'center' },
   emoji: { fontSize: 64, marginBottom: 24, textAlign: 'center' },
   title: { fontSize: 32, fontWeight: '800', textAlign: 'center' },
   stepTitle: { fontSize: 28, fontWeight: '700', marginBottom: 24 },
   subtitle: { fontSize: 16, marginTop: 12, textAlign: 'center', lineHeight: 24 },
   
   label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  inputRow: { flexDirection: 'row', rowGap: 16, columnGap: 16, marginBottom: 16 },
+  inputRow: { flexDirection: 'row',  marginBottom: 16 },
   inputGroup: { flex: 1, marginBottom: 16 },
   input: {
     height: 48,
     borderRadius: 12,
     paddingHorizontal: 16,
-    fontSize: 16,
-  },
+    fontSize: 16 },
   
-  optionsRow: { flexDirection: 'row', rowGap: 12, columnGap: 12 },
-  optionsRowWrap: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 8, columnGap: 8 },
-  optionsCol: { flexDirection: 'column', rowGap: 12, columnGap: 12 },
+  optionsRow: { flexDirection: 'row' },
+  optionsRowWrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  optionsCol: { flexDirection: 'column' },
   optionButton: {
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -429,18 +417,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    minWidth: '28%',
-  },
+    minWidth: '28%' },
   optionText: { fontSize: 15, fontWeight: '600' },
   
   footer: {
     padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 0 : 24,
-  },
+    paddingBottom: Platform.OS === 'ios' ? 0 : 24 },
   mainButton: {
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: 'center',
-  },
-  mainButtonText: { fontSize: 16, fontWeight: '600' },
-});
+    alignItems: 'center' },
+  mainButtonText: { fontSize: 16, fontWeight: '600' } });

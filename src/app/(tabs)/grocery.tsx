@@ -56,8 +56,7 @@ export default function GroceryScreen() {
             foundItems.push({
               id: keyword,
               name,
-              checked: !!checksMap[keyword],
-            });
+              checked: !!checksMap[keyword] });
           }
         });
 
@@ -65,8 +64,7 @@ export default function GroceryScreen() {
           extracted.push({
             name: cat.name,
             emoji: cat.emoji,
-            items: foundItems,
-          });
+            items: foundItems });
         }
       });
 
@@ -221,28 +219,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
+    borderBottomWidth: 1 },
   backBtn: { paddingRight: 12, minWidth: 60 },
   backTxt: { fontSize: 16, fontWeight: '600' },
   title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
   actionBtn: { minWidth: 60, alignItems: 'flex-end' },
   actionTxt: { fontSize: 16, fontWeight: '600' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, rowGap: 12, columnGap: 12 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   placeholderTitle: { fontSize: 22, fontWeight: '700' },
   placeholderSubtitle: { fontSize: 15, textAlign: 'center', marginBottom: 12, lineHeight: 22 },
   ctaBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
   ctaTxt: { color: 'white', fontSize: 16, fontWeight: '700' },
-  scrollContent: { padding: 20, rowGap: 16, columnGap: 16 },
+  scrollContent: { padding: 20 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 },
   subtitle: { fontSize: 14, flex: 1, paddingRight: 16, lineHeight: 20 },
   clearTxt: { fontSize: 14, fontWeight: '600', paddingVertical: 4 },
-  card: { borderRadius: 16, padding: 18, rowGap: 12, columnGap: 12 },
+  card: { borderRadius: 16, padding: 18 },
   catTitle: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', rowGap: 12, columnGap: 12, paddingVertical: 4 },
+  itemRow: { flexDirection: 'row', alignItems: 'center',  paddingVertical: 4 },
   checkIcon: { fontSize: 18 },
   itemInfo: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   itemName: { fontSize: 15, fontWeight: '600' },
   itemAmount: { fontSize: 13, fontWeight: '500' },
-  strikethrough: { textDecorationLine: 'line-through' },
-});
+  strikethrough: { textDecorationLine: 'line-through' } });

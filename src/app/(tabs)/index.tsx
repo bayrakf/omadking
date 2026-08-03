@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  useColorScheme, Platform,
-} from 'react-native';
+  useColorScheme, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,8 +11,7 @@ const DEFAULT_PROFILE = {
   weight_kg: 75, height_cm: 175, age: 30,
   sex: 'male', goal: 'performance',
   omad_window_start: '18:00', omad_window_hours: 4,
-  fitness_level: 'intermediate',
-};
+  fitness_level: 'intermediate' };
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -295,11 +293,11 @@ const s = StyleSheet.create({
   heroBadge: { color: '#F59E0B', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 },
   heroTitle: { color: '#FFF', fontSize: 26, fontWeight: '900', lineHeight: 30 },
   heroSub: { marginTop: 4, fontSize: 13, fontWeight: '700' },
-  row: { flexDirection: 'row', rowGap: 10, columnGap: 10, marginBottom: 0 },
+  row: { flexDirection: 'row',  marginBottom: 0 },
   stat: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', marginBottom: 14 },
   statV: { fontSize: 17, fontWeight: '800' },
   statL: { fontSize: 10, marginTop: 2 },
-  card: { borderRadius: 16, padding: 16, marginBottom: 12, rowGap: 8, columnGap: 8 },
+  card: { borderRadius: 16, padding: 16, marginBottom: 12 },
   ct: { fontSize: 15, fontWeight: '800' },
   cb: { fontSize: 13, lineHeight: 18 },
   badge: { flex: 1, borderRadius: 10, padding: 8, alignItems: 'center' },
@@ -309,7 +307,6 @@ const s = StyleSheet.create({
   wBtn: { flex: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
   btn: { borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 12 },
   btnT: { color: '#FFF', fontSize: 15, fontWeight: '800' },
-  banner: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, borderWidth: 1.5, rowGap: 10, columnGap: 10, marginBottom: 10 },
+  banner: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, borderWidth: 1.5,  marginBottom: 10 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  timerText: { fontSize: 22, fontWeight: '900', marginVertical: 8, textAlign: 'center' },
-});
+  timerText: { fontSize: 22, fontWeight: '900', marginVertical: 8, textAlign: 'center' } });
