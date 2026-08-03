@@ -11,7 +11,7 @@ import { Colors } from '@/constants/theme';
 const DEFAULT_PROFILE = {
   weight_kg: 75, height_cm: 175, age: 30,
   sex: 'male', goal: 'performance',
-  omad_window_start: '18:00', omad_window_hours: 1,
+  omad_window_start: '18:00', omad_window_hours: 4,
   fitness_level: 'intermediate',
 };
 
@@ -27,6 +27,10 @@ export default function DashboardScreen() {
   const [water, setWater] = useState(1500);
   const [salt, setSalt] = useState(false);
 
+  const [countdownText, setCountdownText] = useState('');
+  const [isEating, setIsEating] = useState(false);
+  const [fastProgress, setFastProgress] = useState(0);
+
   useEffect(() => {
     // Time-dependent — client only
     const h = new Date().getHours();
@@ -41,6 +45,70 @@ export default function DashboardScreen() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    // Timer logic
+    const eatStartStr = profile.omad_window_start || '18:00';
+    let eatH = Number(profile.omad_window_hours) || 4;
+    // Handle case if they put 20 for omad_window_hours meaning 20h fast
+    if (eatH > 12) {
+      eatH = 24 - eatH;
+    }
+    const fastH = 24 - eatH;
+    const [startH, startM] = eatStartStr.split(':').map(Number);
+
+    const updateTimer = () => {
+      const d = new Date();
+      const nowMs = d.getTime();
+      
+      const eatStartToday = new Date(d);
+      eatStartToday.setHours(startH, startM, 0, 0);
+      
+      const eatEndToday = new Date(eatStartToday);
+      eatEndToday.setHours(eatStartToday.getHours() + eatH);
+      
+      let startMs = eatStartToday.getTime();
+      let endMs = eatEndToday.getTime();
+      
+      let currentlyEating = false;
+      let remainingMs = 0;
+      let totalFastingMs = fastH * 3600 * 1000;
+      let elapsedFastingMs = 0;
+
+      if (nowMs >= startMs && nowMs < endMs) {
+        currentlyEating = true;
+      } else {
+        if (nowMs < startMs) {
+          remainingMs = startMs - nowMs;
+          const prevEnd = endMs - 24 * 3600 * 1000;
+          elapsedFastingMs = nowMs - prevEnd;
+        } else {
+          const nextStart = startMs + 24 * 3600 * 1000;
+          remainingMs = nextStart - nowMs;
+          elapsedFastingMs = nowMs - endMs;
+        }
+      }
+
+      setIsEating(currentlyEating);
+      
+      if (currentlyEating) {
+        setCountdownText('EATING WINDOW OPEN');
+        setFastProgress(100);
+      } else {
+        const hrs = Math.floor(remainingMs / (1000 * 60 * 60));
+        const mins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((remainingMs % (1000 * 60)) / 1000);
+        setCountdownText(`Fasting: ${hrs}h ${mins}m ${secs}s remaining`);
+        
+        let p = (elapsedFastingMs / totalFastingMs) * 100;
+        setFastProgress(Math.min(100, Math.max(0, p)));
+      }
+    };
+    
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [profile]);
+
   // Show nothing during SSR / before hydration to avoid mismatch
   if (!mounted) return null;
 
@@ -53,8 +121,10 @@ export default function DashboardScreen() {
   const sex = (profile.sex || '').toLowerCase();
   const goal = (profile.goal || '').toLowerCase();
   const fitness = (profile.fitness_level || '').toLowerCase();
-  const eatStart = profile.omad_window_start || '18:00';
-  const eatHours = Number(profile.omad_window_hours) || 1;
+  
+  let eatHours = Number(profile.omad_window_hours) || 4;
+  if (eatHours > 12) eatHours = 24 - eatHours;
+  const fastH = 24 - eatHours;
 
   const bmr = sex === 'female'
     ? 447.593 + 9.247 * w + 3.098 * h - 4.33 * a
@@ -64,7 +134,6 @@ export default function DashboardScreen() {
   if (goal.includes('loss')) kcal -= 500;
   if (goal.includes('muscle') || goal.includes('gain')) kcal += 300;
   const protein = goal.includes('muscle') ? Math.round(w * 2.2) : goal.includes('loss') ? Math.round(w * 1.6) : Math.round(w * 2.0);
-  const fastH = 24 - eatHours;
 
   const { background: bg, card, primary, accent, text: txt, textSecondary: sub, backgroundElement: el } = colors;
   const addWater = (n: number) => setWater((p) => Math.min(5000, p + n));
@@ -98,13 +167,26 @@ export default function DashboardScreen() {
           ))}
         </View>
 
-        {/* Fasting window */}
+        {/* Fasting window widget */}
         <View style={[s.card, { backgroundColor: card }]}>
-          <Text style={[s.ct, { color: txt }]}>⏱ Fasting Window</Text>
-          <Text style={[s.cb, { color: sub }]}>
-            Eating opens at <Text style={{ color: primary, fontWeight: '800' }}>{eatStart}</Text>
-            {' '}for <Text style={{ color: accent, fontWeight: '800' }}>{eatHours}h</Text>
-            {' '}· Fasting: <Text style={{ color: primary, fontWeight: '800' }}>{fastH}h</Text>
+          <View style={[s.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: 0 }]}>
+            <Text style={[s.ct, { color: txt }]}>⏱ Fasting Timer</Text>
+            <View style={[s.statusBadge, { backgroundColor: el }]}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: isEating ? '#22c55e' : '#ef4444' }}>
+                {isEating ? '🟢 Eating Window' : '🔴 Fasting'}
+              </Text>
+            </View>
+          </View>
+          
+          <Text style={[s.timerText, { color: isEating ? primary : accent }]}>
+            {countdownText}
+          </Text>
+
+          <View style={[s.bar, { backgroundColor: el, height: 12, borderRadius: 6, marginTop: 4 }]}>
+            <View style={[s.fill, { backgroundColor: isEating ? '#22c55e' : accent, width: `${fastProgress}%` as any, borderRadius: 6 }]} />
+          </View>
+          <Text style={[s.cb, { color: sub, textAlign: 'right', marginTop: 4 }]}>
+            {isEating ? '100%' : `${fastProgress.toFixed(1)}%`} Completed
           </Text>
         </View>
 
@@ -228,4 +310,6 @@ const s = StyleSheet.create({
   btn: { borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 12 },
   btnT: { color: '#FFF', fontSize: 15, fontWeight: '800' },
   banner: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, borderWidth: 1.5, rowGap: 10, columnGap: 10, marginBottom: 10 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  timerText: { fontSize: 22, fontWeight: '900', marginVertical: 8, textAlign: 'center' },
 });
