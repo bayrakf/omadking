@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -142,7 +142,11 @@ export default function DashboardScreen() {
         {/* Hero Banner Asset */}
         <View style={styles.heroBannerContainer}>
           <Image
-            source={require('../../../assets/images/hero_banner.jpg')}
+            source={
+              Platform.OS === 'web'
+                ? { uri: '/assets/hero_banner.jpg' }
+                : require('../../../assets/images/hero_banner.jpg')
+            }
             style={styles.heroBannerImg}
             resizeMode="cover"
           />

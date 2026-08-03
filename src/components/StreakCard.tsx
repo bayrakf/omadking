@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, Image, Platform, useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
 
 type Props = {
@@ -9,6 +9,10 @@ type Props = {
 export default function StreakCard({ streakDays = 7 }: Props) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+
+  const streakBadgeSource = Platform.OS === 'web'
+    ? { uri: '/assets/streak_badge.jpg' }
+    : require('../../assets/images/streak_badge.jpg');
 
   return (
     <View
@@ -22,7 +26,7 @@ export default function StreakCard({ streakDays = 7 }: Props) {
     >
       <View style={styles.headerRow}>
         <Image
-          source={require('../../assets/images/streak_badge.jpg')}
+          source={streakBadgeSource}
           style={styles.lionImg}
           resizeMode="cover"
         />
