@@ -18,7 +18,6 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get Auth User if auth token header present
     const authHeader = req.headers.get('Authorization');
     let userId: string | null = null;
     if (authHeader) {
@@ -27,7 +26,6 @@ serve(async (req) => {
       if (user) userId = user.id;
     }
 
-    // Check Free Tier Limit (3 plans per week) if user logged in
     if (userId) {
       const { data: sub } = await supabase
         .from('subscriptions')
@@ -62,13 +60,12 @@ serve(async (req) => {
       goal = 'performance',
       omad_window_start = '18:00',
       omad_window_hours = 1,
-      sport_type = 'Running',
+      sport_type = 'Rest Day',
       duration_min = 60,
       intensity = 'medium',
       planned_start_time = '19:00',
     } = await req.json();
 
-    // Harris-Benedict BMR
     let bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age;
     bmr += sex === 'female' ? -161 : 5;
 
@@ -82,13 +79,18 @@ serve(async (req) => {
     const fat_g = Math.round((tdee * 0.25) / 9);
     const carbs_g = Math.round((tdee - (protein_g * 4 + fat_g * 9)) / 4);
 
-    const prompt = `You are a sports nutritionist. Output ONLY valid JSON, no markdown formatting.
+    const prompt = `You are a Michelin-level sports nutritionist chef. Output ONLY valid JSON, no markdown formatting.
 
-Create an OMAD meal plan & recipe for:
+Create a gourmet, high-protein OMAD meal plan & meal prep recipe for:
 - Body: ${weight_kg}kg, ${height_cm}cm, ${age}y, ${sex}
 - Goal: ${goal}, Target TDEE: ${tdee} kcal (${protein_g}g Protein, ${carbs_g}g Carbs, ${fat_g}g Fat)
 - Fasting window: ${omad_window_start} (${omad_window_hours}h)
-- Workout: ${sport_type}, ${duration_min}min, ${intensity} intensity at ${planned_start_time}
+- Activity: ${sport_type}, ${duration_min}min, ${intensity} intensity at ${planned_start_time}
+
+Requirements:
+- Detailed ingredients with exact grams.
+- Step-by-step culinary cooking instructions (step 1, step 2, step 3).
+- Professional meal prep storage & reheating instructions (skillet/air fryer/oven/microwave).
 
 Structure:
 {
@@ -100,12 +102,12 @@ Structure:
   "fat_g": ${fat_g},
   "pre_training_snack_time": null,
   "main_meal_time": "${omad_window_start}",
-  "ai_reasoning": "High-protein meal structured post-workout to maximize muscle recovery.",
+  "ai_reasoning": "High-protein recovery meal designed for optimal glycogen replenishment & muscle synthesis.",
   "recipe": {
-    "title": "High-Protein Recovery Bowl",
-    "ingredients": ["300g Chicken/Tofu", "250g Rice/Sweet Potato", "150g Mixed Veggies", "1 tbsp Olive Oil"],
-    "instructions": "Cook protein and carbs. Serve hot.",
-    "reheat_instructions": "Reheat 3 mins at 800W.",
+    "title": "Gourmet High-Protein Recovery Feast",
+    "ingredients": ["320g Organic Chicken Breast or Crispy Tofu", "350g Roasted Sweet Potatoes with Rosemary", "200g Steamed Garlic Broccoli & Asparagus", "2 tbsp Extra Virgin Olive Oil & Lemon Drizzle"],
+    "instructions": "1. Marinate protein with olive oil, garlic & herbs. 2. Cube sweet potatoes and roast at 200°C for 22 mins until golden. 3. Pan-sear protein on high heat for 6 mins per side. 4. Steam green veggies for 4 mins and toss with lemon juice.",
+    "reheat_instructions": "1. Skillet: Add 1 tsp olive oil and reheat for 4 mins over medium heat. 2. Air Fryer: 180°C for 4 mins for crispy skin. 3. Microwave: Cover with moist paper towel, heat at 800W for 2.5 mins.",
     "prep_time_min": 25,
     "is_meal_prep": true
   }
@@ -138,6 +140,7 @@ Structure:
     }
 
     if (!planData) {
+      const isRest = sport_type.toLowerCase().includes('rest');
       planData = {
         eating_window_start: omad_window_start,
         eating_window_end: '19:00',
@@ -147,17 +150,21 @@ Structure:
         fat_g,
         pre_training_snack_time: null,
         main_meal_time: omad_window_start,
-        ai_reasoning: `Optimized high-protein OMAD meal scheduled around your ${sport_type} session to maximize muscle protein synthesis and recovery.`,
+        ai_reasoning: isRest
+          ? `Nutrient-dense OMAD maintenance feast focused on high-satiety protein, fiber, and micronutrients for optimal recovery.`
+          : `High-protein recovery feast engineered for ${sport_type} to maximize muscle protein synthesis & restore muscle glycogen.`,
         recipe: {
-          title: `${sport_type} Performance Recovery Bowl`,
+          title: isRest
+            ? 'Gourmet Mediterranean Protein & Herb Bowl'
+            : `${sport_type} Performance Recovery Feast`,
           ingredients: [
-            `${Math.round(weight_kg * 3.5)}g Grilled Chicken Breast or Tofu`,
-            '300g Roasted Sweet Potatoes',
-            '150g Steamed Broccoli & Carrots',
-            '1 tbsp Extra Virgin Olive Oil',
+            `${Math.round(weight_kg * 3.8)}g Herb-Marinated Chicken Breast or Crispy Tofu`,
+            '350g Roasted Sweet Potatoes with Rosemary & Sea Salt',
+            '200g Steamed Garlic Broccoli, Asparagus & Baby Spinach',
+            '2 tbsp Extra Virgin Olive Oil & Lemon Tahini Drizzle',
           ],
-          instructions: 'Season protein and roast sweet potatoes at 200°C for 25 mins. Combine and serve with steamed veggies.',
-          reheat_instructions: 'Microwave 2.5 mins at 800W or reheat in skillet with 1 tsp water.',
+          instructions: '1. Marinate protein in garlic, rosemary & olive oil for 10 mins. 2. Cube sweet potatoes and roast at 200°C for 22 mins until caramelized. 3. Sear protein in hot skillet for 6 mins per side. 4. Steam greens for 4 mins and serve hot.',
+          reheat_instructions: '1. Skillet: Reheat in skillet with 1 tsp olive oil for 4 mins over medium heat. 2. Air Fryer: 180°C for 4 mins. 3. Microwave: Cover with damp paper towel and heat at 800W for 2.5 mins.',
           prep_time_min: 25,
           is_meal_prep: true,
         },

@@ -30,15 +30,21 @@ export default function RecipeCard({
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
-  const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
+  const [checkedSteps, setCheckedSteps] = useState<Record<string, boolean>>({});
 
-  const toggleStep = (idx: number) => {
-    setCheckedSteps((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  const toggleStep = (key: string) => {
+    setCheckedSteps((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const stepsList = reheatInstructions
-    ? reheatInstructions.split('.').filter((s) => s.trim().length > 0)
-    : instructions.split('.').filter((s) => s.trim().length > 0);
+  const cookSteps = instructions
+    .split(/(?:\d+\.\s*|\.\s+)/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const reheatSteps = (reheatInstructions || '')
+    .split(/(?:\d+\.\s*|\.\s+)/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
   return (
     <View
@@ -56,7 +62,7 @@ export default function RecipeCard({
           <Text style={[styles.badgeTxt, { color: colors.primary }]}>⚡ High Protein</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-          <Text style={[styles.badgeTxt, { color: colors.accent }]}>🍲 Meal-Prep Ready ({prepTimeMin}m)</Text>
+          <Text style={[styles.badgeTxt, { color: colors.accent }]}>👨‍🍳 Chef Recipe ({prepTimeMin}m)</Text>
         </View>
       </View>
 
@@ -85,19 +91,20 @@ export default function RecipeCard({
       </View>
 
       {/* Ingredients List */}
-      <Text style={[styles.sectionHeading, { color: colors.text }]}>🛒 Ingredients</Text>
+      <Text style={[styles.sectionHeading, { color: colors.text }]}>🛒 Precise Ingredients</Text>
       {ingredients.map((item, idx) => (
         <Text key={idx} style={[styles.bullet, { color: colors.text }]}>• {item}</Text>
       ))}
 
-      {/* Interactive Reheating Steps */}
-      <Text style={[styles.sectionHeading, { color: colors.accent, marginTop: 12 }]}>
-        🔥 Reheat & Serving Steps
+      {/* Cooking Instructions */}
+      <Text style={[styles.sectionHeading, { color: colors.primary, marginTop: 14 }]}>
+        👨‍🍳 Cooking Instructions
       </Text>
-      {stepsList.map((step, idx) => {
-        const isDone = checkedSteps[idx];
+      {cookSteps.map((step, idx) => {
+        const key = `cook_${idx}`;
+        const isDone = checkedSteps[key];
         return (
-          <Pressable key={idx} onPress={() => toggleStep(idx)} style={styles.stepRow}>
+          <Pressable key={key} onPress={() => toggleStep(key)} style={styles.stepRow}>
             <Text style={styles.checkbox}>{isDone ? '✅' : '⬜'}</Text>
             <Text
               style={[
@@ -106,11 +113,38 @@ export default function RecipeCard({
                 isDone && styles.strikethrough,
               ]}
             >
-              {step.trim()}
+              Step {idx + 1}: {step}
             </Text>
           </Pressable>
         );
       })}
+
+      {/* Meal Prep & Reheating */}
+      {reheatSteps.length > 0 && (
+        <>
+          <Text style={[styles.sectionHeading, { color: colors.accent, marginTop: 14 }]}>
+            🔥 Meal Prep & Reheating (Skillet / Air Fryer / Microwave)
+          </Text>
+          {reheatSteps.map((step, idx) => {
+            const key = `reheat_${idx}`;
+            const isDone = checkedSteps[key];
+            return (
+              <Pressable key={key} onPress={() => toggleStep(key)} style={styles.stepRow}>
+                <Text style={styles.checkbox}>{isDone ? '✅' : '⬜'}</Text>
+                <Text
+                  style={[
+                    styles.stepText,
+                    { color: isDone ? colors.textSecondary : colors.text },
+                    isDone && styles.strikethrough,
+                  ]}
+                >
+                  {step}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </>
+      )}
     </View>
   );
 }
@@ -128,8 +162,8 @@ const styles = StyleSheet.create({
   macroLbl: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   sectionHeading: { fontSize: 16, fontWeight: '700', marginTop: 6 },
   bullet: { fontSize: 14, lineHeight: 22 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
-  checkbox: { fontSize: 18 },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 5 },
+  checkbox: { fontSize: 18, marginTop: 2 },
   stepText: { fontSize: 14, flex: 1, lineHeight: 20 },
   strikethrough: { textDecorationLine: 'line-through' },
 });
