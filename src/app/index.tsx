@@ -1,42 +1,45 @@
-import { useEffect, useState } from 'react';
-import { View, StyleSheet, useColorScheme } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator, useColorScheme, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DashboardScreen from './(tabs)/index';
 
 export default function Index() {
-  const [target, setTarget] = useState<string | null>(null);
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    async function checkOnboarding() {
+    async function checkStatus() {
       try {
-        const value = await AsyncStorage.getItem('onboarding_complete');
-        if (value === 'true') {
-          setTarget('/(tabs)/index');
-        } else {
-          setTarget('/onboarding');
-        }
+        const val = await AsyncStorage.getItem('onboarding_complete');
+        setOnboardingComplete(val === 'true');
       } catch (e) {
-        setTarget('/onboarding');
-      } finally {
-        await SplashScreen.hideAsync();
+        setOnboardingComplete(false);
       }
     }
-
-    checkOnboarding();
+    checkStatus();
   }, []);
 
-  if (!target) {
-    const bgColor = colorScheme === 'dark' ? '#000000' : '#ffffff';
-    return <View style={[styles.container, { backgroundColor: bgColor }]} />;
+  if (onboardingComplete === null) {
+    const bgColor = colorScheme === 'dark' ? '#0F0F1A' : '#FAFAFA';
+    return (
+      <View style={[styles.container, { backgroundColor: bgColor }]}>
+        <ActivityIndicator size="large" color="#7C3AED" />
+      </View>
+    );
   }
 
-  return <Redirect href={target as any} />;
+  if (!onboardingComplete) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  return <DashboardScreen />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
