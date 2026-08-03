@@ -63,9 +63,9 @@ export default function OnboardingScreen() {
     }
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.location.href = '/planner';
+      window.location.href = '/';
     } else {
-      router.replace('/planner');
+      router.replace('/');
     }
   };
 
