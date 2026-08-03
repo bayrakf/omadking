@@ -61,7 +61,7 @@ export default function OnboardingScreen() {
     } catch (e) {
       console.error(e);
     }
-    router.replace('/(tabs)');
+    router.replace('/');
   };
 
   const updateData = (key: keyof typeof data, value: any) => {
