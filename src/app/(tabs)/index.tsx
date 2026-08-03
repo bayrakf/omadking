@@ -32,9 +32,32 @@ export default function DashboardScreen() {
         const stored = await AsyncStorage.getItem('onboarding_profile');
         if (stored) {
           setProfile(JSON.parse(stored));
+        } else {
+          setProfile({
+            weight_kg: 75,
+            height_cm: 175,
+            age: 30,
+            sex: 'male',
+            goal: 'performance',
+            omad_window_start: '18:00',
+            omad_window_hours: 1,
+            default_training_time: '18:00',
+            fitness_level: 'intermediate',
+          });
         }
       } catch (e) {
         console.error('Failed to load profile', e);
+        setProfile({
+          weight_kg: 75,
+          height_cm: 175,
+          age: 30,
+          sex: 'male',
+          goal: 'performance',
+          omad_window_start: '18:00',
+          omad_window_hours: 1,
+          default_training_time: '18:00',
+          fitness_level: 'intermediate',
+        });
       } finally {
         setLoading(false);
       }
@@ -50,22 +73,26 @@ export default function DashboardScreen() {
     );
   }
 
-  if (!profile) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: colors.text, fontSize: 18, marginBottom: 16 }}>Complete onboarding first</Text>
-      </SafeAreaView>
-    );
-  }
+  const effectiveProfile = profile || {
+    weight_kg: 75,
+    height_cm: 175,
+    age: 30,
+    sex: 'male',
+    goal: 'performance',
+    omad_window_start: '18:00',
+    omad_window_hours: 1,
+    default_training_time: '18:00',
+    fitness_level: 'intermediate',
+  };
 
-  const weightNum = Number(profile.weight_kg) || 75;
-  const heightNum = Number(profile.height_cm) || 175;
-  const ageNum = Number(profile.age) || 30;
-  const sexVal = profile.sex || 'male';
-  const goalVal = profile.goal || 'performance';
-  const omadWindowHoursVal = Number(profile.omad_window_hours) || 1;
-  const omadWindowStartVal = profile.omad_window_start || '14:00';
-  const defaultTrainingTimeVal = profile.default_training_time || '18:00';
+  const weightNum = Number(effectiveProfile.weight_kg) || 75;
+  const heightNum = Number(effectiveProfile.height_cm) || 175;
+  const ageNum = Number(effectiveProfile.age) || 30;
+  const sexVal = effectiveProfile.sex || 'male';
+  const goalVal = effectiveProfile.goal || 'performance';
+  const omadWindowHoursVal = Number(effectiveProfile.omad_window_hours) || 1;
+  const omadWindowStartVal = effectiveProfile.omad_window_start || '14:00';
+  const defaultTrainingTimeVal = effectiveProfile.default_training_time || '18:00';
 
   let bmr = 0;
   if (sexVal === 'female') {
@@ -75,8 +102,8 @@ export default function DashboardScreen() {
   }
 
   let activityMultiplier = 1.55;
-  if (profile.fitness_level === 'intermediate') activityMultiplier = 1.725;
-  else if (profile.fitness_level === 'advanced') activityMultiplier = 1.9;
+  if (effectiveProfile.fitness_level === 'intermediate') activityMultiplier = 1.725;
+  else if (effectiveProfile.fitness_level === 'advanced') activityMultiplier = 1.9;
 
   let targetCalories = Math.round(bmr * activityMultiplier);
   if (goalVal === 'weight_loss') targetCalories -= 500;
