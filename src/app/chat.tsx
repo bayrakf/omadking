@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   Pressable,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
-import { supabase } from '@/lib/supabase';
 
 type Message = {
   id: string;
@@ -20,10 +18,39 @@ type Message = {
   text: string;
 };
 
+const OMAD_TIPS = [
+  "Sodium, potassium, and magnesium are crucial during your fasting window. Try adding a pinch of Himalayan pink salt to your water.",
+  "It's best to break your fast with lean protein and easy-to-digest carbs to avoid gastrointestinal distress.",
+  "Working out in a fasted state can boost fat oxidation. Just ensure you hydrate well and maybe have some black coffee pre-workout.",
+  "Aim for at least 1g of protein per pound of your target body weight to preserve muscle mass on OMAD.",
+  "Consistency is key! Try to keep your eating window around the same time every day for circadian rhythm alignment."
+];
+
+const QUICK_PROMPTS = [
+  'Best electrolytes for fasting?',
+  'When to break my fast?',
+  'Pre-workout on OMAD?',
+  'How much protein?'
+];
+
+const TypingIndicator = ({ color }: { color: string }) => {
+  const [dots, setDots] = useState('');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => (prev.length >= 3 ? '' : prev + '.'));
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
+  return <Text style={[styles.bubbleText, { color }]}>Typing{dots}</Text>;
+};
+
 export default function ChatScreen() {
+  const [mounted, setMounted] = useState(false);
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const colors = Colors[mounted && colorScheme === 'dark' ? 'dark' : 'light'];
   const router = useRouter();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [tipIndex, setTipIndex] = useState(0);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -35,38 +62,39 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-    const userMsg: Message = { id: Date.now().toString(), sender: 'user', text: input.trim() };
+  if (!mounted) return null;
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  };
+
+  const handleSend = async (text: string) => {
+    if (!text.trim() || loading) return;
+
+    const userMsg: Message = { id: Date.now().toString(), sender: 'user', text: text.trim() };
     setMessages((prev) => [...prev, userMsg]);
-    const query = input.trim();
     setInput('');
     setLoading(true);
+    scrollToBottom();
 
-    try {
-      // Call Supabase Edge function for coaching chat or local fallback
-      const { data, error } = await supabase.functions.invoke('generate_meal_plan', {
-        body: { chat_prompt: query },
-      });
-
-      let aiText = "Drink plenty of water and add 500mg sodium during fasting. For evening workouts, eat your OMAD meal within 90 minutes post-workout for optimal recovery.";
-      if (data && data.response) {
-        aiText = data.response;
-      }
-
+    // Mock API call delay
+    setTimeout(() => {
+      const aiText = OMAD_TIPS[tipIndex % OMAD_TIPS.length];
+      setTipIndex(prev => prev + 1);
+      
       setMessages((prev) => [
         ...prev,
         { id: (Date.now() + 1).toString(), sender: 'ai', text: aiText },
       ]);
-    } catch (e) {
-      setMessages((prev) => [
-        ...prev,
-        { id: (Date.now() + 1).toString(), sender: 'ai', text: "Keep electrolytes high (sodium, potassium, magnesium) during fasting. Eat your high-protein OMAD meal after your evening workout." },
-      ]);
-    } finally {
       setLoading(false);
-    }
+      scrollToBottom();
+    }, 1500);
   };
 
   return (
@@ -76,11 +104,30 @@ export default function ChatScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={[styles.backTxt, { color: colors.primary }]}>‹ Back</Text>
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>AI Nutrition Coach 🤖</Text>
+        <Text style={[styles.title, { color: colors.text }]}>AI Nutrition Coach</Text>
+      </View>
+
+      {/* Quick Prompts */}
+      <View style={styles.quickPromptsContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickPrompts}>
+          {QUICK_PROMPTS.map((prompt, idx) => (
+            <Pressable
+              key={idx}
+              style={[styles.quickPromptBtn, { backgroundColor: colors.backgroundElement }]}
+              onPress={() => handleSend(prompt)}
+            >
+              <Text style={[styles.quickPromptTxt, { color: colors.primary }]}>{prompt}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Messages Feed */}
-      <ScrollView contentContainerStyle={styles.feed} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        ref={scrollViewRef}
+        contentContainerStyle={styles.feed} 
+        showsVerticalScrollIndicator={false}
+      >
         {messages.map((m) => {
           const isAi = m.sender === 'ai';
           return (
@@ -99,7 +146,11 @@ export default function ChatScreen() {
             </View>
           );
         })}
-        {loading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} /> : null}
+        {loading && (
+          <View style={[styles.bubble, { backgroundColor: colors.card, alignSelf: 'flex-start' }]}>
+             <TypingIndicator color={colors.textSecondary} />
+          </View>
+        )}
       </ScrollView>
 
       {/* Input Bar */}
@@ -109,15 +160,15 @@ export default function ChatScreen() {
           placeholderTextColor={colors.textSecondary}
           value={input}
           onChangeText={setInput}
-          onSubmitEditing={handleSend}
+          onSubmitEditing={() => handleSend(input)}
           style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
         />
         <Pressable
           disabled={!input.trim() || loading}
-          onPress={handleSend}
+          onPress={() => handleSend(input)}
           style={({ pressed }) => [
             styles.sendBtn,
-            { backgroundColor: colors.primary, opacity: pressed || !input.trim() ? 0.6 : 1 },
+            { backgroundColor: colors.primary, opacity: pressed || !input.trim() || loading ? 0.6 : 1 },
           ]}
         >
           <Text style={styles.sendTxt}>Send</Text>
@@ -139,6 +190,23 @@ const styles = StyleSheet.create({
   backBtn: { paddingRight: 12 },
   backTxt: { fontSize: 16, fontWeight: '600' },
   title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center', marginRight: 40 },
+  quickPromptsContainer: {
+    paddingVertical: 12,
+  },
+  quickPrompts: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  quickPromptBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  quickPromptTxt: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   feed: { padding: 16, gap: 12 },
   bubble: { maxWidth: '80%', padding: 14, borderRadius: 16 },
   bubbleText: { fontSize: 15, lineHeight: 22 },
