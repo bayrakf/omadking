@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme, TextInput, Animated, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,6 +25,25 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+    const checkOnboarding = async () => {
+      try {
+        const complete = await AsyncStorage.getItem('onboarding_complete');
+        if (complete === 'true') {
+          router.replace('/');
+        } else {
+          setChecking(false);
+        }
+      } catch (err) {
+        setChecking(false);
+      }
+    };
+    checkOnboarding();
+  }, [router]);
 
   const totalSteps = 5;
 
@@ -61,12 +80,7 @@ export default function OnboardingScreen() {
     } catch (e) {
       console.error(e);
     }
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.location.href = '/';
-    } else {
-      router.replace('/');
-    }
+    router.replace('/');
   };
 
   const updateData = (key: keyof typeof data, value: any) => {
@@ -122,11 +136,25 @@ export default function OnboardingScreen() {
       case 0:
         return (
           <View style={styles.stepContent}>
-            <Text style={styles.emoji}>🍽️</Text>
-            <Text style={[styles.title, { color: colors.text }]}>OMADCoach</Text>
+            <Text style={styles.emoji}>👑</Text>
+            <Text style={[styles.title, { color: colors.text }]}>OMADCoach Premium</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Optimize your One Meal A Day around your evening training.
+              The ultimate fasting and training protocol.
             </Text>
+            <View style={{ marginTop: 32, rowGap: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 24, marginRight: 12 }}>⚡️</Text>
+                <Text style={{ fontSize: 16, color: colors.text, flex: 1, fontWeight: '500' }}>Sync your eating window with workouts</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 24, marginRight: 12 }}>🔥</Text>
+                <Text style={{ fontSize: 16, color: colors.text, flex: 1, fontWeight: '500' }}>Burn fat and build muscle efficiently</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 24, marginRight: 12 }}>📈</Text>
+                <Text style={{ fontSize: 16, color: colors.text, flex: 1, fontWeight: '500' }}>Track progress with data-driven insights</Text>
+              </View>
+            </View>
           </View>
         );
       case 1:
@@ -277,6 +305,8 @@ export default function OnboardingScreen() {
     }
     return false;
   };
+
+  if (!mounted || checking) return null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
