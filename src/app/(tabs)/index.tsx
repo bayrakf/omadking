@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Link } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/theme';
 
@@ -195,24 +195,22 @@ export default function DashboardScreen() {
         <View style={cardStyle}>
           <Text style={[styles.cardTitle, textStyle]}>Today's Plan</Text>
           <Text style={[styles.emptyText, textSecondaryStyle]}>No meal plan generated yet</Text>
-          <TouchableOpacity 
-            style={[styles.button, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/planner')}
-          >
-            <Text style={styles.buttonText}>Generate Plan 🍽️</Text>
-          </TouchableOpacity>
+          <Link href="/planner" asChild>
+            <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]}>
+              <Text style={styles.buttonText}>Generate Plan 🍽️</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
 
         {/* Training Card */}
         <View style={cardStyle}>
           <Text style={[styles.cardTitle, textStyle]}>Today's Training</Text>
           <Text style={[styles.emptyText, textSecondaryStyle]}>No training planned</Text>
-          <TouchableOpacity 
-            style={[styles.buttonOutline, { borderColor: colors.primary }]}
-            onPress={() => router.push('/planner')}
-          >
-            <Text style={[styles.buttonOutlineText, { color: colors.primary }]}>+ Add Workout & Plan</Text>
-          </TouchableOpacity>
+          <Link href="/planner" asChild>
+            <TouchableOpacity style={[styles.buttonOutline, { borderColor: colors.primary }]}>
+              <Text style={[styles.buttonOutlineText, { color: colors.primary }]}>+ Add Workout & Plan</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
 
       </ScrollView>
