@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, useColorScheme, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DashboardScreen from './(tabs)/index';
 
 export default function Index() {
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
@@ -33,7 +32,7 @@ export default function Index() {
     return <Redirect href="/onboarding" />;
   }
 
-  return <DashboardScreen />;
+  return <Redirect href="/planner" />;
 }
 
 const styles = StyleSheet.create({
