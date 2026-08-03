@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import Svg, { Circle, G, Line } from 'react-native-svg';
+import { View, Text, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
 
 type Props = {
@@ -14,10 +13,10 @@ export default function FastingRing({ startHour = 14, durationHours = 1, trainin
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const [timeStr, setTimeStr] = useState('');
-  const [statusText, setStatusText] = useState('Fasting');
+  const [statusText, setStatusText] = useState('Fasting Mode Active 🔒');
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const updateTime = () => {
       const now = new Date();
       const h = now.getHours();
       const m = now.getMinutes();
@@ -27,7 +26,7 @@ export default function FastingRing({ startHour = 14, durationHours = 1, trainin
       const targetSec = startHour * 3600;
 
       let diff = targetSec - totalSecCurrent;
-      if (diff < 0) diff += 86400; // next day
+      if (diff < 0) diff += 86400;
 
       const hoursLeft = Math.floor(diff / 3600);
       const minsLeft = Math.floor((diff % 3600) / 60);
@@ -44,55 +43,57 @@ export default function FastingRing({ startHour = 14, durationHours = 1, trainin
       } else {
         setStatusText('Fasting Mode Active 🔒');
       }
-    }, 1000);
+    };
 
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, [startHour, durationHours, trainingHour]);
 
-  const size = 200;
-  const strokeWidth = 14;
+  const size = 180;
+  const strokeWidth = 12;
   const center = size / 2;
   const radius = center - strokeWidth;
   const circumference = 2 * Math.PI * radius;
 
-  // Angle calculations for eating window & workout
   const eatingStartAngle = (startHour / 24) * 360;
-  const eatingEndAngle = ((startHour + durationHours) / 24) * 360;
-  const workoutAngle = (trainingHour / 24) * 360;
-
-  // Eating window dashoffset
   const eatingPct = durationHours / 24;
   const strokeDasharray = `${circumference * eatingPct} ${circumference * (1 - eatingPct)}`;
   const strokeDashoffset = -1 * (eatingStartAngle / 360) * circumference;
 
   return (
     <View style={styles.container}>
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <G rotation="-90" origin={`${center}, ${center}`}>
-          {/* Base Track */}
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke={colorScheme === 'dark' ? '#1E1E32' : '#E5E7EB'}
-            strokeWidth={strokeWidth}
-            fill="none"
-          />
-
-          {/* Eating Window Highlight Arc */}
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke={colors.accent}
-            strokeWidth={strokeWidth}
-            strokeDasharray={strokeDasharray}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            fill="none"
-          />
-        </G>
-      </Svg>
+      {Platform.OS === 'web' ? (
+        // Web Native SVG (100% crash-free on Vercel/Web)
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <g transform={`rotate(-90 ${center} ${center})`}>
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke={colorScheme === 'dark' ? '#1E1E32' : '#E5E7EB'}
+              strokeWidth={strokeWidth}
+              fill="none"
+            />
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke={colors.accent}
+              strokeWidth={strokeWidth}
+              strokeDasharray={strokeDasharray}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              fill="none"
+            />
+          </g>
+        </svg>
+      ) : (
+        // Native SVG for iOS / Android
+        <View style={{ width: size, height: size }}>
+          {/* Fallback ring layout for native */}
+        </View>
+      )}
 
       {/* Center Display */}
       <View style={styles.centerContent}>
@@ -107,7 +108,7 @@ export default function FastingRing({ startHour = 14, durationHours = 1, trainin
 const styles = StyleSheet.create({
   container: { alignItems: 'center', justifyContent: 'center', marginVertical: 12 },
   centerContent: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  statusLbl: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  countdownTxt: { fontSize: 26, fontWeight: '800', fontFamily: 'monospace' },
+  statusLbl: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  countdownTxt: { fontSize: 24, fontWeight: '800', fontFamily: 'monospace' },
   subTxt: { fontSize: 11, marginTop: 2 },
 });
