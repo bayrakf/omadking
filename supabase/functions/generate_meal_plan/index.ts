@@ -78,6 +78,9 @@ function isUsableRecipe(r: any): boolean {
 function keyShape(key: string): string {
   if (!key) return 'missing';
   if (key !== key.trim()) return 'has_whitespace';
+  // Google issues two API key formats: the legacy `AIza…` (39 chars) and the
+  // newer `AQ.…`. Both are valid for the Generative Language API.
+  if (key.startsWith('AQ.')) return 'google_ok';
   if (key.startsWith('AIza')) return key.length === 39 ? 'google_ok' : `google_bad_length_${key.length}`;
   if (key.startsWith('eyJ')) return 'supabase_jwt';
   if (key.startsWith('sb_')) return 'supabase_key';
