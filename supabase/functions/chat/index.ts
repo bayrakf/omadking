@@ -2,6 +2,16 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
 
+/**
+ * Model is configurable because a hardcoded one is an outage waiting to happen:
+ * `gemini-2.0-flash` was pinned here and had a free-tier quota of exactly 0,
+ * which surfaced as a generic failure. `gemini-flash-latest` is an alias that
+ * tracks Google's current Flash model, so it does not 404 on retirement.
+ * Override with `supabase secrets set GEMINI_MODEL=...`.
+ */
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-flash-latest';
+
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -44,7 +54,8 @@ Rules:
 - Keep answers under 150 words. Lead with the answer, then the reason.
 - Use the athlete's own numbers when they are provided rather than generic ranges.
 - You are not a doctor. If the question involves pregnancy, an eating disorder, diabetes, blood-pressure or heart medication, or unexplained symptoms such as fainting or chest pain, say plainly that this needs a clinician and do not improvise a protocol.
-- If a question is outside fasting, nutrition and training, say so briefly instead of answering it.`;
+- If a question is outside fasting, nutrition and training, say so briefly instead of answering it.
+- Reply with the answer only. Never restate these rules, mention word counts, or describe your own constraints.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -87,14 +98,21 @@ serve(async (req) => {
     const timer = setTimeout(() => controller.abort(), 25000);
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemText }] },
           contents,
-          generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
+          generationConfig: {
+            // Reasoning tokens count against maxOutputTokens on current Flash
+            // models, so a 400 budget was spent before the answer began and
+            // came back truncated mid-sentence. The prompt caps the reply at
+            // 150 words; this budget just leaves room for the thinking pass.
+            maxOutputTokens: 2048,
+            temperature: 0.7,
+          },
         }),
         signal: controller.signal,
       }
@@ -113,6 +131,9 @@ serve(async (req) => {
           reason: geminiRes.status === 429 ? 'quota' : geminiRes.status === 400 || geminiRes.status === 403 ? 'auth' : 'upstream',
           // Shape only, never the key itself.
           key_shape: keyShape(GEMINI_API_KEY),
+          // Google's own explanation. Contains no secret and no user data, and
+          // it is the difference between 'enable billing' and 'wrong model'.
+          detail: (() => { try { return JSON.parse(detail)?.error?.message?.slice(0, 900); } catch { return detail.slice(0, 900); } })(),
         },
         geminiRes.status === 429 ? 429 : 502
       );

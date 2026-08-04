@@ -46,12 +46,14 @@ export type MealPlan = {
   recipe: Recipe;
 };
 
-const TIMEOUT_MS = 30000;
+/** Chat answers in ~2s; a full recipe measures 19-22s server-side. */
+const TIMEOUT_CHAT_MS = 30000;
+const TIMEOUT_PLAN_MS = 75000;
 
-async function postJSON(path: string, body: unknown): Promise<Response> {
+async function postJSON(path: string, body: unknown, timeoutMs: number): Promise<Response> {
   // Without a timeout a hung request leaves the spinner up forever.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(`${SUPABASE_URL}/functions/v1/${path}`, {
       method: 'POST',
@@ -105,7 +107,7 @@ export async function generateMealPlan(
         target_carbs_g: targets.carbs_g,
         target_fat_g: targets.fat_g,
         timing_pattern: timing.pattern,
-      });
+      }, TIMEOUT_PLAN_MS);
 
       if (res.status === 402) {
         const body = await res.json().catch(() => ({}));
@@ -204,7 +206,7 @@ export async function askCoach(
           training_time: profile.default_training_time,
         }
       : null,
-  });
+  }, TIMEOUT_CHAT_MS);
 
   if (!res.ok) {
     throw new Error(

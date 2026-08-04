@@ -2,6 +2,16 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
+
+/**
+ * Model is configurable because a hardcoded one is an outage waiting to happen:
+ * `gemini-2.0-flash` was pinned here and had a free-tier quota of exactly 0,
+ * which surfaced as a generic failure. `gemini-flash-latest` is an alias that
+ * tracks Google's current Flash model, so it does not 404 on retirement.
+ * Override with `supabase secrets set GEMINI_MODEL=...`.
+ */
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-flash-latest';
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY =
   Deno.env.get('SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -152,19 +162,29 @@ serve(async (req) => {
     // Why the recipe is missing, when it is. Reported back so a deploy can be
     // verified without guessing from the shape of the response.
     let reason: string | null = GEMINI_API_KEY ? null : 'no_key';
+    let detailOut: string | null = null;
 
     if (GEMINI_API_KEY) {
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 25000);
+        // Measured at 19-22s for a full recipe. A 25s abort was close enough
+        // to the happy path that a slow day looked like an outage.
+        const timer = setTimeout(() => controller.abort(), 55000);
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: buildPrompt(payload) }] }],
-              generationConfig: { responseMimeType: 'application/json', temperature: 0.9 },
+              generationConfig: {
+                responseMimeType: 'application/json',
+                // A full recipe plus reheat steps is long, and reasoning
+                // tokens come out of the same budget — at 2048 the JSON was
+                // cut off mid-object and failed to parse.
+                maxOutputTokens: 8192,
+                temperature: 0.9,
+              },
             }),
             signal: controller.signal,
           }
@@ -174,28 +194,40 @@ serve(async (req) => {
           const detail = await geminiRes.text().catch(() => '');
           console.error('Gemini error', geminiRes.status, detail.slice(0, 500));
           reason = geminiRes.status === 429 ? 'quota' : geminiRes.status === 400 || geminiRes.status === 403 ? 'auth' : 'upstream';
+          try { detailOut = JSON.parse(detail)?.error?.message?.slice(0, 400); } catch { detailOut = detail.slice(0, 400); }
         } else {
           const geminiJson = await geminiRes.json();
           const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const finish = geminiJson?.candidates?.[0]?.finishReason;
           if (rawText) {
-            const parsed = JSON.parse(String(rawText).replace(/```json|```/g, '').trim());
+            let parsed: any;
+            try {
+              parsed = JSON.parse(String(rawText).replace(/```json|```/g, '').trim());
+            } catch {
+              // Almost always an output-token cap, not malformed model output.
+              reason = finish === 'MAX_TOKENS' ? 'truncated' : 'unparseable';
+              detailOut = `finishReason=${finish} len=${String(rawText).length}`;
+              throw new Error(reason);
+            }
             const candidate = parsed?.recipe ?? parsed;
             if (isUsableRecipe(candidate)) recipe = candidate;
-            else reason = 'malformed';
+            else { reason = 'malformed'; detailOut = JSON.stringify(candidate).slice(0, 400); }
           } else {
             reason = 'empty';
+            detailOut = JSON.stringify(geminiJson).slice(0, 400);
           }
         }
       } catch (e) {
         console.error('Gemini call failed', e);
         reason = 'exception';
+        detailOut = String(e).slice(0, 400);
       }
     }
 
     if (!recipe) {
       // The client has its own offline recipe; tell it explicitly rather than
       // returning a half-built object it would have to guess about.
-      return json({ recipe: null, source: 'unavailable', reason, key_shape: keyShape(GEMINI_API_KEY) });
+      return json({ recipe: null, source: 'unavailable', reason, key_shape: keyShape(GEMINI_API_KEY), detail: detailOut });
     }
 
     // Persist for signed-in users. Never let a storage failure lose the plan
