@@ -6,6 +6,7 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 |---|---|---|---|
 | 1 | E2E-Suites ins Repo holen | grün — 65 Checks | `be0ce03` |
 | 2 | Herkunft des Rezepts zeigen | grün — 71 Checks | `b20d45a` |
+| 3 | Chatverlauf überlebt das Schließen | grün — 80 Checks | `aa5a995` |
 
 ---
 
@@ -80,4 +81,37 @@ weil `ai.ts` `process.env` auf Modulebene liest.
 
 **Verifikation:** `npm run typecheck` grün · `npm run check` grün (5 Module) ·
 `npx expo export --platform web` grün · `npm run e2e` grün, 71 Checks ·
+Bundle-Probe: alle fünf nativen Module 0 Treffer.
+
+
+---
+
+## Durchlauf 3 — Chatverlauf überlebt das Schließen
+
+**Ausgangslage:** `git status` sauber bei `5428154`.
+
+**Umgesetzt:**
+- `conversationOf()` in `src/lib/ai.ts`, rein, mit `demo()`. Die Regel „kein
+  Greeting, keine fehlgeschlagene Nachricht" stand bereits inline in
+  `chat.tsx`, um den Kontext für den Coach zu bauen. Jetzt entscheidet dieselbe
+  Funktion auch, was gespeichert wird — der sichtbare Verlauf und der Kontext
+  des Modells können damit nicht auseinanderlaufen.
+- `KEYS.chatLog` mit `loadChat` / `saveChat` / `clearChat` in `store.ts`,
+  gedeckelt auf 40 Nachrichten.
+- Wiederherstellen beim Öffnen, Speichern nach jeder Änderung, „Clear" im Kopf.
+
+**Zwei Korrekturen während des Durchlaufs:**
+
+1. **Der Planner-Check war seit Durchlauf 2 flaky.** Weil ein Fallback-Rezept
+   bewusst kein Kontingent mehr verbraucht, hing die Zusicherung „Kontingent
+   sinkt" plötzlich davon ab, ob Gemini während des Laufs antwortet — hier tat
+   es das nicht, und der Test war rot bei korrektem Code. Der Endpunkt wird
+   jetzt mit einem gültigen Rezept gestubbt. Nebeneffekt: die Wartezeit fiel
+   von 45s auf 6s.
+2. **`clearChat` hinterließ `[]`.** Der Persist-Effekt feuerte direkt nach dem
+   Leeren und schrieb eine leere Liste zurück. `saveChat` löscht den Schlüssel
+   jetzt, wenn nichts übrig bleibt.
+
+**Verifikation:** `npm run typecheck` grün · `npm run check` grün (5 Module) ·
+`npx expo export --platform web` grün · `npm run e2e` grün, 80 Checks ·
 Bundle-Probe: alle fünf nativen Module 0 Treffer.
