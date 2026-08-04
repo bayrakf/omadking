@@ -1,179 +1,256 @@
-import { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, ScrollView, Pressable, StyleSheet, useColorScheme, Alert, TextInput, Platform
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Platform, Alert, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { Colors, MaxContentWidth } from '@/constants/theme';
+import {
+  bmr,
+  dailyTargets,
+  normalizeProfile,
+  toMinutes,
+  fromMinutes,
+  DEFAULT_PROFILE,
+  type UserProfile,
+} from '@/lib/nutrition';
+import { loadProfileOrDefault, saveProfile, resetOnboarding, getQuota, isPremium, type Quota } from '@/lib/store';
 
-type ProfileData = {
-  weight_kg: string;
-  height_cm: string;
-  age: string;
-  sex: string | null;
-  fitness_level: string | null;
-  goal: string | null;
-  omad_window_start: string;
-  omad_window_hours: number;
-  default_training_time: string;
-};
+type EditableField = 'weight_kg' | 'height_cm' | 'age' | 'omad_window_start' | 'omad_window_hours' | 'default_training_time';
+
+const CHOICES = {
+  sex: [
+    ['male', 'Male'],
+    ['female', 'Female'],
+    ['other', 'Other'],
+  ],
+  fitness_level: [
+    ['beginner', 'Beginner'],
+    ['intermediate', 'Intermediate'],
+    ['advanced', 'Advanced'],
+  ],
+  goal: [
+    ['performance', 'Performance'],
+    ['weight_loss', 'Weight loss'],
+    ['muscle_gain', 'Muscle gain'],
+  ],
+} as const;
 
 export default function ProfileScreen() {
-  const [mounted, setMounted] = useState(false);
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  
-  const [editingField, setEditingField] = useState<keyof ProfileData | null>(null);
+
+  const [mounted, setMounted] = useState(false);
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [quota, setQuota] = useState<Quota | null>(null);
+  const [premium, setPremiumState] = useState(false);
+  const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  useEffect(() => {
-    setMounted(true);
-    AsyncStorage.getItem('onboarding_profile').then((raw) => {
-      if (raw) setProfile(JSON.parse(raw));
-    });
-  }, []);
-
-  const handleReset = useCallback(() => {
-    if (Platform.OS === 'web') {
-      const ok = window.confirm('This will clear your profile and restart onboarding.');
-      if (ok) {
-        AsyncStorage.multiRemove(['onboarding_complete', 'onboarding_profile']).then(() => {
-          router.replace('/onboarding');
-        });
-      }
-      return;
-    }
-    Alert.alert('Reset Onboarding', 'This will clear your profile and restart onboarding.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reset',
-        style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.multiRemove(['onboarding_complete', 'onboarding_profile']);
-          router.replace('/onboarding');
-        } },
-    ]);
-  }, [router]);
-
-  const saveEdit = async (field: keyof ProfileData, value: string) => {
-    if (!profile) return;
-    const newProfile = { ...profile, [field]: field === 'omad_window_hours' ? Number(value) : value };
-    setProfile(newProfile);
-    await AsyncStorage.setItem('onboarding_profile', JSON.stringify(newProfile));
-    setEditingField(null);
-  };
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const [p, q, prem] = await Promise.all([loadProfileOrDefault(), getQuota(), isPremium()]);
+        if (!active) return;
+        setProfile(p);
+        setQuota(q);
+        setPremiumState(prem);
+        setMounted(true);
+      })();
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   if (!mounted) return null;
 
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
-  if (!profile) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>No profile data yet.</Text>
-      </SafeAreaView>
-    );
-  }
+  const persist = async (next: UserProfile) => {
+    // Everything goes through normalizeProfile, so an out-of-range edit is
+    // clamped here rather than producing NaN targets three screens away.
+    const clean = normalizeProfile(next);
+    setProfile(clean);
+    await saveProfile(clean);
+  };
 
-  const w = parseFloat(profile.weight_kg) || 0;
-  const h = parseFloat(profile.height_cm) || 0;
-  const a = parseInt(profile.age) || 0;
-  let bmr = 0;
-  if (w && h && a) {
-    const s = profile.sex === 'female' ? -161 : 5;
-    bmr = (10 * w) + (6.25 * h) - (5 * a) + s;
-  }
-  let tdee = bmr * 1.2;
-  if (profile.fitness_level === 'intermediate') tdee = bmr * 1.375;
-  if (profile.fitness_level === 'advanced') tdee = bmr * 1.55;
-  if (profile.fitness_level === 'athlete') tdee = bmr * 1.725;
+  const commitEdit = async (field: EditableField) => {
+    await persist({ ...profile, [field]: editValue } as unknown as UserProfile);
+    setEditingField(null);
+  };
 
-  const renderRow = (label: string, field: keyof ProfileData, format: (val: any) => string = String) => {
+  const handleReset = () => {
+    const run = async () => {
+      await resetOnboarding();
+      router.replace('/onboarding');
+    };
+    const msg = 'This clears your profile and restarts onboarding. Your weight log and meal plans are kept.';
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) run();
+      return;
+    }
+    Alert.alert('Reset profile', msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Reset', style: 'destructive', onPress: run },
+    ]);
+  };
+
+  const targets = dailyTargets(profile, null);
+  const restingKcal = bmr(profile);
+  const windowEnd = fromMinutes(toMinutes(profile.omad_window_start) + profile.omad_window_hours * 60);
+
+  const editableRow = (label: string, field: EditableField, suffix = '') => {
     const isEditing = editingField === field;
-    const value = profile[field] ?? '';
-    
     return (
-      <View style={[styles.row, { borderBottomColor: colors.backgroundElement }]}>
+      <View key={field} style={[styles.row, { borderBottomColor: colors.backgroundElement }]}>
         <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
         {isEditing ? (
           <TextInput
             style={[styles.input, { color: colors.text, borderColor: colors.primary }]}
             value={editValue}
             onChangeText={setEditValue}
-            onBlur={() => saveEdit(field, editValue)}
-            onSubmitEditing={() => saveEdit(field, editValue)}
+            onBlur={() => commitEdit(field)}
+            onSubmitEditing={() => commitEdit(field)}
+            keyboardType={field.includes('time') || field.includes('start') ? 'default' : 'numeric'}
             autoFocus
+            accessibilityLabel={label}
           />
         ) : (
-          <Pressable onPress={() => { setEditingField(field); setEditValue(String(value)); }}>
-            <Text style={[styles.value, { color: colors.text }]}>{format(value) || '—'}</Text>
+          <Pressable
+            onPress={() => {
+              setEditingField(field);
+              setEditValue(String(profile[field]));
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${label}`}
+          >
+            <Text style={[styles.value, { color: colors.text }]}>
+              {String(profile[field])}
+              {suffix} <Text style={{ color: colors.primary, fontSize: 13 }}>✎</Text>
+            </Text>
           </Pressable>
         )}
       </View>
     );
   };
 
+  const choiceRow = <K extends 'sex' | 'fitness_level' | 'goal'>(label: string, field: K) => (
+    <View style={styles.choiceBlock}>
+      <Text style={[styles.label, { color: colors.textSecondary, marginBottom: 10 }]}>{label}</Text>
+      <View style={styles.choiceRow}>
+        {CHOICES[field].map(([value, text]) => {
+          const selected = profile[field] === value;
+          return (
+            <Pressable
+              key={value}
+              onPress={() => persist({ ...profile, [field]: value })}
+              style={[
+                styles.choiceChip,
+                { backgroundColor: selected ? colors.primary : colors.backgroundElement },
+              ]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+            >
+              <Text style={{ color: selected ? '#FFF' : colors.text, fontWeight: '600', fontSize: 13 }}>
+                {text}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
-        
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Body Stats</Text>
-          {renderRow('Weight (kg)', 'weight_kg')}
-          {renderRow('Height (cm)', 'height_cm')}
-          {renderRow('Age', 'age')}
-          {renderRow('Sex', 'sex')}
-        </View>
 
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Metabolism</Text>
-          <View style={[styles.row, { borderBottomColor: colors.backgroundElement }]}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>BMR</Text>
-            <Text style={[styles.value, { color: colors.text }]}>{Math.round(bmr)} kcal</Text>
+        {/* Subscription */}
+        <Pressable
+          style={[styles.planCard, { backgroundColor: premium ? colors.primary : colors.card }]}
+          onPress={() => !premium && router.push('/paywall')}
+          disabled={premium}
+          accessibilityRole="button"
+        >
+          <View style={styles.flex1}>
+            <Text style={[styles.planName, { color: premium ? '#FFF' : colors.text }]}>
+              {premium ? '👑 Premium' : 'Free plan'}
+            </Text>
+            <Text style={[styles.planSub, { color: premium ? 'rgba(255,255,255,0.85)' : colors.textSecondary }]}>
+              {premium
+                ? 'Unlimited meal plans'
+                : quota
+                ? `${quota.remaining} of ${quota.limit} plans left this week`
+                : ''}
+            </Text>
           </View>
-          <View style={[styles.row, { borderBottomColor: colors.backgroundElement, borderBottomWidth: 0 }]}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Estimated TDEE</Text>
-            <Text style={[styles.value, { color: colors.text }]}>{Math.round(tdee)} kcal</Text>
-          </View>
+          {!premium && <Text style={{ color: colors.primary, fontWeight: '800' }}>Upgrade ›</Text>}
+        </Pressable>
+
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Body stats</Text>
+          {editableRow('Weight', 'weight_kg', ' kg')}
+          {editableRow('Height', 'height_cm', ' cm')}
+          {editableRow('Age', 'age')}
+          {choiceRow('Sex', 'sex')}
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Fitness Level</Text>
-          {renderRow('Level', 'fitness_level')}
-        </View>
-        
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Goals</Text>
-          {renderRow('Goal', 'goal', (v) => v.replace(/_/g, ' '))}
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Training & goal</Text>
+          {choiceRow('Fitness level', 'fitness_level')}
+          {choiceRow('Goal', 'goal')}
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Fasting Window</Text>
-          {renderRow('Start Time', 'omad_window_start')}
-          {renderRow('Duration (hours)', 'omad_window_hours')}
-          {renderRow('Training Time', 'default_training_time')}
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Fasting window</Text>
+          {editableRow('Window opens', 'omad_window_start')}
+          {editableRow('Window length', 'omad_window_hours', ' h')}
+          {editableRow('Usual training time', 'default_training_time')}
+          <Text style={[styles.summaryNote, { color: colors.textSecondary }]}>
+            Eating {profile.omad_window_start}–{windowEnd} · {24 - profile.omad_window_hours}h daily fast
+          </Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>App Info</Text>
-          <View style={[styles.row, { borderBottomColor: colors.backgroundElement }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Your numbers</Text>
+          {(
+            [
+              ['Resting metabolism (BMR)', `${restingKcal} kcal`],
+              ['Rest-day maintenance', `${targets.maintenance_kcal} kcal`],
+              ['Rest-day target', `${targets.kcal} kcal`],
+              ['Daily protein', `${targets.protein_g} g`],
+            ] as const
+          ).map(([label, value], i, arr) => (
+            <View
+              key={label}
+              style={[
+                styles.row,
+                { borderBottomColor: colors.backgroundElement },
+                i === arr.length - 1 && styles.lastRow,
+              ]}
+            >
+              <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+              <Text style={[styles.value, { color: colors.text }]}>{value}</Text>
+            </View>
+          ))}
+          <Text style={[styles.summaryNote, { color: colors.textSecondary }]}>
+            Mifflin-St Jeor. Training days add the session's estimated burn on top.
+          </Text>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>App</Text>
+          <View style={[styles.row, styles.lastRow]}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Version</Text>
             <Text style={[styles.value, { color: colors.text }]}>1.0.0</Text>
           </View>
-          <View style={[styles.row, { borderBottomColor: colors.backgroundElement, borderBottomWidth: 0 }]}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>About</Text>
-            <Text style={[styles.value, { color: colors.text }]}>OMADCoach Premium</Text>
-          </View>
-        </View>
-
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Account</Text>
-          <Pressable style={[styles.resetButton, { backgroundColor: colors.danger }]} onPress={handleReset}>
-            <Text style={styles.resetText}>Reset Onboarding</Text>
+          <Pressable
+            style={[styles.resetButton, { borderColor: colors.danger }]}
+            onPress={handleReset}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.resetText, { color: colors.danger }]}>Reset profile</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -183,38 +260,53 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 60 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
-  subtitle: { fontSize: 16, marginTop: 4 },
-  card: {
+  scrollContent: { padding: 20, paddingBottom: 130, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' },
+  flex1: { flex: 1 },
+  title: { fontSize: 28, fontWeight: '800', marginBottom: 16 },
+
+  planCard: {
     borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2 },
-  cardTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  planName: { fontSize: 17, fontWeight: '800' },
+  planSub: { fontSize: 13, marginTop: 3 },
+
+  card: { borderRadius: 16, padding: 16, marginBottom: 16 },
+  cardTitle: { fontSize: 17, fontWeight: '700', marginBottom: 6 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth },
-  label: { fontSize: 15 },
-  value: { fontSize: 15, fontWeight: '500', textTransform: 'capitalize' },
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  lastRow: { borderBottomWidth: 0 },
+  label: { fontSize: 15, flex: 1, marginRight: 12 },
+  value: { fontSize: 15, fontWeight: '600' },
   input: {
     fontSize: 15,
-    fontWeight: '500',
-    borderBottomWidth: 1,
-    minWidth: 80,
+    fontWeight: '600',
+    borderBottomWidth: 1.5,
+    minWidth: 90,
     textAlign: 'right',
-    padding: 0,
-    margin: 0 },
-  resetButton: {
-    marginTop: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center' },
-  resetText: { color: '#fff', fontSize: 15, fontWeight: '600' } });
+    paddingVertical: 2,
+  },
+
+  choiceBlock: { paddingVertical: 14 },
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', marginRight: -8 },
+  choiceChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+
+  summaryNote: { fontSize: 12, lineHeight: 17, marginTop: 12 },
+
+  resetButton: { marginTop: 16, paddingVertical: 13, borderRadius: 12, alignItems: 'center', borderWidth: 1.5 },
+  resetText: { fontSize: 15, fontWeight: '700' },
+});

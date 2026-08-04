@@ -1,13 +1,29 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Light and dark palettes. Both share one shape so a component can accept
+ * `ThemePalette` — with `as const` the two were different literal types and
+ * nothing could be typed to take "a palette".
  */
 
 import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export const Colors = {
+export type ThemePalette = {
+  text: string;
+  background: string;
+  backgroundElement: string;
+  backgroundSelected: string;
+  textSecondary: string;
+  primary: string;
+  primaryLight: string;
+  accent: string;
+  accentLight: string;
+  success: string;
+  danger: string;
+  card: string;
+};
+
+export const Colors: { light: ThemePalette; dark: ThemePalette } = {
   light: {
     text: '#1A1A2E',
     background: '#FAFAFA',
@@ -36,9 +52,9 @@ export const Colors = {
     danger: '#F87171',
     card: '#1A1A2E',
   },
-} as const;
+};
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export type ThemeColor = keyof ThemePalette;
 
 export const Fonts = Platform.select({
   ios: {
@@ -76,4 +92,4 @@ export const Spacing = {
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const MaxContentWidth = 640;

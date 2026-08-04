@@ -6,42 +6,47 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  useColorScheme } from 'react-native';
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  useColorScheme,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { Colors, MaxContentWidth } from '@/constants/theme';
+import { askCoach, type ChatTurn } from '@/lib/ai';
+import { loadProfile } from '@/lib/store';
+import type { UserProfile } from '@/lib/nutrition';
 
 type Message = {
   id: string;
   sender: 'user' | 'ai';
   text: string;
+  failed?: boolean;
 };
-
-const OMAD_TIPS = [
-  "Sodium, potassium, and magnesium are crucial during your fasting window. Try adding a pinch of Himalayan pink salt to your water.",
-  "It's best to break your fast with lean protein and easy-to-digest carbs to avoid gastrointestinal distress.",
-  "Working out in a fasted state can boost fat oxidation. Just ensure you hydrate well and maybe have some black coffee pre-workout.",
-  "Aim for at least 1g of protein per pound of your target body weight to preserve muscle mass on OMAD.",
-  "Consistency is key! Try to keep your eating window around the same time every day for circadian rhythm alignment."
-];
 
 const QUICK_PROMPTS = [
   'Best electrolytes for fasting?',
-  'When to break my fast?',
+  'When should I break my fast?',
   'Pre-workout on OMAD?',
-  'How much protein?'
+  'How much protein do I need?',
+  'Why do I crash mid-workout?',
 ];
 
-const TypingIndicator = ({ color }: { color: string }) => {
-  const [dots, setDots] = useState('');
+const GREETING: Message = {
+  id: 'greeting',
+  sender: 'ai',
+  text: "👋 I'm your OMAD nutrition coach. Ask me about meal timing, electrolytes, or how to fuel a hard session on one meal a day.",
+};
+
+function TypingIndicator({ color }: { color: string }) {
+  const [dots, setDots] = useState('.');
   useEffect(() => {
-    const interval = setInterval(() => {
-      setDots(prev => (prev.length >= 3 ? '' : prev + '.'));
-    }, 400);
+    const interval = setInterval(() => setDots((p) => (p.length >= 3 ? '.' : p + '.')), 400);
     return () => clearInterval(interval);
   }, []);
-  return <Text style={[styles.bubbleText, { color }]}>Typing{dots}</Text>;
-};
+  return <Text style={[styles.bubbleText, { color }]}>Thinking{dots}</Text>;
+}
 
 export default function ChatScreen() {
   const [mounted, setMounted] = useState(false);
@@ -49,80 +54,48 @@ export default function ChatScreen() {
   const colors = Colors[mounted && colorScheme === 'dark' ? 'dark' : 'light'];
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
-  const [tipIndex, setTipIndex] = useState(0);
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      sender: 'ai',
-      text: "👋 Hi! I'm your OMAD Sports Nutrition Coach. Ask me anything about meal timing, electrolytes, or workout fueling!" },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    loadProfile().then(setProfile);
   }, []);
 
-  if (!mounted) return null;
-
   const scrollToBottom = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 60);
   };
 
   const handleSend = async (text: string) => {
-    if (!text.trim() || loading) return;
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
 
-    const userMsg: Message = { id: Date.now().toString(), sender: 'user', text: text.trim() };
-    setMessages((prev) => [...prev, userMsg]);
+    const historyBefore: ChatTurn[] = messages
+      .filter((m) => m.id !== 'greeting' && !m.failed)
+      .map((m) => ({ role: m.sender, content: m.text }));
+
+    setMessages((prev) => [...prev, { id: `u${Date.now()}`, sender: 'user', text: trimmed }]);
     setInput('');
     setLoading(true);
     scrollToBottom();
 
     try {
-      const geminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-      if (!geminiKey) throw new Error('Missing Gemini Key');
-
-      const systemPrompt = 'You are OMADCoach, an expert in One Meal A Day fasting, training optimization, and sports nutrition. Give concise, actionable advice. Focus on: fasting window timing, electrolytes (sodium/potassium/magnesium), protein intake, pre/post workout nutrition, and OMAD sustainability. Keep responses under 150 words.';
-      
-      const contents = history.map(m => ({
-        role: m.role === 'ai' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      }));
-      contents.push({ role: 'user', parts: [{ text: text.trim() }] });
-
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents,
-        }),
-      });
-
-      if (!res.ok) throw new Error('Gemini API failed');
-
-      const data = await res.json();
-      const aiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      if (aiResponseText) {
-        setMessages((prev) => [
-          ...prev,
-          { id: (Date.now() + 1).toString(), sender: 'ai', text: aiResponseText },
-        ]);
-      } else {
-        throw new Error('Empty response');
-      }
-    } catch (err) {
-      console.warn('Chat fetch failed, using fallback', err);
-      const aiText = OMAD_TIPS[tipIndex % OMAD_TIPS.length];
-      setTipIndex(prev => prev + 1);
-      
+      const reply = await askCoach(trimmed, historyBefore, profile);
+      setMessages((prev) => [...prev, { id: `a${Date.now()}`, sender: 'ai', text: reply }]);
+    } catch (err: any) {
+      // Previously this swallowed the error and printed a canned tip, so a broken
+      // API looked like a working coach giving irrelevant answers.
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), sender: 'ai', text: aiText },
+        {
+          id: `e${Date.now()}`,
+          sender: 'ai',
+          text: `⚠️ ${err?.message || 'Could not reach the coach.'} Check your connection and try again.`,
+          failed: true,
+        },
       ]);
     } finally {
       setLoading(false);
@@ -130,114 +103,161 @@ export default function ChatScreen() {
     }
   };
 
+  if (!mounted) return null;
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <View style={[styles.header, { borderBottomColor: colors.backgroundElement }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={[styles.backTxt, { color: colors.primary }]}>‹ Back</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>AI Nutrition Coach</Text>
+        <View style={styles.backBtn} />
       </View>
 
-      {/* Quick Prompts */}
-      <View style={styles.quickPromptsContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickPrompts}>
-          {QUICK_PROMPTS.map((prompt, idx) => (
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.feed}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {messages.map((m) => {
+            const isAi = m.sender === 'ai';
+            return (
+              <View
+                key={m.id}
+                style={[
+                  styles.bubble,
+                  isAi
+                    ? {
+                        backgroundColor: m.failed ? 'rgba(239,68,68,0.12)' : colors.card,
+                        alignSelf: 'flex-start',
+                      }
+                    : { backgroundColor: colors.primary, alignSelf: 'flex-end' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.bubbleText,
+                    { color: isAi ? (m.failed ? colors.danger : colors.text) : '#FFFFFF' },
+                  ]}
+                >
+                  {m.text}
+                </Text>
+              </View>
+            );
+          })}
+          {loading && (
+            <View style={[styles.bubble, { backgroundColor: colors.card, alignSelf: 'flex-start' }]}>
+              <TypingIndicator color={colors.textSecondary} />
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Suggestions sit above the input so they stay reachable one-handed. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickPrompts}
+          keyboardShouldPersistTaps="handled"
+        >
+          {QUICK_PROMPTS.map((prompt) => (
             <Pressable
-              key={idx}
+              key={prompt}
               style={[styles.quickPromptBtn, { backgroundColor: colors.backgroundElement }]}
               onPress={() => handleSend(prompt)}
+              disabled={loading}
+              accessibilityRole="button"
             >
               <Text style={[styles.quickPromptTxt, { color: colors.primary }]}>{prompt}</Text>
             </Pressable>
           ))}
         </ScrollView>
-      </View>
 
-      {/* Messages Feed */}
-      <ScrollView 
-        ref={scrollViewRef}
-        contentContainerStyle={styles.feed} 
-        showsVerticalScrollIndicator={false}
-      >
-        {messages.map((m) => {
-          const isAi = m.sender === 'ai';
-          return (
-            <View
-              key={m.id}
-              style={[
-                styles.bubble,
-                isAi
-                  ? { backgroundColor: colors.card, alignSelf: 'flex-start' }
-                  : { backgroundColor: colors.primary, alignSelf: 'flex-end' },
-              ]}
-            >
-              <Text style={[styles.bubbleText, { color: isAi ? colors.text : '#FFFFFF' }]}>
-                {m.text}
-              </Text>
-            </View>
-          );
-        })}
-        {loading && (
-          <View style={[styles.bubble, { backgroundColor: colors.card, alignSelf: 'flex-start' }]}>
-             <TypingIndicator color={colors.textSecondary} />
-          </View>
-        )}
-      </ScrollView>
+        <View style={[styles.inputBar, { backgroundColor: colors.card, borderTopColor: colors.backgroundElement }]}>
+          <TextInput
+            placeholder="Ask the coach…"
+            placeholderTextColor={colors.textSecondary}
+            value={input}
+            onChangeText={setInput}
+            onSubmitEditing={() => handleSend(input)}
+            editable={!loading}
+            multiline
+            maxLength={1000}
+            style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
+            accessibilityLabel="Message to coach"
+          />
+          <Pressable
+            disabled={!input.trim() || loading}
+            onPress={() => handleSend(input)}
+            style={({ pressed }) => [
+              styles.sendBtn,
+              {
+                backgroundColor: colors.primary,
+                opacity: pressed || !input.trim() || loading ? 0.5 : 1,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Send"
+          >
+            {loading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.sendTxt}>Send</Text>}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
 
-      {/* Input Bar */}
-      <View style={[styles.inputBar, { backgroundColor: colors.card, borderTopColor: colors.backgroundElement }]}>
-        <TextInput
-          placeholder="Ask AI Coach..."
-          placeholderTextColor={colors.textSecondary}
-          value={input}
-          onChangeText={setInput}
-          onSubmitEditing={() => handleSend(input)}
-          style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
-        />
-        <Pressable
-          disabled={!input.trim() || loading}
-          onPress={() => handleSend(input)}
-          style={({ pressed }) => [
-            styles.sendBtn,
-            { backgroundColor: colors.primary, opacity: pressed || !input.trim() || loading ? 0.6 : 1 },
-          ]}
-        >
-          <Text style={styles.sendTxt}>Send</Text>
-        </Pressable>
-      </View>
+      <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
+        General nutrition guidance, not medical advice.
+      </Text>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1 },
-  backBtn: { paddingRight: 12 },
+    borderBottomWidth: 1,
+  },
+  backBtn: { minWidth: 64, paddingVertical: 4 },
   backTxt: { fontSize: 16, fontWeight: '600' },
-  title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center', marginRight: 40 },
-  quickPromptsContainer: {
-    paddingVertical: 12 },
-  quickPrompts: {
-    paddingHorizontal: 16 },
-  quickPromptBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8 },
-  quickPromptTxt: {
-    fontSize: 14,
-    fontWeight: '500' },
-  feed: { padding: 16 },
-  bubble: { maxWidth: '80%', padding: 14, borderRadius: 16 },
+  title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
+  feed: { padding: 16, paddingBottom: 8, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' },
+  quickPrompts: { paddingHorizontal: 16, paddingVertical: 10 },
+  quickPromptBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
+  quickPromptTxt: { fontSize: 13, fontWeight: '600' },
+  bubble: { maxWidth: '85%', padding: 14, borderRadius: 16, marginBottom: 10 },
   bubbleText: { fontSize: 15, lineHeight: 22 },
-  inputBar: { flexDirection: 'row', padding: 12,  borderTopWidth: 1, alignItems: 'center' },
-  input: { flex: 1, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15 },
-  sendBtn: { borderRadius: 20, paddingHorizontal: 18, paddingVertical: 10 },
-  sendTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' } });
+  inputBar: {
+    flexDirection: 'row',
+    padding: 12,
+    borderTopWidth: 1,
+    alignItems: 'flex-end',
+  },
+  input: {
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+    maxHeight: 120,
+    marginRight: 8,
+  },
+  sendBtn: {
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    minWidth: 72,
+    alignItems: 'center',
+  },
+  sendTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  disclaimer: { fontSize: 11, textAlign: 'center', paddingBottom: 6, paddingHorizontal: 16 },
+});

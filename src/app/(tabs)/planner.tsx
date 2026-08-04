@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,16 @@ import {
   StyleSheet,
   Switch,
   Share,
-  Platform } from 'react-native';
+  Platform,
+  useColorScheme,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors } from '@/constants/theme';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { Colors, MaxContentWidth, type ThemePalette } from '@/constants/theme';
 import RecipeCard from '@/components/RecipeCard';
+import { dailyTargets, DEFAULT_PROFILE, type Intensity, type Training, type UserProfile } from '@/lib/nutrition';
+import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
+import { loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota, type Quota } from '@/lib/store';
 
 const SPORTS = [
   { id: 'running', label: '🏃 Running' },
@@ -24,237 +29,174 @@ const SPORTS = [
 ];
 
 const DURATIONS = [30, 45, 60, 90, 120];
-
-const INTENSITIES = [
+const INTENSITIES: { id: Intensity; label: string }[] = [
   { id: 'low', label: 'Low' },
   { id: 'medium', label: 'Medium' },
   { id: 'high', label: 'High' },
   { id: 'max', label: 'Max' },
 ];
-
-const TRAINING_TIMES = ['17:00', '18:00', '19:00', '20:00'];
-
-type MealPlanResult = {
-  eating_window_start: string;
-  eating_window_end: string;
-  total_kcal: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  pre_training_snack_time: string | null;
-  main_meal_time: string;
-  ai_reasoning: string;
-  recipe: {
-    title: string;
-    ingredients: string[];
-    instructions: string;
-    reheat_instructions: string;
-    prep_time_min: number;
-    is_meal_prep: boolean;
-  };
-};
+const TRAINING_TIMES = ['06:00', '12:00', '17:00', '18:00', '19:00', '20:00'];
 
 export default function PlannerScreen() {
-  const colors = Colors.dark;
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-  const [macroTargets, setMacroTargets] = useState<{ kcal: number; protein: number; carbs: number; fat: number } | null>(null);
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [quota, setQuota] = useState<Quota | null>(null);
 
-  const [isRestDay, setIsRestDay] = useState<boolean>(false);
-  const [sport, setSport] = useState<string>('weights');
-  const [duration, setDuration] = useState<number>(60);
-  const [intensity, setIntensity] = useState<string>('medium');
-  const [trainingTime, setTrainingTime] = useState<string>('18:00');
+  const [isRestDay, setIsRestDay] = useState(false);
+  const [sport, setSport] = useState('weights');
+  const [duration, setDuration] = useState(60);
+  const [intensity, setIntensity] = useState<Intensity>('medium');
+  const [trainingTime, setTrainingTime] = useState('18:00');
 
   const [loading, setLoading] = useState(false);
-  const [planResult, setPlanResult] = useState<MealPlanResult | null>(null);
-  const [mealHistory, setMealHistory] = useState<MealPlanResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [planResult, setPlanResult] = useState<MealPlan | null>(null);
+  const [history, setHistory] = useState<MealPlan[]>([]);
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const profileStr = await AsyncStorage.getItem('onboarding_profile');
-        let parsed = null;
-        if (profileStr) {
-          parsed = JSON.parse(profileStr);
-          setProfile(parsed);
-          if (parsed?.default_training_time) {
-            setTrainingTime(parsed.default_training_time);
-          }
-
-          // Calculate today's macro targets locally
-          const weight = Number(parsed.weight_kg) || 75;
-          const height = Number(parsed.height_cm) || 175;
-          const age = Number(parsed.age) || 30;
-          const sex = parsed.sex || 'male';
-          const goal = parsed.goal || 'performance';
-          
-          let bmr = 10 * weight + 6.25 * height - 5 * age;
-          bmr += sex === 'female' ? -161 : 5;
-          
-          let tdee = Math.round(bmr * 1.55);
-          if (goal === 'weight_loss') tdee -= 400;
-          if (goal === 'muscle_gain') tdee += 300;
-          
-          const protein = Math.round(weight * (goal === 'muscle_gain' ? 2.2 : 2.0));
-          const fat = Math.round((tdee * 0.25) / 9);
-          const carbs = Math.round((tdee - (protein * 4 + fat * 9)) / 4);
-
-          setMacroTargets({ kcal: tdee, protein, carbs, fat });
-        }
-
-        const historyStr = await AsyncStorage.getItem('meal_history');
-        if (historyStr) {
-          setMealHistory(JSON.parse(historyStr));
-        }
-      } catch (e) {
-        console.error('Error init planner:', e);
-      } finally {
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const [p, h, q] = await Promise.all([loadProfileOrDefault(), loadPlanHistory<MealPlan>(), getQuota()]);
+        if (!active) return;
+        setProfile(p);
+        setTrainingTime(p.default_training_time);
+        setHistory(h);
+        setQuota(q);
         setMounted(true);
-      }
-    };
-    init();
-  }, []);
+      })();
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   if (!mounted) return null;
 
+  const training: Training | null = isRestDay
+    ? null
+    : { sport, duration_min: duration, intensity, start_time: trainingTime };
+
+  // Live preview — the numbers update as you change the workout, so it's obvious
+  // that intensity and duration actually matter.
+  const preview = dailyTargets(profile, training);
+
   const handleGenerate = async () => {
+    if (quota && !quota.premium && quota.remaining <= 0) {
+      router.push('/paywall');
+      return;
+    }
+
     setLoading(true);
-    setPlanResult(null);
+    setError(null);
 
     try {
-      const payload = {
-        weight_kg: Number(profile?.weight_kg) || 75,
-        height_cm: Number(profile?.height_cm) || 175,
-        age: Number(profile?.age) || 30,
-        sex: profile?.sex || 'male',
-        fitness_level: profile?.fitness_level || 'intermediate',
-        goal: profile?.goal || 'performance',
-        omad_window_start: profile?.omad_window_start || '18:00',
-        omad_window_hours: Number(profile?.omad_window_hours) || 1,
-        sport_type: isRestDay ? 'Rest Day' : (SPORTS.find((s) => s.id === sport)?.label || sport),
-        duration_min: isRestDay ? 0 : duration,
-        intensity: isRestDay ? 'low' : intensity,
-        planned_start_time: trainingTime };
-
-      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-      const res = await fetch(`${supabaseUrl}/functions/v1/generate_meal_plan`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${anonKey}` },
-        body: JSON.stringify(payload) });
-
-      let data;
-      if (!res.ok) {
-        throw new Error('Failed to generate meal plan');
-      } else {
-        data = await res.json();
-      }
-
-      setPlanResult(data);
-
-      // Save raw plan to last_meal_plan
-      await AsyncStorage.setItem('last_meal_plan', JSON.stringify(data));
-
-      // Save to history
-      const newHistory = [data, ...mealHistory].slice(0, 3);
-      setMealHistory(newHistory);
-      await AsyncStorage.setItem('meal_history', JSON.stringify(newHistory));
-
+      const plan = await generateMealPlan(profile, training);
+      setPlanResult(plan);
+      setHistory(await savePlan(plan));
+      await consumeQuota();
+      setQuota(await getQuota());
     } catch (e) {
-      console.error('Plan generation failed:', e);
-      alert('Failed to generate meal plan. Please try again.');
+      if (e instanceof QuotaError) {
+        router.push('/paywall');
+      } else {
+        // `alert()` doesn't exist on native — this used to throw on iOS/Android
+        // on top of whatever failed first.
+        setError('Could not generate a plan. Check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleShare = async (plan: MealPlanResult) => {
-    const text = `🍽️ ${plan.recipe.title}\n\n📊 Macros: ${plan.total_kcal} kcal (P: ${plan.protein_g}g, C: ${plan.carbs_g}g, F: ${plan.fat_g}g)\n\n🛒 Ingredients:\n${plan.recipe.ingredients.map((i) => `• ${i}`).join('\n')}\n\n👨‍🍳 Instructions:\n${plan.recipe.instructions}`;
+  const handleShare = async (plan: MealPlan) => {
+    const text =
+      `🍽️ ${plan.recipe.title}\n\n` +
+      `⏰ Eat at ${plan.main_meal_time} (window ${plan.eating_window_start}–${plan.eating_window_end})\n` +
+      (plan.pre_training_snack_time ? `⚡ Pre-training snack at ${plan.pre_training_snack_time}\n` : '') +
+      `\n📊 ${plan.total_kcal} kcal — P ${plan.protein_g}g / C ${plan.carbs_g}g / F ${plan.fat_g}g\n\n` +
+      `🛒 Ingredients:\n${plan.recipe.ingredients.map((i) => `• ${i}`).join('\n')}\n\n` +
+      `👨‍🍳 Method:\n${plan.recipe.instructions}` +
+      (plan.recipe.reheat_instructions ? `\n\n🔥 Reheat:\n${plan.recipe.reheat_instructions}` : '');
+
     if (Platform.OS === 'web') {
       try {
         await navigator.clipboard.writeText(text);
-        alert('Meal plan copied to clipboard! 📋');
-      } catch (err) {
-        console.error('Failed to copy', err);
+        setError(null);
+      } catch {
+        setError('Could not copy to clipboard.');
       }
     } else {
       await Share.share({ message: text });
     }
   };
 
-  const renderHistory = () => {
-    if (mealHistory.length === 0) return null;
-    return (
-      <View style={styles.historySection}>
-        <Text style={[styles.sectionHeading, { color: colors.text }]}>📜 Recent Meal Plans</Text>
-        {mealHistory.map((plan, idx) => (
-          <Pressable
-            key={idx}
-            style={[styles.historyCard, { backgroundColor: colors.backgroundElement }]}
-            onPress={() => {
-              setPlanResult(plan);
-              // scroll to top logic if needed, but they can just see it above
-            }}
-          >
-            <Text style={[styles.historyTitle, { color: colors.text }]} numberOfLines={1}>
-              {plan.recipe.title}
-            </Text>
-            <Text style={[styles.historyMacros, { color: colors.textSecondary }]}>
-              {plan.total_kcal} kcal | P: {plan.protein_g}g
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    );
-  };
+  const chip = (selected: boolean) => [
+    styles.chip,
+    { backgroundColor: selected ? colors.primary : colors.backgroundElement },
+  ];
+  const chipText = (selected: boolean) => [
+    styles.chipText,
+    { color: selected ? '#FFFFFF' : colors.text },
+  ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Meal Planner</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Plan your ultimate OMAD feast
-          </Text>
-        </View>
+        <Text style={[styles.title, { color: colors.text }]}>Meal Planner</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Your macros and meal timing, built around today's session.
+        </Text>
 
-        {/* Macro Targets Banner */}
-        {macroTargets && (
-          <View style={[styles.macroBanner, { backgroundColor: colors.card }]}>
-            <Text style={[styles.bannerTitle, { color: colors.text }]}>Today's Target</Text>
-            <View style={styles.bannerRow}>
-              <View style={styles.bannerItem}>
-                <Text style={[styles.bannerVal, { color: colors.primary }]}>{macroTargets.kcal}</Text>
-                <Text style={[styles.bannerLbl, { color: colors.textSecondary }]}>kcal</Text>
-              </View>
-              <View style={styles.bannerItem}>
-                <Text style={[styles.bannerVal, { color: colors.primary }]}>{macroTargets.protein}g</Text>
-                <Text style={[styles.bannerLbl, { color: colors.textSecondary }]}>Protein</Text>
-              </View>
-              <View style={styles.bannerItem}>
-                <Text style={[styles.bannerVal, { color: colors.primary }]}>{macroTargets.carbs}g</Text>
-                <Text style={[styles.bannerLbl, { color: colors.textSecondary }]}>Carbs</Text>
-              </View>
-              <View style={styles.bannerItem}>
-                <Text style={[styles.bannerVal, { color: colors.primary }]}>{macroTargets.fat}g</Text>
-                <Text style={[styles.bannerLbl, { color: colors.textSecondary }]}>Fat</Text>
-              </View>
-            </View>
-          </View>
+        {quota && !quota.premium && (
+          <Pressable
+            style={[styles.quotaBar, { backgroundColor: colors.backgroundElement }]}
+            onPress={() => router.push('/paywall')}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.quotaText, { color: colors.textSecondary }]}>
+              {quota.remaining > 0
+                ? `${quota.remaining} of ${quota.limit} free plans left this week`
+                : 'Free plans used up for this week'}
+            </Text>
+            <Text style={[styles.quotaLink, { color: colors.primary }]}>Upgrade</Text>
+          </Pressable>
         )}
 
-        {/* Training Input Section Card */}
+        {/* Live targets */}
+        <View style={[styles.macroBanner, { backgroundColor: colors.card }]}>
+          <Text style={[styles.bannerTitle, { color: colors.text }]}>
+            {isRestDay ? 'Rest day target' : 'Training day target'}
+          </Text>
+          <View style={styles.bannerRow}>
+            {(
+              [
+                [String(preview.kcal), 'kcal'],
+                [`${preview.protein_g}g`, 'Protein'],
+                [`${preview.carbs_g}g`, 'Carbs'],
+                [`${preview.fat_g}g`, 'Fat'],
+              ] as const
+            ).map(([val, lbl]) => (
+              <View key={lbl} style={styles.bannerItem}>
+                <Text style={[styles.bannerVal, { color: colors.primary }]}>{val}</Text>
+                <Text style={[styles.bannerLbl, { color: colors.textSecondary }]}>{lbl}</Text>
+              </View>
+            ))}
+          </View>
+          {preview.burn_kcal > 0 && (
+            <Text style={[styles.bannerNote, { color: colors.textSecondary }]}>
+              Includes ~{preview.burn_kcal} kcal for {duration}min {intensity}-intensity {sport}.
+            </Text>
+          )}
+        </View>
+
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          
-          {/* Rest Day Toggle */}
-          <View style={[styles.inputGroup, styles.rowBetween]}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>🛋️ Rest Day (No Workout)</Text>
+          <View style={styles.rowBetween}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>🛋️ Rest day</Text>
             <Switch
               value={isRestDay}
               onValueChange={setIsRestDay}
@@ -265,128 +207,70 @@ export default function PlannerScreen() {
 
           {!isRestDay && (
             <>
-              {/* Sport Type */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>Sport Type</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                  {SPORTS.map((item) => {
-                    const isSelected = sport === item.id;
-                    return (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => setSport(item.id)}
-                        style={[
-                          styles.chip,
-                          { backgroundColor: isSelected ? colors.primary : colors.backgroundElement },
-                        ]}
-                      >
-                        <Text style={[styles.chipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>
-                          {item.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
+              <Text style={[styles.label, styles.labelSpaced, { color: colors.textSecondary }]}>Sport</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {SPORTS.map((item) => (
+                  <Pressable key={item.id} onPress={() => setSport(item.id)} style={chip(sport === item.id)}>
+                    <Text style={chipText(sport === item.id)}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
 
-              {/* Duration */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>Duration</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                  {DURATIONS.map((d) => {
-                    const isSelected = duration === d;
-                    return (
-                      <Pressable
-                        key={d}
-                        onPress={() => setDuration(d)}
-                        style={[
-                          styles.chip,
-                          { backgroundColor: isSelected ? colors.primary : colors.backgroundElement },
-                        ]}
-                      >
-                        <Text style={[styles.chipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>
-                          {d}min
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
+              <Text style={[styles.label, styles.labelSpaced, { color: colors.textSecondary }]}>Duration</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {DURATIONS.map((d) => (
+                  <Pressable key={d} onPress={() => setDuration(d)} style={chip(duration === d)}>
+                    <Text style={chipText(duration === d)}>{d} min</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
 
-              {/* Intensity */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>Intensity</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                  {INTENSITIES.map((item) => {
-                    const isSelected = intensity === item.id;
-                    return (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => setIntensity(item.id)}
-                        style={[
-                          styles.chip,
-                          { backgroundColor: isSelected ? colors.primary : colors.backgroundElement },
-                        ]}
-                      >
-                        <Text style={[styles.chipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>
-                          {item.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
+              <Text style={[styles.label, styles.labelSpaced, { color: colors.textSecondary }]}>Intensity</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {INTENSITIES.map((item) => (
+                  <Pressable key={item.id} onPress={() => setIntensity(item.id)} style={chip(intensity === item.id)}>
+                    <Text style={chipText(intensity === item.id)}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
 
-              {/* Training Time */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>Training Time</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                  {TRAINING_TIMES.map((time) => {
-                    const isSelected = trainingTime === time;
-                    return (
-                      <Pressable
-                        key={time}
-                        onPress={() => setTrainingTime(time)}
-                        style={[
-                          styles.chip,
-                          { backgroundColor: isSelected ? colors.primary : colors.backgroundElement },
-                        ]}
-                      >
-                        <Text style={[styles.chipText, { color: isSelected ? '#FFFFFF' : colors.text }]}>
-                          {time}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
+              <Text style={[styles.label, styles.labelSpaced, { color: colors.textSecondary }]}>Start time</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {TRAINING_TIMES.map((time) => (
+                  <Pressable key={time} onPress={() => setTrainingTime(time)} style={chip(trainingTime === time)}>
+                    <Text style={chipText(trainingTime === time)}>{time}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
             </>
           )}
         </View>
 
-        {/* Generate Button */}
         <Pressable
           disabled={loading}
           onPress={handleGenerate}
           style={({ pressed }) => [
             styles.generateButton,
-            {
-              backgroundColor: colors.primary,
-              opacity: pressed || loading ? 0.8 : 1 },
+            { backgroundColor: colors.primary, opacity: pressed || loading ? 0.75 : 1 },
           ]}
+          accessibilityRole="button"
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={[styles.generateButtonText, { color: '#FFFFFF' }]}>
-              Generate Meal Plan 🍽️
-            </Text>
+            <Text style={styles.generateButtonText}>Generate meal plan 🍽️</Text>
           )}
         </Pressable>
 
-        {/* Result Area */}
+        {error && (
+          <View style={[styles.errorBox, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+            <Text style={{ color: colors.danger, fontSize: 14 }}>{error}</Text>
+          </View>
+        )}
+
         {planResult ? (
           <View>
+            <TimingStrip plan={planResult} colors={colors} />
             <RecipeCard
               title={planResult.recipe.title}
               reasoning={planResult.ai_reasoning}
@@ -403,65 +287,144 @@ export default function PlannerScreen() {
               onPress={() => handleShare(planResult)}
               style={({ pressed }) => [
                 styles.shareButton,
-                {
-                  backgroundColor: colors.backgroundElement,
-                  opacity: pressed ? 0.8 : 1 },
+                { backgroundColor: colors.backgroundElement, opacity: pressed ? 0.8 : 1 },
               ]}
+              accessibilityRole="button"
             >
               <Text style={[styles.shareButtonText, { color: colors.text }]}>
-                Share / Copy to Clipboard 📋
+                {Platform.OS === 'web' ? 'Copy plan to clipboard 📋' : 'Share plan 📤'}
               </Text>
             </Pressable>
           </View>
         ) : (
-          <View style={[styles.resultCardEmpty, { backgroundColor: colors.card }]}>
-            <Text style={[styles.resultText, { color: colors.textSecondary }]}>
-              Select workout & tap Generate to create meal plan
+          <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              Set your session above, then generate a plan with the exact times to eat.
             </Text>
           </View>
         )}
 
-        {/* History Area */}
-        {renderHistory()}
-
+        {history.length > 0 && (
+          <View style={styles.historySection}>
+            <Text style={[styles.sectionHeading, { color: colors.text }]}>Recent plans</Text>
+            {history.map((plan, idx) => (
+              <Pressable
+                key={`${plan.date}-${idx}`}
+                style={[styles.historyCard, { backgroundColor: colors.backgroundElement }]}
+                onPress={() => setPlanResult(plan)}
+                accessibilityRole="button"
+              >
+                <View style={styles.flex1}>
+                  <Text style={[styles.historyTitle, { color: colors.text }]} numberOfLines={1}>
+                    {plan.recipe.title}
+                  </Text>
+                  <Text style={[styles.historyMacros, { color: colors.textSecondary }]}>
+                    {plan.date} • {plan.total_kcal} kcal • {plan.protein_g}g protein
+                  </Text>
+                </View>
+                <Text style={{ color: colors.primary, fontWeight: '800' }}>›</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+/** The timing answer, which is the thing the app exists to produce. */
+function TimingStrip({ plan, colors }: { plan: MealPlan; colors: ThemePalette }) {
+  const rows = [
+    plan.pre_training_snack_time && (['⚡ Pre-training snack', plan.pre_training_snack_time] as const),
+    ['🍽️ Main meal', plan.main_meal_time] as const,
+    ['🚪 Window closes', plan.eating_window_end] as const,
+  ].filter(Boolean) as (readonly [string, string])[];
+
+  return (
+    <View style={[styles.timingCard, { backgroundColor: colors.card, borderColor: colors.primary + '55' }]}>
+      <Text style={[styles.timingTitle, { color: colors.text }]}>Today's timing</Text>
+      {rows.map(([label, time]) => (
+        <View key={label} style={styles.timingRow}>
+          <Text style={[styles.timingLabel, { color: colors.textSecondary }]}>{label}</Text>
+          <Text style={[styles.timingTime, { color: colors.primary }]}>{time}</Text>
+        </View>
+      ))}
+      {plan.timing_warning && (
+        <Text style={[styles.timingWarning, { color: colors.accent }]}>⚠️ {plan.timing_warning}</Text>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20,  paddingBottom: 60 },
-  header: { marginBottom: 4 },
+  scrollContent: { padding: 20, paddingBottom: 130, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' },
+  flex1: { flex: 1 },
   title: { fontSize: 28, fontWeight: '800', marginBottom: 4 },
-  subtitle: { fontSize: 15, lineHeight: 20 },
-  
-  macroBanner: { borderRadius: 16, padding: 16 },
-  bannerTitle: { fontSize: 16, fontWeight: '700' },
+  subtitle: { fontSize: 15, lineHeight: 21, marginBottom: 16 },
+
+  quotaBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  quotaText: { fontSize: 13 },
+  quotaLink: { fontSize: 13, fontWeight: '700' },
+
+  macroBanner: { borderRadius: 16, padding: 16, marginBottom: 12 },
+  bannerTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12 },
   bannerRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  bannerItem: { alignItems: 'center' },
+  bannerItem: { alignItems: 'center', flex: 1 },
   bannerVal: { fontSize: 18, fontWeight: '800' },
   bannerLbl: { fontSize: 12, fontWeight: '600', marginTop: 4 },
+  bannerNote: { fontSize: 12, marginTop: 12, lineHeight: 17 },
 
-  card: { borderRadius: 16, padding: 16 },
+  card: { borderRadius: 16, padding: 16, marginBottom: 12 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  inputGroup: {  },
   label: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  chipRow: { flexDirection: 'row' },
-  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  labelSpaced: { marginTop: 18, marginBottom: 10 },
+  chipRow: { flexDirection: 'row', paddingRight: 4 },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
   chipText: { fontSize: 14, fontWeight: '600' },
-  
-  generateButton: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  generateButtonText: { fontSize: 16, fontWeight: '700' },
-  
-  shareButton: { borderRadius: 16, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  shareButtonText: { fontSize: 15, fontWeight: '600' },
-  
-  resultCardEmpty: { borderRadius: 16, padding: 24, alignItems: 'center', justifyContent: 'center', minHeight: 120 },
-  resultText: { fontSize: 14, textAlign: 'center' },
 
-  historySection: { marginTop: 10 },
-  sectionHeading: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
-  historyCard: { padding: 16, borderRadius: 12 },
-  historyTitle: { fontSize: 16, fontWeight: '600' },
-  historyMacros: { fontSize: 13 } });
+  generateButton: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  generateButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+
+  errorBox: { borderRadius: 12, padding: 14, marginTop: 12 },
+
+  timingCard: { borderRadius: 16, padding: 16, borderWidth: 1.5, marginTop: 16 },
+  timingTitle: { fontSize: 16, fontWeight: '800', marginBottom: 10 },
+  timingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  timingLabel: { fontSize: 14 },
+  timingTime: { fontSize: 17, fontWeight: '800' },
+  timingWarning: { fontSize: 13, lineHeight: 19, marginTop: 8 },
+
+  shareButton: { borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
+  shareButtonText: { fontSize: 15, fontWeight: '600' },
+
+  emptyCard: { borderRadius: 16, padding: 24, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+
+  historySection: { marginTop: 24 },
+  sectionHeading: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
+  historyCard: {
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyTitle: { fontSize: 15, fontWeight: '700' },
+  historyMacros: { fontSize: 12, marginTop: 3 },
+});

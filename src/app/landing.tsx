@@ -1,145 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/theme';
 import { router } from 'expo-router';
+import { Colors } from '@/constants/theme';
+import { FREE_PLANS_PER_WEEK } from '@/lib/store';
+
+const VALUE_PROPS = [
+  {
+    emoji: '⚡',
+    title: 'Timing, not guesswork',
+    body: 'Tell it when you train. It works out whether you eat before, after, or split around the session — and gives you the clock times.',
+  },
+  {
+    emoji: '🔥',
+    title: 'Macros that follow the work',
+    body: 'A two-hour max-intensity session and a rest day are not the same calorie target. Duration and intensity feed straight into the numbers.',
+  },
+  {
+    emoji: '🍲',
+    title: 'Built for meal prep',
+    body: 'Every recipe comes with reheat instructions for skillet, air fryer and microwave, because you cooked it yesterday.',
+  },
+];
+
+const STEPS: [string, string][] = [
+  ['Set your profile', 'Bodyweight, training schedule and goal. Takes about a minute.'],
+  ['Log the session', 'Sport, duration, intensity and start time.'],
+  ['Eat on schedule', 'Get your window, your macros and a recipe that fits them.'],
+];
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  useEffect(() => setMounted(true), []);
   if (!mounted) return null;
 
-  // Enforce dark premium design for the marketing page
+  // The marketing page is deliberately dark in both themes.
   const colors = Colors.dark;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Navigation */}
         <View style={styles.navRow}>
           <Text style={[styles.logo, { color: colors.text }]}>🍽️ OMADCoach</Text>
-          <Pressable onPress={() => router.push('/')}>
-            <Text style={[styles.loginText, { color: colors.primary }]}>Login</Text>
-          </Pressable>
         </View>
 
-        {/* Hero Section */}
         <View style={styles.heroSection}>
-          <Text style={[styles.heroTitle, { color: colors.text }]}>
-            One Meal. Peak Performance.
-          </Text>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>One meal.{'\n'}Timed properly.</Text>
           <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-            The ultimate OMAD fasting app for athletes. Optimize your macros, sync your training, and achieve your peak physique.
+            An OMAD planner for people who train hard in the evening. It works out when to eat around your session
+            and what to put on the plate.
           </Text>
         </View>
 
-        {/* Social Proof */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={[styles.statValue, { color: colors.text }]}>10,000+</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Athletes</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={[styles.statValue, { color: colors.text }]}>94%</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Hit Protein Goals</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={[styles.statValue, { color: colors.text }]}>21-day</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Avg Streak</Text>
-          </View>
-        </View>
-
-        {/* CTA */}
         <View style={styles.ctaContainer}>
           <Pressable
-            onPress={() => router.push('/onboarding')}
+            onPress={() => router.replace('/onboarding')}
             style={({ pressed }) => [
               styles.ctaButton,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
             ]}
+            accessibilityRole="button"
           >
-            <Text style={styles.ctaButtonText}>Start Your OMAD Journey 🚀</Text>
+            <Text style={styles.ctaButtonText}>Get started — free</Text>
           </Pressable>
-          <Pressable onPress={() => router.push('/')} style={styles.secondaryAction}>
-            <Text style={[styles.secondaryActionText, { color: colors.textSecondary }]}>
-              Already have an account? Log in
-            </Text>
-          </Pressable>
+          {/* Honest about the tier, and no "log in" link when there are no accounts. */}
+          <Text style={[styles.ctaNote, { color: colors.textSecondary }]}>
+            {FREE_PLANS_PER_WEEK} meal plans a week on the free tier. No account needed — your data stays on your
+            device.
+          </Text>
         </View>
 
-        {/* Value Props */}
         <View style={styles.grid}>
-          <View style={[styles.gridCard, { backgroundColor: colors.card }]}>
-            <Text style={styles.gridEmoji}>⚡</Text>
-            <Text style={[styles.gridTitle, { color: colors.text }]}>Sync Training & Eating</Text>
-            <Text style={[styles.gridSub, { color: colors.textSecondary }]}>
-              Time your fasting window around your workouts for maximum energy and recovery.
-            </Text>
-          </View>
-
-          <View style={[styles.gridCard, { backgroundColor: colors.card }]}>
-            <Text style={styles.gridEmoji}>🔥</Text>
-            <Text style={[styles.gridTitle, { color: colors.text }]}>Optimize Fat Loss</Text>
-            <Text style={[styles.gridSub, { color: colors.textSecondary }]}>
-              Keep insulin low and fat oxidation high during your fasting state.
-            </Text>
-          </View>
-
-          <View style={[styles.gridCard, { backgroundColor: colors.card }]}>
-            <Text style={styles.gridEmoji}>📈</Text>
-            <Text style={[styles.gridTitle, { color: colors.text }]}>Track Progress</Text>
-            <Text style={[styles.gridSub, { color: colors.textSecondary }]}>
-              Monitor your weight, body fat, and workout performance over time.
-            </Text>
-          </View>
+          {VALUE_PROPS.map((p) => (
+            <View key={p.title} style={[styles.gridCard, { backgroundColor: colors.card }]}>
+              <Text style={styles.gridEmoji}>{p.emoji}</Text>
+              <Text style={[styles.gridTitle, { color: colors.text }]}>{p.title}</Text>
+              <Text style={[styles.gridSub, { color: colors.textSecondary }]}>{p.body}</Text>
+            </View>
+          ))}
         </View>
 
-        {/* How it works */}
         <View style={styles.howItWorksSection}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>How it works</Text>
-          <View style={styles.stepsContainer}>
-            <View style={styles.stepRow}>
+          {STEPS.map(([title, desc], i) => (
+            <View key={title} style={styles.stepRow}>
               <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
-                <Text style={styles.stepNumberText}>1</Text>
+                <Text style={styles.stepNumberText}>{i + 1}</Text>
               </View>
               <View style={styles.stepContent}>
-                <Text style={[styles.stepTitle, { color: colors.text }]}>Set Your Goals</Text>
-                <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Tell us your target weight, training schedule, and dietary preferences.</Text>
+                <Text style={[styles.stepTitle, { color: colors.text }]}>{title}</Text>
+                <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>{desc}</Text>
               </View>
             </View>
-            <View style={styles.stepRow}>
-              <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
-                <Text style={styles.stepNumberText}>2</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={[styles.stepTitle, { color: colors.text }]}>Get Your Macros</Text>
-                <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Receive a customized macro split tailored for one massive, satisfying meal.</Text>
-              </View>
-            </View>
-            <View style={styles.stepRow}>
-              <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
-                <Text style={styles.stepNumberText}>3</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={[styles.stepTitle, { color: colors.text }]}>Eat & Perform</Text>
-                <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Fast effortlessly, crush your workouts, and feast like a king.</Text>
-              </View>
-            </View>
-          </View>
+          ))}
         </View>
 
-        {/* Footer */}
+        <Pressable
+          onPress={() => router.replace('/onboarding')}
+          style={({ pressed }) => [
+            styles.ctaButton,
+            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+          ]}
+          accessibilityRole="button"
+        >
+          <Text style={styles.ctaButtonText}>Start your first plan</Text>
+        </Pressable>
+
+        <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
+          OMADCoach gives general nutrition and training guidance. It is not medical advice. Talk to a clinician
+          before starting extended fasting, especially if you are pregnant, diabetic, or taking medication.
+        </Text>
+
         <Text style={[styles.footer, { color: colors.textSecondary }]}>
-          © {new Date().getFullYear()} OMADCoach. All rights reserved.
+          © {new Date().getFullYear()} OMADCoach
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -148,34 +121,52 @@ export default function LandingPage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20,  maxWidth: 600, alignSelf: 'center', width: '100%', paddingBottom: 60 },
-  navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  logo: { fontSize: 22, fontWeight: '800' },
-  loginText: { fontSize: 16, fontWeight: '600' },
-  heroSection: {  marginTop: 12 },
-  heroTitle: { fontSize: 44, fontWeight: '900', lineHeight: 52 },
-  heroSubtitle: { fontSize: 18, lineHeight: 28 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
-  statBox: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
-  ctaContainer: {  marginVertical: 8 },
-  ctaButton: { borderRadius: 16, paddingVertical: 20, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
-  ctaButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-  secondaryAction: { alignItems: 'center', paddingVertical: 8 },
-  secondaryActionText: { fontSize: 15, fontWeight: '600' },
-  grid: {  },
-  gridCard: { borderRadius: 20, padding: 24 },
-  gridEmoji: { fontSize: 32 },
-  gridTitle: { fontSize: 20, fontWeight: '800' },
+  scrollContent: { padding: 24, maxWidth: 640, alignSelf: 'center', width: '100%', paddingBottom: 60 },
+  navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 },
+  logo: { fontSize: 20, fontWeight: '800' },
+
+  heroSection: { marginBottom: 28 },
+  heroTitle: { fontSize: 40, fontWeight: '900', lineHeight: 46, letterSpacing: -1 },
+  heroSubtitle: { fontSize: 17, lineHeight: 26, marginTop: 18 },
+
+  ctaContainer: { marginBottom: 44 },
+  ctaButton: {
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  ctaButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
+  ctaNote: { fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 14 },
+
+  grid: { marginBottom: 40 },
+  gridCard: { borderRadius: 20, padding: 22, marginBottom: 14 },
+  gridEmoji: { fontSize: 28, marginBottom: 10 },
+  gridTitle: { fontSize: 19, fontWeight: '800', marginBottom: 8 },
   gridSub: { fontSize: 15, lineHeight: 22 },
-  howItWorksSection: {  marginTop: 16 },
-  sectionTitle: { fontSize: 28, fontWeight: '800' },
-  stepsContainer: {  },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  stepNumber: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  stepNumberText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+
+  howItWorksSection: { marginBottom: 36 },
+  sectionTitle: { fontSize: 26, fontWeight: '800', marginBottom: 22 },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 22 },
+  stepNumber: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    marginTop: 2,
+  },
+  stepNumberText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
   stepContent: { flex: 1 },
-  stepTitle: { fontSize: 18, fontWeight: '700' },
+  stepTitle: { fontSize: 17, fontWeight: '700', marginBottom: 4 },
   stepDesc: { fontSize: 15, lineHeight: 22 },
-  footer: { textAlign: 'center', fontSize: 13, marginTop: 32, opacity: 0.6 } });
+
+  disclaimer: { fontSize: 12, lineHeight: 18, marginTop: 32, textAlign: 'center' },
+  footer: { textAlign: 'center', fontSize: 13, marginTop: 20, opacity: 0.6 },
+});

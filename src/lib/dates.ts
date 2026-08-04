@@ -1,0 +1,81 @@
+/**
+ * Local-date helpers. Kept free of AsyncStorage so the streak and week-rollover
+ * rules are checkable — this is exactly where the original code was wrong
+ * (it used toISOString(), which is UTC, to decide what "today" was).
+ */
+
+export function todayISO(d: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Parsed at midday so a DST shift can't tip the date over an edge. */
+export function parseISO(date: string): Date {
+  return new Date(`${date}T12:00:00`);
+}
+
+/** ISO-8601 week key, so the free quota rolls over on Monday. */
+export function weekKey(d: Date = new Date()): string {
+  const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  // Move to the Thursday of this week — the ISO week-numbering anchor.
+  const day = (t.getDay() + 6) % 7;
+  t.setDate(t.getDate() - day + 3);
+  const firstThursday = new Date(t.getFullYear(), 0, 4);
+  const fDay = (firstThursday.getDay() + 6) % 7;
+  firstThursday.setDate(firstThursday.getDate() - fDay + 3);
+  const week = 1 + Math.round((t.getTime() - firstThursday.getTime()) / (7 * 86400000));
+  return `${t.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+/**
+ * Consecutive logged days ending today — or yesterday, so a streak doesn't
+ * appear broken during the day before you've logged the current one.
+ */
+export function currentStreak(dates: string[], today = todayISO()): number {
+  const set = new Set(dates ?? []);
+  const cursor = parseISO(today);
+  if (!set.has(todayISO(cursor))) cursor.setDate(cursor.getDate() - 1);
+
+  let streak = 0;
+  // Bounded so a corrupt log can never spin forever.
+  while (set.has(todayISO(cursor)) && streak < 3650) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+// ---------------------------------------------------------------------------
+
+export function demo() {
+  const assert = (cond: boolean, msg: string) => {
+    if (!cond) throw new Error('FAIL: ' + msg);
+  };
+
+  // Local, not UTC: 23:30 on the 5th is still the 5th regardless of timezone.
+  assert(todayISO(new Date(2026, 0, 5, 23, 30)) === '2026-01-05', 'late evening stays on the same local date');
+  assert(todayISO(new Date(2026, 0, 5, 0, 30)) === '2026-01-05', 'early morning stays on the same local date');
+
+  // Streak counted back from today.
+  assert(currentStreak(['2026-03-10', '2026-03-09', '2026-03-08'], '2026-03-10') === 3, 'three logged days in a row');
+  // Today not logged yet — yesterday's streak must still show.
+  assert(currentStreak(['2026-03-09', '2026-03-08'], '2026-03-10') === 2, 'streak survives an unlogged today');
+  // A missed day breaks it.
+  assert(currentStreak(['2026-03-10', '2026-03-08'], '2026-03-10') === 1, 'a gap ends the streak');
+  // Two days stale is broken.
+  assert(currentStreak(['2026-03-08'], '2026-03-10') === 0, 'stale log gives no streak');
+  assert(currentStreak([], '2026-03-10') === 0, 'empty log gives no streak');
+  // Duplicates must not inflate the count.
+  assert(currentStreak(['2026-03-10', '2026-03-10', '2026-03-09'], '2026-03-10') === 2, 'duplicate dates counted once');
+  // Across a month boundary.
+  assert(currentStreak(['2026-03-01', '2026-02-28', '2026-02-27'], '2026-03-01') === 3, 'streak crosses a month end');
+
+  // Week key rolls over on Monday, not Sunday.
+  const sunday = new Date(2026, 2, 8); // Sun 8 Mar 2026
+  const monday = new Date(2026, 2, 9); // Mon 9 Mar 2026
+  const saturday = new Date(2026, 2, 7);
+  assert(weekKey(saturday) === weekKey(sunday), 'Saturday and Sunday share a week');
+  assert(weekKey(sunday) !== weekKey(monday), 'Monday starts a new week');
+
+  return 'dates.ts: all checks passed';
+}
