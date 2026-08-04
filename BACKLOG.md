@@ -67,7 +67,7 @@ Durchlauf 1 gefunden und behoben: er servierte ein veraltetes Bundle.
 
 ---
 
-## 3. [ ] Chatverlauf überlebt das Schließen
+## 3. [x] Chatverlauf überlebt das Schließen
 
 **Warum:** `chat.tsx` startet bei jedem Öffnen bei null. Eine Rückfrage zwei
 Stunden später beginnt bei Adam und Eva, und der Verlauf, den `askCoach` als
@@ -82,6 +82,10 @@ Kontext mitschickt, ist leer. Der Coach wirkt vergesslich, weil er es ist.
 
 **Fertig wenn:** Nachricht senden, Route wechseln, zurück — der Verlauf steht
 noch da. Als E2E-Check verankert.
+
+**Erledigt** 2026-08-05 — 80 Checks. Der Planner-Block wurde dabei
+deterministisch gemacht: seit Punkt 2 hing „Kontingent sinkt" davon ab, ob das
+Modell gerade antwortet.
 
 ---
 

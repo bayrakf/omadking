@@ -105,6 +105,26 @@ export default async function run() {
   section('Planner');
   {
     const { context, page, errors } = await newPage(browser, SEED);
+    // Serve a valid generated recipe. Since a fallback deliberately no longer
+    // spends quota, leaving this to the live service would make the quota
+    // assertion depend on whether the model happens to answer during the run.
+    await context.route('**/functions/v1/generate_meal_plan', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          source: 'ai',
+          recipe: {
+            title: 'Stubbed Recovery Plate',
+            ingredients: ['400g chicken breast', '500g sweet potato', '2 tbsp olive oil'],
+            instructions: '1. Season the chicken. 2. Roast the potato at 200C for 25 minutes.',
+            reheat_instructions: '1. Skillet: 4 minutes over medium heat.',
+            prep_time_min: 30,
+            is_meal_prep: true,
+          },
+        }),
+      })
+    );
     await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
 
@@ -131,14 +151,15 @@ export default async function run() {
     check(rest < medium, 'a rest day is below any training day', String(rest));
     check(has(await body(page), 'Rest day'), 'the header switches to rest day');
 
-    // The model may be unreachable; the offline recipe has to cover it either way.
     await page.locator('input[type="checkbox"]').first().click();
     await page.waitForTimeout(400);
     await page.getByText('Build the plan').click();
-    await page.waitForTimeout(45000);
+    await page.waitForTimeout(6000);
 
     const plan = await body(page);
     check(has(plan, 'Today’s timing'), 'a plan renders');
+    check(has(plan, 'Stubbed Recovery Plate'), 'the generated recipe is used');
+    check(!has(plan, 'standard plate'), 'a generated recipe carries no fallback notice');
     check(/Main meal\s*\d\d:\d\d/.test(plan), 'the main meal time is shown', plan.match(/Main meal\s*\d\d:\d\d/)?.[0]);
     check(has(plan, 'Ingredients'), 'ingredients render');
     check(has(plan, 'Method'), 'method steps render');
@@ -187,6 +208,51 @@ export default async function run() {
     await page.waitForTimeout(1200);
     const premium = await page.evaluate(() => localStorage.getItem('user_premium'));
     check(premium !== 'true', 'tapping subscribe never grants premium', String(premium));
+    await context.close();
+  }
+
+  // ------------------------------------------------------------------- CHAT
+  section('Coach conversation');
+  {
+    const { context, page } = await newPage(browser, SEED);
+    // Answer locally so the check does not depend on the model being up, and
+    // so the assertion is about persistence rather than about the reply.
+    await context.route('**/functions/v1/chat', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ response: 'Aim for 3 to 5 grams of sodium a day.' }),
+      })
+    );
+
+    await page.goto(BASE + '/chat', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+
+    await page.getByLabel('Message').fill('How much sodium?');
+    await page.getByLabel('Send').click();
+    await page.waitForTimeout(2500);
+    check(has(await body(page), '3 to 5 grams'), 'the coach answers');
+
+    // The regression this guards: the thread used to reset on every open, so
+    // askCoach received an empty history and the coach could not follow up.
+    await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1200);
+    await page.goto(BASE + '/chat', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+
+    const back = await body(page);
+    check(has(back, 'How much sodium?'), 'the question survives leaving the screen');
+    check(has(back, '3 to 5 grams'), 'and so does the answer');
+
+    const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('chat_log')) ?? 'null');
+    check(Array.isArray(stored) && stored.length === 2, 'exactly the two real messages are stored', String(stored?.length));
+    check(!stored?.some((m) => m.id === 'greeting'), 'the canned greeting is not stored');
+
+    await page.getByLabel('Clear conversation').click();
+    await page.waitForTimeout(800);
+    const cleared = await body(page);
+    check(!has(cleared, 'How much sodium?'), 'clearing empties the thread');
+    check(await page.evaluate(() => localStorage.getItem('chat_log')) === null, 'and clears storage too');
     await context.close();
   }
 

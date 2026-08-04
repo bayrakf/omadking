@@ -224,6 +224,27 @@ function offlineRecipe(
 
 export type ChatTurn = { role: 'user' | 'ai'; content: string };
 
+export type StoredMessage = { id: string; sender: 'user' | 'ai'; text: string; failed?: boolean };
+
+/** Cap on what is kept. Long enough to hold a real thread, short enough that
+ *  the transcript never grows without bound on a device with no accounts. */
+export const CHAT_KEEP = 40;
+
+/**
+ * What counts as conversation.
+ *
+ * The canned greeting is generated, not said, and a failed send is an error
+ * message dressed as a reply — feeding either back to the coach teaches it to
+ * imitate them. The same rule decides what gets persisted, so the thread the
+ * user sees and the context the model receives can never drift apart.
+ */
+export function conversationOf(messages: StoredMessage[], max = CHAT_KEEP): StoredMessage[] {
+  return (messages ?? [])
+    .filter((m) => m && m.id !== 'greeting' && !m.failed && typeof m.text === 'string' && m.text.trim())
+    .slice(-max)
+    .map(({ id, sender, text }) => ({ id, sender, text }));
+}
+
 /**
  * Sends to the `chat` edge function, which holds the Gemini key.
  * Throws on failure — the caller shows the error rather than a canned tip
@@ -314,6 +335,30 @@ export function demo() {
     );
   }
   assert(describeRecipeFallback('truncated').includes('Try again'), 'a transient failure invites a retry');
+
+  // conversationOf: the greeting and failed sends are not conversation.
+  const thread: StoredMessage[] = [
+    { id: 'greeting', sender: 'ai', text: 'Ask me anything.' },
+    { id: 'u1', sender: 'user', text: 'How much sodium?' },
+    { id: 'a1', sender: 'ai', text: '3-5g.' },
+    { id: 'e1', sender: 'ai', text: 'Coach is unavailable.', failed: true },
+    { id: 'u2', sender: 'user', text: 'And potassium?' },
+  ];
+  const kept = conversationOf(thread);
+  assert(kept.length === 3, `three real messages survive, got ${kept.length}`);
+  assert(!kept.some((m) => m.id === 'greeting'), 'the canned greeting is not conversation');
+  assert(!kept.some((m) => m.id === 'e1'), 'a failed send is not conversation');
+  assert(!('failed' in kept[0]), 'the failed flag is not persisted');
+  assert(kept[0].id === 'u1' && kept[2].id === 'u2', 'order is preserved');
+
+  // Blank text is dropped, and the cap keeps the newest.
+  assert(conversationOf([{ id: 'x', sender: 'user', text: '   ' }]).length === 0, 'whitespace is not a message');
+  const many = Array.from({ length: 60 }, (_, i) => ({ id: `m${i}`, sender: 'user' as const, text: `n${i}` }));
+  const capped = conversationOf(many);
+  assert(capped.length === CHAT_KEEP, `capped at ${CHAT_KEEP}, got ${capped.length}`);
+  assert(capped[capped.length - 1].id === 'm59', 'the cap keeps the newest, not the oldest');
+  assert(conversationOf([]).length === 0, 'an empty thread is empty');
+  assert(conversationOf(null as any).length === 0, 'a missing thread does not throw');
 
   return 'ai.ts: all checks passed';
 }

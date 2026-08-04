@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { normalizeProfile, type UserProfile } from './nutrition';
 import { todayISO, weekKey, currentStreak } from './dates';
+import { conversationOf, type StoredMessage } from './ai';
 
 export { todayISO, currentStreak };
 
@@ -21,6 +22,7 @@ export const KEYS = {
   planQuota: 'plan_quota',
   fastLog: 'fast_log',
   cookLog: 'cook_log',
+  chatLog: 'chat_log',
 } as const;
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -179,6 +181,32 @@ export async function unmarkFastComplete(date = todayISO()): Promise<string[]> {
   const next = (await loadFastLog()).filter((d) => d !== date);
   await writeJSON(KEYS.fastLog, next);
   return next;
+}
+
+// --- Coach conversation ----------------------------------------------------
+
+/**
+ * The thread survives closing the app. Without this the coach reopened blank
+ * every time and `askCoach` received an empty history, so it genuinely could
+ * not remember a question asked two hours earlier.
+ */
+export async function loadChat(): Promise<StoredMessage[]> {
+  const raw = await readJSON<StoredMessage[]>(KEYS.chatLog, []);
+  return Array.isArray(raw) ? conversationOf(raw) : [];
+}
+
+/** Stores only what counts as conversation, capped, via the same rule the
+ *  coach's context uses. */
+export async function saveChat(messages: StoredMessage[]): Promise<void> {
+  const kept = conversationOf(messages);
+  // Nothing left is the same as never having had one; writing `[]` would leave
+  // a stray key behind after clearing.
+  if (kept.length === 0) return clearChat();
+  await writeJSON(KEYS.chatLog, kept);
+}
+
+export async function clearChat(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.chatLog);
 }
 
 // --- Meal prep -------------------------------------------------------------

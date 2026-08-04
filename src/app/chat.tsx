@@ -7,8 +7,8 @@ import { useRouter } from 'expo-router';
 import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Tap, useTheme, useReducedMotion } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { askCoach, type ChatTurn, type MealPlan } from '@/lib/ai';
-import { loadProfile, loadLastPlan, todayISO } from '@/lib/store';
+import { askCoach, conversationOf, type ChatTurn, type MealPlan } from '@/lib/ai';
+import { loadProfile, loadLastPlan, loadChat, saveChat, clearChat, todayISO } from '@/lib/store';
 import type { UserProfile } from '@/lib/nutrition';
 
 type Message = { id: string; sender: 'user' | 'ai'; text: string; failed?: boolean };
@@ -69,10 +69,16 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [plan, setPlan] = useState<MealPlan | null>(null);
+  const [restored, setRestored] = useState(false);
 
   useEffect(() => {
     loadProfile().then(setProfile);
     loadLastPlan<MealPlan>().then((p) => setPlan(p?.date === todayISO() ? p : null));
+    // The greeting stays at the top; restored messages follow it.
+    loadChat().then((stored) => {
+      if (stored.length) setMessages([GREETING, ...stored]);
+      setRestored(true);
+    });
   }, []);
 
   const toBottom = () => setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
@@ -81,9 +87,10 @@ export default function ChatScreen() {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
 
-    const history: ChatTurn[] = messages
-      .filter((m) => m.id !== 'greeting' && !m.failed)
-      .map((m) => ({ role: m.sender, content: m.text }));
+    const history: ChatTurn[] = conversationOf(messages).map((m) => ({
+      role: m.sender,
+      content: m.text,
+    }));
 
     setMessages((p) => [...p, { id: `u${Date.now()}`, sender: 'user', text: trimmed }]);
     setInput('');
@@ -108,6 +115,17 @@ export default function ChatScreen() {
     }
   };
 
+  // Persist after every change, but never before the restore has run — an
+  // early write would save the greeting-only state over a real thread.
+  useEffect(() => {
+    if (restored) saveChat(messages);
+  }, [messages, restored]);
+
+  const wipe = async () => {
+    await clearChat();
+    setMessages([GREETING]);
+  };
+
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: c.bg }]} edges={['top', 'bottom']}>
       <View style={[s.header, { borderBottomColor: c.line }]}>
@@ -118,6 +136,13 @@ export default function ChatScreen() {
           <Txt variant="subheading">Coach</Txt>
           <Eyebrow>Nutrition guidance · not medical advice</Eyebrow>
         </View>
+        {messages.length > 1 && (
+          <Tap onPress={wipe} accessibilityLabel="Clear conversation">
+            <View style={s.clear}>
+              <Txt variant="small" color={c.textDim}>Clear</Txt>
+            </View>
+          </Tap>
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -202,6 +227,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Space.base, paddingBottom: Space.md, borderBottomWidth: 1,
   },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: Space.xs },
+  clear: { paddingHorizontal: Space.md, paddingVertical: Space.sm },
   feed: {
     padding: Space.lg, paddingBottom: Space.sm,
     maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%',
