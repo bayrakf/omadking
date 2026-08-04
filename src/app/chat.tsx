@@ -1,263 +1,223 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  useColorScheme,
+  View, TextInput, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Colors, MaxContentWidth } from '@/constants/theme';
+import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
+import { Txt, Eyebrow, Tap, useTheme, useReducedMotion } from '@/components/ui';
+import { Icon } from '@/components/icons';
 import { askCoach, type ChatTurn } from '@/lib/ai';
 import { loadProfile } from '@/lib/store';
 import type { UserProfile } from '@/lib/nutrition';
 
-type Message = {
-  id: string;
-  sender: 'user' | 'ai';
-  text: string;
-  failed?: boolean;
-};
+type Message = { id: string; sender: 'user' | 'ai'; text: string; failed?: boolean };
 
-const QUICK_PROMPTS = [
-  'Best electrolytes for fasting?',
-  'When should I break my fast?',
+const PROMPTS = [
+  'Best electrolytes for a long fast?',
+  'Why do I crash mid-session?',
   'Pre-workout on OMAD?',
   'How much protein do I need?',
-  'Why do I crash mid-workout?',
 ];
 
 const GREETING: Message = {
   id: 'greeting',
   sender: 'ai',
-  text: "👋 I'm your OMAD nutrition coach. Ask me about meal timing, electrolytes, or how to fuel a hard session on one meal a day.",
+  text: 'Ask me about meal timing, electrolytes, or fuelling a hard session on one meal a day.',
 };
 
-function TypingIndicator({ color }: { color: string }) {
-  const [dots, setDots] = useState('.');
+/** Three dots that breathe. The only ambient motion in the app. */
+function Thinking({ color }: { color: string }) {
+  const reduced = useReducedMotion();
+  const v = useRef([0, 1, 2].map(() => new Animated.Value(0.3))).current;
+
   useEffect(() => {
-    const interval = setInterval(() => setDots((p) => (p.length >= 3 ? '.' : p + '.')), 400);
-    return () => clearInterval(interval);
-  }, []);
-  return <Text style={[styles.bubbleText, { color }]}>Thinking{dots}</Text>;
+    if (reduced) return;
+    const loops = v.map((val, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 140),
+          Animated.timing(val, { toValue: 1, duration: 380, useNativeDriver: true }),
+          Animated.timing(val, { toValue: 0.3, duration: 380, useNativeDriver: true }),
+          Animated.delay((2 - i) * 140),
+        ])
+      )
+    );
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  }, [reduced, v]);
+
+  return (
+    <View style={s.dots}>
+      {v.map((val, i) => (
+        <Animated.View key={i} style={[s.dot, { backgroundColor: color, opacity: val }]} />
+      ))}
+    </View>
+  );
 }
 
 export default function ChatScreen() {
-  const [mounted, setMounted] = useState(false);
-  const colorScheme = useColorScheme();
-  const colors = Colors[mounted && colorScheme === 'dark' ? 'dark' : 'light'];
+  const c = useTheme();
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollView>(null);
 
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    loadProfile().then(setProfile);
-  }, []);
+  useEffect(() => { loadProfile().then(setProfile); }, []);
 
-  const scrollToBottom = () => {
-    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 60);
-  };
+  const toBottom = () => setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
 
-  const handleSend = async (text: string) => {
+  const send = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
 
-    const historyBefore: ChatTurn[] = messages
+    const history: ChatTurn[] = messages
       .filter((m) => m.id !== 'greeting' && !m.failed)
       .map((m) => ({ role: m.sender, content: m.text }));
 
-    setMessages((prev) => [...prev, { id: `u${Date.now()}`, sender: 'user', text: trimmed }]);
+    setMessages((p) => [...p, { id: `u${Date.now()}`, sender: 'user', text: trimmed }]);
     setInput('');
     setLoading(true);
-    scrollToBottom();
+    toBottom();
 
     try {
-      const reply = await askCoach(trimmed, historyBefore, profile);
-      setMessages((prev) => [...prev, { id: `a${Date.now()}`, sender: 'ai', text: reply }]);
+      const reply = await askCoach(trimmed, history, profile);
+      setMessages((p) => [...p, { id: `a${Date.now()}`, sender: 'ai', text: reply }]);
     } catch (err: any) {
       // Previously this swallowed the error and printed a canned tip, so a broken
       // API looked like a working coach giving irrelevant answers.
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `e${Date.now()}`,
-          sender: 'ai',
-          text: `⚠️ ${err?.message || 'Could not reach the coach.'} Check your connection and try again.`,
-          failed: true,
-        },
-      ]);
+      setMessages((p) => [...p, {
+        id: `e${Date.now()}`,
+        sender: 'ai',
+        text: `${err?.message || 'Could not reach the coach.'} Check your connection and try again.`,
+        failed: true,
+      }]);
     } finally {
       setLoading(false);
-      scrollToBottom();
+      toBottom();
     }
   };
 
-  if (!mounted) return null;
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      <View style={[styles.header, { borderBottomColor: colors.backgroundElement }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={[styles.backTxt, { color: colors.primary }]}>‹ Back</Text>
-        </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>AI Nutrition Coach</Text>
-        <View style={styles.backBtn} />
+    <SafeAreaView style={[s.flex, { backgroundColor: c.bg }]} edges={['top', 'bottom']}>
+      <View style={[s.header, { borderBottomColor: c.line }]}>
+        <Tap onPress={() => router.back()} accessibilityLabel="Back">
+          <View style={s.back}><Icon name="chevronLeft" size={20} color={c.text} /></View>
+        </Tap>
+        <View style={s.flex}>
+          <Txt variant="subheading">Coach</Txt>
+          <Eyebrow>Nutrition guidance · not medical advice</Eyebrow>
+        </View>
       </View>
 
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={s.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        keyboardVerticalOffset={8}
       >
         <ScrollView
-          ref={scrollViewRef}
-          contentContainerStyle={styles.feed}
+          ref={scroller}
+          contentContainerStyle={s.feed}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {messages.map((m) => {
-            const isAi = m.sender === 'ai';
+            const ai = m.sender === 'ai';
             return (
               <View
                 key={m.id}
                 style={[
-                  styles.bubble,
-                  isAi
-                    ? {
-                        backgroundColor: m.failed ? 'rgba(239,68,68,0.12)' : colors.card,
-                        alignSelf: 'flex-start',
-                      }
-                    : { backgroundColor: colors.primary, alignSelf: 'flex-end' },
+                  s.bubble,
+                  ai
+                    ? { backgroundColor: m.failed ? 'transparent' : c.surface, borderColor: m.failed ? c.negative : c.line, alignSelf: 'flex-start' }
+                    : { backgroundColor: c.accentWash, borderColor: c.accentDim, alignSelf: 'flex-end' },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.bubbleText,
-                    { color: isAi ? (m.failed ? colors.danger : colors.text) : '#FFFFFF' },
-                  ]}
-                >
-                  {m.text}
-                </Text>
+                <Txt variant="body" color={m.failed ? c.negative : c.text}>{m.text}</Txt>
               </View>
             );
           })}
           {loading && (
-            <View style={[styles.bubble, { backgroundColor: colors.card, alignSelf: 'flex-start' }]}>
-              <TypingIndicator color={colors.textSecondary} />
+            <View style={[s.bubble, { backgroundColor: c.surface, borderColor: c.line, alignSelf: 'flex-start' }]}>
+              <Thinking color={c.textDim} />
             </View>
           )}
         </ScrollView>
 
-        {/* Suggestions sit above the input so they stay reachable one-handed. */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickPrompts}
+          contentContainerStyle={s.prompts}
           keyboardShouldPersistTaps="handled"
         >
-          {QUICK_PROMPTS.map((prompt) => (
-            <Pressable
-              key={prompt}
-              style={[styles.quickPromptBtn, { backgroundColor: colors.backgroundElement }]}
-              onPress={() => handleSend(prompt)}
-              disabled={loading}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.quickPromptTxt, { color: colors.primary }]}>{prompt}</Text>
-            </Pressable>
+          {PROMPTS.map((p) => (
+            <Tap key={p} onPress={() => send(p)} disabled={loading} accessibilityLabel={p}>
+              <View style={[s.prompt, { borderColor: c.line, backgroundColor: c.surface }]}>
+                <Txt variant="small" color={c.textDim}>{p}</Txt>
+              </View>
+            </Tap>
           ))}
         </ScrollView>
 
-        <View style={[styles.inputBar, { backgroundColor: colors.card, borderTopColor: colors.backgroundElement }]}>
+        <View style={[s.inputBar, { borderTopColor: c.line, backgroundColor: c.bg }]}>
           <TextInput
-            placeholder="Ask the coach…"
-            placeholderTextColor={colors.textSecondary}
+            placeholder="Ask the coach"
+            placeholderTextColor={c.textFaint}
             value={input}
             onChangeText={setInput}
-            onSubmitEditing={() => handleSend(input)}
+            onSubmitEditing={() => send(input)}
             editable={!loading}
             multiline
             maxLength={1000}
-            style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
-            accessibilityLabel="Message to coach"
+            accessibilityLabel="Message"
+            style={[Type.body, s.input, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
           />
-          <Pressable
-            disabled={!input.trim() || loading}
-            onPress={() => handleSend(input)}
-            style={({ pressed }) => [
-              styles.sendBtn,
-              {
-                backgroundColor: colors.primary,
-                opacity: pressed || !input.trim() || loading ? 0.5 : 1,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Send"
-          >
-            {loading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.sendTxt}>Send</Text>}
-          </Pressable>
+          <Tap onPress={() => send(input)} disabled={!input.trim() || loading} accessibilityLabel="Send">
+            <View style={[s.send, { backgroundColor: input.trim() && !loading ? c.accent : c.well }]}>
+              {loading
+                ? <ActivityIndicator size="small" color={c.textDim} />
+                : <Icon name="chevronRight" size={20} color={input.trim() ? c.onAccent : c.textFaint} />}
+            </View>
+          </Tap>
         </View>
       </KeyboardAvoidingView>
-
-      <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
-        General nutrition guidance, not medical advice.
-      </Text>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+const s = StyleSheet.create({
   flex: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 0,
+    paddingHorizontal: Space.base, paddingBottom: Space.md, borderBottomWidth: 1,
   },
-  backBtn: { minWidth: 64, paddingVertical: 4 },
-  backTxt: { fontSize: 16, fontWeight: '600' },
-  title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
-  feed: { padding: 16, paddingBottom: 8, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' },
-  quickPrompts: { paddingHorizontal: 16, paddingVertical: 10 },
-  quickPromptBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
-  quickPromptTxt: { fontSize: 13, fontWeight: '600' },
-  bubble: { maxWidth: '85%', padding: 14, borderRadius: 16, marginBottom: 10 },
-  bubbleText: { fontSize: 15, lineHeight: 22 },
+  back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: Space.xs },
+  feed: {
+    padding: Space.lg, paddingBottom: Space.sm,
+    maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%',
+  },
+  bubble: {
+    maxWidth: '88%', paddingHorizontal: Space.base, paddingVertical: Space.md,
+    borderRadius: Radius.md, borderWidth: 1, marginBottom: Space.md,
+  },
+  dots: { flexDirection: 'row', alignItems: 'center', height: 20 },
+  dot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
+  prompts: { paddingHorizontal: Space.lg, paddingBottom: Space.md },
+  prompt: {
+    height: 36, paddingHorizontal: Space.base, borderRadius: Radius.pill,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: Space.sm,
+  },
   inputBar: {
-    flexDirection: 'row',
-    padding: 12,
-    borderTopWidth: 1,
-    alignItems: 'flex-end',
+    flexDirection: 'row', alignItems: 'flex-end', padding: Space.md,
+    borderTopWidth: 1, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%',
   },
   input: {
-    flex: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    maxHeight: 120,
-    marginRight: 8,
+    flex: 1, borderRadius: Radius.md, borderWidth: 1,
+    paddingHorizontal: Space.base, paddingVertical: Space.md,
+    maxHeight: 120, marginRight: Space.sm,
   },
-  sendBtn: {
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    minWidth: 72,
-    alignItems: 'center',
-  },
-  sendTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  disclaimer: { fontSize: 11, textAlign: 'center', paddingBottom: 6, paddingHorizontal: 16 },
+  send: { width: 48, height: 48, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
 });

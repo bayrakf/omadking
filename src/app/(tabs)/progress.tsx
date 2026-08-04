@@ -1,52 +1,72 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, TextInput, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Colors, MaxContentWidth } from '@/constants/theme';
+import Svg, { Circle, Path } from 'react-native-svg';
+import { Space, Radius, Type } from '@/constants/theme';
+import {
+  Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, useTheme,
+} from '@/components/ui';
 import { DEFAULT_PROFILE, weeklyTrend, type UserProfile } from '@/lib/nutrition';
 import {
-  loadProfileOrDefault,
-  saveProfile,
-  loadWeightLog,
-  saveWeightLog,
-  todayISO,
-  type WeightEntry,
+  loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog, todayISO, type WeightEntry,
 } from '@/lib/store';
 
-/** Minimal sparkline built from Views — avoids pulling in a chart library. */
-function Sparkline({ entries, color, bg }: { entries: WeightEntry[]; color: string; bg: string }) {
-  const points = [...entries].reverse().slice(-30);
-  if (points.length < 2) return null;
+/**
+ * A trend line, not bars. Bodyweight is a noisy continuous signal, and a line
+ * with a soft band is the honest way to show that the day-to-day scatter is not
+ * the thing you should react to.
+ */
+function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?: number }) {
+  const c = useTheme();
+  const [width, setWidth] = useState(0);
+
+  const points = [...entries].reverse().slice(-40);
+  if (points.length < 2 || width === 0) {
+    return <View style={{ height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} />;
+  }
 
   const values = points.map((p) => p.weight_kg);
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const range = max - min || 1;
+  const span = max - min || 1;
+  const pad = 10;
+
+  const xy = points.map((p, i) => ({
+    x: (i / (points.length - 1)) * (width - pad * 2) + pad,
+    y: height - pad - ((p.weight_kg - min) / span) * (height - pad * 2),
+  }));
+
+  // Smooth with a simple midpoint curve — avoids the jagged look of raw joins.
+  const line = xy.reduce((d, p, i, arr) => {
+    if (i === 0) return `M ${p.x} ${p.y}`;
+    const prev = arr[i - 1];
+    const mx = (prev.x + p.x) / 2;
+    return `${d} Q ${prev.x} ${prev.y} ${mx} ${(prev.y + p.y) / 2} T ${p.x} ${p.y}`;
+  }, '');
+
+  const area = `${line} L ${xy[xy.length - 1].x} ${height} L ${xy[0].x} ${height} Z`;
+  const last = xy[xy.length - 1];
 
   return (
-    <View style={styles.sparkRow}>
-      {points.map((p, i) => {
-        const height = 8 + ((p.weight_kg - min) / range) * 52;
-        return (
-          <View key={`${p.date}-${i}`} style={styles.sparkCol}>
-            <View style={[styles.sparkBar, { height, backgroundColor: i === points.length - 1 ? color : bg }]} />
-          </View>
-        );
-      })}
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <Svg width={width} height={height}>
+        <Path d={area} fill={c.accentWash} />
+        <Path d={line} stroke={c.accent} strokeWidth={2} fill="none" strokeLinecap="round" />
+        <Circle cx={last.x} cy={last.y} r={5} fill={c.bg} />
+        <Circle cx={last.x} cy={last.y} r={3} fill={c.accent} />
+      </Svg>
     </View>
   );
 }
 
 export default function ProgressScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
-
+  const c = useTheme();
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [weightInput, setWeightInput] = useState('');
   const [dateInput, setDateInput] = useState(todayISO());
-  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,28 +79,18 @@ export default function ProgressScreen() {
         setDateInput(todayISO());
         setMounted(true);
       })();
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
     }, [])
   );
 
   if (!mounted) return null;
 
-  const handleAddLog = async () => {
+  const save = async () => {
     const w = parseFloat(weightInput.replace(',', '.'));
-    if (!isFinite(w) || w < 30 || w > 300) {
-      setMessage({ text: 'Enter a weight between 30 and 300 kg.', ok: false });
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput) || isNaN(new Date(dateInput).getTime())) {
-      setMessage({ text: 'Use the YYYY-MM-DD date format.', ok: false });
-      return;
-    }
-    if (dateInput > todayISO()) {
-      setMessage({ text: 'You cannot log a weight for a future date.', ok: false });
-      return;
-    }
+    if (!isFinite(w) || w < 30 || w > 300) return setMsg({ text: 'Enter a weight between 30 and 300 kg.', ok: false });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput) || isNaN(new Date(dateInput).getTime()))
+      return setMsg({ text: 'Dates use the format YYYY-MM-DD.', ok: false });
+    if (dateInput > todayISO()) return setMsg({ text: 'That date is in the future.', ok: false });
 
     const updated = [
       { id: `${dateInput}-${Date.now()}`, date: dateInput, weight_kg: w },
@@ -90,226 +100,196 @@ export default function ProgressScreen() {
     setEntries(updated);
     await saveWeightLog(updated);
 
-    // Keep the profile in step so macro targets follow real bodyweight, but
-    // only when logging today — back-filling an old entry must not rewrite it.
+    // Keep targets following real bodyweight — but only when logging today, so
+    // back-filling an old entry never rewrites the current profile.
     if (dateInput === todayISO()) {
-      await saveProfile({ ...profile, weight_kg: w });
-      setProfile({ ...profile, weight_kg: w });
+      const next = { ...profile, weight_kg: w };
+      await saveProfile(next);
+      setProfile(next);
     }
-
     setWeightInput('');
-    setMessage({ text: 'Weight logged 📈', ok: true });
+    setMsg({ text: 'Logged.', ok: true });
   };
 
-  const current = entries.length > 0 ? entries[0].weight_kg : profile.weight_kg;
-  const start = entries.length > 0 ? entries[entries.length - 1].weight_kg : profile.weight_kg;
+  const current = entries.length ? entries[0].weight_kg : profile.weight_kg;
+  const start = entries.length ? entries[entries.length - 1].weight_kg : profile.weight_kg;
   const change = current - start;
   const trend = weeklyTrend(entries);
 
-  const heightM = profile.height_cm / 100;
-  const bmi = current / (heightM * heightM);
-  const bmiLabel = bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Healthy' : bmi < 30 ? 'Overweight' : 'Obese';
+  const hM = profile.height_cm / 100;
+  const bmi = current / (hM * hM);
+  const bmiLabel = bmi < 18.5 ? 'Under' : bmi < 25 ? 'Healthy' : bmi < 30 ? 'Over' : 'Obese';
 
-  // Target follows the stated goal instead of always assuming weight loss.
   const target =
-    profile.goal === 'weight_loss'
-      ? Math.round(22 * heightM * heightM * 10) / 10
-      : profile.goal === 'muscle_gain'
-      ? Math.round((start + 5) * 10) / 10
-      : Math.round(start * 10) / 10;
+    profile.goal === 'weight_loss' ? Math.round(22 * hM * hM * 10) / 10
+    : profile.goal === 'muscle_gain' ? Math.round((start + 5) * 10) / 10
+    : Math.round(start * 10) / 10;
 
-  const span = Math.abs(target - start);
-  const moved = Math.abs(current - start);
-  const progressPercent = span > 0 ? Math.min(100, (moved / span) * 100) : 100;
+  const good = profile.goal === 'weight_loss' ? change < 0 : profile.goal === 'muscle_gain' ? change > 0 : true;
 
-  const goodDirection =
-    profile.goal === 'weight_loss' ? change < 0 : profile.goal === 'muscle_gain' ? change > 0 : true;
+  // Signed, not absolute. Using |current - start| filled the bar when the user
+  // moved *away* from the target — 82kg on a climb to 89kg showed 48% done.
+  const span = target - start;
+  const moved = current - start;
+  const pct = span === 0 ? 100 : Math.min(100, Math.max(0, (moved / span) * 100));
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: colors.text }]}>Progress</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {entries.length > 0 ? `${entries.length} entries logged` : 'Log your weight to see the trend'}
-        </Text>
+    <Screen>
+      <Enter index={0}>
+        <PageHeader
+          eyebrow={entries.length ? `${entries.length} entries logged` : 'No entries yet'}
+          title="Progress"
+        />
+      </Enter>
 
-        <View style={styles.statsRow}>
-          <View style={[styles.statBox, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Current</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{current.toFixed(1)} kg</Text>
-          </View>
-          <View style={[styles.statBox, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total change</Text>
-            <Text
-              style={[
-                styles.statValue,
-                { color: change === 0 ? colors.text : goodDirection ? colors.success : colors.danger },
-              ]}
-            >
-              {change > 0 ? '+' : ''}
-              {change.toFixed(1)} kg
-            </Text>
-          </View>
-        </View>
-
-        {entries.length >= 2 && (
-          <View style={[styles.card, { backgroundColor: colors.card }]}>
-            <View style={styles.rowBetween}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Trend</Text>
-              <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 14 }}>
-                {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg/week`}
-              </Text>
+      <Enter index={1}>
+        <Card>
+          <View style={s.split}>
+            <View style={{ flex: 1 }}>
+              <Eyebrow>Now</Eyebrow>
+              <View style={s.figRow}>
+                <Txt variant="display" style={{ fontSize: 38 }}>{current.toFixed(1)}</Txt>
+                <Txt variant="data" color={c.textFaint} style={{ marginLeft: 4 }}>kg</Txt>
+              </View>
             </View>
-            <Sparkline entries={entries} color={colors.primary} bg={colors.backgroundElement} />
-            <Text style={[styles.hint, { color: colors.textSecondary }]}>
-              Daily weight swings 1–2 kg on water alone. The slope over weeks is the real signal.
-            </Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Eyebrow>Since start</Eyebrow>
+              <Txt
+                variant="heading"
+                color={change === 0 ? c.textDim : good ? c.positive : c.negative}
+                style={{ marginTop: 6 }}
+              >
+                {change > 0 ? '+' : ''}{change.toFixed(1)} kg
+              </Txt>
+            </View>
           </View>
-        )}
 
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <View style={styles.rowBetween}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Goal progress</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, textTransform: 'capitalize' }}>
-              {profile.goal.replace('_', ' ')}
-            </Text>
-          </View>
-          <View style={[styles.progressBarBg, { backgroundColor: colors.backgroundElement }]}>
-            <View style={[styles.progressBarFill, { width: `${progressPercent}%`, backgroundColor: colors.primary }]} />
-          </View>
-          <View style={styles.progressLabels}>
-            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Start {start.toFixed(1)} kg</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Target {target.toFixed(1)} kg</Text>
-          </View>
-        </View>
+          {entries.length >= 2 ? (
+            <>
+              <TrendChart entries={entries} />
+              <Divider style={{ marginVertical: Space.base }} />
+              <View style={s.split}>
+                <Txt variant="small" color={c.textDim}>Trend</Txt>
+                <Txt variant="data" color={c.accent}>
+                  {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg / week`}
+                </Txt>
+              </View>
+              <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
+                Bodyweight swings a kilo or two on water alone. The weekly slope is the signal.
+              </Txt>
+            </>
+          ) : (
+            <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
+              Log twice to see a trend line.
+            </Txt>
+          )}
+        </Card>
+      </Enter>
 
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <View style={styles.rowBetween}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>BMI</Text>
-            <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 18 }}>
-              {bmi.toFixed(1)} <Text style={{ fontSize: 13, color: colors.textSecondary }}>{bmiLabel}</Text>
-            </Text>
+      <Enter index={2}>
+        <Card style={{ marginTop: Space.base }}>
+          <View style={s.split}>
+            <Eyebrow>Toward target</Eyebrow>
+            <Txt variant="data" color={c.textDim}>{profile.goal.replace('_', ' ')}</Txt>
           </View>
-          <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            BMI ignores muscle mass — treat it as a rough marker, not a verdict.
-          </Text>
-        </View>
+          <View style={{ marginTop: Space.base }}>
+            <Bar pct={pct} color={c.accent} />
+          </View>
+          <View style={[s.split, { marginTop: Space.md }]}>
+            <Txt variant="data" color={c.textFaint}>start {start.toFixed(1)}</Txt>
+            <Txt variant="data" color={c.textFaint}>target {target.toFixed(1)}</Txt>
+          </View>
+          <Divider style={{ marginVertical: Space.base }} />
+          <View style={s.split}>
+            <Txt variant="small" color={c.textDim}>BMI</Txt>
+            <Txt variant="data" color={c.text}>{bmi.toFixed(1)} · {bmiLabel}</Txt>
+          </View>
+          <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
+            BMI cannot see muscle. Treat it as a rough marker.
+          </Txt>
+        </Card>
+      </Enter>
 
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Log weight</Text>
-          <View style={styles.inputRow}>
-            <View style={styles.inputCol}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Date</Text>
+      <Enter index={3}>
+        <Card style={{ marginTop: Space.base }}>
+          <Eyebrow style={{ marginBottom: Space.base }}>Log a weigh-in</Eyebrow>
+          <View style={s.inputs}>
+            <View style={s.inputCol}>
+              <Txt variant="small" color={c.textDim} style={{ marginBottom: 6 }}>Date</Txt>
               <TextInput
                 value={dateInput}
                 onChangeText={setDateInput}
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.textSecondary}
-                style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
+                placeholderTextColor={c.textFaint}
                 accessibilityLabel="Date"
+                style={[s.input, Type.data, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
               />
             </View>
-            <View style={styles.inputCol}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Weight (kg)</Text>
+            <View style={s.inputCol}>
+              <Txt variant="small" color={c.textDim} style={{ marginBottom: 6 }}>Weight (kg)</Txt>
               <TextInput
-                placeholder="75.5"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="numeric"
-                inputMode="decimal"
                 value={weightInput}
                 onChangeText={setWeightInput}
-                onSubmitEditing={handleAddLog}
-                style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundElement }]}
+                onSubmitEditing={save}
+                placeholder="82.4"
+                placeholderTextColor={c.textFaint}
+                keyboardType="numeric"
+                inputMode="decimal"
                 accessibilityLabel="Weight in kilograms"
+                style={[s.input, Type.data, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
               />
             </View>
           </View>
-          <Pressable
-            onPress={handleAddLog}
-            style={({ pressed }) => [styles.saveBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
-            accessibilityRole="button"
-          >
-            <Text style={styles.saveBtnTxt}>Save entry</Text>
-          </Pressable>
-          {message && (
-            <Text style={[styles.message, { color: message.ok ? colors.success : colors.danger }]}>
-              {message.text}
-            </Text>
-          )}
-        </View>
+          <Button label="Save entry" onPress={save} style={{ marginTop: Space.base }} />
+          {msg && <Notice tone={msg.ok ? 'ok' : 'error'}>{msg.text}</Notice>}
+        </Card>
+      </Enter>
 
-        {entries.length > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent entries</Text>
-            {entries.slice(0, 10).map((item, idx) => {
-              const prev = entries[idx + 1];
-              const delta = prev ? item.weight_kg - prev.weight_kg : null;
+      {entries.length > 0 ? (
+        <Enter index={4} style={{ marginTop: Space.xxl }}>
+          <Eyebrow style={{ marginBottom: Space.md }}>History</Eyebrow>
+          <Card style={{ paddingVertical: Space.sm }}>
+            {entries.slice(0, 10).map((e, i, arr) => {
+              const prev = entries[i + 1];
+              const delta = prev ? e.weight_kg - prev.weight_kg : null;
               return (
-                <View key={item.id} style={[styles.historyCard, { backgroundColor: colors.card }]}>
-                  <Text style={[styles.historyDate, { color: colors.textSecondary }]}>{item.date}</Text>
-                  <View style={styles.historyRight}>
-                    {delta !== null && delta !== 0 && (
-                      <Text style={{ color: colors.textSecondary, fontSize: 12, marginRight: 10 }}>
-                        {delta > 0 ? '+' : ''}
-                        {delta.toFixed(1)}
-                      </Text>
-                    )}
-                    <Text style={[styles.historyWeight, { color: colors.primary }]}>
-                      {item.weight_kg.toFixed(1)} kg
-                    </Text>
+                <View key={e.id}>
+                  {i > 0 && <Divider />}
+                  <View style={s.histRow}>
+                    <Txt variant="data" color={c.textDim}>{e.date}</Txt>
+                    <View style={s.rowEnd}>
+                      {delta !== null && delta !== 0 && (
+                        <Txt variant="data" color={delta > 0 ? c.textFaint : c.positive} style={{ marginRight: Space.md }}>
+                          {delta > 0 ? '+' : ''}{delta.toFixed(1)}
+                        </Txt>
+                      )}
+                      <Txt variant="subheading">{e.weight_kg.toFixed(1)} kg</Txt>
+                    </View>
                   </View>
                 </View>
               );
             })}
-          </>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          </Card>
+        </Enter>
+      ) : (
+        <Enter index={4}>
+          <Empty
+            icon="chart"
+            title="Nothing logged yet"
+            body="Weigh in at the same time of day, ideally before your first drink. Consistency matters more than the number."
+          />
+        </Enter>
+      )}
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 130, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' },
-  title: { fontSize: 28, fontWeight: '800' },
-  subtitle: { fontSize: 13, marginTop: 4, marginBottom: 18 },
-
-  statsRow: { flexDirection: 'row', marginRight: -12, marginBottom: 12 },
-  statBox: { flex: 1, borderRadius: 16, padding: 16, marginRight: 12 },
-  statLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { fontSize: 22, fontWeight: '800', marginTop: 6 },
-
-  card: { borderRadius: 16, padding: 16, marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '700' },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  hint: { fontSize: 12, lineHeight: 17, marginTop: 12 },
-
-  sparkRow: { flexDirection: 'row', alignItems: 'flex-end', height: 64, marginTop: 16 },
-  sparkCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  sparkBar: { width: '70%', borderRadius: 2, minWidth: 3 },
-
-  progressBarBg: { height: 12, borderRadius: 6, overflow: 'hidden', marginTop: 14 },
-  progressBarFill: { height: '100%', borderRadius: 6 },
-  progressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-
-  inputRow: { flexDirection: 'row', marginRight: -12, marginTop: 14 },
-  inputCol: { flex: 1, marginRight: 12 },
-  label: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6 },
-  input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
-  saveBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 14 },
-  saveBtnTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  message: { fontSize: 13, marginTop: 10, textAlign: 'center' },
-
-  sectionTitle: { fontSize: 18, fontWeight: '700', marginTop: 12, marginBottom: 10 },
-  historyCard: {
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  historyDate: { fontSize: 14, fontWeight: '600' },
-  historyRight: { flexDirection: 'row', alignItems: 'center' },
-  historyWeight: { fontSize: 16, fontWeight: '800' },
+const s = StyleSheet.create({
+  split: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  figRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
+  inputs: { flexDirection: 'row', marginRight: -Space.md },
+  inputCol: { flex: 1, marginRight: Space.md },
+  input: { height: 48, borderRadius: Radius.sm, borderWidth: 1, paddingHorizontal: Space.md, fontSize: 15 },
+  histRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Space.md },
+  rowEnd: { flexDirection: 'row', alignItems: 'center' },
 });

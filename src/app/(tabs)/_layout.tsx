@@ -1,55 +1,49 @@
-import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, Pressable, StyleSheet, Platform, useColorScheme } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, type ThemePalette } from '@/constants/theme';
+import { Type, Space, Radius, MaxContentWidth } from '@/constants/theme';
+import { useTheme } from '@/components/ui';
+import { Icon, type IconName } from '@/components/icons';
 
-const TABS: Record<string, { icon: string; label: string }> = {
-  index: { icon: '🏠', label: 'Home' },
-  planner: { icon: '🍽️', label: 'Planner' },
-  progress: { icon: '📊', label: 'Progress' },
-  grocery: { icon: '🛒', label: 'Grocery' },
-  profile: { icon: '👤', label: 'Profile' },
+const TABS: Record<string, { icon: IconName; label: string }> = {
+  index: { icon: 'home', label: 'Today' },
+  planner: { icon: 'plate', label: 'Plan' },
+  progress: { icon: 'chart', label: 'Progress' },
+  grocery: { icon: 'basket', label: 'Shop' },
+  profile: { icon: 'user', label: 'You' },
 };
 
-type TabBarProps = {
-  state: { routes: { key: string; name: string }[]; index: number };
-  navigation: any;
-  colors: ThemePalette;
-  bottomInset: number;
-};
+function TabBar({ state, navigation }: any) {
+  const c = useTheme();
+  const insets = useSafeAreaInsets();
 
-function CustomTabBar({ state, navigation, colors, bottomInset }: TabBarProps) {
   return (
-    <View style={[styles.tabBarContainer, { bottom: Math.max(bottomInset, 12) }]}>
-      <View style={[styles.tabBar, { backgroundColor: colors.card, borderColor: colors.backgroundElement }]}>
-        {state.routes.map((route, index) => {
-          const isFocused = state.index === index;
-          const meta = TABS[route.name] ?? { icon: '•', label: route.name };
+    <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 14) }]}>
+      <View style={[styles.bar, { backgroundColor: c.surface, borderColor: c.line }]}>
+        {state.routes.map((route: any, index: number) => {
+          const focused = state.index === index;
+          const meta = TABS[route.name] ?? { icon: 'home' as IconName, label: route.name };
 
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
+            if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
           };
 
           return (
             <Pressable
               key={route.key}
               onPress={onPress}
-              style={styles.tabItem}
+              style={styles.item}
               accessibilityRole="tab"
-              accessibilityState={{ selected: isFocused }}
+              accessibilityState={{ selected: focused }}
               accessibilityLabel={meta.label}
             >
-              {isFocused && <View style={[styles.activeLine, { backgroundColor: colors.primary }]} />}
-              <Text style={{ fontSize: isFocused ? 21 : 18, opacity: isFocused ? 1 : 0.55 }}>{meta.icon}</Text>
+              <Icon name={meta.icon} size={21} color={focused ? c.accent : c.textFaint} />
               <Text
-                style={{
-                  color: isFocused ? colors.primary : colors.textSecondary,
-                  fontSize: 10,
-                  marginTop: 3,
-                  fontWeight: isFocused ? '700' : '500',
-                }}
+                style={[
+                  Type.eyebrow,
+                  { color: focused ? c.accent : c.textFaint, marginTop: 5, textTransform: 'uppercase' },
+                ]}
               >
                 {meta.label}
               </Text>
@@ -62,57 +56,41 @@ function CustomTabBar({ state, navigation, colors, bottomInset }: TabBarProps) {
 }
 
 export default function TabLayout() {
-  const [mounted, setMounted] = useState(false);
-  const colorScheme = useColorScheme();
-  const insets = useSafeAreaInsets();
-
-  useEffect(() => setMounted(true), []);
-
-  // The tab bar was hardcoded to '#1a1a2e', so in light mode it sat as a
-  // near-black slab under a white page.
-  const colors = Colors[mounted && colorScheme === 'dark' ? 'dark' : 'light'];
-
-  if (!mounted) return null;
-
+  const c = useTheme();
   return (
     <Tabs
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.background } }}
-      tabBar={(props) => <CustomTabBar {...(props as any)} colors={colors} bottomInset={insets.bottom} />}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.bg } }}
+      tabBar={(props) => <TabBar {...props} />}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="planner" options={{ title: 'Planner' }} />
+      <Tabs.Screen name="index" options={{ title: 'Today' }} />
+      <Tabs.Screen name="planner" options={{ title: 'Plan' }} />
       <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
-      <Tabs.Screen name="grocery" options={{ title: 'Grocery' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="grocery" options={{ title: 'Shop' }} />
+      <Tabs.Screen name="profile" options={{ title: 'You' }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  tabBarContainer: { position: 'absolute', left: 16, right: 16 },
-  tabBar: {
+  wrap: {
+    position: 'absolute',
+    left: Space.base,
+    right: Space.base,
+    alignItems: 'center',
+  },
+  bar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderRadius: 28,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 10,
-    ...Platform.select({ web: { maxWidth: 520, alignSelf: 'center', width: '100%' } }),
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.sm,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
+      android: { elevation: 12 },
+      default: { boxShadow: '0 12px 32px rgba(0,0,0,0.28)' } as any,
+    }),
   },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    position: 'relative',
-    flex: 1,
-    // 48pt is the minimum comfortable touch target.
-    minHeight: 48,
-  },
-  activeLine: { position: 'absolute', top: -8, width: 20, height: 3, borderRadius: 2 },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
 });

@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { View, ActivityIndicator, useColorScheme } from 'react-native';
+import { View, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { Colors } from '@/constants/theme';
 import { isOnboarded } from '@/lib/store';
 
@@ -12,11 +14,23 @@ export { ErrorBoundary } from 'expo-router';
 /** Routes reachable without a completed profile. */
 const PUBLIC_ROUTES = new Set(['onboarding', 'landing']);
 
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const colorScheme = useColorScheme();
-  const [ready, setReady] = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  // Keys here are the family names referenced by Font in constants/theme.
+  const [fontsLoaded, fontError] = useFonts({
+    'Archivo-Bold': require('../../assets/fonts/Archivo-Bold.ttf'),
+    'Archivo-SemiBold': require('../../assets/fonts/Archivo-SemiBold.ttf'),
+    'HankenGrotesk-Regular': require('../../assets/fonts/HankenGrotesk-Regular.ttf'),
+    'HankenGrotesk-Medium': require('../../assets/fonts/HankenGrotesk-Medium.ttf'),
+    'HankenGrotesk-SemiBold': require('../../assets/fonts/HankenGrotesk-SemiBold.ttf'),
+    'JetBrainsMono-Medium': require('../../assets/fonts/JetBrainsMono-Medium.ttf'),
+  });
 
   // Re-read on every navigation rather than caching the flag once. Caching it
   // meant that finishing onboarding left this holding `false`, so the redirect
@@ -25,7 +39,7 @@ export default function RootLayout() {
     let cancelled = false;
     isOnboarded().then((done) => {
       if (cancelled) return;
-      setReady(true);
+      setChecked(true);
       const first = segments[0] ?? '';
       // Without this gate a first-time user landed on the dashboard and saw
       // targets computed from a placeholder 75kg/175cm profile.
@@ -38,27 +52,28 @@ export default function RootLayout() {
     };
   }, [segments, router]);
 
+  // A missing font must not block the app forever — fall back to system faces.
+  const ready = checked && (fontsLoaded || !!fontError);
+
+  const onLayout = useCallback(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
-  if (!ready) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.background,
-        }}
-      >
-        <ActivityIndicator color={colors.primary} />
-      </View>
-    );
-  }
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider onLayout={onLayout}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.bg },
+          animation: 'fade',
+          animationDuration: 180,
+        }}
+      >
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />

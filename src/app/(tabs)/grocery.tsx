@@ -1,16 +1,18 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Platform, Share, useColorScheme } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, Platform, Share } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, MaxContentWidth } from '@/constants/theme';
+import { Space, Radius } from '@/constants/theme';
+import {
+  Screen, Card, Txt, Eyebrow, Enter, Tap, Divider, Empty, PageHeader, Bar, useTheme,
+} from '@/components/ui';
+import { Icon } from '@/components/icons';
 import { loadPlanHistory, KEYS } from '@/lib/store';
 import { buildGroceryList, type GroceryCategory } from '@/lib/grocery';
 import type { MealPlan } from '@/lib/ai';
 
 export default function GroceryScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const c = useTheme();
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
@@ -21,73 +23,55 @@ export default function GroceryScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const [plans, checksRaw] = await Promise.all([
+        const [plans, raw] = await Promise.all([
           loadPlanHistory<MealPlan>(),
           AsyncStorage.getItem(KEYS.groceryChecked),
         ]);
         if (!active) return;
         let checks: Record<string, boolean> = {};
-        try {
-          checks = checksRaw ? JSON.parse(checksRaw) : {};
-        } catch {
-          checks = {};
-        }
-        // Last 3 plans — a week of meal prep without dragging in months of history.
+        try { checks = raw ? JSON.parse(raw) : {}; } catch { checks = {}; }
+        // Last three plans — a week of prep without dragging in months of history.
         setCategories(buildGroceryList(plans.slice(0, 3), checks));
         setMounted(true);
       })();
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
     }, [])
   );
 
   const persist = async (cats: GroceryCategory[]) => {
     const map: Record<string, boolean> = {};
-    cats.forEach((c) => c.items.forEach((i) => i.checked && (map[i.id] = true)));
+    cats.forEach((cat) => cat.items.forEach((i) => i.checked && (map[i.id] = true)));
     await AsyncStorage.setItem(KEYS.groceryChecked, JSON.stringify(map));
   };
 
-  const toggleItem = (catIdx: number, itemId: string) => {
+  const toggle = (catIdx: number, id: string) => {
     setCategories((prev) => {
-      // Copy rather than mutate in place — the old version mutated state
-      // objects directly, so React could skip the re-render.
-      const next = prev.map((cat, ci) =>
-        ci !== catIdx
-          ? cat
-          : { ...cat, items: cat.items.map((i) => (i.id === itemId ? { ...i, checked: !i.checked } : i)) }
+      const next = prev.map((cat, i) =>
+        i !== catIdx ? cat : { ...cat, items: cat.items.map((it) => (it.id === id ? { ...it, checked: !it.checked } : it)) }
       );
       persist(next);
       return next;
     });
   };
 
-  const clearChecks = () => {
+  const clear = () => {
     setCategories((prev) => {
-      const next = prev.map((c) => ({ ...c, items: c.items.map((i) => ({ ...i, checked: false })) }));
+      const next = prev.map((cat) => ({ ...cat, items: cat.items.map((i) => ({ ...i, checked: false })) }));
       persist(next);
       return next;
     });
   };
 
   const shareList = async () => {
-    const text =
-      '🛒 Grocery list\n\n' +
-      categories
-        .map(
-          (c) =>
-            `${c.emoji} ${c.name}\n` + c.items.map((i) => `${i.checked ? '✅' : '⬜'} ${i.name}`).join('\n')
-        )
-        .join('\n\n');
-
+    const text = categories
+      .map((cat) => `${cat.name}\n${cat.items.map((i) => `${i.checked ? '[x]' : '[ ]'} ${i.name}`).join('\n')}`)
+      .join('\n\n');
     if (Platform.OS === 'web') {
       try {
         await navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      } catch {
-        /* clipboard blocked — nothing useful to do */
-      }
+      } catch { /* clipboard blocked */ }
     } else {
       await Share.share({ message: text });
     }
@@ -95,99 +79,102 @@ export default function GroceryScreen() {
 
   if (!mounted) return null;
 
-  const total = categories.reduce((n, c) => n + c.items.length, 0);
-  const done = categories.reduce((n, c) => n + c.items.filter((i) => i.checked).length, 0);
+  const total = categories.reduce((n, cat) => n + cat.items.length, 0);
+  const done = categories.reduce((n, cat) => n + cat.items.filter((i) => i.checked).length, 0);
+
+  if (total === 0) {
+    return (
+      <Screen>
+        <Enter index={0}><PageHeader title="Shopping" /></Enter>
+        <Enter index={1}>
+          <Empty
+            icon="basket"
+            title="Nothing to buy yet"
+            body="Build a meal plan and its ingredients land here, grouped the way a shop is laid out."
+            action="Go to the planner"
+            onAction={() => router.push('/planner')}
+          />
+        </Enter>
+      </Screen>
+    );
+  }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.headerBlock}>
-        <Text style={[styles.title, { color: colors.text }]}>Grocery list</Text>
-        {total > 0 && (
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {done} of {total} picked up — from your last 3 meal plans
-          </Text>
-        )}
-      </View>
-
-      {total === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.placeholderEmoji}>🛒</Text>
-          <Text style={[styles.placeholderTitle, { color: colors.text }]}>Nothing to buy yet</Text>
-          <Text style={[styles.placeholderSubtitle, { color: colors.textSecondary }]}>
-            Generate a meal plan and its ingredients land here, sorted by aisle.
-          </Text>
-          <Pressable
-            style={[styles.ctaBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/planner')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.ctaTxt}>Go to meal planner</Text>
-          </Pressable>
+    <Screen>
+      <Enter index={0}>
+        <PageHeader eyebrow={`${done} of ${total} in the basket`} title="Shopping" />
+        <View style={{ marginTop: -Space.md, marginBottom: Space.lg }}>
+          <Bar pct={(done / total) * 100} color={c.accent} />
         </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.actionRow}>
-            <Pressable onPress={shareList} accessibilityRole="button">
-              <Text style={[styles.actionTxt, { color: colors.primary }]}>
-                {copied ? '✅ Copied' : Platform.OS === 'web' ? 'Copy list' : 'Share list'}
-              </Text>
-            </Pressable>
-            <Pressable onPress={clearChecks} accessibilityRole="button">
-              <Text style={[styles.actionTxt, { color: colors.danger }]}>Clear ticks</Text>
-            </Pressable>
-          </View>
+      </Enter>
 
-          {categories.map((cat, catIdx) => (
-            <View key={cat.name} style={[styles.card, { backgroundColor: colors.card }]}>
-              <Text style={[styles.catTitle, { color: colors.text }]}>
-                {cat.emoji} {cat.name}
-              </Text>
-              {cat.items.map((item) => (
-                <Pressable
-                  key={item.id}
-                  onPress={() => toggleItem(catIdx, item.id)}
-                  style={styles.itemRow}
+      <Enter index={1}>
+        <View style={s.tools}>
+          <Tap onPress={shareList} accessibilityLabel="Share list">
+            <View style={[s.tool, { borderColor: c.line }]}>
+              <Icon name={copied ? 'check' : 'share'} size={14} color={copied ? c.positive : c.textDim} />
+              <Txt variant="small" color={copied ? c.positive : c.textDim} style={{ marginLeft: 6 }}>
+                {copied ? 'Copied' : Platform.OS === 'web' ? 'Copy' : 'Share'}
+              </Txt>
+            </View>
+          </Tap>
+          <Tap onPress={clear} accessibilityLabel="Clear ticks">
+            <View style={[s.tool, { borderColor: c.line }]}>
+              <Icon name="close" size={14} color={c.textDim} />
+              <Txt variant="small" color={c.textDim} style={{ marginLeft: 6 }}>Clear</Txt>
+            </View>
+          </Tap>
+        </View>
+      </Enter>
+
+      {categories.map((cat, catIdx) => (
+        <Enter key={cat.name} index={2 + catIdx}>
+          <Card style={{ marginBottom: Space.md, paddingVertical: Space.sm }}>
+            <Eyebrow style={{ paddingVertical: Space.md }}>{cat.name}</Eyebrow>
+            {cat.items.map((item, i) => (
+              <View key={item.id}>
+                {i > 0 && <Divider />}
+                <Tap
+                  onPress={() => toggle(catIdx, item.id)}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: item.checked }}
+                  accessibilityLabel={item.name}
                 >
-                  <Text style={styles.checkIcon}>{item.checked ? '✅' : '⬜'}</Text>
-                  <Text
-                    style={[
-                      styles.itemName,
-                      { color: item.checked ? colors.textSecondary : colors.text },
-                      item.checked && styles.strikethrough,
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ))}
-        </ScrollView>
-      )}
-    </SafeAreaView>
+                  <View style={s.item}>
+                    <View style={[s.box, {
+                      borderColor: item.checked ? c.accent : c.lineStrong,
+                      backgroundColor: item.checked ? c.accent : 'transparent',
+                    }]}>
+                      {item.checked && <Icon name="check" size={12} color={c.onAccent} strokeWidth={2.4} />}
+                    </View>
+                    <Txt
+                      variant="body"
+                      color={item.checked ? c.textFaint : c.text}
+                      style={[{ flex: 1 }, item.checked && s.struck]}
+                    >
+                      {item.name}
+                    </Txt>
+                  </View>
+                </Tap>
+              </View>
+            ))}
+          </Card>
+        </Enter>
+      ))}
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  headerBlock: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' },
-  title: { fontSize: 28, fontWeight: '800' },
-  subtitle: { fontSize: 13, marginTop: 4 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, paddingBottom: 120 },
-  placeholderEmoji: { fontSize: 44, marginBottom: 12 },
-  placeholderTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
-  placeholderSubtitle: { fontSize: 15, textAlign: 'center', marginBottom: 20, lineHeight: 22 },
-  ctaBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
-  ctaTxt: { color: 'white', fontSize: 15, fontWeight: '700' },
-  scrollContent: { padding: 20, paddingBottom: 130, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' },
-  actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
-  actionTxt: { fontSize: 14, fontWeight: '700' },
-  card: { borderRadius: 16, padding: 16, marginBottom: 12 },
-  catTitle: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  checkIcon: { fontSize: 18, marginRight: 12 },
-  itemName: { fontSize: 15, fontWeight: '500', flex: 1, lineHeight: 21 },
-  strikethrough: { textDecorationLine: 'line-through' },
+const s = StyleSheet.create({
+  tools: { flexDirection: 'row', marginBottom: Space.base },
+  tool: {
+    flexDirection: 'row', alignItems: 'center', height: 34,
+    paddingHorizontal: Space.md, borderRadius: Radius.pill, borderWidth: 1, marginRight: Space.sm,
+  },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: Space.md },
+  box: {
+    width: 20, height: 20, borderRadius: 6, borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center', marginRight: Space.md,
+  },
+  struck: { textDecorationLine: 'line-through' },
 });

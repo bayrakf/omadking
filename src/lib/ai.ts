@@ -40,6 +40,9 @@ export type MealPlan = {
   ai_reasoning: string;
   timing_warning: string | null;
   training_burn_kcal: number;
+  /** The session this plan was built around; null on a rest day. */
+  training_start_time: string | null;
+  training_duration_min: number;
   recipe: Recipe;
 };
 
@@ -131,6 +134,8 @@ export async function generateMealPlan(
     ai_reasoning: timing.reasoning,
     timing_warning: timing.warning,
     training_burn_kcal: targets.burn_kcal,
+    training_start_time: training?.start_time ?? null,
+    training_duration_min: training?.duration_min ?? 0,
     recipe: recipe ?? offlineRecipe(profile, training, targets),
   };
 }

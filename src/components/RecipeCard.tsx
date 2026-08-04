@@ -1,147 +1,108 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
-import { Colors } from '@/constants/theme';
+import { View, StyleSheet } from 'react-native';
+import { Space, Radius } from '@/constants/theme';
+import { Card, Txt, Eyebrow, Tap, Divider, useTheme } from './ui';
+import { Icon } from './icons';
 import { splitSteps } from '@/lib/grocery';
+import type { MealPlan } from '@/lib/ai';
 
-type Props = {
-  title: string;
-  reasoning: string;
-  totalKcal: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-  ingredients: string[];
-  instructions: string;
-  reheatInstructions?: string | null;
-  prepTimeMin?: number | null;
-};
+/**
+ * Steps are checkable because this is read standing at a hob with one hand
+ * free — the state is intentionally not persisted, since it only means anything
+ * for the length of one cook.
+ */
+export default function RecipeCard({ plan }: { plan: MealPlan }) {
+  const c = useTheme();
+  const [done, setDone] = useState<Record<string, boolean>>({});
+  const toggle = (k: string) => setDone((p) => ({ ...p, [k]: !p[k] }));
 
-export default function RecipeCard({
-  title,
-  reasoning,
-  totalKcal,
-  proteinG,
-  carbsG,
-  fatG,
-  ingredients,
-  instructions,
-  reheatInstructions,
-  prepTimeMin = 30,
-}: Props) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const cook = splitSteps(plan.recipe.instructions);
+  const reheat = splitSteps(plan.recipe.reheat_instructions ?? '');
 
-  const [checkedSteps, setCheckedSteps] = useState<Record<string, boolean>>({});
-  const toggleStep = (key: string) => setCheckedSteps((prev) => ({ ...prev, [key]: !prev[key] }));
-
-  const cookSteps = splitSteps(instructions);
-  const reheatSteps = splitSteps(reheatInstructions ?? '');
-
-  const renderSteps = (steps: string[], prefix: string, numbered: boolean) =>
-    steps.map((step, idx) => {
-      const key = `${prefix}_${idx}`;
-      const isDone = checkedSteps[key];
+  const steps = (list: string[], prefix: string, numbered: boolean) =>
+    list.map((step, i) => {
+      const key = `${prefix}${i}`;
+      const isDone = done[key];
       return (
-        <Pressable
+        <Tap
           key={key}
-          onPress={() => toggleStep(key)}
-          style={styles.stepRow}
+          onPress={() => toggle(key)}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: !!isDone }}
+          accessibilityLabel={step}
         >
-          <Text style={styles.checkbox}>{isDone ? '✅' : '⬜'}</Text>
-          <Text
-            style={[
-              styles.stepText,
-              { color: isDone ? colors.textSecondary : colors.text },
-              isDone && styles.strikethrough,
-            ]}
-          >
-            {numbered ? `${idx + 1}. ` : ''}
-            {step}
-          </Text>
-        </Pressable>
+          <View style={s.step}>
+            <View style={[s.box, { borderColor: isDone ? c.accent : c.lineStrong, backgroundColor: isDone ? c.accent : 'transparent' }]}>
+              {isDone && <Icon name="check" size={12} color={c.onAccent} strokeWidth={2.4} />}
+            </View>
+            <Txt variant="body" color={isDone ? c.textFaint : c.text} style={[s.stepText, isDone && s.struck]}>
+              {numbered ? `${i + 1}. ` : ''}{step}
+            </Txt>
+          </View>
+        </Tap>
       );
     });
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: colors.card,
-          borderColor: colorScheme === 'dark' ? 'rgba(124, 58, 237, 0.4)' : 'rgba(124, 58, 237, 0.15)',
-        },
-      ]}
-    >
-      <View style={styles.badgeRow}>
-        <View style={[styles.badge, { backgroundColor: 'rgba(124, 58, 237, 0.15)' }]}>
-          <Text style={[styles.badgeTxt, { color: colors.primary }]}>⚡ {proteinG}g protein</Text>
-        </View>
-        <View style={[styles.badge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-          <Text style={[styles.badgeTxt, { color: colors.accent }]}>👨‍🍳 {prepTimeMin ?? 30} min prep</Text>
-        </View>
-      </View>
+    <Card style={{ marginTop: Space.md }}>
+      <Eyebrow>{plan.recipe.prep_time_min ?? 30} min prep · cook once, eat tomorrow</Eyebrow>
+      <Txt variant="heading" style={{ marginTop: Space.sm }}>{plan.recipe.title}</Txt>
 
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.reasoning, { color: colors.textSecondary }]}>{reasoning}</Text>
-
-      <View style={styles.macroRow}>
-        {(
-          [
-            [String(totalKcal), 'kcal'],
-            [`${proteinG}g`, 'Protein'],
-            [`${carbsG}g`, 'Carbs'],
-            [`${fatG}g`, 'Fat'],
-          ] as const
-        ).map(([val, lbl]) => (
-          <View key={lbl} style={[styles.macroBox, { backgroundColor: colors.backgroundElement }]}>
-            <Text style={[styles.macroVal, { color: colors.primary }]}>{val}</Text>
-            <Text style={[styles.macroLbl, { color: colors.textSecondary }]}>{lbl}</Text>
+      <View style={[s.macros, { backgroundColor: c.well }]}>
+        {([
+          [String(plan.total_kcal), 'kcal'],
+          [`${plan.protein_g}`, 'protein'],
+          [`${plan.carbs_g}`, 'carbs'],
+          [`${plan.fat_g}`, 'fat'],
+        ] as const).map(([v, label]) => (
+          <View key={label} style={s.macro}>
+            <Txt variant="subheading" style={{ fontSize: 17 }}>{v}</Txt>
+            <Eyebrow style={{ marginTop: 3 }}>{label}</Eyebrow>
           </View>
         ))}
       </View>
 
-      <Text style={[styles.sectionHeading, { color: colors.text }]}>🛒 Ingredients</Text>
-      {ingredients.map((item, idx) => (
-        <Text key={`${item}-${idx}`} style={[styles.bullet, { color: colors.text }]}>
-          • {item}
-        </Text>
+      <Eyebrow style={s.section}>Ingredients</Eyebrow>
+      {plan.recipe.ingredients.map((item, i) => (
+        <View key={`${item}-${i}`} style={s.ingredient}>
+          <View style={[s.dot, { backgroundColor: c.lineStrong }]} />
+          <Txt variant="body" style={{ flex: 1 }}>{item}</Txt>
+        </View>
       ))}
 
-      {cookSteps.length > 0 && (
+      {cook.length > 0 && (
         <>
-          <Text style={[styles.sectionHeading, { color: colors.primary }]}>👨‍🍳 Method</Text>
-          {renderSteps(cookSteps, 'cook', true)}
+          <Divider style={{ marginTop: Space.lg }} />
+          <Eyebrow style={s.section}>Method</Eyebrow>
+          {steps(cook, 'c', true)}
         </>
       )}
 
-      {reheatSteps.length > 0 && (
+      {reheat.length > 0 && (
         <>
-          <Text style={[styles.sectionHeading, { color: colors.accent }]}>🔥 Reheating tomorrow</Text>
-          {renderSteps(reheatSteps, 'reheat', false)}
+          <Divider style={{ marginTop: Space.lg }} />
+          <Eyebrow style={s.section} color={c.ember}>Reheating tomorrow</Eyebrow>
+          {steps(reheat, 'r', false)}
         </>
       )}
-    </View>
+    </Card>
   );
 }
 
-const styles = StyleSheet.create({
-  // Spacing is margin-based: `gap` / `rowGap` break this RN-Web version.
-  card: { borderRadius: 20, padding: 20, borderWidth: 1.5, marginVertical: 8 },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10, marginRight: -8 },
-  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, marginRight: 8, marginBottom: 4 },
-  badgeTxt: { fontSize: 12, fontWeight: '700' },
-  title: { fontSize: 22, fontWeight: '800', marginTop: 4 },
-  reasoning: { fontSize: 14, lineHeight: 20, marginTop: 8 },
-  macroRow: { flexDirection: 'row', marginTop: 16, marginBottom: 8, marginRight: -6 },
-  macroBox: { flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center', marginRight: 6 },
-  macroVal: { fontSize: 16, fontWeight: '800' },
-  macroLbl: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-  sectionHeading: { fontSize: 16, fontWeight: '700', marginTop: 18, marginBottom: 8 },
-  bullet: { fontSize: 14, lineHeight: 24 },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 6 },
-  checkbox: { fontSize: 18, marginTop: 1, marginRight: 10 },
-  stepText: { fontSize: 14, flex: 1, lineHeight: 21 },
-  strikethrough: { textDecorationLine: 'line-through' },
+const s = StyleSheet.create({
+  macros: {
+    flexDirection: 'row', borderRadius: Radius.md,
+    paddingVertical: Space.base, marginTop: Space.base,
+  },
+  macro: { flex: 1, alignItems: 'center' },
+  section: { marginTop: Space.lg, marginBottom: Space.md },
+  ingredient: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
+  dot: { width: 4, height: 4, borderRadius: 2, marginRight: Space.md },
+  step: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 7 },
+  box: {
+    width: 20, height: 20, borderRadius: 6, borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center', marginRight: Space.md, marginTop: 1,
+  },
+  stepText: { flex: 1 },
+  struck: { textDecorationLine: 'line-through' },
 });

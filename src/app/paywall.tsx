@@ -1,240 +1,169 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, MaxContentWidth } from '@/constants/theme';
+import { Space, Radius } from '@/constants/theme';
+import { Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Divider, Notice, useTheme } from '@/components/ui';
+import { Icon } from '@/components/icons';
 import { getOfferings, isBillingAvailable, purchase, restore, type Package } from '@/lib/purchases';
 import { FREE_PLANS_PER_WEEK } from '@/lib/store';
 
 const FEATURES = [
-  ['✨', 'Unlimited AI meal plans and recipes'],
-  ['⚡', 'Macros and timing tuned to each session'],
-  ['🔥', 'Meal-prep and reheat instructions'],
-  ['💬', 'Unlimited AI nutrition coaching'],
+  ['Unlimited plans', 'No weekly cap on meal plans or recipes.'],
+  ['Session-aware macros', 'Targets that follow duration and intensity.'],
+  ['Meal-prep instructions', 'Reheat guidance for skillet, air fryer and microwave.'],
+  ['Unlimited coaching', 'Ask as much as you want.'],
 ] as const;
 
 export default function PaywallScreen() {
-  const colorScheme = useColorScheme();
+  const c = useTheme();
   const router = useRouter();
 
-  const [mounted, setMounted] = useState(false);
   const [packages, setPackages] = useState<Package[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<{ text: string; ok: boolean } | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
-  const billingAvailable = isBillingAvailable();
+  const billing = isBillingAvailable();
 
   useEffect(() => {
-    setMounted(true);
     getOfferings().then((pkgs) => {
       setPackages(pkgs);
-      // Default to annual when offered — it's the better value.
+      // Default to annual when offered — it is the better value.
       setSelected(pkgs.find((p) => p.period === 'annual')?.identifier ?? pkgs[0]?.identifier ?? null);
     });
   }, []);
 
-  if (!mounted) return null;
-
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
-
-  const handleSubscribe = async () => {
+  const subscribe = async () => {
     const pkg = packages.find((p) => p.identifier === selected);
-    if (!pkg) {
-      setStatus({
-        text: 'Subscriptions are not available yet. You can keep using the free plan.',
-        ok: false,
-      });
-      return;
-    }
-    setBusy(true);
-    setStatus(null);
-    const result = await purchase(pkg);
+    if (!pkg) return setStatus('Subscriptions are not available yet. The free plan keeps working.');
+    setBusy(true); setStatus(null);
+    const res = await purchase(pkg);
     setBusy(false);
-    if (result.ok) {
-      router.back();
-    } else if (!result.cancelled) {
-      setStatus({ text: result.message ?? 'Purchase failed.', ok: false });
-    }
+    if (res.ok) router.back();
+    else if (!res.cancelled) setStatus(res.message ?? 'Purchase failed.');
   };
 
-  const handleRestore = async () => {
-    setBusy(true);
-    setStatus(null);
-    const result = await restore();
+  const restorePurchases = async () => {
+    setBusy(true); setStatus(null);
+    const res = await restore();
     setBusy(false);
-    if (result.ok) router.back();
-    else setStatus({ text: result.message ?? 'Nothing to restore.', ok: false });
+    if (res.ok) router.back();
+    else setStatus(res.message ?? 'Nothing to restore.');
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.closeBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-          >
-            <Text style={[styles.closeTxt, { color: colors.textSecondary }]}>✕</Text>
-          </Pressable>
+    <Screen tabBar={false} edges={['top', 'bottom']}>
+      <Enter index={0}>
+        <View style={s.top}>
+          <Tap onPress={() => router.back()} accessibilityLabel="Close">
+            <View style={s.close}><Icon name="close" size={20} color={c.textDim} /></View>
+          </Tap>
         </View>
+      </Enter>
 
-        <View style={styles.hero}>
-          <Text style={styles.heroEmoji}>👑</Text>
-          <Text style={[styles.title, { color: colors.text }]}>OMADCoach Premium</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            The free plan gives you {FREE_PLANS_PER_WEEK} meal plans a week. Premium removes the limit.
-          </Text>
+      <Enter index={1}>
+        <View style={s.hero}>
+          <Icon name="crown" size={30} color={c.ember} />
+          <Txt variant="display" style={{ marginTop: Space.lg, fontSize: 34 }}>Premium</Txt>
+          <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+            The free plan gives you {FREE_PLANS_PER_WEEK} meal plans a week. Premium removes the cap.
+          </Txt>
         </View>
+      </Enter>
 
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          {FEATURES.map(([icon, text]) => (
-            <View key={text} style={styles.featureRow}>
-              <Text style={styles.check}>{icon}</Text>
-              <Text style={[styles.featureTxt, { color: colors.text }]}>{text}</Text>
+      <Enter index={2}>
+        <Card style={{ marginTop: Space.xl, paddingVertical: Space.sm }}>
+          {FEATURES.map(([title, body], i) => (
+            <View key={title}>
+              {i > 0 && <Divider />}
+              <View style={s.feature}>
+                <Icon name="check" size={16} color={c.accent} strokeWidth={2.2} />
+                <View style={{ flex: 1, marginLeft: Space.md }}>
+                  <Txt variant="bodyMedium">{title}</Txt>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>{body}</Txt>
+                </View>
+              </View>
             </View>
           ))}
-        </View>
+        </Card>
+      </Enter>
 
+      <Enter index={3}>
         {packages.length > 0 ? (
-          <View style={styles.pricingRow}>
+          <View style={s.prices}>
             {packages.map((pkg) => {
-              const isSelected = selected === pkg.identifier;
+              const on = selected === pkg.identifier;
               return (
-                <Pressable
+                <Tap
                   key={pkg.identifier}
                   onPress={() => setSelected(pkg.identifier)}
-                  style={[
-                    styles.priceCard,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: isSelected ? colors.primary : 'transparent',
-                    },
-                  ]}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={pkg.period}
+                  style={s.priceWrap}
                 >
-                  {pkg.period === 'annual' && (
-                    <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-                      <Text style={styles.badgeTxt}>BEST VALUE</Text>
-                    </View>
-                  )}
-                  <Text style={[styles.planName, { color: colors.text }]}>
-                    {pkg.period === 'annual' ? 'Annual' : pkg.period === 'monthly' ? 'Monthly' : pkg.identifier}
-                  </Text>
-                  {/* Prices come from the store, localised — never hardcoded. */}
-                  <Text style={[styles.planPrice, { color: colors.primary }]}>{pkg.priceString}</Text>
-                </Pressable>
+                  <View style={[s.price, { borderColor: on ? c.accent : c.line, backgroundColor: on ? c.accentWash : c.surface }]}>
+                    {pkg.period === 'annual' && <Eyebrow color={c.ember}>Best value</Eyebrow>}
+                    <Txt variant="bodyMedium" color={c.textDim} style={{ marginTop: 4 }}>
+                      {pkg.period === 'annual' ? 'Annual' : pkg.period === 'monthly' ? 'Monthly' : pkg.identifier}
+                    </Txt>
+                    {/* Prices come from the store, localised — never hardcoded. */}
+                    <Txt variant="heading" style={{ marginTop: 6 }}>{pkg.priceString}</Txt>
+                  </View>
+                </Tap>
               );
             })}
           </View>
         ) : (
-          <View style={[styles.noticeCard, { backgroundColor: colors.backgroundElement }]}>
-            <Text style={[styles.noticeText, { color: colors.textSecondary }]}>
-              {billingAvailable
+          <Card style={{ marginTop: Space.lg }}>
+            <Txt variant="small" color={c.textDim} style={{ textAlign: 'center' }}>
+              {billing
                 ? 'Loading subscription options…'
                 : 'Subscriptions are only available in the iOS and Android apps. Everything on the free plan keeps working here.'}
-            </Text>
-          </View>
+            </Txt>
+          </Card>
         )}
+      </Enter>
 
-        <Pressable
-          disabled={busy || packages.length === 0}
-          onPress={handleSubscribe}
-          style={({ pressed }) => [
-            styles.subBtn,
-            {
-              backgroundColor: packages.length === 0 ? colors.backgroundElement : colors.primary,
-              opacity: pressed || busy ? 0.8 : 1,
-            },
-          ]}
-          accessibilityRole="button"
-        >
+      <Enter index={4}>
+        <View style={{ marginTop: Space.lg }}>
           {busy ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <View style={[s.busy, { backgroundColor: c.well }]}><ActivityIndicator color={c.accent} /></View>
           ) : (
-            <Text
-              style={[
-                styles.subBtnTxt,
-                { color: packages.length === 0 ? colors.textSecondary : '#FFFFFF' },
-              ]}
-            >
-              {packages.length === 0 ? 'Unavailable' : 'Subscribe'}
-            </Text>
+            <Button
+              label={packages.length === 0 ? 'Unavailable' : 'Subscribe'}
+              onPress={subscribe}
+              disabled={packages.length === 0}
+            />
           )}
-        </Pressable>
+          {status && <Notice tone="error">{status}</Notice>}
 
-        {status && (
-          <Text style={[styles.status, { color: status.ok ? colors.success : colors.danger }]}>
-            {status.text}
-          </Text>
-        )}
+          {billing && (
+            <Tap onPress={restorePurchases} disabled={busy} accessibilityLabel="Restore purchases">
+              <View style={s.restore}>
+                <Txt variant="small" color={c.textDim}>Restore purchases</Txt>
+              </View>
+            </Tap>
+          )}
 
-        {billingAvailable && (
-          <Pressable onPress={handleRestore} disabled={busy} style={styles.footerRow} accessibilityRole="button">
-            <Text style={[styles.footerTxt, { color: colors.textSecondary }]}>Restore purchases</Text>
-          </Pressable>
-        )}
-
-        <Text style={[styles.legal, { color: colors.textSecondary }]}>
-          Subscriptions renew automatically until cancelled. Manage or cancel any time in your App Store or Google
-          Play account settings.
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
+          <Txt variant="small" color={c.textFaint} style={s.legal}>
+            Subscriptions renew until cancelled. Manage or cancel any time in your App Store or Google Play account.
+          </Txt>
+        </View>
+      </Enter>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 40, maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%' },
-  headerRow: { flexDirection: 'row', justifyContent: 'flex-end' },
-  closeBtn: { padding: 8, minWidth: 44, alignItems: 'flex-end' },
-  closeTxt: { fontSize: 20, fontWeight: '700' },
-
-  hero: { alignItems: 'center', marginBottom: 24 },
-  heroEmoji: { fontSize: 48, marginBottom: 12 },
-  title: { fontSize: 26, fontWeight: '800', textAlign: 'center' },
-  subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 22, paddingHorizontal: 12, marginTop: 10 },
-
-  card: { borderRadius: 16, padding: 20, marginBottom: 20 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  check: { fontSize: 18, marginRight: 12 },
-  featureTxt: { fontSize: 15, fontWeight: '600', flex: 1, lineHeight: 21 },
-
-  pricingRow: { flexDirection: 'row', marginRight: -12, marginBottom: 20 },
-  priceCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    marginRight: 12,
-  },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginBottom: 8 },
-  badgeTxt: { fontSize: 10, fontWeight: '800', color: '#1A1A2E' },
-  planName: { fontSize: 14, fontWeight: '600' },
-  planPrice: { fontSize: 22, fontWeight: '800', marginTop: 6 },
-
-  noticeCard: { borderRadius: 12, padding: 16, marginBottom: 20 },
-  noticeText: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
-
-  subBtn: { borderRadius: 16, paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
-  subBtnTxt: { fontSize: 17, fontWeight: '700' },
-  status: { fontSize: 14, textAlign: 'center', marginTop: 14, lineHeight: 20 },
-
-  footerRow: { alignItems: 'center', marginTop: 18, padding: 8 },
-  footerTxt: { fontSize: 14, textDecorationLine: 'underline' },
-
-  legal: { fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 20 },
+const s = StyleSheet.create({
+  top: { flexDirection: 'row', justifyContent: 'flex-end' },
+  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  hero: { alignItems: 'center', paddingTop: Space.lg, paddingHorizontal: Space.base },
+  feature: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Space.base },
+  prices: { flexDirection: 'row', marginTop: Space.lg, marginRight: -Space.md },
+  priceWrap: { flex: 1, marginRight: Space.md },
+  price: { borderRadius: Radius.md, borderWidth: 1.5, padding: Space.base, alignItems: 'center' },
+  busy: { height: 54, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+  restore: { alignItems: 'center', paddingVertical: Space.base, marginTop: Space.sm },
+  legal: { textAlign: 'center', marginTop: Space.md },
 });

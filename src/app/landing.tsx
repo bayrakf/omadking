@@ -1,32 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { Colors, Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
+import { Txt, Eyebrow, Enter, Button, Divider } from '@/components/ui';
+import { Icon } from '@/components/icons';
+import DayDial from '@/components/DayDial';
 import { FREE_PLANS_PER_WEEK } from '@/lib/store';
 
-const VALUE_PROPS = [
+/**
+ * The hero is the dial itself, showing a real 18:00–20:00 window against a
+ * 22-hour fast. Leading with the product's own instrument says what the app is
+ * faster than a headline about "AI-powered nutrition" ever could.
+ */
+const VALUE = [
   {
-    emoji: '⚡',
+    icon: 'clock' as const,
     title: 'Timing, not guesswork',
-    body: 'Tell it when you train. It works out whether you eat before, after, or split around the session — and gives you the clock times.',
+    body: 'Tell it when you train. It decides whether you eat before, after, or split around the session, and gives you the clock times.',
   },
   {
-    emoji: '🔥',
+    icon: 'dumbbell' as const,
     title: 'Macros that follow the work',
-    body: 'A two-hour max-intensity session and a rest day are not the same calorie target. Duration and intensity feed straight into the numbers.',
+    body: 'Two hours all-out and a rest day are not the same target. Duration and intensity feed straight into the numbers.',
   },
   {
-    emoji: '🍲',
+    icon: 'flame' as const,
     title: 'Built for meal prep',
-    body: 'Every recipe comes with reheat instructions for skillet, air fryer and microwave, because you cooked it yesterday.',
+    body: 'Every recipe carries reheat instructions for skillet, air fryer and microwave, because you cooked it yesterday.',
   },
-];
-
-const STEPS: [string, string][] = [
-  ['Set your profile', 'Bodyweight, training schedule and goal. Takes about a minute.'],
-  ['Log the session', 'Sport, duration, intensity and start time.'],
-  ['Eat on schedule', 'Get your window, your macros and a recipe that fits them.'],
 ];
 
 export default function LandingPage() {
@@ -34,139 +36,117 @@ export default function LandingPage() {
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
 
-  // The marketing page is deliberately dark in both themes.
-  const colors = Colors.dark;
+  // The marketing page commits to dark in both schemes.
+  const c = Colors.dark;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.navRow}>
-          <Text style={[styles.logo, { color: colors.text }]}>🍽️ OMADCoach</Text>
-        </View>
+    <SafeAreaView style={[s.flex, { backgroundColor: c.bg }]}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <Enter index={0}>
+          <View style={s.nav}>
+            <Txt variant="subheading" color={c.text}>OMADCoach</Txt>
+            <Eyebrow color={c.textFaint}>Fasting · Training</Eyebrow>
+          </View>
+        </Enter>
 
-        <View style={styles.heroSection}>
-          <Text style={[styles.heroTitle, { color: colors.text }]}>One meal.{'\n'}Timed properly.</Text>
-          <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-            An OMAD planner for people who train hard in the evening. It works out when to eat around your session
-            and what to put on the plate.
-          </Text>
-        </View>
+        <Enter index={1}>
+          <View style={s.hero}>
+            <Eyebrow color={c.accent}>22 hours off · 2 hours on</Eyebrow>
+            <Txt variant="hero" color={c.text} style={s.heroTitle}>
+              Eat once.{'\n'}Time it right.
+            </Txt>
+            <Txt variant="body" color={c.textDim} style={s.heroBody}>
+              An OMAD planner for people who train hard in the evening. It works out when to eat around your
+              session, and what to put on the plate.
+            </Txt>
+          </View>
+        </Enter>
 
-        <View style={styles.ctaContainer}>
-          <Pressable
-            onPress={() => router.replace('/onboarding')}
-            style={({ pressed }) => [
-              styles.ctaButton,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-            ]}
-            accessibilityRole="button"
-          >
-            <Text style={styles.ctaButtonText}>Get started — free</Text>
-          </Pressable>
-          {/* Honest about the tier, and no "log in" link when there are no accounts. */}
-          <Text style={[styles.ctaNote, { color: colors.textSecondary }]}>
-            {FREE_PLANS_PER_WEEK} meal plans a week on the free tier. No account needed — your data stays on your
-            device.
-          </Text>
-        </View>
+        <Enter index={2}>
+          <View style={s.dialWrap}>
+            <DayDial
+              size={250}
+              nowMin={17 * 60 + 20}
+              windowStartMin={18 * 60}
+              windowLengthMin={120}
+              trainingStartMin={18 * 60 + 30}
+              trainingDurationMin={60}
+              isEating={false}
+              headline="0h 40m"
+              caption="until the window opens"
+            />
+            <Eyebrow color={c.textFaint} style={{ textAlign: 'center', marginTop: Space.base }}>
+              18:00–20:00 · 22H FAST · SESSION 18:30
+            </Eyebrow>
+          </View>
+        </Enter>
 
-        <View style={styles.grid}>
-          {VALUE_PROPS.map((p) => (
-            <View key={p.title} style={[styles.gridCard, { backgroundColor: colors.card }]}>
-              <Text style={styles.gridEmoji}>{p.emoji}</Text>
-              <Text style={[styles.gridTitle, { color: colors.text }]}>{p.title}</Text>
-              <Text style={[styles.gridSub, { color: colors.textSecondary }]}>{p.body}</Text>
-            </View>
-          ))}
-        </View>
+        <Enter index={3}>
+          <View style={{ marginTop: Space.section }}>
+            <Button label="Get started — free" onPress={() => router.replace('/onboarding')} />
+            <Txt variant="small" color={c.textFaint} style={s.note}>
+              {FREE_PLANS_PER_WEEK} meal plans a week on the free tier. No account needed — your data stays on
+              your device.
+            </Txt>
+          </View>
+        </Enter>
 
-        <View style={styles.howItWorksSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>How it works</Text>
-          {STEPS.map(([title, desc], i) => (
-            <View key={title} style={styles.stepRow}>
-              <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
-                <Text style={styles.stepNumberText}>{i + 1}</Text>
+        <Enter index={4}>
+          <View style={{ marginTop: Space.section }}>
+            {VALUE.map((v, i) => (
+              <View key={v.title}>
+                {i > 0 && <Divider style={{ marginVertical: Space.xl }} />}
+                <View style={s.valueRow}>
+                  <View style={[s.valueIcon, { borderColor: c.line }]}>
+                    <Icon name={v.icon} size={18} color={c.accent} />
+                  </View>
+                  <View style={s.flex}>
+                    <Txt variant="subheading" color={c.text}>{v.title}</Txt>
+                    <Txt variant="body" color={c.textDim} style={{ marginTop: Space.sm }}>{v.body}</Txt>
+                  </View>
+                </View>
               </View>
-              <View style={styles.stepContent}>
-                <Text style={[styles.stepTitle, { color: colors.text }]}>{title}</Text>
-                <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>{desc}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        </Enter>
 
-        <Pressable
-          onPress={() => router.replace('/onboarding')}
-          style={({ pressed }) => [
-            styles.ctaButton,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-          ]}
-          accessibilityRole="button"
-        >
-          <Text style={styles.ctaButtonText}>Start your first plan</Text>
-        </Pressable>
-
-        <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
-          OMADCoach gives general nutrition and training guidance. It is not medical advice. Talk to a clinician
-          before starting extended fasting, especially if you are pregnant, diabetic, or taking medication.
-        </Text>
-
-        <Text style={[styles.footer, { color: colors.textSecondary }]}>
-          © {new Date().getFullYear()} OMADCoach
-        </Text>
+        <Enter index={5}>
+          <View style={s.footer}>
+            <Button label="Start your first plan" onPress={() => router.replace('/onboarding')} />
+            <Txt variant="small" color={c.textFaint} style={s.disclaimer}>
+              General nutrition and training guidance, not medical advice. Talk to a clinician before starting
+              extended fasting, particularly during pregnancy, with diabetes, or alongside medication.
+            </Txt>
+            <Eyebrow color={c.textFaint} style={{ textAlign: 'center', marginTop: Space.xl }}>
+              © {new Date().getFullYear()} OMADCoach
+            </Eyebrow>
+          </View>
+        </Enter>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 24, maxWidth: 640, alignSelf: 'center', width: '100%', paddingBottom: 60 },
-  navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 },
-  logo: { fontSize: 20, fontWeight: '800' },
-
-  heroSection: { marginBottom: 28 },
-  heroTitle: { fontSize: 40, fontWeight: '900', lineHeight: 46, letterSpacing: -1 },
-  heroSubtitle: { fontSize: 17, lineHeight: 26, marginTop: 18 },
-
-  ctaContainer: { marginBottom: 44 },
-  ctaButton: {
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+const s = StyleSheet.create({
+  flex: { flex: 1 },
+  scroll: {
+    paddingHorizontal: Space.lg, paddingBottom: Space.hero,
+    maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%',
   },
-  ctaButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
-  ctaNote: { fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 14 },
-
-  grid: { marginBottom: 40 },
-  gridCard: { borderRadius: 20, padding: 22, marginBottom: 14 },
-  gridEmoji: { fontSize: 28, marginBottom: 10 },
-  gridTitle: { fontSize: 19, fontWeight: '800', marginBottom: 8 },
-  gridSub: { fontSize: 15, lineHeight: 22 },
-
-  howItWorksSection: { marginBottom: 36 },
-  sectionTitle: { fontSize: 26, fontWeight: '800', marginBottom: 22 },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 22 },
-  stepNumber: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-    marginTop: 2,
+  nav: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: Space.lg,
   },
-  stepNumberText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
-  stepContent: { flex: 1 },
-  stepTitle: { fontSize: 17, fontWeight: '700', marginBottom: 4 },
-  stepDesc: { fontSize: 15, lineHeight: 22 },
-
-  disclaimer: { fontSize: 12, lineHeight: 18, marginTop: 32, textAlign: 'center' },
-  footer: { textAlign: 'center', fontSize: 13, marginTop: 20, opacity: 0.6 },
+  hero: { paddingTop: Space.xxl },
+  heroTitle: { marginTop: Space.base, fontSize: 46, lineHeight: 50, letterSpacing: -1.4 },
+  heroBody: { marginTop: Space.lg },
+  dialWrap: { marginTop: Space.section, alignItems: 'center' },
+  note: { textAlign: 'center', marginTop: Space.base },
+  valueRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  valueIcon: {
+    width: 40, height: 40, borderRadius: Radius.sm, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center', marginRight: Space.base,
+  },
+  footer: { marginTop: Space.section },
+  disclaimer: { textAlign: 'center', marginTop: Space.xl, lineHeight: 18 },
 });
