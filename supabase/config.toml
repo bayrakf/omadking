@@ -1,0 +1,11 @@
+# Supabase project config. `project_id` is the project ref, not a secret.
+project_id = "icsosdyzwwnxhhztmwef"
+
+[functions.chat]
+# Callers send the anon key as a Bearer token, which satisfies JWT verification.
+# Leaving this on keeps anonymous internet traffic off the function (and off the
+# Gemini bill) without needing user accounts.
+verify_jwt = true
+
+[functions.generate_meal_plan]
+verify_jwt = true
