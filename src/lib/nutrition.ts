@@ -179,6 +179,17 @@ export function dailyTargets(p: UserProfile, t: Training | null = null): Macros 
   return { kcal, protein_g, carbs_g, fat_g, burn_kcal: burn, maintenance_kcal: maintenance };
 }
 
+/**
+ * Daily fluid target. A fixed 3.5L told a 60kg and a 100kg athlete the same
+ * thing, which is simply wrong. ~40ml/kg, with a bump on training days for
+ * sweat loss, clamped to a range that stays sensible at both extremes.
+ */
+export function hydrationTargetMl(p: UserProfile, t: Training | null = null): number {
+  const base = p.weight_kg * 40 + (t && t.duration_min > 0 ? 500 : 0);
+  // Round to 100ml — false precision on a number nobody measures exactly.
+  return Math.round(Math.min(5000, Math.max(2000, base)) / 100) * 100;
+}
+
 // ---------------------------------------------------------------------------
 // Clock helpers
 // ---------------------------------------------------------------------------
@@ -461,6 +472,17 @@ export function demo() {
     { sport: 'running', duration_min: 45, intensity: 'high', start_time: '18:30' }
   );
   assert(tight.warning !== null, 'tight pre-training gap warns');
+
+  // Hydration scales with bodyweight and clamps at both ends.
+  assert(hydrationTargetMl(normalizeProfile({ weight_kg: 60 })) === 2400, 'a 60kg athlete gets 2.4L');
+  assert(hydrationTargetMl(normalizeProfile({ weight_kg: 100 })) === 4000, 'a 100kg athlete gets 4L');
+  assert(hydrationTargetMl(normalizeProfile({ weight_kg: 40 })) === 2000, 'floor holds for a very light athlete');
+  assert(hydrationTargetMl(normalizeProfile({ weight_kg: 200 })) === 5000, 'ceiling holds for a very heavy athlete');
+  assert(
+    hydrationTargetMl(normalizeProfile({ weight_kg: 82 }), { sport: 'running', duration_min: 60, intensity: 'high', start_time: '18:00' }) >
+      hydrationTargetMl(normalizeProfile({ weight_kg: 82 })),
+    'training days need more fluid'
+  );
 
   assert(fromMinutes(toMinutes('07:05')) === '07:05', 'clock round-trips');
   assert(fromMinutes(-30) === '23:30', 'negative minutes wrap');

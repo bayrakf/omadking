@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { View, useColorScheme } from 'react-native';
+import { AppState, View, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { Colors } from '@/constants/theme';
 import { isOnboarded } from '@/lib/store';
+import { resync } from '@/lib/notify';
 
 // Surfaces real errors instead of a white screen.
 export { ErrorBoundary } from 'expo-router';
@@ -58,6 +59,16 @@ export default function RootLayout() {
   const onLayout = useCallback(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
+
+  // Plan-specific reminders are one-offs for today, so they are rebuilt each
+  // time the app comes forward rather than needing a background task.
+  useEffect(() => {
+    resync().catch(() => {});
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') resync().catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
 
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 

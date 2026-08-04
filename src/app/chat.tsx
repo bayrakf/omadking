@@ -7,8 +7,8 @@ import { useRouter } from 'expo-router';
 import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Tap, useTheme, useReducedMotion } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { askCoach, type ChatTurn } from '@/lib/ai';
-import { loadProfile } from '@/lib/store';
+import { askCoach, type ChatTurn, type MealPlan } from '@/lib/ai';
+import { loadProfile, loadLastPlan, todayISO } from '@/lib/store';
 import type { UserProfile } from '@/lib/nutrition';
 
 type Message = { id: string; sender: 'user' | 'ai'; text: string; failed?: boolean };
@@ -19,6 +19,9 @@ const PROMPTS = [
   'Pre-workout on OMAD?',
   'How much protein do I need?',
 ];
+
+/** Only offered once there is a plan the coach can actually talk about. */
+const PLAN_PROMPTS = ['Is tonight’s meal enough?', 'Can I swap an ingredient?'];
 
 const GREETING: Message = {
   id: 'greeting',
@@ -65,8 +68,12 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [plan, setPlan] = useState<MealPlan | null>(null);
 
-  useEffect(() => { loadProfile().then(setProfile); }, []);
+  useEffect(() => {
+    loadProfile().then(setProfile);
+    loadLastPlan<MealPlan>().then((p) => setPlan(p?.date === todayISO() ? p : null));
+  }, []);
 
   const toBottom = () => setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
 
@@ -84,7 +91,7 @@ export default function ChatScreen() {
     toBottom();
 
     try {
-      const reply = await askCoach(trimmed, history, profile);
+      const reply = await askCoach(trimmed, history, profile, plan);
       setMessages((p) => [...p, { id: `a${Date.now()}`, sender: 'ai', text: reply }]);
     } catch (err: any) {
       // Previously this swallowed the error and printed a canned tip, so a broken
@@ -153,7 +160,7 @@ export default function ChatScreen() {
           contentContainerStyle={s.prompts}
           keyboardShouldPersistTaps="handled"
         >
-          {PROMPTS.map((p) => (
+          {[...(plan ? PLAN_PROMPTS : []), ...PROMPTS].map((p) => (
             <Tap key={p} onPress={() => send(p)} disabled={loading} accessibilityLabel={p}>
               <View style={[s.prompt, { borderColor: c.line, backgroundColor: c.surface }]}>
                 <Txt variant="small" color={c.textDim}>{p}</Txt>

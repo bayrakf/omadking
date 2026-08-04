@@ -12,7 +12,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const MODULES = ['nutrition', 'dates', 'grocery'];
+const MODULES = ['nutrition', 'dates', 'grocery', 'agenda'];
 
 const outDir = mkdtempSync(join(tmpdir(), 'omadcoach-check-'));
 

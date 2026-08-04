@@ -40,6 +40,9 @@ export type MealPlan = {
   ai_reasoning: string;
   timing_warning: string | null;
   training_burn_kcal: number;
+  /** Which side of the window training falls on. The agenda needs this to
+   *  place a pre-training snack before or after the opening. */
+  timing_pattern: 'pre' | 'post' | 'overlap';
   /** The session this plan was built around; null on a rest day. */
   training_start_time: string | null;
   training_duration_min: number;
@@ -136,6 +139,7 @@ export async function generateMealPlan(
     ai_reasoning: timing.reasoning,
     timing_warning: timing.warning,
     training_burn_kcal: targets.burn_kcal,
+    timing_pattern: timing.pattern,
     training_start_time: training?.start_time ?? null,
     training_duration_min: training?.duration_min ?? 0,
     recipe: recipe ?? offlineRecipe(profile, training, targets),
@@ -186,7 +190,8 @@ export type ChatTurn = { role: 'user' | 'ai'; content: string };
 export async function askCoach(
   message: string,
   history: ChatTurn[],
-  profile?: UserProfile | null
+  profile?: UserProfile | null,
+  plan?: MealPlan | null
 ): Promise<string> {
   if (!SUPABASE_URL) throw new Error('Coach is not configured.');
 
@@ -204,6 +209,22 @@ export async function askCoach(
           fitness_level: profile.fitness_level,
           eating_window: `${profile.omad_window_start} for ${profile.omad_window_hours}h`,
           training_time: profile.default_training_time,
+        }
+      : null,
+    // Without this the coach cannot answer "what am I eating tonight" or
+    // "is that enough protein" — it only knew the profile. Deliberately a
+    // summary, not the whole recipe: the ingredient list would triple the
+    // prompt without improving the answer.
+    plan: plan
+      ? {
+          eating_window: `${plan.eating_window_start}-${plan.eating_window_end}`,
+          main_meal_time: plan.main_meal_time,
+          pre_training_snack_time: plan.pre_training_snack_time,
+          kcal: plan.total_kcal,
+          protein_g: plan.protein_g,
+          carbs_g: plan.carbs_g,
+          fat_g: plan.fat_g,
+          meal: plan.recipe.title,
         }
       : null,
   }, TIMEOUT_CHAT_MS);

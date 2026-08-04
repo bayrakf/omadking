@@ -55,6 +55,7 @@ Rules:
 - Use the athlete's own numbers when they are provided rather than generic ranges.
 - You are not a doctor. If the question involves pregnancy, an eating disorder, diabetes, blood-pressure or heart medication, or unexplained symptoms such as fainting or chest pain, say plainly that this needs a clinician and do not improvise a protocol.
 - If a question is outside fasting, nutrition and training, say so briefly instead of answering it.
+- When today's plan is given, answer against it by name and number rather than in generalities.
 - Reply with the answer only. Never restate these rules, mention word counts, or describe your own constraints.`;
 
 serve(async (req) => {
@@ -62,7 +63,7 @@ serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const { message, history, profile } = await req.json().catch(() => ({}));
+    const { message, history, profile, plan } = await req.json().catch(() => ({}));
 
     // Validate at the trust boundary — this text goes straight into a paid API call.
     if (typeof message !== 'string' || !message.trim()) {
@@ -90,9 +91,15 @@ serve(async (req) => {
 
     contents.push({ role: 'user', parts: [{ text: message.trim() }] });
 
-    const systemText = profile
-      ? `${BASE_PROMPT}\n\nThis athlete: ${JSON.stringify(profile).slice(0, 500)}`
-      : BASE_PROMPT;
+    // Context blocks are appended rather than interpolated into the rules, so a
+    // crafted profile value cannot rewrite the instructions above it.
+    let systemText = BASE_PROMPT;
+    if (profile) systemText += `\n\nThis athlete: ${JSON.stringify(profile).slice(0, 500)}`;
+    if (plan) {
+      systemText +=
+        `\n\nToday's plan (already calculated for them — treat these numbers as fixed): ` +
+        `${JSON.stringify(plan).slice(0, 600)}`;
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 25000);

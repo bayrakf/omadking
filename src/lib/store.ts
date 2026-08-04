@@ -20,6 +20,7 @@ export const KEYS = {
   premium: 'user_premium',
   planQuota: 'plan_quota',
   fastLog: 'fast_log',
+  cookLog: 'cook_log',
 } as const;
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -177,5 +178,39 @@ export async function markFastComplete(date = todayISO()): Promise<string[]> {
 export async function unmarkFastComplete(date = todayISO()): Promise<string[]> {
   const next = (await loadFastLog()).filter((d) => d !== date);
   await writeJSON(KEYS.fastLog, next);
+  return next;
+}
+
+// --- Meal prep -------------------------------------------------------------
+
+/** Dates on which the day's meal was actually cooked. */
+export async function loadCookLog(): Promise<string[]> {
+  const log = await readJSON<string[]>(KEYS.cookLog, []);
+  return Array.isArray(log) ? log.filter((d) => typeof d === 'string') : [];
+}
+
+export async function isCooked(date = todayISO()): Promise<boolean> {
+  return (await loadCookLog()).includes(date);
+}
+
+/**
+ * Marking a day cooked also clears the shopping ticks: the ingredients are in
+ * the pan, so leaving them ticked would carry stale state into the next list.
+ * This is what closes the planner -> shopping -> kitchen loop.
+ */
+export async function markCooked(date = todayISO()): Promise<string[]> {
+  const log = await loadCookLog();
+  if (!log.includes(date)) {
+    const next = [...log, date].sort().slice(-400);
+    await writeJSON(KEYS.cookLog, next);
+    await AsyncStorage.removeItem(KEYS.groceryChecked).catch(() => {});
+    return next;
+  }
+  return log;
+}
+
+export async function unmarkCooked(date = todayISO()): Promise<string[]> {
+  const next = (await loadCookLog()).filter((d) => d !== date);
+  await writeJSON(KEYS.cookLog, next);
   return next;
 }

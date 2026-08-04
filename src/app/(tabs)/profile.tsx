@@ -1,15 +1,25 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, TextInput, Platform, Alert } from 'react-native';
+import { View, StyleSheet, TextInput, Platform, Alert, Switch } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Tap, Chip, Divider, PageHeader, Button, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Tap, Chip, Divider, PageHeader, Button, Notice, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import {
   bmr, dailyTargets, normalizeProfile, toMinutes, fromMinutes, DEFAULT_PROFILE, type UserProfile,
 } from '@/lib/nutrition';
-import { loadProfileOrDefault, saveProfile, resetOnboarding, getQuota, isPremium, type Quota } from '@/lib/store';
+import {
+  loadProfileOrDefault, saveProfile, resetOnboarding, getQuota, isPremium,
+  loadLastPlan, loadFastLog, loadCookLog, todayISO, type Quota,
+} from '@/lib/store';
+import {
+  isSupported as remindersSupported, isEnabled as remindersOn,
+  setEnabled as setReminders, scheduledCount, resync,
+} from '@/lib/notify';
+import { exportBackup, importBackup } from '@/lib/backup';
+import { saveBackup, pickBackup } from '@/lib/backup-file';
+import type { MealPlan } from '@/lib/ai';
 
 type EditField = 'weight_kg' | 'height_cm' | 'age' | 'omad_window_start' | 'omad_window_hours' | 'default_training_time';
 
@@ -29,14 +39,20 @@ export default function ProfileScreen() {
   const [premium, setPremiumState] = useState(false);
   const [editing, setEditing] = useState<EditField | null>(null);
   const [draft, setDraft] = useState('');
+  const [remindOn, setRemindOn] = useState(false);
+  const [queued, setQueued] = useState(0);
+  const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       (async () => {
-        const [p, q, prem] = await Promise.all([loadProfileOrDefault(), getQuota(), isPremium()]);
+        const [p, q, prem, rOn, n] = await Promise.all([
+          loadProfileOrDefault(), getQuota(), isPremium(), remindersOn(), scheduledCount(),
+        ]);
         if (!active) return;
-        setProfile(p); setQuota(q); setPremiumState(prem); setMounted(true);
+        setProfile(p); setQuota(q); setPremiumState(prem);
+        setRemindOn(rOn); setQueued(n); setMounted(true);
       })();
       return () => { active = false; };
     }, [])
@@ -50,6 +66,9 @@ export default function ProfileScreen() {
     const clean = normalizeProfile(next);
     setProfile(clean);
     await saveProfile(clean);
+    // Window times drive the reminders, so the schedule follows the edit.
+    await resync();
+    setQueued(await scheduledCount());
   };
 
   const commit = async (field: EditField) => {
@@ -65,6 +84,44 @@ export default function ProfileScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Reset', style: 'destructive', onPress: run },
     ]);
+  };
+
+  const toggleReminders = async (on: boolean) => {
+    setNotice(null);
+    const today = todayISO();
+    const [plan, fastLog, cookLog] = await Promise.all([loadLastPlan<MealPlan>(), loadFastLog(), loadCookLog()]);
+    const result = await setReminders(
+      on,
+      profile,
+      plan?.date === today ? plan : null,
+      { cooked: cookLog.includes(today), fastLogged: fastLog.includes(today) }
+    );
+    setRemindOn(result);
+    setQueued(await scheduledCount());
+    if (on && !result) {
+      setNotice({ text: 'Notifications are blocked. Turn them on for OMADCoach in your device settings.', ok: false });
+    }
+  };
+
+  const doExport = async () => {
+    setNotice(null);
+    const res = await saveBackup(await exportBackup());
+    if (!res.ok && res.message) setNotice({ text: res.message, ok: false });
+  };
+
+  const doImport = async () => {
+    setNotice(null);
+    const text = await pickBackup();
+    if (text == null) return;
+    const res = await importBackup(text);
+    if (res.ok) {
+      setProfile(await loadProfileOrDefault());
+      setQuota(await getQuota());
+      await resync();
+      setNotice({ text: 'Backup restored.', ok: true });
+    } else {
+      setNotice({ text: res.message, ok: false });
+    }
   };
 
   const targets = dailyTargets(profile, null);
@@ -93,7 +150,7 @@ export default function ProfileScreen() {
             accessibilityLabel={`Edit ${label}`}
           >
             <View style={s.value}>
-              <Txt variant="data" color={c.text}>{String(profile[field])}{unit ?? ''}</Txt>
+              <Txt variant="data" color={c.text} style={s.valueText}>{String(profile[field])}{unit ?? ''}</Txt>
               <Icon name="edit" size={13} color={c.textFaint} />
             </View>
           </Tap>
@@ -204,6 +261,46 @@ export default function ProfileScreen() {
 
       <Enter index={6}>
         <Card style={{ marginTop: Space.base }}>
+          <Eyebrow style={{ marginBottom: Space.sm }}>Reminders</Eyebrow>
+          <View style={s.row}>
+            <View style={{ flex: 1, marginRight: Space.base }}>
+              <Txt variant="body">Tell me when to eat</Txt>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                {!remindersSupported()
+                  ? 'Only available in the iOS and Android apps.'
+                  : remindOn
+                  ? `${queued} reminder${queued === 1 ? '' : 's'} scheduled`
+                  : 'Cooking, window opening, meal and last bite.'}
+              </Txt>
+            </View>
+            <Switch
+              value={remindOn}
+              onValueChange={toggleReminders}
+              disabled={!remindersSupported()}
+              trackColor={{ false: c.well, true: c.accentDim }}
+              thumbColor={remindOn ? c.accent : '#FFFFFF'}
+            />
+          </View>
+        </Card>
+      </Enter>
+
+      <Enter index={7}>
+        <Card style={{ marginTop: Space.base }}>
+          <Eyebrow style={{ marginBottom: Space.sm }}>Your data</Eyebrow>
+          <Txt variant="small" color={c.textDim}>
+            Everything lives on this device. There are no accounts, so a backup is the only copy that
+            survives reinstalling.
+          </Txt>
+          <View style={s.dataRow}>
+            <Button label="Export" variant="secondary" icon="share" onPress={doExport} style={s.dataBtn} />
+            <Button label="Restore" variant="ghost" onPress={doImport} style={s.dataBtn} />
+          </View>
+          {notice && <Notice tone={notice.ok ? 'ok' : 'error'}>{notice.text}</Notice>}
+        </Card>
+      </Enter>
+
+      <Enter index={8}>
+        <Card style={{ marginTop: Space.base }}>
           <View style={s.row}>
             <Txt variant="body" color={c.textDim}>Version</Txt>
             <Txt variant="data" color={c.textFaint}>1.0.0</Txt>
@@ -218,6 +315,7 @@ export default function ProfileScreen() {
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Space.base },
   value: { flexDirection: 'row', alignItems: 'center' },
+  valueText: { marginRight: Space.sm },
   input: { minWidth: 90, textAlign: 'right', borderBottomWidth: 1.5, paddingVertical: 2, fontSize: 13 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', marginRight: -Space.sm },
   chip: { marginRight: Space.sm, marginBottom: Space.sm },
@@ -229,4 +327,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     padding: Space.md, borderRadius: Radius.sm, marginTop: Space.base,
   },
+  dataRow: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm },
+  dataBtn: { flex: 1, marginRight: Space.sm },
 });

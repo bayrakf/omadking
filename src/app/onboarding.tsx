@@ -12,6 +12,7 @@ import {
   type FitnessLevel, type Goal, type Sex,
 } from '@/lib/nutrition';
 import { completeOnboarding } from '@/lib/store';
+import { resync } from '@/lib/notify';
 
 type Draft = {
   weight_kg: string; height_cm: string; age: string;
@@ -63,6 +64,8 @@ export default function OnboardingScreen() {
     // normalizeProfile clamps and canonicalises, so the store never sees
     // 'Male' or a 400kg bodyweight.
     await completeOnboarding(normalizeProfile(data));
+    // Reminders are off until opted in; this only primes the schedule.
+    await resync();
     router.replace('/');
   };
 

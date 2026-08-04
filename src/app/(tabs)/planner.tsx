@@ -10,6 +10,7 @@ import RecipeCard from '@/components/RecipeCard';
 import { dailyTargets, DEFAULT_PROFILE, type Intensity, type Training, type UserProfile } from '@/lib/nutrition';
 import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
 import { loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota, type Quota } from '@/lib/store';
+import { resync } from '@/lib/notify';
 
 const SPORTS = [
   { id: 'running', label: 'Running' },
@@ -83,6 +84,8 @@ export default function PlannerScreen() {
       setPlan(next);
       setHistory(await savePlan(next));
       await consumeQuota();
+      // Cook and meal times just moved, so the schedule has to follow.
+      await resync();
       setQuota(await getQuota());
     } catch (e) {
       if (e instanceof QuotaError) router.push('/paywall');

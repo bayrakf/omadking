@@ -1,23 +1,33 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, TextInput, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Space, Radius } from '@/constants/theme';
+import { Space, Radius, Type } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, useTheme,
 } from '@/components/ui';
-import { Icon } from '@/components/icons';
+import { Icon, type IconName } from '@/components/icons';
 import DayDial from '@/components/DayDial';
 import {
-  dailyTargets, fastingState, formatCountdown, toMinutes, DEFAULT_PROFILE,
+  dailyTargets, fastingState, formatCountdown, hydrationTargetMl, toMinutes, DEFAULT_PROFILE,
   type UserProfile, type FastingState,
 } from '@/lib/nutrition';
+import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
 import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
-  currentStreak, loadLastPlan, todayISO, type Hydration,
+  currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
+  saveProfile, todayISO, type Hydration,
 } from '@/lib/store';
 import type { MealPlan } from '@/lib/ai';
+import { resync } from '@/lib/notify';
 
-const WATER_TARGET_ML = 3500;
+const ICONS: Record<AgendaItem['kind'], IconName> = {
+  cook: 'flame',
+  window_open: 'clock',
+  snack: 'plus',
+  meal: 'plate',
+  window_close: 'moon',
+  log_fast: 'check',
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -26,11 +36,14 @@ export default function DashboardScreen() {
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [fast, setFast] = useState<FastingState | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const [hydration, setHydration] = useState<Hydration>({ date: todayISO(), ml: 0, electrolytes: false });
   const [streak, setStreak] = useState(0);
   const [fastLogged, setFastLogged] = useState(false);
+  const [cooked, setCooked] = useState(false);
   const [plan, setPlan] = useState<MealPlan | null>(null);
-  const [nowMin, setNowMin] = useState(0);
+  const [weighedToday, setWeighedToday] = useState(true);
+  const [weightInput, setWeightInput] = useState('');
   const [dateLabel, setDateLabel] = useState('');
 
   useEffect(() => {
@@ -38,29 +51,33 @@ export default function DashboardScreen() {
     setMounted(true);
   }, []);
 
+  const refresh = useCallback(async () => {
+    const [p, h, fl, cl, last, weights] = await Promise.all([
+      loadProfileOrDefault(), loadHydration(), loadFastLog(), loadCookLog(),
+      loadLastPlan<MealPlan>(), loadWeightLog(),
+    ]);
+    setProfile(p);
+    setHydration(h);
+    setStreak(currentStreak(fl));
+    setFastLogged(fl.includes(todayISO()));
+    setCooked(cl.includes(todayISO()));
+    setPlan(last?.date === todayISO() ? last : null);
+    setWeighedToday(weights.some((w) => w.date === todayISO()));
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      (async () => {
-        const [p, h, log, last] = await Promise.all([
-          loadProfileOrDefault(), loadHydration(), loadFastLog(), loadLastPlan<MealPlan>(),
-        ]);
-        if (!active) return;
-        setProfile(p);
-        setHydration(h);
-        setStreak(currentStreak(log));
-        setFastLogged(log.includes(todayISO()));
-        setPlan(last?.date === todayISO() ? last : null);
-      })();
+      refresh().then(() => active);
       return () => { active = false; };
-    }, [])
+    }, [refresh])
   );
 
   useEffect(() => {
     const tick = () => {
       const d = new Date();
+      setNow(d);
       setFast(fastingState(profile, d));
-      setNowMin(d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60);
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -69,33 +86,63 @@ export default function DashboardScreen() {
 
   if (!mounted || !fast) return null;
 
+  const { items, next } = dayAgenda(profile, plan, { cooked, fastLogged }, now);
+
   const baseline = dailyTargets(profile, null);
   const kcal = plan ? plan.total_kcal : baseline.kcal;
   const protein = plan ? plan.protein_g : baseline.protein_g;
+  const waterTarget = hydrationTargetMl(profile, plan?.training_start_time
+    ? { sport: 'session', duration_min: plan.training_duration_min, intensity: 'medium', start_time: plan.training_start_time }
+    : null);
 
   const addWater = async (ml: number) => {
-    const next = { ...hydration, ml: Math.min(6000, hydration.ml + ml) };
-    setHydration(next);
-    await saveHydration(next);
+    const nextH = { ...hydration, ml: Math.min(8000, hydration.ml + ml) };
+    setHydration(nextH);
+    await saveHydration(nextH);
   };
   const toggleSalt = async () => {
-    const next = { ...hydration, electrolytes: !hydration.electrolytes };
-    setHydration(next);
-    await saveHydration(next);
-  };
-  const logFast = async () => {
-    const log = await markFastComplete();
-    setStreak(currentStreak(log));
-    setFastLogged(true);
+    const nextH = { ...hydration, electrolytes: !hydration.electrolytes };
+    setHydration(nextH);
+    await saveHydration(nextH);
   };
 
-  const waterPct = Math.min(100, (hydration.ml / WATER_TARGET_ML) * 100);
-  const stateColor = fast.isEating ? c.ember : c.accent;
+  const doAction = async (kind: AgendaItem['kind']) => {
+    if (kind === 'log_fast') {
+      setStreak(currentStreak(await markFastComplete()));
+      setFastLogged(true);
+    } else if (kind === 'cook') {
+      await markCooked();
+      setCooked(true);
+    }
+    // A completed step should stop reminding.
+    await resync();
+  };
 
-  // The eyebrow carries the day's actual shape, not a decorative kicker.
+  const logWeight = async () => {
+    const w = parseFloat(weightInput.replace(',', '.'));
+    if (!isFinite(w) || w < 30 || w > 300) return;
+    const log = await loadWeightLog();
+    const updated = [
+      { id: `${todayISO()}-${Date.now()}`, date: todayISO(), weight_kg: w },
+      ...log.filter((e) => e.date !== todayISO()),
+    ].sort((a, b) => b.date.localeCompare(a.date));
+    await saveWeightLog(updated);
+    // Targets follow real bodyweight, same rule as the Progress screen.
+    const nextProfile = { ...profile, weight_kg: w };
+    await saveProfile(nextProfile);
+    setProfile(nextProfile);
+    setWeightInput('');
+    setWeighedToday(true);
+  };
+
+  const waterPct = Math.min(100, (hydration.ml / waterTarget) * 100);
   const windowLabel =
     `${fast.windowStart}–${fast.windowEnd} · ${fast.fastingHours}H FAST` +
     (plan?.training_start_time ? ` · SESSION ${plan.training_start_time}` : '');
+
+  // Imminent moments go warm; everything else stays in the resting palette.
+  const nextMins = next ? minutesUntil(next, profile, now) : Infinity;
+  const nextColor = nextMins <= 60 ? c.ember : c.accent;
 
   return (
     <Screen>
@@ -110,7 +157,7 @@ export default function DashboardScreen() {
 
       <Enter index={1}>
         <DayDial
-          nowMin={nowMin}
+          nowMin={now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60}
           windowStartMin={toMinutes(profile.omad_window_start)}
           windowLengthMin={profile.omad_window_hours * 60}
           trainingStartMin={plan?.training_start_time ? toMinutes(plan.training_start_time) : null}
@@ -122,47 +169,103 @@ export default function DashboardScreen() {
         <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
       </Enter>
 
-      <Enter index={2}>
-        <Card style={{ marginTop: Space.xl }}>
-          <View style={s.row}>
-            <View style={s.third}>
+      {/* The one thing to do next, rather than a restatement of state. */}
+      {next && (
+        <Enter index={2}>
+          <Card style={{ marginTop: Space.xl }} tone={nextMins <= 60 ? 'ember' : 'accent'}>
+            <View style={s.nextTop}>
+              <Eyebrow color={nextColor}>
+                {nextMins <= 0 ? 'Now' : nextMins < 60 ? `In ${Math.round(nextMins)} min` : `At ${next.at}`}
+              </Eyebrow>
+              {nextMins < 60 && <Txt variant="data" color={c.textFaint}>{next.at}</Txt>}
+            </View>
+            <View style={s.nextBody}>
+              <Icon name={ICONS[next.kind]} size={22} color={nextColor} />
+              <View style={[s.flex, { marginLeft: Space.md }]}>
+                <Txt variant="heading" style={{ fontSize: 19 }}>{next.title}</Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 3 }}>{next.body}</Txt>
+              </View>
+            </View>
+            {next.actionable && (
+              <Button
+                label={next.kind === 'cook' ? 'Mark as cooked' : 'Log it'}
+                variant="secondary"
+                onPress={() => doAction(next.kind)}
+                style={{ marginTop: Space.base }}
+              />
+            )}
+          </Card>
+        </Enter>
+      )}
+
+      {/* Full day, so the shape of it is visible at a glance. */}
+      <Enter index={3}>
+        <Card style={{ marginTop: Space.base, paddingVertical: Space.sm }}>
+          <Eyebrow style={{ paddingVertical: Space.md }}>Today</Eyebrow>
+          {items.map((item, i) => {
+            const dim = item.past || item.done;
+            return (
+              <View key={item.kind}>
+                {i > 0 && <Divider />}
+                <Tap
+                  onPress={item.actionable && !item.done ? () => doAction(item.kind) : undefined}
+                  disabled={!item.actionable || item.done}
+                  accessibilityRole={item.actionable ? 'button' : 'text'}
+                  accessibilityLabel={`${item.title} at ${item.at}`}
+                >
+                  <View style={s.row}>
+                    <Txt variant="data" color={dim ? c.textFaint : c.text} style={s.time}>{item.at}</Txt>
+                    <Icon
+                      name={item.done ? 'check' : ICONS[item.kind]}
+                      size={16}
+                      color={item.done ? c.positive : dim ? c.textFaint : item === next ? nextColor : c.textDim}
+                    />
+                    <View style={[s.flex, { marginLeft: Space.md }]}>
+                      <Txt
+                        variant="bodyMedium"
+                        color={dim ? c.textFaint : c.text}
+                        style={item.done ? s.struck : undefined}
+                      >
+                        {item.title}
+                      </Txt>
+                    </View>
+                    {item.actionable && !item.done && (
+                      <Txt variant="small" color={c.accent}>Tick</Txt>
+                    )}
+                  </View>
+                </Tap>
+              </View>
+            );
+          })}
+        </Card>
+      </Enter>
+
+      {/* Reference numbers, deliberately smaller than the actions above. */}
+      <Enter index={4}>
+        <Card style={{ marginTop: Space.base }}>
+          <View style={s.statRow}>
+            <View style={s.flex}>
               <Eyebrow>Energy</Eyebrow>
-              <Txt variant="heading" style={s.figure}>{kcal}</Txt>
-              <Txt variant="small" color={c.textFaint}>kcal</Txt>
+              <Txt variant="heading" style={s.figure}>{kcal}<Txt variant="small" color={c.textFaint}> kcal</Txt></Txt>
             </View>
             <Divider style={s.vline} />
-            <View style={s.third}>
+            <View style={s.flex}>
               <Eyebrow>Protein</Eyebrow>
-              <Txt variant="heading" style={s.figure}>{protein}</Txt>
-              <Txt variant="small" color={c.textFaint}>grams</Txt>
-            </View>
-            <Divider style={s.vline} />
-            <View style={s.third}>
-              <Eyebrow>Meal at</Eyebrow>
-              <Txt variant="heading" style={[s.figure, { color: stateColor }]}>
-                {plan ? plan.main_meal_time : fast.windowStart}
-              </Txt>
-              <Txt variant="small" color={c.textFaint}>{plan ? 'planned' : 'window opens'}</Txt>
+              <Txt variant="heading" style={s.figure}>{protein}<Txt variant="small" color={c.textFaint}> g</Txt></Txt>
             </View>
           </View>
-          <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
+          <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
             {plan
               ? `From today's plan${plan.training_burn_kcal > 0 ? `, including ${plan.training_burn_kcal} kcal burned training` : ''}.`
               : 'Rest-day baseline. Plan a session to fuel it properly.'}
           </Txt>
+          {!plan && (
+            <Button label="Plan today's meal" icon="plate" onPress={() => router.push('/planner')} style={{ marginTop: Space.base }} />
+          )}
         </Card>
       </Enter>
 
-      <Enter index={3}>
-        <Button
-          label={plan ? 'Update today’s plan' : 'Plan today’s meal'}
-          icon="plate"
-          onPress={() => router.push('/planner')}
-          style={{ marginTop: Space.base }}
-        />
-      </Enter>
-
-      <Enter index={4}>
+      <Enter index={5}>
         <Card style={{ marginTop: Space.base }}>
           <View style={s.cardHead}>
             <View style={s.rowCentre}>
@@ -170,12 +273,10 @@ export default function DashboardScreen() {
               <Txt variant="subheading" style={{ marginLeft: Space.sm }}>Hydration</Txt>
             </View>
             <Txt variant="data" color={c.textDim}>
-              {(hydration.ml / 1000).toFixed(1)} / {(WATER_TARGET_ML / 1000).toFixed(1)} L
+              {(hydration.ml / 1000).toFixed(1)} / {(waterTarget / 1000).toFixed(1)} L
             </Txt>
           </View>
-
           <Bar pct={waterPct} color={c.accent} />
-
           <View style={s.actions}>
             {[250, 500].map((ml) => (
               <Tap key={ml} onPress={() => addWater(ml)} accessibilityLabel={`Add ${ml} millilitres`} style={s.action}>
@@ -196,7 +297,6 @@ export default function DashboardScreen() {
               </View>
             </Tap>
           </View>
-
           {!hydration.electrolytes && !fast.isEating && (
             <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
               Water alone through a long fast thins your sodium. Add a pinch.
@@ -205,36 +305,51 @@ export default function DashboardScreen() {
         </Card>
       </Enter>
 
-      <Enter index={5}>
+      {/* Streak is now read-only: the logging action lives in the timeline. */}
+      <Enter index={6}>
         <Card style={{ marginTop: Space.base }} tone={streak > 0 ? 'ember' : 'default'}>
-          <View style={s.cardHead}>
-            <View style={s.rowCentre}>
-              <Icon name="flame" size={18} color={streak > 0 ? c.ember : c.textFaint} />
-              <View style={{ marginLeft: Space.sm, flex: 1 }}>
-                <Txt variant="subheading">
-                  {streak > 0 ? `${streak} day${streak === 1 ? '' : 's'} clean` : 'No streak yet'}
-                </Txt>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
-                  {streak > 0 ? 'Consecutive fasts completed' : 'Log your first completed fast'}
-                </Txt>
-              </View>
+          <View style={s.rowCentre}>
+            <Icon name="flame" size={18} color={streak > 0 ? c.ember : c.textFaint} />
+            <View style={{ marginLeft: Space.sm, flex: 1 }}>
+              <Txt variant="subheading">
+                {streak > 0 ? `${streak} day${streak === 1 ? '' : 's'} clean` : 'No streak yet'}
+              </Txt>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                {streak > 0 ? 'Consecutive fasts completed' : 'Log your first completed fast'}
+              </Txt>
             </View>
-            <Tap onPress={logFast} disabled={fastLogged} accessibilityLabel="Log today's fast">
-              <View style={[s.logBtn, {
-                backgroundColor: fastLogged ? 'transparent' : c.ember,
-                borderColor: fastLogged ? c.line : c.ember,
-              }]}>
-                <Txt variant="small" color={fastLogged ? c.textFaint : c.onAccent}>
-                  {fastLogged ? 'Logged' : 'Log'}
-                </Txt>
-              </View>
-            </Tap>
           </View>
+
+          {!weighedToday && (
+            <>
+              <Divider style={{ marginVertical: Space.base }} />
+              <Eyebrow style={{ marginBottom: Space.md }}>Weigh-in</Eyebrow>
+              <View style={s.weighRow}>
+                <TextInput
+                  value={weightInput}
+                  onChangeText={setWeightInput}
+                  onSubmitEditing={logWeight}
+                  placeholder={profile.weight_kg.toFixed(1)}
+                  placeholderTextColor={c.textFaint}
+                  keyboardType="numeric"
+                  inputMode="decimal"
+                  accessibilityLabel="Today's weight in kilograms"
+                  style={[Type.data, s.weighInput, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
+                />
+                <Tap onPress={logWeight} disabled={!weightInput.trim()} accessibilityLabel="Save weight">
+                  <View style={[s.weighBtn, { backgroundColor: weightInput.trim() ? c.accent : c.well }]}>
+                    <Icon name="check" size={16} color={weightInput.trim() ? c.onAccent : c.textFaint} strokeWidth={2.2} />
+                  </View>
+                </Tap>
+              </View>
+            </>
+          )}
         </Card>
       </Enter>
 
-      <Enter index={6} style={{ marginTop: Space.xl }}>
+      <Enter index={7} style={{ marginTop: Space.xl }}>
         <Eyebrow style={{ marginBottom: Space.md }}>More</Eyebrow>
+        {plan && <NavRow icon="plate" title="Today's plan" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
         <NavRow icon="basket" title="Shopping list" sub="Ingredients from your recent plans" onPress={() => router.push('/grocery')} />
         <NavRow icon="chart" title="Progress" sub="Weight and trend over time" onPress={() => router.push('/progress')} />
         <NavRow icon="coach" title="Coach" sub="Fasting, electrolytes and fuelling" onPress={() => router.push('/chat')} />
@@ -245,17 +360,26 @@ export default function DashboardScreen() {
 
 const s = StyleSheet.create({
   head: { paddingTop: Space.sm, paddingBottom: Space.xl },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  rowCentre: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  third: { flex: 1 },
-  figure: { fontSize: 26, marginTop: 6 },
-  vline: { width: 1, height: 38, marginHorizontal: Space.md },
+  flex: { flex: 1 },
+  rowCentre: { flexDirection: 'row', alignItems: 'center' },
+
+  nextTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Space.md },
+  nextBody: { flexDirection: 'row', alignItems: 'flex-start' },
+
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: Space.md },
+  time: { width: 54 },
+  struck: { textDecorationLine: 'line-through' },
+
+  statRow: { flexDirection: 'row', alignItems: 'center' },
+  figure: { fontSize: 24, marginTop: 5 },
+  vline: { width: 1, height: 34, marginHorizontal: Space.base },
+
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.base },
   actions: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm },
   action: { flex: 1, marginRight: Space.sm },
   pill: { height: 40, borderRadius: Radius.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  logBtn: {
-    paddingHorizontal: Space.base, height: 36, borderRadius: Radius.pill,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1,
-  },
+
+  weighRow: { flexDirection: 'row', alignItems: 'center' },
+  weighInput: { flex: 1, height: 44, borderRadius: Radius.sm, borderWidth: 1, paddingHorizontal: Space.md, fontSize: 14, marginRight: Space.sm },
+  weighBtn: { width: 44, height: 44, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
 });
