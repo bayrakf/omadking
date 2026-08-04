@@ -8,6 +8,7 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 2 | Herkunft des Rezepts zeigen | grün — 71 Checks | `b20d45a` |
 | 3 | Chatverlauf überlebt das Schließen | grün — 80 Checks | `aa5a995` |
 | 4 | Einkaufsliste addiert Mengen | grün — 85 Checks | `433ef1f` |
+| 5 | Planer merkt sich die Session | grün — 91 Checks | `2aa3044` |
 
 ---
 
@@ -150,4 +151,32 @@ Genau das war der Bug. Ersetzt durch `startsWith('720g')`.
 
 **Verifikation:** `npm run typecheck` grün · `npm run check` grün (5 Module) ·
 `npx expo export --platform web` grün · `npm run e2e` grün, 85 Checks ·
+Bundle-Probe: alle fünf nativen Module 0 Treffer.
+
+
+---
+
+## Durchlauf 5 — Planer merkt sich die letzte Session
+
+**Ausgangslage:** `git status` sauber bei `5b88e0c`.
+
+**Umgesetzt:**
+- `normalizeSession()` in `src/lib/nutrition.ts`, direkt neben
+  `normalizeProfile` und aus demselben Grund: der Wert kommt aus dem
+  Gerätespeicher zurück und wird beim Lesen geprüft, nicht geglaubt.
+- `SPORT_IDS` wird aus der MET-Tabelle abgeleitet. Damit ist die Whitelist für
+  eine wiederhergestellte Session dieselbe Liste, die der Kalorienschätzer
+  kennt — beide können nicht auseinanderlaufen. Eine unbekannte Sportart wäre
+  sonst auf einen generischen MET-Wert gefallen und hätte die Schätzung still
+  verändert.
+- `KEYS.lastSession` mit `loadLastSession` / `saveLastSession`.
+
+**Eine Entscheidung:** Gespeichert wird erst, wenn ein Plan tatsächlich gebaut
+wurde. Bei jedem Tippen zu speichern hieße, dass bloßes Durchklicken der
+Optionen die Session überschreibt, die gestern funktioniert hat. Es ist
+Vorbelegung, nichts wird selbstständig abgeschickt — beides ist als Check
+verankert.
+
+**Verifikation:** `npm run typecheck` grün · `npm run check` grün (5 Module) ·
+`npx expo export --platform web` grün · `npm run e2e` grün, 91 Checks ·
 Bundle-Probe: alle fünf nativen Module 0 Treffer.
