@@ -7,6 +7,7 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 1 | E2E-Suites ins Repo holen | grün — 65 Checks | `be0ce03` |
 | 2 | Herkunft des Rezepts zeigen | grün — 71 Checks | `b20d45a` |
 | 3 | Chatverlauf überlebt das Schließen | grün — 80 Checks | `aa5a995` |
+| 4 | Einkaufsliste addiert Mengen | grün — 85 Checks | `433ef1f` |
 
 ---
 
@@ -114,4 +115,39 @@ Bundle-Probe: alle fünf nativen Module 0 Treffer.
 
 **Verifikation:** `npm run typecheck` grün · `npm run check` grün (5 Module) ·
 `npx expo export --platform web` grün · `npm run e2e` grün, 80 Checks ·
+Bundle-Probe: alle fünf nativen Module 0 Treffer.
+
+
+---
+
+## Durchlauf 4 — Einkaufsliste addiert Mengen statt sie zu verwerfen
+
+**Ausgangslage:** `git status` sauber bei `d9fe19d`.
+
+**Umgesetzt:**
+- `parseAmount()` und `formatAmount()` in `src/lib/grocery.ts`, rein, mit
+  Selbstchecks. Mengen werden gelesen, kompatible Einheiten angeglichen
+  (kg→g, l→ml) und summiert.
+- Gruppierung nach Zutat **und** Einheit. Ticks schlüsseln jetzt auf beides,
+  mit Rückfall auf den alten Schlüssel — sonst wäre eine Liste, mit der gerade
+  jemand einkauft, durch das Update stillschweigend leer geklickt worden.
+
+**Zwei Regeln, die wichtiger sind als das Summieren selbst:**
+
+1. **Eine nackte Zahl zählt, sie misst nicht.** „2 eggs" sind zwei Eier —
+   `eggs` bleibt Teil der Zutat und wird nicht zu einer Einheit namens „eggs".
+2. **Nur kompatible Einheiten werden zusammengefasst.** „2 tbsp olive oil" und
+   „30ml olive oil" bleiben zwei Zeilen. Eine geratene Umrechnung setzt eine
+   selbstbewusst falsche Zahl auf einen Einkaufszettel; zwei Zeilen sind das
+   kleinere Übel.
+
+Zeilen ganz ohne Menge („Sea salt, to taste") bleiben wörtlich stehen und
+erscheinen einmal.
+
+**Die alte Zusicherung prüfte den Fehler.** `demo()` behauptete bisher
+`all.some(n => n.includes('320g'))` — also dass die *erste* Menge überlebt.
+Genau das war der Bug. Ersetzt durch `startsWith('720g')`.
+
+**Verifikation:** `npm run typecheck` grün · `npm run check` grün (5 Module) ·
+`npx expo export --platform web` grün · `npm run e2e` grün, 85 Checks ·
 Bundle-Probe: alle fünf nativen Module 0 Treffer.
