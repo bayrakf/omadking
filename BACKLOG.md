@@ -18,7 +18,7 @@ Arbeitsliste, von oben nach unten. Ein Punkt pro Durchlauf.
 
 ---
 
-## 1. [ ] E2E-Suites ins Repo holen
+## 1. [x] E2E-Suites ins Repo holen
 
 **Warum:** Die Browser-Suites liegen im Session-Scratchpad unter `/private/tmp/`.
 Sie sind das einzige, was Regressionen über neun Routen und 38 Interaktionen
@@ -38,6 +38,8 @@ weiteren Punkts nicht durchführbar.
 
 **Fertig wenn:** `npm run e2e` aus einem sauberen Checkout grün ist und
 beide Suites zusammen ≥ 45 Checks melden.
+
+**Erledigt** 2026-08-05 — 65 Checks (27 smoke, 38 interact).
 
 ---
 
