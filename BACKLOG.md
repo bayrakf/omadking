@@ -89,7 +89,7 @@ Modell gerade antwortet.
 
 ---
 
-## 4. [ ] Einkaufsliste addiert Mengen statt sie zu verwerfen
+## 4. [x] Einkaufsliste addiert Mengen statt sie zu verwerfen
 
 **Warum:** `buildGroceryList` erkennt „320g Hähnchenbrust" und „400g
 Hähnchenbrust" als dasselbe und behält **die erste**. Wer nach dieser Liste
@@ -109,6 +109,8 @@ Schönheitsfehler.
 
 **Fertig wenn:** Zwei Pläne mit 320g und 400g desselben Artikels ergeben eine
 Zeile mit 720g, und die Selbstchecks decken die Sonderfälle ab.
+
+**Erledigt** 2026-08-05 — 85 Checks.
 
 ---
 

@@ -211,6 +211,33 @@ export default async function run() {
     await context.close();
   }
 
+  // --------------------------------------------------------------- SHOPPING
+  section('Shopping list');
+  {
+    // Two plans with the same ingredient in different amounts. Before this the
+    // list kept the first amount and dropped the rest, so shopping from it left
+    // you short for the second day.
+    const twoPlans = [
+      { date: '2026-08-04', recipe: { ingredients: ['320g chicken breast', '2 tbsp olive oil', 'Sea salt, to taste'] } },
+      { date: '2026-08-05', recipe: { ingredients: ['400g chicken breast', '1.2 kg beef', 'Sea salt, to taste'] } },
+    ];
+    const { context, page } = await newPage(browser, {
+      ...SEED,
+      meal_history: JSON.stringify(twoPlans),
+    });
+    await page.goto(BASE + '/grocery', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+
+    const list = await body(page);
+    check(has(list, '720g chicken breast'), '320g and 400g add up to 720g', list.match(/\d+g chicken breast/i)?.[0]);
+    check(!has(list, '320g chicken'), 'the first amount is no longer shown on its own');
+    check(has(list, '1.2kg beef'), 'kilograms are kept as kilograms', list.match(/[\d.]+kg beef/i)?.[0]);
+    check(has(list, '2 tbsp olive oil'), 'spoons are left as spoons');
+    // Duplicated across both plans, but it is one thing to buy.
+    check((list.match(/to taste/gi) ?? []).length === 1, 'an amount-less line appears once');
+    await context.close();
+  }
+
   // ------------------------------------------------------------------- CHAT
   section('Coach conversation');
   {
