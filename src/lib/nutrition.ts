@@ -136,6 +136,11 @@ const MET: Record<string, number> = {
   yoga: 3.0,
 };
 
+/** The sports the burn estimate knows. Also the whitelist a restored session
+ *  is validated against, so a hand-edited store cannot smuggle in an unknown
+ *  sport that would silently fall back to a generic MET value. */
+export const SPORT_IDS = Object.keys(MET);
+
 const INTENSITY_FACTOR: Record<Intensity, number> = {
   low: 0.8,
   medium: 1.0,
@@ -188,6 +193,44 @@ export function hydrationTargetMl(p: UserProfile, t: Training | null = null): nu
   const base = p.weight_kg * 40 + (t && t.duration_min > 0 ? 500 : 0);
   // Round to 100ml — false precision on a number nobody measures exactly.
   return Math.round(Math.min(5000, Math.max(2000, base)) / 100) * 100;
+}
+
+/**
+ * The planner's last input, so the same session does not have to be dialled in
+ * five times a week. Validated on read: everything here comes back from device
+ * storage, and an unknown sport or a duration of 10000 would otherwise flow
+ * straight into the burn estimate.
+ */
+export type SessionDraft = {
+  restDay: boolean;
+  sport: string;
+  duration_min: number;
+  intensity: Intensity;
+  start_time: string;
+};
+
+export function normalizeSession(raw: any, fallbackTime: string): SessionDraft {
+  const base: SessionDraft = {
+    restDay: false,
+    sport: 'weights',
+    duration_min: 60,
+    intensity: 'medium',
+    start_time: normTime(fallbackTime, DEFAULT_PROFILE.default_training_time),
+  };
+  if (!raw || typeof raw !== 'object') return base;
+
+  const sport = String(raw.sport ?? '').toLowerCase();
+  const intensity = String(raw.intensity ?? '').toLowerCase();
+
+  return {
+    restDay: raw.restDay === true,
+    sport: SPORT_IDS.includes(sport) ? sport : base.sport,
+    duration_min: Math.round(normNumber(raw.duration_min, base.duration_min, 5, 360)),
+    intensity: (['low', 'medium', 'high', 'max'] as const).includes(intensity as Intensity)
+      ? (intensity as Intensity)
+      : base.intensity,
+    start_time: normTime(raw.start_time, base.start_time),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -483,6 +526,28 @@ export function demo() {
       hydrationTargetMl(normalizeProfile({ weight_kg: 82 })),
     'training days need more fluid'
   );
+
+  // Session drafts come back from device storage, so they are validated.
+  const goodSession = normalizeSession(
+    { restDay: false, sport: 'running', duration_min: 90, intensity: 'high', start_time: '06:30' },
+    '18:00'
+  );
+  assert(goodSession.sport === 'running' && goodSession.duration_min === 90, 'a valid session round-trips');
+  assert(goodSession.intensity === 'high' && goodSession.start_time === '06:30', 'intensity and time round-trip');
+
+  const junkSession = normalizeSession(
+    { sport: 'quidditch', duration_min: 10000, intensity: 'ludicrous', start_time: 'nope' },
+    '19:00'
+  );
+  assert(junkSession.sport === 'weights', 'an unknown sport falls back rather than reaching the burn estimate');
+  assert(junkSession.duration_min === 360, 'an absurd duration is clamped');
+  assert(junkSession.intensity === 'medium', 'an unknown intensity falls back');
+  assert(junkSession.start_time === '19:00', 'a bad time falls back to the profile time');
+
+  assert(normalizeSession(null, '17:00').start_time === '17:00', 'no stored session uses the profile time');
+  assert(normalizeSession({ restDay: 'yes' }, '17:00').restDay === false, 'only a real true counts as a rest day');
+  assert(normalizeSession({ restDay: true }, '17:00').restDay === true, 'a rest day round-trips');
+  assert(SPORT_IDS.includes('weights') && SPORT_IDS.length >= 6, 'the sport whitelist is the burn table');
 
   assert(fromMinutes(toMinutes('07:05')) === '07:05', 'clock round-trips');
   assert(fromMinutes(-30) === '23:30', 'negative minutes wrap');

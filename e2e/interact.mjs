@@ -211,6 +211,58 @@ export default async function run() {
     await context.close();
   }
 
+  // -------------------------------------------------------- SESSION MEMORY
+  section('Planner remembers the session');
+  {
+    const { context, page } = await newPage(browser, SEED);
+    await context.route('**/functions/v1/generate_meal_plan', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          source: 'ai',
+          recipe: {
+            title: 'Stubbed Plate',
+            ingredients: ['400g chicken breast'],
+            instructions: '1. Cook it.',
+            prep_time_min: 30,
+          },
+        }),
+      })
+    );
+
+    await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+
+    // Defaults on a first visit: profile training time, not a stored session.
+    check(has(await body(page), 'weights · 60 min · medium'), 'starts from the defaults',
+      (await body(page)).match(/\w+ · \d+ min · \w+/)?.[0]);
+
+    await page.getByText('Running', { exact: true }).click();
+    await page.getByText('90 min', { exact: true }).click();
+    await page.getByText('Hard', { exact: true }).click();
+    await page.waitForTimeout(400);
+
+    // Nothing is remembered until a plan is actually built.
+    check(await page.evaluate(() => localStorage.getItem('last_session')) === null,
+      'browsing the options alone stores nothing');
+
+    await page.getByText('Build the plan').click();
+    await page.waitForTimeout(6000);
+
+    const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('last_session')) ?? 'null');
+    check(stored?.sport === 'running', 'the sport is remembered', stored?.sport);
+    check(stored?.duration_min === 90, 'the duration is remembered', String(stored?.duration_min));
+    check(stored?.intensity === 'high', 'the intensity is remembered', stored?.intensity);
+
+    // A full reload is the real test: this used to reset to weights/60/medium.
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    check(has(await body(page), 'running · 90 min · high'), 'the session survives a reload',
+      (await body(page)).match(/\w+ · \d+ min · \w+/)?.[0]);
+    await context.close();
+  }
+
   // --------------------------------------------------------------- SHOPPING
   section('Shopping list');
   {

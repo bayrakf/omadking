@@ -9,7 +9,10 @@ import { Icon } from '@/components/icons';
 import RecipeCard from '@/components/RecipeCard';
 import { dailyTargets, DEFAULT_PROFILE, type Intensity, type Training, type UserProfile } from '@/lib/nutrition';
 import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
-import { loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota, type Quota } from '@/lib/store';
+import {
+  loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
+  loadLastSession, saveLastSession, type Quota,
+} from '@/lib/store';
 import { resync } from '@/lib/notify';
 
 const SPORTS = [
@@ -53,10 +56,21 @@ export default function PlannerScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const [p, h, q] = await Promise.all([loadProfileOrDefault(), loadPlanHistory<MealPlan>(), getQuota()]);
+        const p = await loadProfileOrDefault();
+        const [h, q, last] = await Promise.all([
+          loadPlanHistory<MealPlan>(),
+          getQuota(),
+          // Prefill from the last session, falling back to the profile's usual
+          // training time when there is nothing stored yet.
+          loadLastSession(p.default_training_time),
+        ]);
         if (!active) return;
         setProfile(p);
-        setTrainingTime(p.default_training_time);
+        setIsRestDay(last.restDay);
+        setSport(last.sport);
+        setDuration(last.duration_min);
+        setIntensity(last.intensity);
+        setTrainingTime(last.start_time);
         setHistory(h);
         setQuota(q);
         setMounted(true);
@@ -81,6 +95,15 @@ export default function PlannerScreen() {
     setError(null);
     try {
       const next = await generateMealPlan(profile, training);
+      // Remembered only once a plan was actually built, so idly tapping through
+      // the options does not overwrite what worked yesterday.
+      await saveLastSession({
+        restDay: isRestDay,
+        sport,
+        duration_min: duration,
+        intensity,
+        start_time: trainingTime,
+      });
       setPlan(next);
       setHistory(await savePlan(next));
       // Only a real generated recipe costs one of the three weekly plans.

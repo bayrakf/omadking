@@ -114,7 +114,7 @@ Zeile mit 720g, und die Selbstchecks decken die Sonderfälle ab.
 
 ---
 
-## 5. [ ] Planer merkt sich die letzte Session
+## 5. [x] Planer merkt sich die letzte Session
 
 **Warum:** Wer fünfmal die Woche dasselbe trainiert, stellt fünfmal dieselben
 vier Felder ein. Die App weiß es bereits — sie wirft es nur weg.
@@ -129,6 +129,8 @@ vier Felder ein. Die App weiß es bereits — sie wirft es nur weg.
 
 **Fertig wenn:** Plan mit „Laufen / 90 min / hart" erzeugen, App neu laden,
 Planer öffnen: alles steht noch so da.
+
+**Erledigt** 2026-08-05 — 91 Checks.
 
 ---
 

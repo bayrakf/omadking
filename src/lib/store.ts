@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { normalizeProfile, type UserProfile } from './nutrition';
+import { normalizeProfile, normalizeSession, type SessionDraft, type UserProfile } from './nutrition';
 import { todayISO, weekKey, currentStreak } from './dates';
 import { conversationOf, type StoredMessage } from './ai';
 
@@ -23,6 +23,7 @@ export const KEYS = {
   fastLog: 'fast_log',
   cookLog: 'cook_log',
   chatLog: 'chat_log',
+  lastSession: 'last_session',
 } as const;
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -181,6 +182,17 @@ export async function unmarkFastComplete(date = todayISO()): Promise<string[]> {
   const next = (await loadFastLog()).filter((d) => d !== date);
   await writeJSON(KEYS.fastLog, next);
   return next;
+}
+
+// --- Last planner input ----------------------------------------------------
+
+/** Prefill only. Nothing is submitted on the user's behalf. */
+export async function loadLastSession(fallbackTime: string): Promise<SessionDraft> {
+  return normalizeSession(await readJSON<any>(KEYS.lastSession, null), fallbackTime);
+}
+
+export async function saveLastSession(session: SessionDraft): Promise<void> {
+  await writeJSON(KEYS.lastSession, session);
 }
 
 // --- Coach conversation ----------------------------------------------------
