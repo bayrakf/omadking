@@ -69,6 +69,32 @@ function isUsableRecipe(r: any): boolean {
   );
 }
 
+/**
+ * Classifies the configured key by shape so a misconfiguration is obvious
+ * without ever revealing the value. Google AI Studio keys are `AIza…` (39
+ * chars); Supabase keys are JWTs (`eyJ…`) or `sb_publishable_` / `sb_secret_`.
+ * Pasting the wrong one is the single most common cause of an auth failure here.
+ */
+function keyShape(key: string): string {
+  if (!key) return 'missing';
+  if (key !== key.trim()) return 'has_whitespace';
+  if (key.startsWith('AIza')) return key.length === 39 ? 'google_ok' : `google_bad_length_${key.length}`;
+  if (key.startsWith('eyJ')) return 'supabase_jwt';
+  if (key.startsWith('sb_')) return 'supabase_key';
+  if (key.startsWith('sk_')) return 'secret_key_other_service';
+  return `unknown_prefix_${key.slice(0, 3)}`;
+}
+
+const BASE_PROMPT = `You are OMADCoach, an expert in One Meal A Day (OMAD) fasting, training optimisation and sports nutrition.
+
+Give concise, actionable advice. Focus on: fasting window timing, electrolytes (sodium/potassium/magnesium), protein intake, pre- and post-workout nutrition, and making OMAD sustainable alongside hard training.
+
+Rules:
+- Keep answers under 150 words. Lead with the answer, then the reason.
+- Use the athlete's own numbers when they are provided rather than generic ranges.
+- You are not a doctor. If the question involves pregnancy, an eating disorder, diabetes, blood-pressure or heart medication, or unexplained symptoms such as fainting or chest pain, say plainly that this needs a clinician and do not improvise a protocol.
+- If a question is outside fasting, nutrition and training, say so briefly instead of answering it.`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -176,7 +202,7 @@ serve(async (req) => {
     if (!recipe) {
       // The client has its own offline recipe; tell it explicitly rather than
       // returning a half-built object it would have to guess about.
-      return json({ recipe: null, source: 'unavailable', reason });
+      return json({ recipe: null, source: 'unavailable', reason, key_shape: keyShape(GEMINI_API_KEY) });
     }
 
     // Persist for signed-in users. Never let a storage failure lose the plan

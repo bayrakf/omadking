@@ -17,6 +17,22 @@ const json = (body: unknown, status = 200) =>
 const MAX_MESSAGE_CHARS = 1000;
 const MAX_HISTORY_TURNS = 8;
 
+/**
+ * Classifies the configured key by shape so a misconfiguration is obvious
+ * without ever revealing the value. Google AI Studio keys are `AIza…` (39
+ * chars); Supabase keys are JWTs (`eyJ…`) or `sb_publishable_` / `sb_secret_`.
+ * Pasting the wrong one is the single most common cause of an auth failure here.
+ */
+function keyShape(key: string): string {
+  if (!key) return 'missing';
+  if (key !== key.trim()) return 'has_whitespace';
+  if (key.startsWith('AIza')) return key.length === 39 ? 'google_ok' : `google_bad_length_${key.length}`;
+  if (key.startsWith('eyJ')) return 'supabase_jwt';
+  if (key.startsWith('sb_')) return 'supabase_key';
+  if (key.startsWith('sk_')) return 'secret_key_other_service';
+  return `unknown_prefix_${key.slice(0, 3)}`;
+}
+
 const BASE_PROMPT = `You are OMADCoach, an expert in One Meal A Day (OMAD) fasting, training optimisation and sports nutrition.
 
 Give concise, actionable advice. Focus on: fasting window timing, electrolytes (sodium/potassium/magnesium), protein intake, pre- and post-workout nutrition, and making OMAD sustainable alongside hard training.
@@ -92,6 +108,8 @@ serve(async (req) => {
           message: 'Coach is unavailable.',
           // Coarse reason only — never echo the upstream body to the client.
           reason: geminiRes.status === 429 ? 'quota' : geminiRes.status === 400 || geminiRes.status === 403 ? 'auth' : 'upstream',
+          // Shape only, never the key itself.
+          key_shape: keyShape(GEMINI_API_KEY),
         },
         geminiRes.status === 429 ? 429 : 502
       );
