@@ -5,6 +5,7 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | # | Punkt | Ergebnis | Commit |
 |---|---|---|---|
 | 1 | E2E-Suites ins Repo holen | grün — 65 Checks | `be0ce03` |
+| 2 | Herkunft des Rezepts zeigen | grün — 71 Checks | `b20d45a` |
 
 ---
 
@@ -45,3 +46,38 @@ Commit-SHA ins Protokoll nachzutragen — Force-Push steht auf der Verbotsliste.
 Richtig ist, was der Ablauf ohnehin vorsieht: Schritt 5 committet das Thema,
 Schritt 6 trägt das Protokoll separat nach. Ab jetzt zwei Commits pro
 Durchlauf, kein Amend.
+
+
+---
+
+## Durchlauf 2 — Herkunft des Rezepts festhalten und zeigen
+
+**Ausgangslage:** `git status` sauber bei `92db7e7`.
+
+**Umgesetzt:**
+- `MealPlan` trägt `recipe_source` (`'ai' | 'offline'`) und `recipe_note`.
+- `describeRecipeFallback()` in `src/lib/ai.ts`, rein, mit `demo()`, in
+  `check-logic.mjs` eingetragen. Jede Meldung sagt dasselbe Doppelte: es ist
+  die Standardplatte, und die Zahlen stimmen trotzdem — sie werden auf dem
+  Gerät gerechnet, ein Modellausfall macht den *Plan* nie falsch.
+- `RecipeCard` zeigt den Hinweis ruhig, nicht als Alarm.
+- `consumeQuota()` läuft nur noch bei `recipe_source === 'ai'`. Vorher kostete
+  ein Ausfall den Nutzer einen von drei Wochenplänen.
+
+**Fund: der e2e-Runner aus Durchlauf 1 war fehlerhaft.** Er baute nur, wenn
+`dist/` ganz fehlte, und servierte sonst ein veraltetes Bundle. Der erste Lauf
+dieses Punkts war deshalb rot mit *korrektem* Code — der Test prüfte den alten
+Build. Ein veraltetes Bundle ist schlimmer als gar keins, weil es rote
+Änderungen grün aussehen lässt. Der Runner baut jetzt neu, sobald irgendeine
+Quell- oder Konfigurationsdatei jünger als der Export ist.
+
+**Neuer e2e-Block:** Die Anfrage an `generate_meal_plan` wird per
+`context.route(...).abort()` gekappt. Damit ist der Fallback-Pfad deterministisch
+geprüft, statt davon abzuhängen, ob das Modell während des Laufs gerade steht.
+
+**Nebenbei:** `scripts/check-logic.mjs` kompiliert jetzt mit `--types node`,
+weil `ai.ts` `process.env` auf Modulebene liest.
+
+**Verifikation:** `npm run typecheck` grün · `npm run check` grün (5 Module) ·
+`npx expo export --platform web` grün · `npm run e2e` grün, 71 Checks ·
+Bundle-Probe: alle fünf nativen Module 0 Treffer.
