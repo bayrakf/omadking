@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   heading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+
   },
   pressedHeading: {
     opacity: 0.7,

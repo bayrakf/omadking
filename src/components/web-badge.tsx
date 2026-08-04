@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   container: {
     padding: Spacing.five,
     alignItems: 'center',
-    gap: Spacing.two,
+
   },
   versionText: {
     textAlign: 'center',
