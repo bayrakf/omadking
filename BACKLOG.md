@@ -43,7 +43,7 @@ beide Suites zusammen ≥ 45 Checks melden.
 
 ---
 
-## 2. [ ] Herkunft des Rezepts festhalten und zeigen
+## 2. [x] Herkunft des Rezepts festhalten und zeigen
 
 **Warum:** `generateMealPlan` fällt bei Modell-Ausfall still auf
 `offlineRecipe()` zurück. Der Nutzer sieht ein generisches Gericht und kann
@@ -61,6 +61,9 @@ die das Debuggen der Gemini-Quota fünf Runden gekostet hat.
 
 **Fertig wenn:** Ein Plan mit Offline-Rezept ist als solcher gekennzeichnet,
 das Kontingent bleibt dabei unverändert, und `npm run e2e` prüft beides.
+
+**Erledigt** 2026-08-05 — 71 Checks. Dabei ein Fehler im e2e-Runner aus
+Durchlauf 1 gefunden und behoben: er servierte ein veraltetes Bundle.
 
 ---
 

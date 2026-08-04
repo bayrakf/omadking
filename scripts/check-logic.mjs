@@ -12,7 +12,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const MODULES = ['nutrition', 'dates', 'grocery', 'agenda'];
+const MODULES = ['nutrition', 'dates', 'grocery', 'agenda', 'ai'];
 
 const outDir = mkdtempSync(join(tmpdir(), 'omadcoach-check-'));
 
@@ -30,6 +30,10 @@ try {
       '--target',
       'es2020',
       '--skipLibCheck',
+      // ai.ts reads process.env at module scope; without node types tsc rejects
+      // it even though the checked functions are pure.
+      '--types',
+      'node',
     ],
     { stdio: 'inherit' }
   );

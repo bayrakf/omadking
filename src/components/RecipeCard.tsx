@@ -48,6 +48,17 @@ export default function RecipeCard({ plan }: { plan: MealPlan }) {
       <Eyebrow>{plan.recipe.prep_time_min ?? 30} min prep · cook once, eat tomorrow</Eyebrow>
       <Txt variant="heading" style={{ marginTop: Space.sm }}>{plan.recipe.title}</Txt>
 
+      {/* Stated plainly rather than hidden: a generic plate with no explanation
+          reads as a bad app, not as a service that was briefly unavailable. */}
+      {plan.recipe_source === 'offline' && plan.recipe_note && (
+        <View style={[s.fallback, { borderColor: c.line, backgroundColor: c.well }]}>
+          <Icon name="alert" size={15} color={c.textDim} />
+          <Txt variant="small" color={c.textDim} style={s.fallbackText}>
+            {plan.recipe_note}
+          </Txt>
+        </View>
+      )}
+
       <View style={[s.macros, { backgroundColor: c.well }]}>
         {([
           [String(plan.total_kcal), 'kcal'],
@@ -90,6 +101,12 @@ export default function RecipeCard({ plan }: { plan: MealPlan }) {
 }
 
 const s = StyleSheet.create({
+  fallback: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    borderRadius: Radius.sm, borderWidth: 1,
+    padding: Space.md, marginTop: Space.md,
+  },
+  fallbackText: { flex: 1, marginLeft: Space.sm },
   macros: {
     flexDirection: 'row', borderRadius: Radius.md,
     paddingVertical: Space.base, marginTop: Space.base,

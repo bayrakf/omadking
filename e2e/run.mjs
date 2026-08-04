@@ -12,7 +12,7 @@
 
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -75,14 +75,46 @@ async function freePort() {
   });
 }
 
+/** Newest mtime under a directory tree, ignoring what never affects the build. */
+function newestMtime(dir, skip = new Set(['node_modules', '.git', 'dist', '.expo'])) {
+  let newest = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (skip.has(entry.name)) continue;
+    const abs = join(dir, entry.name);
+    const t = entry.isDirectory() ? newestMtime(abs, skip) : statSync(abs).mtimeMs;
+    if (t > newest) newest = t;
+  }
+  return newest;
+}
+
+/**
+ * A stale bundle is worse than no bundle: it makes a red change look green,
+ * which is exactly what this suite exists to prevent. So rebuild whenever any
+ * source or config file is newer than the export.
+ */
+function needsBuild() {
+  const index = join(DIST, 'index.html');
+  if (!existsSync(index)) return 'no dist/ yet';
+  const built = statSync(index).mtimeMs;
+  const sources = Math.max(
+    newestMtime(join(ROOT, 'src')),
+    ...['app.json', 'package.json', 'vercel.json']
+      .map((f) => join(ROOT, f))
+      .filter(existsSync)
+      .map((f) => statSync(f).mtimeMs)
+  );
+  return sources > built ? 'sources changed since the last export' : null;
+}
+
 const external = !!process.env.E2E_URL;
 let server = null;
 
 try {
   if (!external) {
     const force = process.argv.includes('--build');
-    if (force || !existsSync(join(DIST, 'index.html'))) {
-      console.log(force ? 'Building (forced)…' : 'No dist/ yet, building…');
+    const reason = force ? 'forced' : needsBuild();
+    if (reason) {
+      console.log(`Building (${reason})…`);
       execFileSync('npx', ['expo', 'export', '--platform', 'web'], { cwd: ROOT, stdio: 'inherit' });
     }
     const port = await freePort();

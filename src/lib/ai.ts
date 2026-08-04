@@ -18,6 +18,35 @@ export class QuotaError extends Error {
   }
 }
 
+export type RecipeSource = 'ai' | 'offline';
+
+/**
+ * Why the built-in recipe appeared instead of a generated one.
+ *
+ * Every message says the same two things: this is the standard plate, and the
+ * numbers are unaffected. The macros and timing are computed on the device, so
+ * a model outage never makes the *plan* wrong — only the meal suggestion
+ * duller. Saying so is what stops a silent fallback looking like a bad app.
+ */
+export function describeRecipeFallback(reason: string | null | undefined): string {
+  switch (reason) {
+    case 'quota':
+      return 'The recipe service is over its limit right now, so this is the standard plate. Your macros and timing are unaffected.';
+    case 'auth':
+    case 'no_key':
+      return 'The recipe service is not set up, so this is the standard plate. Your macros and timing are unaffected.';
+    case 'network':
+      return 'No connection to the recipe service, so this is the standard plate. Your macros and timing are unaffected.';
+    case 'truncated':
+    case 'unparseable':
+    case 'malformed':
+    case 'empty':
+      return 'The recipe came back unreadable, so this is the standard plate. Try again for a tailored one.';
+    default:
+      return 'This is the standard plate rather than a tailored recipe. Your macros and timing are unaffected.';
+  }
+}
+
 export type Recipe = {
   title: string;
   ingredients: string[];
@@ -40,6 +69,10 @@ export type MealPlan = {
   ai_reasoning: string;
   timing_warning: string | null;
   training_burn_kcal: number;
+  /** Whether the recipe came from the model or the built-in fallback. */
+  recipe_source: RecipeSource;
+  /** One calm sentence explaining a fallback, or null when the model answered. */
+  recipe_note: string | null;
   /** Which side of the window training falls on. The agenda needs this to
    *  place a pre-training snack before or after the opening. */
   timing_pattern: 'pre' | 'post' | 'overlap';
@@ -94,6 +127,9 @@ export async function generateMealPlan(
   const timing = mealTiming(profile, training);
 
   let recipe: Recipe | null = null;
+  // The function already reports both; discarding them is what made an outage
+  // indistinguishable from a working app serving a boring recipe.
+  let reason: string | null = SUPABASE_URL ? null : 'no_key';
 
   if (SUPABASE_URL) {
     try {
@@ -119,10 +155,14 @@ export async function generateMealPlan(
       if (res.ok) {
         const data = await res.json();
         if (isUsableRecipe(data?.recipe)) recipe = data.recipe;
+        else reason = typeof data?.reason === 'string' ? data.reason : 'empty';
+      } else {
+        reason = 'upstream';
       }
     } catch (e) {
       if (e instanceof QuotaError) throw e;
       console.warn('Meal plan request failed, using offline recipe', e);
+      reason = 'network';
     }
   }
 
@@ -142,6 +182,8 @@ export async function generateMealPlan(
     timing_pattern: timing.pattern,
     training_start_time: training?.start_time ?? null,
     training_duration_min: training?.duration_min ?? 0,
+    recipe_source: recipe ? 'ai' : 'offline',
+    recipe_note: recipe ? null : describeRecipeFallback(reason),
     recipe: recipe ?? offlineRecipe(profile, training, targets),
   };
 }
@@ -243,4 +285,35 @@ export async function askCoach(
     .find((v) => typeof v === 'string' && v.trim());
   if (!reply) throw new Error('Coach returned an empty answer.');
   return String(reply).trim();
+}
+
+// ---------------------------------------------------------------------------
+
+export function demo() {
+  const assert = (cond: boolean, msg: string) => {
+    if (!cond) throw new Error('FAIL: ' + msg);
+  };
+
+  const quota = describeRecipeFallback('quota');
+  assert(quota.includes('over its limit'), 'quota names the limit');
+  assert(describeRecipeFallback('auth') === describeRecipeFallback('no_key'), 'auth and no_key read the same to a user');
+  assert(describeRecipeFallback('network').includes('No connection'), 'network says so plainly');
+  assert(describeRecipeFallback('truncated') === describeRecipeFallback('unparseable'), 'unreadable output reads the same however it broke');
+
+  // Unknown and missing reasons must still produce a usable sentence.
+  for (const r of [null, undefined, '', 'something_new']) {
+    const msg = describeRecipeFallback(r as any);
+    assert(msg.length > 20, `a reason of ${JSON.stringify(r)} still explains itself`);
+  }
+
+  // The reassurance is the point: a fallback must never imply the plan is wrong.
+  for (const r of ['quota', 'auth', 'no_key', 'network', null]) {
+    assert(
+      describeRecipeFallback(r as any).includes('unaffected'),
+      `reason ${r} reassures that the numbers still hold`
+    );
+  }
+  assert(describeRecipeFallback('truncated').includes('Try again'), 'a transient failure invites a retry');
+
+  return 'ai.ts: all checks passed';
 }

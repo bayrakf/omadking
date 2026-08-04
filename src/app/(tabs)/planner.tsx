@@ -83,7 +83,9 @@ export default function PlannerScreen() {
       const next = await generateMealPlan(profile, training);
       setPlan(next);
       setHistory(await savePlan(next));
-      await consumeQuota();
+      // Only a real generated recipe costs one of the three weekly plans.
+      // Charging for the built-in fallback would bill the user for an outage.
+      if (next.recipe_source === 'ai') await consumeQuota();
       // Cook and meal times just moved, so the schedule has to follow.
       await resync();
       setQuota(await getQuota());

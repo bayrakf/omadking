@@ -190,6 +190,34 @@ export default async function run() {
     await context.close();
   }
 
+  // ------------------------------------------------- OFFLINE RECIPE FALLBACK
+  section('Offline recipe fallback');
+  {
+    const { context, page } = await newPage(browser, SEED);
+    // Cut the recipe service off so the built-in plate is guaranteed, rather
+    // than depending on whether the model happens to be up during the run.
+    await context.route('**/functions/v1/generate_meal_plan', (route) => route.abort());
+
+    await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    check(has(await body(page), '3 of 3 plans left'), 'starts with a full quota');
+
+    await page.getByText('Build the plan').click();
+    await page.waitForTimeout(6000);
+
+    const after = await body(page);
+    check(has(after, 'Today’s timing'), 'a plan still renders without the service');
+    check(has(after, 'standard plate'), 'the fallback says it is the standard plate');
+    check(has(after, 'unaffected'), 'and that the numbers still hold');
+
+    // The point of the change: an outage must not cost the user a plan.
+    check(has(after, '3 of 3 plans left'), 'a fallback recipe does not spend quota',
+      after.match(/\d OF 3 PLANS LEFT/i)?.[0]);
+    const quota = await page.evaluate(() => localStorage.getItem('plan_quota'));
+    check(quota === null || JSON.parse(quota).used === 0, 'quota counter untouched', String(quota));
+    await context.close();
+  }
+
   // --------------------------------------------------------------- PROGRESS
   section('Progress');
   {
