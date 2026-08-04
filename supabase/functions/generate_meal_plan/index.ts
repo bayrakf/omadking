@@ -130,6 +130,9 @@ serve(async (req) => {
     }
 
     let recipe: any = null;
+    // Why the recipe is missing, when it is. Reported back so a deploy can be
+    // verified without guessing from the shape of the response.
+    let reason: string | null = GEMINI_API_KEY ? null : 'no_key';
 
     if (GEMINI_API_KEY) {
       try {
@@ -148,22 +151,32 @@ serve(async (req) => {
           }
         ).finally(() => clearTimeout(timer));
 
-        const geminiJson = await geminiRes.json();
-        const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(String(rawText).replace(/```json|```/g, '').trim());
-          const candidate = parsed?.recipe ?? parsed;
-          if (isUsableRecipe(candidate)) recipe = candidate;
+        if (!geminiRes.ok) {
+          const detail = await geminiRes.text().catch(() => '');
+          console.error('Gemini error', geminiRes.status, detail.slice(0, 500));
+          reason = geminiRes.status === 429 ? 'quota' : geminiRes.status === 400 || geminiRes.status === 403 ? 'auth' : 'upstream';
+        } else {
+          const geminiJson = await geminiRes.json();
+          const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const parsed = JSON.parse(String(rawText).replace(/```json|```/g, '').trim());
+            const candidate = parsed?.recipe ?? parsed;
+            if (isUsableRecipe(candidate)) recipe = candidate;
+            else reason = 'malformed';
+          } else {
+            reason = 'empty';
+          }
         }
       } catch (e) {
         console.error('Gemini call failed', e);
+        reason = 'exception';
       }
     }
 
     if (!recipe) {
       // The client has its own offline recipe; tell it explicitly rather than
       // returning a half-built object it would have to guess about.
-      return json({ recipe: null, source: 'unavailable' });
+      return json({ recipe: null, source: 'unavailable', reason });
     }
 
     // Persist for signed-in users. Never let a storage failure lose the plan

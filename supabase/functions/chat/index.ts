@@ -82,9 +82,19 @@ serve(async (req) => {
     ).finally(() => clearTimeout(timer));
 
     if (!geminiRes.ok) {
-      console.error('Gemini returned', geminiRes.status);
-      // Surface rate limiting so the client can say something useful.
-      return json({ error: 'UPSTREAM', message: 'Coach is unavailable.' }, geminiRes.status === 429 ? 429 : 502);
+      // Log the upstream body: without it a failure is just a status code and
+      // "quota exhausted" is indistinguishable from "wrong key".
+      const detail = await geminiRes.text().catch(() => '');
+      console.error('Gemini error', geminiRes.status, detail.slice(0, 500));
+      return json(
+        {
+          error: 'UPSTREAM',
+          message: 'Coach is unavailable.',
+          // Coarse reason only — never echo the upstream body to the client.
+          reason: geminiRes.status === 429 ? 'quota' : geminiRes.status === 400 || geminiRes.status === 403 ? 'auth' : 'upstream',
+        },
+        geminiRes.status === 429 ? 429 : 502
+      );
     }
 
     const geminiJson = await geminiRes.json();
