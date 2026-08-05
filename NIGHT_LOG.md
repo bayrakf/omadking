@@ -13,6 +13,8 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 7 | Markdown im Coach rendern | grün — 102 Checks | `2d8ca7c` |
 | 8 | Antwortformat des Coaches | grün, live nur teilweise | `8a5242c` |
 | 9 | Titel umbrechen statt abschneiden | grün — 103 Checks | `7ed45c3` |
+| — | Punkt 17 aufgenommen (Quota-Meldung) | Backlog | `93a1d0c` |
+| 10 | Zubereitungswörter ignorieren | grün — 104 Checks | `07290c5` |
 
 ---
 
@@ -314,3 +316,31 @@ jetzt lang genug, dass die alte Einzeilen-Regel ihn gekappt hätte.
 
 **Verifikation beider Punkte:** alle vier Gates grün · 103 Checks · Bundle-Probe: fünf native
 Module, 0 Treffer.
+
+
+---
+
+## Durchlauf 10 — Zubereitungswörter beim Zusammenfassen ignorieren
+
+**Umgesetzt:** `dedupeKey` schneidet am ersten Komma, an „ or " und an einer Klammer — was danach
+kommt, ist Zubereitung oder Alternative, nicht Identität — und entfernt anschließend Wörter, die
+beschreiben, *wie* etwas zubereitet wurde.
+
+**Das eigentliche Risiko ist das umgekehrte.** Über-Verschmelzung setzt eine selbstbewusst falsche
+Einzelzeile dorthin, wo zwei richtig waren, und eine fehlende Position fällt im Laden schwerer auf
+als eine doppelte. Die Stoppwortliste enthält deshalb nur Wörter, die niemals zwei getrennt zu
+kaufende Dinge unterscheiden können — keine Zutatennamen, keine Sorten, kein „sweet", kein „greek".
+Sieben Paare, die getrennt bleiben müssen, sind als Selbstcheck verankert: sweet potato / potato,
+chicken breast / thigh, olive / coconut oil, greek yogurt / yogurt, brown / white rice,
+egg whites / eggs, salmon / cod.
+
+**„Herb-Marinated" brauchte eine Regel statt eines Worts.** „herb" in die Liste zu setzen wäre
+falsch — Kräuter sind eine echte Zutat. Aber ein Bindestrich-Kompositum, das um ein
+Zubereitungswort herum gebaut ist, benennt nie ein anderes Produkt, also fällt das ganze Token weg.
+`fresh herbs` schlüsselt weiterhin auf `herbs`.
+
+**Zwischenschritt:** Punkt 17 aufgenommen (`93a1d0c`) — die Client-Meldung bei 429 behauptet „try
+again in a minute", auch wenn das Tageskontingent erschöpft ist. Aufgefallen beim Prüfen von
+Punkt 8.
+
+**Verifikation:** alle vier Gates grün · 104 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
