@@ -48,6 +48,20 @@ export default async function run() {
     await page.waitForTimeout(600);
     check(has(await body(page), 'Your window'), 'advances to the timing step');
 
+    // Named protocols rather than bare hours, and the name must move the maths.
+    const timing = await body(page);
+    check(has(timing, 'Warrior 20:4'), 'protocols are offered by name, not as hours');
+    check(has(timing, 'One meal with room to finish it'), 'and the chosen one explains itself');
+
+    await page.getByText('Warrior 20:4', { exact: true }).click();
+    await page.waitForTimeout(400);
+    check(has(await body(page), '20 hour fast'), 'choosing Warrior gives a 20 hour fast',
+      (await body(page)).match(/\d+ hour fast/)?.[0]);
+
+    // Back to the default so the rest of the flow asserts the usual window.
+    await page.getByText('OMAD', { exact: true }).click();
+    await page.waitForTimeout(400);
+
     await next.click();
     await page.waitForTimeout(600);
     const summary = await body(page);

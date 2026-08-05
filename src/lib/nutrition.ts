@@ -109,6 +109,63 @@ export function normalizeProfile(raw: any): UserProfile {
   };
 }
 
+/**
+ * Named fasting protocols.
+ *
+ * The onboarding asked for "1h / 2h / 4h" without saying what any of them are.
+ * These are the recognised shapes of the same idea, so the choice reads as a
+ * decision rather than a number entry.
+ *
+ * `windowHours` is the only thing that actually drives the maths — everything
+ * downstream already works from the eating window — so a free-form window
+ * remains valid and simply matches no protocol.
+ */
+export type Protocol = {
+  id: string;
+  label: string;
+  windowHours: number;
+  /** What choosing this one costs and buys, in one line. */
+  note: string;
+};
+
+export const PROTOCOLS: Protocol[] = [
+  {
+    id: 'omad-strict',
+    label: 'Strict OMAD',
+    windowHours: 1,
+    note: 'One sitting, 23 hours off. Hardest to hit a large calorie target in.',
+  },
+  {
+    id: 'omad',
+    label: 'OMAD',
+    windowHours: 2,
+    note: 'One meal with room to finish it. The usual starting point.',
+  },
+  {
+    id: 'warrior',
+    label: 'Warrior 20:4',
+    windowHours: 4,
+    note: 'A long meal or a small one and a large one. Easier on heavy training days.',
+  },
+  {
+    id: '18-6',
+    label: '18:6',
+    windowHours: 6,
+    note: 'Two proper meals. Less strict, and simpler to eat enough protein in.',
+  },
+  {
+    id: '16-8',
+    label: '16:8',
+    windowHours: 8,
+    note: 'The gentlest version. Often where people start before shortening the window.',
+  },
+];
+
+/** The protocol matching a window length, or null for a custom one. */
+export function protocolForHours(hours: number): Protocol | null {
+  return PROTOCOLS.find((p) => p.windowHours === hours) ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Energy
 // ---------------------------------------------------------------------------
@@ -526,6 +583,21 @@ export function demo() {
       hydrationTargetMl(normalizeProfile({ weight_kg: 82 })),
     'training days need more fluid'
   );
+
+  // Protocols are a naming layer over the window length; the maths is unchanged.
+  assert(protocolForHours(1)?.id === 'omad-strict', 'a one-hour window is strict OMAD');
+  assert(protocolForHours(4)?.id === 'warrior', 'four hours is the warrior shape');
+  assert(protocolForHours(8)?.id === '16-8', 'eight hours is 16:8');
+  assert(protocolForHours(3) === null, 'an unlisted window is custom, not forced into a name');
+  assert(protocolForHours(0) === null, 'a nonsense window matches nothing');
+  assert(new Set(PROTOCOLS.map((p) => p.windowHours)).size === PROTOCOLS.length, 'each protocol owns one window length');
+  assert(PROTOCOLS.every((p) => p.windowHours >= 1 && p.windowHours <= 12), 'every protocol is a window the profile accepts');
+  // The label has to state the fast, not just the window, or 16:8 and 18:6 read alike.
+  for (const p of PROTOCOLS) {
+    const profile = normalizeProfile({ omad_window_hours: p.windowHours });
+    assert(profile.omad_window_hours === p.windowHours, `${p.id} survives profile normalisation`);
+    assert(fastingState(profile, new Date(2026, 0, 1, 12)).fastingHours === 24 - p.windowHours, `${p.id} implies a ${24 - p.windowHours}h fast`);
+  }
 
   // Session drafts come back from device storage, so they are validated.
   const goodSession = normalizeSession(

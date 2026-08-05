@@ -8,7 +8,7 @@ import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Button, Chip, Tap, Card, Divider, useTheme, useReducedMotion } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import {
-  normalizeProfile, normTime, toMinutes, fromMinutes,
+  normalizeProfile, normTime, toMinutes, fromMinutes, PROTOCOLS, protocolForHours,
   type FitnessLevel, type Goal, type Sex,
 } from '@/lib/nutrition';
 import { completeOnboarding } from '@/lib/store';
@@ -218,10 +218,23 @@ export default function OnboardingScreen() {
             <View style={{ marginTop: Space.xl }}>
               <Eyebrow style={{ marginBottom: Space.md }}>How long is it open?</Eyebrow>
               <View style={s.wrap}>
-                {[1, 2, 4].map((h) => (
-                  <Chip key={h} label={`${h}h`} selected={data.omad_window_hours === h} onPress={() => set('omad_window_hours', h)} style={s.chip} />
+                {/* Named shapes rather than bare hours: "2h" says nothing about
+                    what you are choosing. */}
+                {PROTOCOLS.map((proto) => (
+                  <Chip
+                    key={proto.id}
+                    label={proto.label}
+                    selected={data.omad_window_hours === proto.windowHours}
+                    onPress={() => set('omad_window_hours', proto.windowHours)}
+                    style={s.chip}
+                  />
                 ))}
               </View>
+              {protocolForHours(data.omad_window_hours) && (
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                  {protocolForHours(data.omad_window_hours)!.note}
+                </Txt>
+              )}
               <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
                 That is a {24 - data.omad_window_hours} hour fast every day.
               </Txt>

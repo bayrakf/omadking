@@ -266,7 +266,7 @@ Kohlenhydrate → Vorrat → Supplemente. Alphabet innerhalb bleibt.
 
 ---
 
-## 13. [ ] Protokoll-Typen statt nackter Stundenzahl
+## 13. [x] Protokoll-Typen statt nackter Stundenzahl
 
 **Warum:** Das Onboarding bietet „1h / 2h / 4h" ohne zu sagen, was das ist. OMAD hat benannte
 Spielarten, und die Wahl ist eine echte Entscheidung, keine Zahleneingabe.
@@ -278,6 +278,8 @@ werden dort bereits geprüft.
 
 **Fertig wenn:** jede Auswahl setzt Fenster und Fastenlänge korrekt, Selbstchecks decken jedes
 Protokoll und die freie Eingabe ab.
+
+**Erledigt** 2026-08-05 — 110 Checks.
 
 ---
 

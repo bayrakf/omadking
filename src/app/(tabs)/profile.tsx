@@ -7,7 +7,8 @@ import {
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import {
-  bmr, dailyTargets, normalizeProfile, toMinutes, fromMinutes, DEFAULT_PROFILE, type UserProfile,
+  bmr, dailyTargets, normalizeProfile, toMinutes, fromMinutes, PROTOCOLS, protocolForHours,
+  DEFAULT_PROFILE, type UserProfile,
 } from '@/lib/nutrition';
 import {
   loadProfileOrDefault, saveProfile, resetOnboarding, getQuota, isPremium,
@@ -225,6 +226,24 @@ export default function ProfileScreen() {
           <Row label="Opens" field="omad_window_start" />
           <Divider />
           <Row label="Length" field="omad_window_hours" unit=" h" />
+          <View style={s.wrap}>
+            {PROTOCOLS.map((proto) => (
+              <Chip
+                key={proto.id}
+                label={proto.label}
+                selected={profile.omad_window_hours === proto.windowHours}
+                onPress={() => persist({ ...profile, omad_window_hours: proto.windowHours })}
+                style={s.chip}
+              />
+            ))}
+          </View>
+          {/* A hand-typed length that matches nothing keeps working; it simply
+              has no name to show. */}
+          {protocolForHours(profile.omad_window_hours) && (
+            <Txt variant="small" color={c.textDim} style={{ marginBottom: Space.sm }}>
+              {protocolForHours(profile.omad_window_hours)!.note}
+            </Txt>
+          )}
           <Divider />
           <Row label="Usual training" field="default_training_time" />
           <View style={[s.summary, { backgroundColor: c.well }]}>
