@@ -23,6 +23,10 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 16 | Fastenbrechen + „Über OMAD" | grün — 132 Checks | `1178b10` |
 | 17 | Kontingent-Meldung korrigiert | grün — 134 Checks | `d311f6c` |
 | 18 | Fasten nachtragen/zurücknehmen | grün — 138 Checks | `c052f7d` |
+| 19 | Portionen fürs Vorkochen | grün — 141 Checks | `eb88164` |
+| 20 | Fehlerbildschirm | grün, einmalig geprüft | `5f6906f` |
+| 21 | Systemschriftgröße | grün — nur nativ wirksam | `5870e38` |
+| 22 | Startseite + README | grün — 144 Checks | `8e84284` |
 
 ---
 
@@ -484,3 +488,61 @@ erfundene entfernt worden.
 Beide fand ich nur, weil der eigene Test hängen blieb — nicht durch Nachdenken über Barrierefreiheit.
 
 **Verifikation:** alle vier Gates grün · 138 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
+
+
+---
+
+## Durchläufe 19 bis 22 — die letzten autonomen Punkte
+
+**19 — Portionen.** Die Karte sagte „einmal kochen, morgen essen", die Mengen waren für eine Portion.
+**Die Makros skalieren ausdrücklich nicht mit** — sie sind die Tagesziele für eine Portion, und sie zu
+verdoppeln würde aus einer richtigen Zahl eine falsche machen. Der e2e-Check hält fest, dass sie
+stehen bleiben während die Zutaten sich verdoppeln, weil genau das später aus Versehen „repariert"
+werden könnte. Die Einkaufsliste kauft für die gewählte Menge; das Rezept zu skalieren und die Liste
+nicht wäre schlimmer als gar nichts.
+
+**20 — Fehlerbildschirm.** Eigene Boundary im Design des Rests. Die technische Meldung bleibt (ohne
+sie ist ein Fehlerbericht unmöglich), steht aber hinter einem Aufklapper und wird nirgendwohin
+gesendet.
+
+**Bewusst kein dauerhafter e2e-Check.** Einen echten Absturz zu erzwingen hieße, eine Route
+auszuliefern, deren einziger Zweck das Abstürzen ist — und die Parser wurden gerade deshalb gehärtet,
+damit kein gespeicherter Wert einen auslösen kann. Einmalig gegen eine temporäre Absturzroute
+geprüft, Route entfernt, ihr Verschwinden aus dem Bundle nachgewiesen.
+
+**21 — Systemschriftgröße.** Der Deckel ist die Substanz, nicht die Skalierung: über etwa 1,3 passen
+Zifferblatt und Makro-Zeile nicht mehr, und ein brechendes Layout ist schlechter als eines, das
+weniger wächst als gewünscht. Zeilenhöhe wächst mit, sonst kollidiert große Schrift mit sich selbst.
+
+**Wichtige Einschränkung, die ich beim Prüfen fand:** react-native-web fixiert `fontScale` auf `1`.
+Die Verbesserung wirkt **nur nativ**, im Browser ist sie ein No-op — die e2e-Suite kann sie also gar
+nicht prüfen. Deshalb liegt die Rechnung als achtes Modul in `src/lib/typography.ts` mit eigenen
+Selbstchecks, und die Einschränkung steht in der Datei und im Backlog, statt entdeckt zu werden.
+
+**Eine Korrektur unterwegs:** Mein erster Check behauptete, ein `Infinity`-Skalenwert würde bei 1,3
+gedeckelt. Tut er nicht — ein nicht-endlicher Wert ist keine Schriftpräferenz und fällt auf „keine
+Änderung" zurück. Der Check war falsch, nicht der Deckel.
+
+**22 — Startseite und README.** `/landing` war fertig gestaltet und nur per URL erreichbar. Das
+README beschrieb einen Checkout von vor Agenda, Erinnerungen, Vorkoch-Schleife, Sicherung,
+Protokollen, Portionen und e2e-Suite.
+
+---
+
+## Abschluss
+
+**22 von 23 Punkten erledigt.** Punkt 23 (Konten und Synchronisierung) bleibt offen und war von
+Anfang an als Produktentscheidung markiert, nicht als Loop-Aufgabe.
+
+Die e2e-Suite ist von 65 auf **144 Checks** gewachsen, `npm run check` von drei auf **acht Module**.
+Jeder Punkt hinterließ seine eigene Regressionsprobe — einschließlich der Wortwahl-Regeln, die gegen
+das gerenderte UI laufen, nicht nur gegen den Quelltext.
+
+**Was diese Durchläufe fanden, ohne danach zu suchen:**
+- Die Mengen-Summierung der Einkaufsliste griff bei echten Daten nie (Durchlauf 10).
+- RN-Web meldete keinen Checkbox-Zustand an Screenreader (Durchlauf 18).
+- Die e2e-Suite hatte kein Selektor-Zeitlimit und hing zehn Minuten statt zu scheitern (Durchlauf 18).
+- Googles „retry in Xs" taugt nicht zur Unterscheidung von Minuten- und Tageslimit (Durchlauf 17).
+- RN-Web fixiert `fontScale` auf 1 (Durchlauf 21).
+
+Alle fünf kamen aus dem Prüfen, nicht aus dem Planen.
