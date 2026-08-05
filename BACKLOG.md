@@ -570,6 +570,19 @@ Drittlandsübermittlung ohne Not.
 **Fertig wenn:** Anmeldung überlebt einen Neustart, Abmelden entfernt den Schlüssel nicht
 versehentlich, Bundle-Probe zeigt 0 Treffer für `expo-secure-store` im Web-Bundle.
 
+**Code fertig 2026-08-05, live BLOCKIERT.** Der `.web.ts`-Split hält (0 Treffer im Web-Bundle),
+alle Gates grün. Aber gegen das echte Projekt schlägt die Anmeldung fehl:
+
+```
+FEHLER: Anonymous sign-ins are disabled
+GET /auth/v1/settings → "external": { "anonymous_users": false }
+```
+
+Projekt-Ref stimmt mit dem Deploy-Ziel überein (`icsosdyzwwnxhhztmwef`), es ist also nicht das
+falsche Projekt — die Einstellung ist im Projekt schlicht nicht aktiv. Zu prüfen im Dashboard unter
+**Authentication → Sign In / Providers → Allow anonymous sign-ins**, danach dieselbe Abfrage
+wiederholen; sie muss `true` melden. Erst dann ist der Punkt abhakbar.
+
 ---
 
 ## 28. [ ] Wiederherstellungssatz
