@@ -179,7 +179,7 @@ Markdown-Antwort verankert.
 
 ---
 
-## 8. [ ] Antwortformat des Coaches straffen
+## 8. [x] Antwortformat des Coaches straffen
 
 **Warum:** Der Prompt fordert 150 Wörter, geliefert werden fünf Absätze. Auch gut gesetzt bleibt das
 eine Wand.
@@ -189,6 +189,11 @@ höchstens vier Stichpunkte, dann ein „Warum"-Satz. Regeln nicht wiederholen, 
 erwähnen.
 
 **Fertig wenn:** eine echte Antwort gegen Production passt ohne Scrollen in den sichtbaren Bereich.
+
+**Erledigt** 2026-08-05 — teilweise live bestätigt. Eine echte Antwort mit dem neuen Prompt zeigte
+Antwortsatz zuerst, `- `-Bullets, fette Zahlen und die eigenen 82 kg des Nutzers. Die abschließende
+`Why:`-Zeile blieb unbestätigt, weil das Gemini-Tageskontingent (20 Anfragen/Tag im Free Tier)
+mitten in der Prüfung erschöpft war. Der Prompt ist deployt, die vier Gates sind grün.
 
 ---
 
