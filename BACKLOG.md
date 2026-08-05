@@ -157,7 +157,168 @@ Wochengrenze ab; Karte rendert in beiden Themes ohne Querscroll.
 
 ---
 
-## 7. [ ] Fasten nachtragen und zurücknehmen
+## 7. [ ] Markdown im Coach rendern
+
+**Warum:** Der Coach antwortet in Markdown, `src/app/chat.tsx` setzt das in ein einfaches `<Txt>`.
+Auf dem Bildschirm steht wörtlich `**sodium, potassium, and magnesium**` und
+`* **Sodium:** 3,000–5,000 mg`. Kein Stilproblem — ein fehlender Renderer.
+
+**Was:**
+- `src/lib/markdown.ts`, rein, mit `demo()`, in `check-logic.mjs` eingetragen. Parst in Blöcke
+  (Absatz, Aufzählung, nummerierte Liste, Überschrift) mit Inline-Auszeichnung für fett, kursiv,
+  Code.
+- Kein neues Paket. Ein Chatmodell produziert eine kleine Teilmenge, und ein Renderer, der bei
+  kaputter Eingabe den Rohtext zeigt, ist besser als eine Abhängigkeit.
+- Renderkomponente nutzt `Txt` aus `src/components/ui.tsx`.
+- Selbstchecks: verschachtelte Auszeichnung, unbalancierte `**`, sehr lange Zeilen, leere Eingabe.
+
+**Fertig wenn:** keine literalen `**` oder `* ` mehr im Chat, als e2e-Check mit gestubbter
+Markdown-Antwort verankert.
+
+---
+
+## 8. [ ] Antwortformat des Coaches straffen
+
+**Warum:** Der Prompt fordert 150 Wörter, geliefert werden fünf Absätze. Auch gut gesetzt bleibt das
+eine Wand.
+
+**Was:** `BASE_PROMPT` in `supabase/functions/chat/index.ts`: eine Antwortzeile zuerst, dann
+höchstens vier Stichpunkte, dann ein „Warum"-Satz. Regeln nicht wiederholen, Wortzahl nicht
+erwähnen.
+
+**Fertig wenn:** eine echte Antwort gegen Production passt ohne Scrollen in den sichtbaren Bereich.
+
+---
+
+## 9. [ ] Titel und lange Zeilen umbrechen statt abschneiden
+
+**Warum:** „Seared Honey-Sesame Chicken Breast with Jasm…" ist kein Titel, das ist ein Rätsel.
+
+**Was:** Rezepttitel in `RecipeCard` und die „Recent plans"-Zeilen im Planer auf zwei Zeilen
+erlauben; Zeilenhöhen in `Type` prüfen.
+
+**Fertig wenn:** kein Rezepttitel im Build endet auf `…`.
+
+---
+
+## 10. [ ] Zubereitungswörter beim Zusammenfassen ignorieren
+
+**Warum:** Die Mengen-Summierung aus Punkt 4 greift bei echten Daten nicht. Drei Hähnchen-Zeilen
+ergeben drei Schlüssel:
+
+```
+"boneless skinless chicken breast"
+"raw boneless skinless chicken breast diced into cm cubes"
+"herb marinated chicken breast or crispy tofu"
+```
+
+Im Laden kauft man dreimal dasselbe.
+
+**Was:** `dedupeKey` in `src/lib/grocery.ts` um eine Stoppwortliste erweitern (raw, fresh, diced,
+chopped, sliced, minced, cubed, skinless, boneless, marinated, steamed, roasted, organic, ripe,
+plain, non-fat, low-fat …) und Alternativen nach „or" abschneiden.
+
+**Die eigentliche Gefahr ist Über-Verschmelzung.** „sweet potato" und „potato" müssen getrennt
+bleiben, ebenso „chicken breast" und „chicken thigh". Die Stoppwortliste darf kein unterscheidendes
+Wort enthalten, und beide Nicht-Verschmelzungen gehören als Selbstcheck verankert.
+
+**Fertig wenn:** die drei Zeilen oben ergeben eine Position mit korrekter Summe, und die
+Nicht-Verschmelzungen sind geprüft.
+
+---
+
+## 11. [ ] Kurzname groß, Zubereitung klein
+
+**Warum:** „480g raw boneless skinless chicken breast, diced into 2cm cubes" braucht zwei Zeilen für
+den Namen allein. Im Laden liest das niemand.
+
+**Was:** `displayName(line)` in `grocery.ts`, rein, mit `demo()`: trennt Menge + Kernzutat vom
+Beiwerk. Die Liste zeigt „1,04 kg Hähnchenbrust" prominent, „roh, in 2-cm-Würfeln" klein darunter.
+
+**Fertig wenn:** keine Position braucht mehr zwei Zeilen für den Namen.
+
+---
+
+## 12. [ ] Einkaufsliste nach Ladenweg sortieren
+
+**Warum:** Die Kategorien existieren, ihre Reihenfolge folgt aber keinem Weg durch einen Laden.
+
+**Was:** `CATEGORIES` in `grocery.ts` umsortieren: Obst/Gemüse → Protein → Molkerei/Fette →
+Kohlenhydrate → Vorrat → Supplemente. Alphabet innerhalb bleibt.
+
+**Fertig wenn:** die Kategorien erscheinen in dieser Reihenfolge.
+
+---
+
+## 13. [ ] Protokoll-Typen statt nackter Stundenzahl
+
+**Warum:** Das Onboarding bietet „1h / 2h / 4h" ohne zu sagen, was das ist. OMAD hat benannte
+Spielarten, und die Wahl ist eine echte Entscheidung, keine Zahleneingabe.
+
+**Was:** `PROTOCOLS` in `src/lib/nutrition.ts`: `omad-strict` (1h), `warrior` (4h), `18:6` (6h),
+`16:8` (8h), je mit Kurzbeschreibung des Unterschieds. Onboarding und Profil bieten die benannte
+Auswahl, freie Stundenzahl bleibt möglich. `normalizeProfile` bleibt unverändert — die Stunden
+werden dort bereits geprüft.
+
+**Fertig wenn:** jede Auswahl setzt Fenster und Fastenlänge korrekt, Selbstchecks decken jedes
+Protokoll und die freie Eingabe ab.
+
+---
+
+## 14. [ ] Fastenphasen am Zifferblatt
+
+**Warum:** Der Zähler sagt „18h 55m" und sonst nichts. Was zu diesem Zeitpunkt im Körper passiert,
+ist genau das, wofür jemand eine OMAD-App öffnet.
+
+**Was:** `fastingStage(hoursFasted)` in `nutrition.ts`, rein, mit `demo()`: Bänder für gesättigt,
+postabsorptiv, Glykogen zur Neige, Ketose steigend, langes Fasten. Eine Zeile unter dem `DayDial`.
+
+**Leitplanke:** ausdrücklich als Näherung gekennzeichnet — die Übergänge sind fließend und
+verschieben sich mit letzter Mahlzeit, Training und Person. Kein Versprechen über Gesundheit.
+
+**Fertig wenn:** jedes Band hat Selbstchecks an seinen Grenzen, und kein Text behauptet eine Wirkung.
+
+---
+
+## 15. [ ] Anpassungsphase aus dem eigenen Log
+
+**Warum:** Die ersten Tage OMAD fühlen sich anders an als die vierte Woche. Die App weiß, wie lange
+jemand dabei ist, und sagt nichts dazu.
+
+**Was:** `adaptationStage(fastLog, today)` in `src/lib/review.ts`: Tag 1–3, erste Woche, Woche 2–4,
+darüber hinaus — abgeleitet aus tatsächlich geloggten Tagen, nicht aus einem Kalenderdatum. Sagt,
+was sich in dieser Phase typischerweise ändert, ohne es zu versprechen.
+
+**Fertig wenn:** Phasen wechseln an den richtigen Zählständen, Lücken im Log setzen nicht zurück,
+beides als Selbstcheck.
+
+---
+
+## 16. [ ] Fasten brechen und „Über OMAD"
+
+**Warum:** Die App rechnet den Zeitpunkt der Mahlzeit seit Wochen aus und sagt nie, *wie* man nach
+22 Stunden anfängt. Und sie erklärt die Methode nirgends.
+
+**Was:**
+- Reihenfolge beim Fastenbrechen auf dem Plan: Protein zuerst, Kohlenhydrate danach, Fett zuletzt,
+  langsam, bei angenehmer Sättigung aufhören.
+- Referenzfläche „Über OMAD", erreichbar aus dem Profil: Protokollvergleich, wofür der Ansatz
+  mechanisch plausibel ist, was er ausdrücklich nicht leistet.
+
+**Leitplanke — gilt wörtlich:**
+- Keine erfundenen Zahlen. Keine Studienprozente, Erfolgsquoten, Nutzerzahlen, Testimonials.
+- Mechanismus statt Versprechen. „Eine Mahlzeit bedeutet weniger Entscheidungen, was die
+  Kalorienkontrolle für manche einfacher macht" ist beschreibbar. „OMAD verbrennt mehr Fett" nicht.
+- Gegenanzeigen stehen im sichtbaren Bereich, nicht am Ende: Schwangerschaft und Stillzeit, Diabetes
+  unter Medikation, Essstörung in der Vorgeschichte, Blutdruck- oder Blutzuckermedikamente,
+  Jugendliche.
+
+**Fertig wenn:** die Fläche enthält keine Zahl ohne Beleg im Text und keine Krankheitsaussage; die
+Gegenanzeigen sind ohne Scrollen sichtbar.
+
+---
+
+## 17. [ ] Fasten nachtragen und zurücknehmen
 
 **Warum:** `unmarkFastComplete()` existiert seit dem Streak-Feature, hat aber
 keine Oberfläche. Ein Fehlklick lässt sich nicht korrigieren, ein vergessener
@@ -176,7 +337,7 @@ genau der Grund, die Fake-Streak damals zu entfernen.
 
 ---
 
-## 8. [ ] Portionen für echtes Vorkochen
+## 18. [ ] Portionen für echtes Vorkochen
 
 **Warum:** Die Rezepte tragen Aufwärm-Anleitungen und die Karte sagt „einmal
 kochen, morgen essen" — die Mengen sind aber für **eine** Portion. Die
@@ -194,7 +355,7 @@ Ruhe, und die Makro-Anzeige bleibt unverändert.
 
 ---
 
-## 9. [ ] Fehlerbildschirm, der etwas sagt
+## 19. [ ] Fehlerbildschirm, der etwas sagt
 
 **Warum:** `_layout.tsx` exportiert die `ErrorBoundary` von expo-router. Sie
 verhindert den weißen Bildschirm, sieht aber aus wie ein Entwicklerwerkzeug und
@@ -211,7 +372,7 @@ Bildschirm, und „Neu laden" bringt die App zurück.
 
 ---
 
-## 10. [ ] Systemschriftgröße respektieren
+## 20. [ ] Systemschriftgröße respektieren
 
 **Warum:** Alle Größen in `Type` sind feste Zahlen. Wer die Systemschrift
 vergrößert — bei einer App für Küche und Fitnessstudio nicht selten —
@@ -229,7 +390,7 @@ Querscroll und ohne abgeschnittene Zeilen.
 
 ---
 
-## 11. [ ] Startseite erreichbar machen und README nachziehen
+## 21. [ ] Startseite erreichbar machen und README nachziehen
 
 **Warum:** `/landing` ist fertig gestaltet, aber aus der App nicht verlinkt und
 für bestehende Nutzer nicht auffindbar. Das README beschreibt außerdem einen
@@ -246,7 +407,7 @@ vorfindet, und die Startseite ist aus der App erreichbar.
 
 ---
 
-## 12. [ ] Konten und Synchronisierung — Entscheidung nötig, nicht autonom bauen
+## 22. [ ] Konten und Synchronisierung — Entscheidung nötig, nicht autonom bauen
 
 **Warum:** Größte offene Lücke. Alles liegt auf dem Gerät; Deinstallieren
 löscht Monate. Das Schema in `supabase/migrations/001_initial_schema.sql`

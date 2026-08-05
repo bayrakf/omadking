@@ -9,6 +9,7 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 3 | Chatverlauf überlebt das Schließen | grün — 80 Checks | `aa5a995` |
 | 4 | Einkaufsliste addiert Mengen | grün — 85 Checks | `433ef1f` |
 | 5 | Planer merkt sich die Session | grün — 91 Checks | `2aa3044` |
+| 6 | Wochenrückblick auf Progress | grün — 98 Checks | `9251136` |
 
 ---
 
@@ -180,3 +181,51 @@ verankert.
 **Verifikation:** `npm run typecheck` grün · `npm run check` grün (5 Module) ·
 `npx expo export --platform web` grün · `npm run e2e` grün, 91 Checks ·
 Bundle-Probe: alle fünf nativen Module 0 Treffer.
+
+
+---
+
+## Durchlauf 6 — Wochenrückblick auf Progress
+
+**Ausgangslage:** Durchlauf 6 war unterbrochen worden — `src/lib/review.ts` geschrieben und grün,
+aber nicht committet, `git status` unsauber. Zuerst aufgeräumt, dann fertiggestellt.
+
+**Umgesetzt:**
+- `weeklyReview()` in `src/lib/review.ts`, rein, mit `demo()`, in `check-logic.mjs` eingetragen.
+- Karte ganz oben auf Progress — die einzige Ansicht, die über heute hinausgeht.
+
+**Zwei Regeln für die Formulierung:**
+
+1. **Nur Gezähltes.** Keine Adhärenz-Quote, kein Prozentwert, den niemand gemessen hat.
+   „4 of 7 fasts logged" ist eine Tatsache, eine Erfüllungsrate wäre erfunden.
+2. **Eine Folgerung, arithmetisch statt motivierend.** −0,4 kg/Woche sind −1,6 kg in vier Wochen.
+   Das folgt. „Weiter so" folgt nicht, und die App hat sich keine Meinung verdient.
+
+Unter drei geloggten Tagen sagt die Karte, was fehlt, statt eine leere Hülle zu zeigen.
+
+**Verifikation:** alle vier grün · 98 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
+
+---
+
+## Backlog neu geordnet — zehn neue Punkte aus den Screenshots
+
+Nach Durchsicht des laufenden Builds durch den Nutzer wurden zehn Punkte ergänzt und **vor** die
+bisherigen 7–11 gestellt (die auf 17–21 rutschen). Der Loop nimmt den obersten offenen Punkt, die
+Dateireihenfolge ist also die Priorität.
+
+**Zwei Befunde, die im Code nachgeprüft wurden, nicht nur vermutet:**
+
+1. **Der Coach ist unlesbar**, weil `chat.tsx` Markdown in ein einfaches `<Txt>` setzt. Auf dem
+   Bildschirm steht wörtlich `**sodium**`. → Punkte 7–8.
+2. **Die Mengen-Summierung aus Durchlauf 4 greift bei echten Daten gar nicht.** Nachgerechnet mit
+   dem echten `dedupeKey` ergeben drei Hähnchen-Zeilen drei verschiedene Schlüssel, weil
+   Zubereitungswörter („raw", „diced into 2cm cubes", „herb-marinated") sie zerlegen. Die Liste
+   hatte deshalb 24 Positionen. → Punkte 10–11.
+
+Bei Punkt 10 ist die eigentliche Gefahr **Über**-Verschmelzung: „sweet potato" darf nicht mit
+„potato" zusammenfallen. Beide Nicht-Verschmelzungen sind als Abnahmekriterium festgehalten,
+sonst wird ein sichtbarer Fehler gegen einen unsichtbaren getauscht.
+
+**Inhaltliche Leitplanke für die OMAD-Punkte 14–16** (vom Nutzer bestätigt: praktisch *und*
+evidenzbasiert mit Einschränkungen): keine erfundenen Zahlen, Mechanismus statt Versprechen,
+Näherungen als solche gekennzeichnet, Gegenanzeigen im sichtbaren Bereich statt im Kleingedruckten.
