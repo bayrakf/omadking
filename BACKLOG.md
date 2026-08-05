@@ -435,7 +435,7 @@ weiß bleibt.
 
 ---
 
-## 21. [ ] Systemschriftgröße respektieren
+## 21. [x] Systemschriftgröße respektieren
 
 **Warum:** Alle Größen in `Type` sind feste Zahlen. Wer die Systemschrift
 vergrößert — bei einer App für Küche und Fitnessstudio nicht selten —
@@ -450,6 +450,10 @@ bekommt exakt dieselbe kleine Schrift.
 
 **Fertig wenn:** Bei 130 % Systemschrift bleibt jeder Bildschirm lesbar, ohne
 Querscroll und ohne abgeschnittene Zeilen.
+
+**Erledigt** 2026-08-05 — 141 Checks. **Wichtige Einschränkung:** react-native-web fixiert
+`fontScale` auf `1`, die Skalierung greift also **nur nativ**. Die e2e-Suite kann sie nicht prüfen;
+die Rechnung liegt deshalb als achtes Modul in `src/lib/typography.ts` mit eigenen Selbstchecks.
 
 ---
 

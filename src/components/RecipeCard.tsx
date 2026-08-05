@@ -157,7 +157,7 @@ const s = StyleSheet.create({
   },
   portions: { flexDirection: 'row', marginRight: -Space.xs },
   portion: {
-    minWidth: 34, height: 28, borderRadius: Radius.pill, borderWidth: 1,
+    minWidth: 34, minHeight: 28, borderRadius: Radius.pill, borderWidth: 1, paddingVertical: 3,
     alignItems: 'center', justifyContent: 'center', marginRight: Space.xs,
     paddingHorizontal: Space.sm,
   },

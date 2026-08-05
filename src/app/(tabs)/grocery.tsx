@@ -189,7 +189,7 @@ export default function GroceryScreen() {
 const s = StyleSheet.create({
   tools: { flexDirection: 'row', marginBottom: Space.base },
   tool: {
-    flexDirection: 'row', alignItems: 'center', height: 34,
+    flexDirection: 'row', alignItems: 'center', minHeight: 34, paddingVertical: 4,
     paddingHorizontal: Space.md, borderRadius: Radius.pill, borderWidth: 1, marginRight: Space.sm,
   },
   item: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Space.md },

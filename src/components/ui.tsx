@@ -5,6 +5,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import {
+  PixelRatio,
+  Dimensions,
   View,
   Text,
   Pressable,
@@ -18,6 +20,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { clampFontScale, scaleType } from '@/lib/typography';
 import { Colors, Type, Space, Radius, Motion, Font, MaxContentWidth, TabBarClearance, type ThemePalette } from '@/constants/theme';
 import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
 import { Icon, type IconName } from './icons';
@@ -28,6 +31,21 @@ export function useTheme(): ThemePalette {
 }
 
 /** Honours the OS "reduce motion" setting; entrances become instant. */
+/** The system font setting, clamped by src/lib/typography. */
+export function useFontScale(): number {
+  const [scale, setScale] = React.useState(() => clampFontScale(PixelRatio.getFontScale()));
+
+  React.useEffect(() => {
+    // The setting can change while the app is open.
+    const sub = Dimensions.addEventListener('change', () =>
+      setScale(clampFontScale(PixelRatio.getFontScale()))
+    );
+    return () => sub.remove();
+  }, []);
+
+  return scale;
+}
+
 export function useReducedMotion(): boolean {
   const [reduced, setReduced] = React.useState(false);
   useEffect(() => {
@@ -139,10 +157,16 @@ export function Txt({
   numberOfLines?: number;
 } & React.ComponentProps<typeof Text>) {
   const c = useTheme();
+  const scale = useFontScale();
+  const base = Type[variant] as TextStyle;
+  const scaled = scaleType(base, scale);
+
   return (
     <Text
       numberOfLines={numberOfLines}
-      style={[Type[variant], { color: color ?? c.text }, style]}
+      // The cap is ours; letting the OS scale on top of it would double up.
+      maxFontSizeMultiplier={1}
+      style={[base, scaled, { color: color ?? c.text }, style]}
       {...rest}
     >
       {children}
@@ -221,8 +245,18 @@ export function Markdown({ text, color }: { text: string; color?: string }) {
 /** Uppercase mono micro-label. Carries data, never decoration. */
 export function Eyebrow({ children, color, style, numberOfLines }: { children: React.ReactNode; color?: string; style?: StyleProp<TextStyle>; numberOfLines?: number }) {
   const c = useTheme();
+  const scale = useFontScale();
   return (
-    <Text numberOfLines={numberOfLines} style={[Type.eyebrow, { color: color ?? c.textFaint, textTransform: 'uppercase' }, style]}>
+    <Text
+      numberOfLines={numberOfLines}
+      maxFontSizeMultiplier={1}
+      style={[
+        Type.eyebrow,
+        scaleType(Type.eyebrow, scale),
+        { color: color ?? c.textFaint, textTransform: 'uppercase' },
+        style,
+      ]}
+    >
       {children}
     </Text>
   );
@@ -547,7 +581,8 @@ const styles = StyleSheet.create({
   },
   card: { borderRadius: Radius.lg, padding: Space.lg },
   button: {
-    height: 54,
+    minHeight: 54,
+    paddingVertical: Space.sm,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -556,7 +591,8 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: Space.base,
-    height: 40,
+    minHeight: 40,
+    paddingVertical: Space.xs,
     borderRadius: Radius.pill,
     borderWidth: 1,
     alignItems: 'center',
