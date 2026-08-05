@@ -766,3 +766,32 @@ flache Linie als Versagen lesen. Sie ist keins.
 **Premium-Grenze wie zuvor:** der Stillstand wird allen genannt, die neue Zahl kostet.
 
 **Erledigt** 2026-08-05 — 192 Checks.
+
+
+---
+
+## 34. [x] Der Native-Durchlauf — was davon hier möglich war
+
+**Nicht möglich:** Auf dieser Maschine steht kein Xcode (nur Command Line Tools) und kein
+Android-SDK. `xcrun simctl` liefert nichts. Ein echter Gerätelauf braucht dich: `npx expo start`,
+App öffnen, die vier nativen Pfade durchgehen (Keychain, Erinnerungen, Käufe, Datei-Export).
+
+**Möglich und erledigt: das größte Risiko beseitigt statt geprüft.**
+
+`sync.ts` nutzte `globalThis.btoa` / `atob`. Weder React Native noch Expo definieren sie — nichts in
+beiden Paketbäumen. TypeScript akzeptierte es trotzdem, weil die DOM-Bibliothek an ist, und die
+e2e-Suite läuft in Chrome. **Es kam also durch jedes Gate und wäre auf dem Telefon sofort
+gebrochen** — genau die Klasse Fehler, die ein Web-Only-Test nicht finden kann.
+
+Statt zu prüfen, ob das Global existiert, ist die Abhängigkeit weg: eigenes Base64 in `crypto.ts`,
+zwölf Zeilen, mit Selbstchecks über jede Länge modulo 3 und gegen die Referenzkodierung.
+
+**Und aus dem Einzelfund eine stehende Regel:** `npm run check` scannt jetzt `src/lib/` (ohne
+`.web.ts`) auf browser-eigene Globals und schlägt fehl. Ein Bildschirm darf auf `Platform.OS`
+verzweigen; ein Lib-Modul hat nicht zu wissen, was ein Browser ist. Die Sperre wurde durch
+absichtliche Sabotage verifiziert — sie fängt ein eingeschmuggeltes `btoa(` sofort.
+
+**Restrisiko, unverändert:** Keychain, Benachrichtigungen, Käufe und Datei-Export sind weiterhin nur
+über ihre Web-Zwillinge getestet. Das kann nur ein Gerätelauf klären.
+
+**Erledigt** 2026-08-05 — 192 Checks.

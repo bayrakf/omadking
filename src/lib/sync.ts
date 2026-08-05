@@ -14,17 +14,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KEYS } from './store';
 import { exportBackup, importBackup, FORMAT, VERSION } from './backup';
 import { mergeStates } from './sync-merge';
-import { seal, open as openSealed } from './crypto';
+import { seal, open as openSealed, toBase64, fromBase64 } from './crypto';
 import { ensureAccount, supabase, signOutAndForget } from './account';
 
 const TABLE = 'sync_state';
-
-const toB64 = (b: Uint8Array) => {
-  let s = '';
-  for (const x of b) s += String.fromCharCode(x);
-  return globalThis.btoa(s);
-};
-const fromB64 = (s: string) => Uint8Array.from(globalThis.atob(s), (ch) => ch.charCodeAt(0));
 
 export type SyncResult =
   | { ok: true; at: string }
@@ -60,7 +53,9 @@ export async function syncNow(): Promise<SyncResult> {
   const revision: number = row?.revision ?? 0;
 
   if (row) {
-    const plain = openSealed(key, { ciphertext: fromB64(row.ciphertext), nonce: fromB64(row.nonce) });
+    const ciphertext = fromBase64(row.ciphertext);
+    const nonce = fromBase64(row.nonce);
+    const plain = ciphertext && nonce ? openSealed(key, { ciphertext, nonce }) : null;
     if (plain === null) {
       // The key on this device does not open what the server holds. Pushing
       // now would replace data this device cannot read — the one outcome worse
@@ -96,8 +91,8 @@ export async function syncNow(): Promise<SyncResult> {
   const sealed = seal(key, payload);
   const record = {
     user_id: userId,
-    ciphertext: toB64(sealed.ciphertext),
-    nonce: toB64(sealed.nonce),
+    ciphertext: toBase64(sealed.ciphertext),
+    nonce: toBase64(sealed.nonce),
     revision: revision + 1,
     updated_at: at,
   };

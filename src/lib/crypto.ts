@@ -50,6 +50,59 @@ export function open(key: Uint8Array, sealed: Sealed): string | null {
   }
 }
 
+// --- Base64 -----------------------------------------------------------------
+
+/**
+ * Base64 without `btoa`/`atob`.
+ *
+ * Those are browser globals. React Native does not polyfill them and neither
+ * does Expo — nothing in either package tree defines one — yet TypeScript
+ * accepts `globalThis.btoa` because the DOM library is on. So the sealed blob
+ * would have encoded fine in a browser and thrown on a phone, and the web-only
+ * e2e suite could never have caught it.
+ *
+ * Rather than verify a global on a platform that cannot be run here, the
+ * dependency is gone. Twelve lines that work everywhere beat a runtime check
+ * that works somewhere.
+ */
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+export function toBase64(bytes: Uint8Array): string {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b = bytes[i + 1];
+    const c = bytes[i + 2];
+    const n = (bytes[i] << 16) | ((b ?? 0) << 8) | (c ?? 0);
+    out +=
+      B64[(n >> 18) & 63] +
+      B64[(n >> 12) & 63] +
+      (b === undefined ? '=' : B64[(n >> 6) & 63]) +
+      (c === undefined ? '=' : B64[n & 63]);
+  }
+  return out;
+}
+
+/** Null for anything that is not base64, rather than silently wrong bytes. */
+export function fromBase64(text: unknown): Uint8Array | null {
+  const clean = String(text ?? '').replace(/[\s=]/g, '');
+  if (clean.length === 0) return new Uint8Array(0);
+  if (/[^A-Za-z0-9+/]/.test(clean)) return null;
+
+  const out = new Uint8Array(Math.floor((clean.length * 6) / 8));
+  let acc = 0;
+  let bits = 0;
+  let p = 0;
+  for (const ch of clean) {
+    acc = (acc << 6) | B64.indexOf(ch);
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out[p++] = (acc >> bits) & 0xff;
+    }
+  }
+  return out.subarray(0, p);
+}
+
 // --- The recovery phrase ---------------------------------------------------
 
 /**
@@ -195,6 +248,39 @@ export function demo() {
   const big = JSON.stringify({ log: Array.from({ length: 5000 }, (_, i) => `2026-01-${i}`) });
   assert(open(key, seal(key, big)) === big, 'a large payload round-trips');
   assert(open(key, seal(key, 'Grüße, 🥔')) === 'Grüße, 🥔', 'non-ASCII survives');
+
+  // --- base64 without the browser ------------------------------------------
+
+  // Every length modulo 3, because that is where padding logic goes wrong.
+  for (let len = 0; len <= 40; len++) {
+    const bytes = Uint8Array.from({ length: len }, (_, i) => (i * 37 + len) & 0xff);
+    const round = fromBase64(toBase64(bytes));
+    assert(round !== null && round.length === len, `length ${len} round-trips`);
+    assert(round!.every((b, i) => b === bytes[i]), `length ${len} keeps every byte`);
+  }
+
+  // Padding is produced where it belongs.
+  assert(toBase64(new Uint8Array([0])) === 'AA==', `one byte pads twice: ${toBase64(new Uint8Array([0]))}`);
+  assert(toBase64(new Uint8Array([0, 0])) === 'AAA=', 'two bytes pad once');
+  assert(toBase64(new Uint8Array([0, 0, 0])) === 'AAAA', 'three bytes do not pad');
+  assert(toBase64(new Uint8Array(0)) === '', 'nothing encodes to nothing');
+
+  // Matches the reference encoding, not merely itself.
+  assert(toBase64(new Uint8Array([77, 97, 110])) === 'TWFu', 'the classic case');
+  assert(toBase64(Uint8Array.from([255, 255, 255])) === '////', 'the high end of the alphabet');
+  const hello = fromBase64('SGVsbG8=');
+  assert(hello !== null && String.fromCharCode(...hello) === 'Hello', 'decodes a known string');
+
+  assert(fromBase64('not base64!!') === null, 'junk decodes to null, not to wrong bytes');
+  assert(fromBase64(null) !== null && fromBase64(null)!.length === 0, 'null decodes to nothing');
+  assert(fromBase64('AAAA\n AAAA')!.length === 6, 'whitespace is tolerated');
+
+  // The whole point: a sealed envelope survives the trip as text.
+  const sealedAsText = toBase64(sealed.ciphertext);
+  const back2 = fromBase64(sealedAsText);
+  assert(back2 !== null, 'a ciphertext converts to text and back');
+  assert(open(key, { ciphertext: back2!, nonce: fromBase64(toBase64(sealed.nonce))! }) === payload,
+    'and still opens afterwards');
 
   // --- the recovery phrase -------------------------------------------------
 
