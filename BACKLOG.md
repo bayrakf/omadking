@@ -492,7 +492,7 @@ Aufgeteilt in die Punkte 24–30. Voller Plan samt rechtlicher Einordnung:
 
 ---
 
-## 24. [ ] Impressum und Datenschutzerklärung
+## 24. [x] Impressum und Datenschutzerklärung
 
 **Warum:** Beides fehlt im gesamten Code. In Österreich ist ein Impressum für eine kommerzielle App
 Pflicht (§5 ECG, §25 MedienG), eine Datenschutzerklärung ohnehin. Das gilt **heute schon**, ohne
@@ -509,9 +509,13 @@ Konten — die App schickt bereits Gewicht, Ziel und freien Chattext an Google G
 **Fertig wenn:** Beide Flächen sind aus der App erreichbar, nennen jeden realen Datenfluss, und ein
 e2e-Check hält fest, dass sie nichts behaupten, was der Code nicht tut.
 
+**Erledigt** 2026-08-05 — 160 Checks. Inhalt kommt aus `src/lib/legal.ts`, damit die Seite nicht
+hinter dem Code zurückfallen kann. Platzhalter sind sichtbar als Entwurf markiert; die noch
+fehlenden Angaben stehen unten.
+
 ---
 
-## 25. [ ] „Meine Daten" — sehen, mitnehmen, löschen
+## 25. [x] „Meine Daten" — sehen, mitnehmen, löschen
 
 **Warum:** Auskunft und Löschung sind Rechte, keine Freundlichkeiten. Export existiert bereits als
 `saveBackup` in `src/lib/backup-file.ts`, ist aber nirgends als Datenschutzfunktion sichtbar.
@@ -521,6 +525,8 @@ löscht — inklusive Bestätigung, weil es nicht umkehrbar ist. Braucht keinen 
 
 **Fertig wenn:** Löschen leert jeden Schlüssel aus `KEYS`, und ein e2e-Check weist nach, dass die
 App danach im Onboarding startet.
+
+**Erledigt** 2026-08-05 — `eraseEverything()` zählt `KEYS` auf, statt eine Liste zu pflegen.
 
 ---
 
@@ -596,3 +602,23 @@ pro IP. Das als gelöst zu verkaufen wäre falsch.
 
 **Fertig wenn:** README beschreibt, was der Server hält und was nicht, und benennt die Grenze der
 Quota-Durchsetzung.
+
+
+---
+
+## Offen bei dir, nicht im Code
+
+Diese Angaben fehlen in `src/lib/legal.ts`. Solange sie fehlen, zeigt die App auf beiden
+Rechtsflächen einen sichtbaren Entwurfshinweis — sie können nicht versehentlich live gehen.
+
+| Feld | Was gebraucht wird |
+|---|---|
+| `name` | Name oder Firma des Verantwortlichen |
+| `street`, `city` | Anschrift in Wien |
+| `email` | Adresse für Datenschutzanfragen |
+| `companyRegister` | Firmenbuchnummer, falls eingetragen |
+| `authority` | Zuständige Aufsichtsbehörde (§5 ECG) |
+
+Ebenfalls außerhalb des Codes: Abrechnung im Google-Projekt aktivieren (Punkt A1 des Plans) und
+danach die tatsächlichen Bedingungen des Gemini-Bezahl-Tiers prüfen, bevor sie in der
+Datenschutzerklärung behauptet werden.
