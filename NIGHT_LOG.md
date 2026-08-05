@@ -10,6 +10,7 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 4 | Einkaufsliste addiert Mengen | grün — 85 Checks | `433ef1f` |
 | 5 | Planer merkt sich die Session | grün — 91 Checks | `2aa3044` |
 | 6 | Wochenrückblick auf Progress | grün — 98 Checks | `9251136` |
+| 7 | Markdown im Coach rendern | grün — 102 Checks | `2d8ca7c` |
 
 ---
 
@@ -229,3 +230,35 @@ sonst wird ein sichtbarer Fehler gegen einen unsichtbaren getauscht.
 **Inhaltliche Leitplanke für die OMAD-Punkte 14–16** (vom Nutzer bestätigt: praktisch *und*
 evidenzbasiert mit Einschränkungen): keine erfundenen Zahlen, Mechanismus statt Versprechen,
 Näherungen als solche gekennzeichnet, Gegenanzeigen im sichtbaren Bereich statt im Kleingedruckten.
+
+
+---
+
+## Durchlauf 7 — Markdown im Coach rendern
+
+**Ausgangslage:** `git status` sauber bei `3c15cc2`.
+
+**Umgesetzt:**
+- `src/lib/markdown.ts`, rein, mit `demo()`, als sechstes Modul in `check-logic.mjs`.
+- `Markdown`-Komponente in `src/components/ui.tsx`, nutzt `Txt` und die bestehenden Tokens.
+- Nur Coach-Antworten werden geparst. Was der Nutzer tippt, bleibt wörtlich stehen — seine
+  Sternchen gehören ihm.
+
+**Warum kein Paket:** Ein Chatmodell produziert eine schmale Teilmenge. Ein Parser, den man in einer
+Sitzung durchlesen kann, ist hier mehr wert als vollständiges CommonMark — besonders gegen ein
+Bundle von 1,3 MB.
+
+**Die Eigenschaft, auf die es ankommt:** Nichts geht durch den Renderer verloren. Unbalanciertes
+`**`, ein einzelnes Sternchen in „2 * 3 = 6" und Auszeichnung innerhalb von Backticks überleben
+wörtlich. Blöcke sind gedeckelt, damit eine pathologische Antwort das Rendern nicht aufhängt.
+
+**Zwei Funde aus dem Screenshot nach dem Bau:**
+1. Das Bullet-Zeichen rendert in dieser Schrift als winziges Quadrat — der Renderer zeichnet jetzt
+   seinen eigenen Punkt, passend zu den Zutatenpunkten der Rezeptkarte.
+2. Der Kopf brach auf zwei Zeilen um. Jetzt einzeilig.
+
+**Ein Test musste korrigiert werden:** Die Prüfung hing am Bullet-*Zeichen*. Nachdem der Renderer
+einen gezeichneten Punkt nutzt, prüft sie stattdessen die Struktur — dass die Antwort in getrennten
+Blöcken ankommt statt als ein Fließtext.
+
+**Verifikation:** alle vier grün · 102 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
