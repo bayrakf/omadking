@@ -11,6 +11,8 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 5 | Planer merkt sich die Session | grün — 91 Checks | `2aa3044` |
 | 6 | Wochenrückblick auf Progress | grün — 98 Checks | `9251136` |
 | 7 | Markdown im Coach rendern | grün — 102 Checks | `2d8ca7c` |
+| 8 | Antwortformat des Coaches | grün, live nur teilweise | `8a5242c` |
+| 9 | Titel umbrechen statt abschneiden | grün — 103 Checks | `7ed45c3` |
 
 ---
 
@@ -262,3 +264,53 @@ einen gezeichneten Punkt nutzt, prüft sie stattdessen die Struktur — dass die
 Blöcken ankommt statt als ein Fließtext.
 
 **Verifikation:** alle vier grün · 102 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
+
+
+---
+
+## Durchlauf 8 — Antwortformat des Coaches straffen
+
+**Umgesetzt:** `BASE_PROMPT` gibt jetzt eine feste Form vor — ein Antwortsatz mit der Zahl darin,
+höchstens vier Bullets, eine abschließende `Why:`-Zeile. Dazu der Hinweis, dass Markdown gerendert
+wird (fett gehört auf die Zahlen) und dass Überschriften und Tabellen wegbleiben; die Chatblase hat
+dafür keinen Platz.
+
+Die medizinische Ausnahme überschreibt die Form ausdrücklich: bei Schwangerschaft, Diabetes,
+Medikation oder unklaren Symptomen soll das Modell schlicht auf ärztliche Abklärung verweisen,
+statt das in Stichpunkte zu pressen.
+
+**Nur teilweise live bestätigt — und das ist der eigentliche Fund dieses Durchlaufs.**
+
+Mitten in der Prüfung kamen nur noch leere Antworten. Die Diagnose aus Durchlauf „Gemini" zahlte
+sich aus: eine Anfrage genügte für die Ursache.
+
+```
+generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash
+```
+
+Zuerst als Minutenlimit gelesen. Nach 75 Sekunden Pause und **einem** Versuch war es weiterhin
+erschöpft — es ist also ein **Tageslimit von 20 Anfragen**. Mein eigener Testlauf hatte es
+verbraucht.
+
+Ein Fehler von mir dabei: die erste Warteschleife rief die API alle 20 s erneut auf. Jeder Versuch
+setzt das Fenster neu — zu eifriges Wiederholen gegen ein Rate Limit macht es schlimmer, nicht
+besser.
+
+Die eine Antwort, die vor dem Limit durchkam, zeigte die gewünschte Form: Antwortsatz zuerst,
+`- `-Bullets, fette Zahlen, die eigenen 82 kg des Nutzers. Die abschließende `Why:`-Zeile war
+abgeschnitten und bleibt unbestätigt. So im Backlog vermerkt, statt als erledigt behauptet.
+
+---
+
+## Durchlauf 9 — Titel umbrechen statt abschneiden
+
+**Umgesetzt:** Die „Recent plans"-Zeilen im Planer dürfen zwei Zeilen nutzen; die Rezeptkarten-
+Überschrift bekam etwas mehr Zeilenabstand, weil sie bei 20 px mit enger Laufweite nach dem Umbruch
+gedrängt wirkte.
+
+**Der Check prüft die Abwesenheit eines Auslassungszeichens im ganzen Planer**, nicht das
+Vorhandensein eines bestimmten Titels — so überlebt er Textänderungen. Der Stub-Titel im Test ist
+jetzt lang genug, dass die alte Einzeilen-Regel ihn gekappt hätte.
+
+**Verifikation beider Punkte:** alle vier Gates grün · 103 Checks · Bundle-Probe: fünf native
+Module, 0 Treffer.
