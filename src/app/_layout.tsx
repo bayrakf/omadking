@@ -8,9 +8,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Colors } from '@/constants/theme';
 import { isOnboarded } from '@/lib/store';
 import { resync } from '@/lib/notify';
+import ErrorScreen from '@/components/ErrorScreen';
 
 // Surfaces real errors instead of a white screen.
-export { ErrorBoundary } from 'expo-router';
+// expo-router's own boundary keeps the screen from going white, but it reads
+// like a stack trace with a retry button. Same contract, our design.
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  return <ErrorScreen error={error} retry={() => { void retry(); }} />;
+}
 
 /** Routes reachable without a completed profile. */
 const PUBLIC_ROUTES = new Set(['onboarding', 'landing']);

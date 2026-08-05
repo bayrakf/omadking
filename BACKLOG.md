@@ -412,7 +412,7 @@ Ruhe, und die Makro-Anzeige bleibt unverändert.
 
 ---
 
-## 20. [ ] Fehlerbildschirm, der etwas sagt
+## 20. [x] Fehlerbildschirm, der etwas sagt
 
 **Warum:** `_layout.tsx` exportiert die `ErrorBoundary` von expo-router. Sie
 verhindert den weißen Bildschirm, sieht aber aus wie ein Entwicklerwerkzeug und
@@ -426,6 +426,12 @@ bietet keinen Ausweg.
 
 **Fertig wenn:** Ein absichtlich geworfener Fehler zeigt den gestalteten
 Bildschirm, und „Neu laden" bringt die App zurück.
+
+**Erledigt** 2026-08-05 — einmalig gegen eine temporäre Absturzroute geprüft (Bildschirm erscheint,
+Detail erst auf Klick), Route danach entfernt und ihr Verschwinden aus dem Bundle geprüft.
+**Kein dauerhafter e2e-Check:** einen echten Absturz zu erzwingen hieße, eine Route auszuliefern,
+deren einziger Zweck das Abstürzen ist. Die Smoke-Suite deckt weiterhin ab, dass keine echte Route
+weiß bleibt.
 
 ---
 
