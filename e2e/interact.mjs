@@ -265,6 +265,61 @@ export default async function run() {
     await context.close();
   }
 
+  // ------------------------------------------------------ SYNC SENDS CIPHERTEXT
+  section('Sync sends nothing readable');
+  {
+    const HEX = '030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dc';
+    const { context, page } = await newPage(browser, {
+      ...SEED_WITH_PLAN,
+      omadcoach_sync_key: HEX,
+      weight_log: JSON.stringify([{ date: '2026-08-04', weight_kg: 81.7 }]),
+    });
+
+    // Stand in for Supabase so the test never touches the real project. What
+    // matters is what the client puts on the wire, not what the server does.
+    await context.route('**/auth/v1/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: 'stub', refresh_token: 'stub', token_type: 'bearer', expires_in: 3600,
+          user: { id: '11111111-1111-1111-1111-111111111111', is_anonymous: true },
+        }),
+      })
+    );
+
+    const bodies = [];
+    await context.route('**/rest/v1/sync_state*', (route) => {
+      const req = route.request();
+      if (req.method() === 'GET') {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+      }
+      bodies.push(req.postData() ?? '');
+      return route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify([{ user_id: '11111111-1111-1111-1111-111111111111' }]),
+      });
+    });
+
+    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    await page.getByText('Sync now').click();
+    await page.waitForTimeout(3000);
+
+    check(bodies.length > 0, 'the client writes to sync_state', String(bodies.length));
+    const sent = bodies.join('\n');
+
+    // The claim this whole design rests on.
+    for (const secret of ['81.7', 'weight_kg', 'muscle_gain', '2026-08-04', 'onboarding_profile']) {
+      check(!sent.includes(secret), `the request body does not contain "${secret}"`);
+    }
+    check(/"ciphertext"\s*:\s*"[A-Za-z0-9+/=]{40,}"/.test(sent), 'it carries base64 ciphertext instead');
+    check(/"nonce"/.test(sent), 'and a nonce');
+    check(has(await body(page), 'Last synced'), 'and the screen reports it synced');
+    await context.close();
+  }
+
   // -------------------------------------------------------- RECOVERY PHRASE
   section('Recovery phrase');
   {

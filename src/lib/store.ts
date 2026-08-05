@@ -25,6 +25,7 @@ export const KEYS = {
   chatLog: 'chat_log',
   lastSession: 'last_session',
   portions: 'cook_portions',
+  syncedAt: 'sync_last',
 } as const;
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {

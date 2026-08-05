@@ -25,8 +25,11 @@ export type State = Record<string, unknown>;
  * `plan_quota` is excluded for the same reason in miniature: restoring an old
  * backup would roll the counter back. It stays resettable by clearing storage,
  * which the README says plainly — this only stops the easy way.
+ *
+ * `sync_last` is device bookkeeping. Syncing it would make every sync change
+ * the payload, which would look like a change worth syncing.
  */
-export const NEVER_RESTORED: readonly string[] = [KEYS.premium, KEYS.planQuota];
+export const NEVER_RESTORED: readonly string[] = [KEYS.premium, KEYS.planQuota, KEYS.syncedAt];
 
 /** Append-only day logs: a date appearing on either device happened. */
 const DATE_LOGS: readonly string[] = [KEYS.fastLog, KEYS.cookLog];
@@ -204,6 +207,7 @@ export function demo() {
   // actually was: a hand-edited backup granted premium until now.
   assert(NEVER_RESTORED.includes(KEYS.premium), 'entitlement is on the never-restored list');
   assert(NEVER_RESTORED.includes(KEYS.planQuota), 'so is the quota counter');
+  assert(NEVER_RESTORED.includes(KEYS.syncedAt), 'and the sync timestamp, or every sync would dirty the payload');
 
   // --- hostile and empty input ---------------------------------------------
 

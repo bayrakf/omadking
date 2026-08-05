@@ -613,7 +613,7 @@ Datenverlust.
 
 ---
 
-## 29. [ ] Sync
+## 29. [x] Sync
 
 **Was:**
 - `supabase/migrations/002_sync_state.sql`: eine Tabelle aus `user_id`, `ciphertext`, `nonce`,
@@ -627,6 +627,18 @@ Datenverlust.
 
 **Fertig wenn:** Ein e2e-Check fängt die ausgehende Anfrage ab und weist nach, dass **weder Gewicht
 noch Rezepttitel im Rumpf vorkommen**. Das ist die Prüfung, die die ganze Behauptung trägt.
+
+**Erledigt** 2026-08-05 — 178 Checks. Der Check läuft gegen einen gestubbten Server und prüft, was
+der Client tatsächlich auf die Leitung legt: kein `81.7`, kein `weight_kg`, kein `muscle_gain`, kein
+Datum, kein Schlüsselname — stattdessen Base64-Chiffrat und Nonce.
+
+**Migration 004 entfernt die sechs Klartext-Tabellen.** Da ihr Inhalt von außen nicht prüfbar war
+(RLS verbirgt ihn), verweigert die Migration den Dienst mit einer Fehlermeldung, sobald auch nur
+eine Zeile existiert. Sie lief ohne Abbruch durch — das ist der Beleg, dass alle leer waren.
+Danach geprüft: alle sechs melden 404, `sync_state` antwortet.
+
+**Nicht gelöst, bewusst:** Kontolöschung entfernt bisher nur die Zeile in `sync_state`, nicht den
+`auth.users`-Eintrag. Dafür braucht es die Admin-API in einer Edge Function — steht als Punkt 31.
 
 ---
 
@@ -659,3 +671,19 @@ Rechtsflächen einen sichtbaren Entwurfshinweis — sie können nicht versehentl
 Ebenfalls außerhalb des Codes: Abrechnung im Google-Projekt aktivieren (Punkt A1 des Plans) und
 danach die tatsächlichen Bedingungen des Gemini-Bezahl-Tiers prüfen, bevor sie in der
 Datenschutzerklärung behauptet werden.
+
+
+---
+
+## 31. [ ] Konto wirklich löschen
+
+**Warum:** „Serverkopie löschen" entfernt die Zeile in `sync_state`. Der anonyme `auth.users`-Eintrag
+bleibt — eine UUID mit Zeitstempeln, sonst nichts, aber eine Löschung nach Art. 17 sollte ihn
+mitnehmen. Aus dem Client geht das nicht: das Löschen eines Nutzers braucht die Admin-API und damit
+den Service-Role-Key, der niemals ins Bundle darf.
+
+**Was:** Eine Edge Function `delete_account`, die den Aufrufer aus seinem eigenen JWT ermittelt und
+ausschließlich diesen einen Nutzer löscht. Kein Parameter, der eine fremde ID annimmt.
+
+**Fertig wenn:** Nach dem Löschen liefert eine Anmeldung mit derselben Session einen Fehler, und die
+Datenschutzerklärung beschreibt, was genau verschwindet.

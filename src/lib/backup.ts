@@ -12,8 +12,8 @@ import { KEYS } from './store';
 import { normalizeProfile } from './nutrition';
 import { NEVER_RESTORED } from './sync-merge';
 
-const FORMAT = 'omadcoach-backup';
-const VERSION = 1;
+export const FORMAT = 'omadcoach-backup';
+export const VERSION = 1;
 
 export type Backup = {
   format: typeof FORMAT;

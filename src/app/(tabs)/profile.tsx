@@ -19,6 +19,7 @@ import {
   setEnabled as setReminders, scheduledCount, resync,
 } from '@/lib/notify';
 import { exportBackup, importBackup } from '@/lib/backup';
+import { syncNow, lastSyncedAt, deleteRemote } from '@/lib/sync';
 import { saveBackup, pickBackup } from '@/lib/backup-file';
 import type { MealPlan } from '@/lib/ai';
 
@@ -43,6 +44,8 @@ export default function ProfileScreen() {
   const [remindOn, setRemindOn] = useState(false);
   const [queued, setQueued] = useState(0);
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null);
+  const [syncedAt, setSyncedAt] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -97,6 +100,38 @@ export default function ProfileScreen() {
     Alert.alert('Delete all data', msg, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete everything', style: 'destructive', onPress: run },
+    ]);
+  };
+
+  const runSync = async () => {
+    setNotice(null);
+    setSyncing(true);
+    const res = await syncNow();
+    setSyncing(false);
+    if (res.ok) {
+      setSyncedAt(res.at);
+      setNotice({ text: 'Synced.', ok: true });
+    } else {
+      setNotice({ text: res.message, ok: false });
+    }
+  };
+
+  const removeRemote = () => {
+    const run = async () => {
+      const ok = await deleteRemote();
+      setSyncedAt(null);
+      setNotice({
+        text: ok ? 'The server copy is gone. This device keeps its data.' : 'Could not reach the server.',
+        ok,
+      });
+    };
+    const msg =
+      'This deletes the encrypted copy on the server. Your data stays on this device, but other '
+      + 'devices will no longer receive it.';
+    if (Platform.OS === 'web') { if (window.confirm(msg)) run(); return; }
+    Alert.alert('Delete server copy', msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: run },
     ]);
   };
 
@@ -342,6 +377,32 @@ export default function ProfileScreen() {
 
       <Enter index={8}>
         <Card style={{ marginTop: Space.base }}>
+          <Eyebrow style={{ marginBottom: Space.sm }}>Sync across devices</Eyebrow>
+          <Txt variant="small" color={c.textDim}>
+            Your data is encrypted on this device before it is sent. The server stores a blob nobody
+            can read — not us either. That also means only your recovery phrase can restore it.
+          </Txt>
+          <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
+            {syncedAt ? `Last synced ${new Date(syncedAt).toLocaleString()}` : 'Not synced yet'}
+          </Txt>
+          <Button
+            label={syncing ? 'Syncing…' : 'Sync now'}
+            onPress={runSync}
+            disabled={syncing}
+            style={{ marginTop: Space.md }}
+          />
+          {syncedAt && (
+            <Tap onPress={removeRemote} accessibilityLabel="Delete server copy">
+              <View style={s.row}>
+                <Txt variant="small" color={c.negative}>Delete the server copy</Txt>
+              </View>
+            </Tap>
+          )}
+        </Card>
+      </Enter>
+
+      <Enter index={9}>
+        <Card style={{ marginTop: Space.base }}>
           <Tap onPress={() => router.push('/about')} accessibilityLabel="About OMAD">
             <View style={s.row}>
               <Txt variant="body" color={c.textDim}>About OMAD</Txt>
@@ -352,7 +413,6 @@ export default function ProfileScreen() {
             </View>
           </Tap>
           <Divider />
-          {/* The landing page was fully designed and reachable only by URL. */}
           <Tap onPress={() => router.push('/recovery')} accessibilityLabel="Recovery phrase">
             <View style={s.row}>
               <Txt variant="body" color={c.textDim}>Recovery phrase</Txt>
@@ -380,6 +440,7 @@ export default function ProfileScreen() {
             </View>
           </Tap>
           <Divider />
+          {/* The landing page was fully designed and reachable only by URL. */}
           <Tap onPress={() => router.push('/landing')} accessibilityLabel="What this app is for">
             <View style={s.row}>
               <Txt variant="body" color={c.textDim}>What this app is for</Txt>
