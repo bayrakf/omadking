@@ -115,7 +115,7 @@ export default async function run() {
         body: JSON.stringify({
           source: 'ai',
           recipe: {
-            title: 'Stubbed Recovery Plate',
+            title: 'Seared Honey-Sesame Chicken Breast with Jasmine Rice and Charred Tenderstem',
             ingredients: ['400g chicken breast', '500g sweet potato', '2 tbsp olive oil'],
             instructions: '1. Season the chicken. 2. Roast the potato at 200C for 25 minutes.',
             reheat_instructions: '1. Skillet: 4 minutes over medium heat.',
@@ -158,7 +158,10 @@ export default async function run() {
 
     const plan = await body(page);
     check(has(plan, 'Today’s timing'), 'a plan renders');
-    check(has(plan, 'Stubbed Recovery Plate'), 'the generated recipe is used');
+    check(has(plan, 'Charred Tenderstem'), 'the full title is shown, not a clipped prefix');
+    // Titles used to be clipped to one line, turning them into riddles.
+    check(!/\u2026|\.\.\./.test(plan), 'nothing on the planner is truncated with an ellipsis',
+      plan.match(/\S*\u2026/)?.[0] ?? '');
     check(!has(plan, 'standard plate'), 'a generated recipe carries no fallback notice');
     check(/Main meal\s*\d\d:\d\d/.test(plan), 'the main meal time is shown', plan.match(/Main meal\s*\d\d:\d\d/)?.[0]);
     check(has(plan, 'Ingredients'), 'ingredients render');

@@ -288,7 +288,9 @@ export default function PlannerScreen() {
             <Tap key={`${h.date}-${i}`} onPress={() => setPlan(h)} accessibilityLabel={h.recipe.title}>
               <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>
                 <View style={{ flex: 1 }}>
-                  <Txt variant="bodyMedium" numberOfLines={1}>{h.recipe.title}</Txt>
+                  {/* Two lines: at one, "Seared Honey-Sesame Chicken Breast with Jasm…" is a
+                      riddle rather than a title. */}
+                  <Txt variant="bodyMedium" numberOfLines={2}>{h.recipe.title}</Txt>
                   <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
                     {h.date} · {h.total_kcal} kcal · {h.protein_g}g P
                   </Txt>

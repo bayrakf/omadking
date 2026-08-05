@@ -46,7 +46,7 @@ export default function RecipeCard({ plan }: { plan: MealPlan }) {
   return (
     <Card style={{ marginTop: Space.md }}>
       <Eyebrow>{plan.recipe.prep_time_min ?? 30} min prep · cook once, eat tomorrow</Eyebrow>
-      <Txt variant="heading" style={{ marginTop: Space.sm }}>{plan.recipe.title}</Txt>
+      <Txt variant="heading" style={s.recipeTitle}>{plan.recipe.title}</Txt>
 
       {/* Stated plainly rather than hidden: a generic plate with no explanation
           reads as a bad app, not as a service that was briefly unavailable. */}
@@ -101,6 +101,7 @@ export default function RecipeCard({ plan }: { plan: MealPlan }) {
 }
 
 const s = StyleSheet.create({
+  recipeTitle: { marginTop: Space.sm, lineHeight: 27 },
   fallback: {
     flexDirection: 'row', alignItems: 'flex-start',
     borderRadius: Radius.sm, borderWidth: 1,

@@ -197,7 +197,7 @@ mitten in der Prüfung erschöpft war. Der Prompt ist deployt, die vier Gates si
 
 ---
 
-## 9. [ ] Titel und lange Zeilen umbrechen statt abschneiden
+## 9. [x] Titel und lange Zeilen umbrechen statt abschneiden
 
 **Warum:** „Seared Honey-Sesame Chicken Breast with Jasm…" ist kein Titel, das ist ein Rätsel.
 
@@ -205,6 +205,9 @@ mitten in der Prüfung erschöpft war. Der Prompt ist deployt, die vier Gates si
 erlauben; Zeilenhöhen in `Type` prüfen.
 
 **Fertig wenn:** kein Rezepttitel im Build endet auf `…`.
+
+**Erledigt** 2026-08-05 — 103 Checks. Als Regressionsprobe verankert: der Planer darf nirgends
+ein Auslassungszeichen zeigen.
 
 ---
 
