@@ -328,7 +328,33 @@ Gegenanzeigen sind ohne Scrollen sichtbar.
 
 ---
 
-## 17. [ ] Fasten nachtragen und zurücknehmen
+## 17. [ ] Kontingent-Meldung im Client stimmt nicht
+
+**Warum:** `askCoach` in `src/lib/ai.ts` bildet jeden 429 auf „Too many questions right now — try
+again in a minute" ab. Gemini liefert aber zwei verschiedene 429: ein Minutenlimit, das sich in
+Sekunden klärt, und das Tageslimit des Free Tier (20 Anfragen), das sich erst am nächsten Tag
+klärt. Im zweiten Fall ist „try again in a minute" schlicht unwahr, und der Nutzer versucht es
+minutenlang vergeblich.
+
+Beim Testen von Punkt 8 genau so passiert: erst nach 75 Sekunden Pause und einem einzelnen
+Versuch war klar, dass es kein Minutenlimit ist.
+
+Die Edge Function liefert `reason` und Googles `detail` bereits mit — der Client verwirft beides.
+
+**Was:**
+- `describeQuotaError(reason, detail)` in `src/lib/ai.ts`, rein, mit `demo()`. Googles `detail`
+  enthält einen „retry in Xs"-Hinweis; daraus lässt sich Minuten- von Tageslimit ableiten, statt
+  es zu raten.
+- `askCoach` nutzt die Meldung statt der pauschalen Zeile.
+- Dasselbe für den Planer: `generateMealPlan` sagt bei Quota „over its limit right now", ohne zu
+  sagen, ob das Minuten oder einen Tag bedeutet.
+
+**Fertig wenn:** ein Tageslimit sagt nicht „in a minute"; Selbstchecks decken beide 429-Arten und
+eine unbekannte Form ab.
+
+---
+
+## 18. [ ] Fasten nachtragen und zurücknehmen
 
 **Warum:** `unmarkFastComplete()` existiert seit dem Streak-Feature, hat aber
 keine Oberfläche. Ein Fehlklick lässt sich nicht korrigieren, ein vergessener
@@ -347,7 +373,7 @@ genau der Grund, die Fake-Streak damals zu entfernen.
 
 ---
 
-## 18. [ ] Portionen für echtes Vorkochen
+## 19. [ ] Portionen für echtes Vorkochen
 
 **Warum:** Die Rezepte tragen Aufwärm-Anleitungen und die Karte sagt „einmal
 kochen, morgen essen" — die Mengen sind aber für **eine** Portion. Die
@@ -365,7 +391,7 @@ Ruhe, und die Makro-Anzeige bleibt unverändert.
 
 ---
 
-## 19. [ ] Fehlerbildschirm, der etwas sagt
+## 20. [ ] Fehlerbildschirm, der etwas sagt
 
 **Warum:** `_layout.tsx` exportiert die `ErrorBoundary` von expo-router. Sie
 verhindert den weißen Bildschirm, sieht aber aus wie ein Entwicklerwerkzeug und
@@ -382,7 +408,7 @@ Bildschirm, und „Neu laden" bringt die App zurück.
 
 ---
 
-## 20. [ ] Systemschriftgröße respektieren
+## 21. [ ] Systemschriftgröße respektieren
 
 **Warum:** Alle Größen in `Type` sind feste Zahlen. Wer die Systemschrift
 vergrößert — bei einer App für Küche und Fitnessstudio nicht selten —
@@ -400,7 +426,7 @@ Querscroll und ohne abgeschnittene Zeilen.
 
 ---
 
-## 21. [ ] Startseite erreichbar machen und README nachziehen
+## 22. [ ] Startseite erreichbar machen und README nachziehen
 
 **Warum:** `/landing` ist fertig gestaltet, aber aus der App nicht verlinkt und
 für bestehende Nutzer nicht auffindbar. Das README beschreibt außerdem einen
@@ -417,7 +443,7 @@ vorfindet, und die Startseite ist aus der App erreichbar.
 
 ---
 
-## 22. [ ] Konten und Synchronisierung — Entscheidung nötig, nicht autonom bauen
+## 23. [ ] Konten und Synchronisierung — Entscheidung nötig, nicht autonom bauen
 
 **Warum:** Größte offene Lücke. Alles liegt auf dem Gerät; Deinstallieren
 löscht Monate. Das Schema in `supabase/migrations/001_initial_schema.sql`
