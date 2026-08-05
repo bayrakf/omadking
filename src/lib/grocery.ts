@@ -45,14 +45,75 @@ const PANTRY_INDEX = CATEGORIES.findIndex((c) => c.name === 'Seasoning & pantry'
 
 const UNIT = /^[\d.,/\s-]*(?:g|kg|ml|l|tbsp|tsp|cups?|oz|lb|cloves?|slices?|pieces?|handfuls?)?\b\.?\s*/i;
 
-/** Strips leading amounts so "320g chicken breast" and "400g chicken breast" merge. */
-export function dedupeKey(line: string): string {
+/**
+ * Words that describe how something was prepared, not what it is.
+ *
+ * The quantity merging added earlier never fired on real data: "560g boneless
+ * skinless chicken breast" and "480g raw boneless skinless chicken breast,
+ * diced into 2cm cubes" produced different keys, so the shopping list carried
+ * both and you bought chicken twice.
+ *
+ * The real risk here is the opposite one. Over-merging puts a confidently wrong
+ * single line where two were correct, and that is harder to notice than a
+ * duplicate. So this list holds only words that can never distinguish two
+ * things you would buy separately — no ingredient names, no varieties, no
+ * "sweet", no "greek".
+ */
+const PREP_WORDS = new Set([
+  // state
+  'raw', 'fresh', 'frozen', 'dried', 'cooked', 'uncooked', 'canned', 'tinned',
+  // cuts and butchery
+  'boneless', 'skinless', 'trimmed', 'peeled', 'cored', 'deseeded', 'pitted',
+  // knife work
+  'diced', 'chopped', 'sliced', 'minced', 'cubed', 'shredded', 'grated',
+  'crushed', 'halved', 'quartered', 'julienned',
+  // cooking
+  'marinated', 'seasoned', 'steamed', 'roasted', 'grilled', 'baked', 'seared',
+  'boiled', 'poached', 'toasted',
+  // grade and packaging noise
+  'organic', 'ripe', 'plain', 'unsweetened', 'unsalted', 'lean', 'quality',
+  // form words that survive the cut
+  'florets', 'fillet', 'fillets', 'breasts', 'pieces',
+]);
+
+/** Everything after these markers is preparation detail or an alternative. */
+function coreOf(line: string): string {
   return line
+    .split(',')[0]          // "chicken breast, diced into 2cm cubes"
+    .split(/\s+or\s+/i)[0]  // "chicken breast or crispy tofu"
+    .split('(')[0]          // "greek yogurt (0% fat)"
+    .trim();
+}
+
+/**
+ * The identity of a shop item: amount, preparation and alternatives removed.
+ * If stripping everything would leave nothing, the original wins — a key is
+ * worth more than a perfect key.
+ */
+export function dedupeKey(line: string): string {
+  const base = coreOf(String(line ?? ''))
     .toLowerCase()
     .replace(UNIT, '')
-    .replace(/[^a-z\s]/g, ' ')
+    .replace(/[^a-z\s-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  const kept: string[] = [];
+  for (const token of base.split(' ')) {
+    if (!token) continue;
+    const parts = token.split('-').filter(Boolean);
+    if (!parts.length) continue;
+    // "herb-marinated" is preparation as a whole. Listing "herb" on its own
+    // would be wrong — herbs are a real thing to buy — but a compound built
+    // around a preparation word never names a different product.
+    if (parts.some((part) => PREP_WORDS.has(part))) continue;
+    kept.push(...parts);
+  }
+
+  const key = kept.join(' ').trim();
+  // If stripping would leave nothing, keep the line's own words: a rough key
+  // is worth more than none.
+  return key || base.replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -352,6 +413,49 @@ export function demo() {
     { recipe: { ingredients: ['200g oats'] } },
   ]);
   assert(three.length === 1 && three[0] === '450g oats', `three plans sum, got: ${three.join(' | ')}`);
+
+  // --- preparation words ---------------------------------------------------
+
+  // The three lines that shipped as three separate items on a real list.
+  const chicken = named([
+    { recipe: { ingredients: ['560g boneless skinless chicken breast'] } },
+    { recipe: { ingredients: ['480g raw boneless skinless chicken breast, diced into 2cm cubes'] } },
+    { recipe: { ingredients: ['293g Herb-Marinated Chicken Breast or Crispy Tofu'] } },
+  ]);
+  assert(chicken.length === 1, `preparation words no longer split an item, got: ${chicken.join(' | ')}`);
+  assert(chicken[0].startsWith('1.33kg'), `and the amounts add up, got: ${chicken[0]}`);
+
+  assert(dedupeKey('480g raw boneless skinless chicken breast, diced into 2cm cubes') === 'chicken breast', 'the key is the item itself');
+  assert(
+    dedupeKey('293g Herb-Marinated Chicken Breast or Crispy Tofu') === 'chicken breast',
+    `a hyphenated preparation compound drops whole, got: ${dedupeKey('293g Herb-Marinated Chicken Breast or Crispy Tofu')}`
+  );
+  // ...but the ingredient itself must survive when it stands alone.
+  assert(dedupeKey('20g fresh herbs') === 'herbs', `herbs are still buyable, got: ${dedupeKey('20g fresh herbs')}`);
+
+  // --- and the guard that matters more: things that must NOT merge ---------
+
+  const mustDiffer: [string, string][] = [
+    ['350g sweet potato', '350g potato'],
+    ['300g chicken breast', '300g chicken thigh'],
+    ['30ml olive oil', '30ml coconut oil'],
+    ['200g greek yogurt', '200g yogurt'],
+    ['100g brown rice', '100g white rice'],
+    ['2 egg whites', '2 eggs'],
+    ['150g salmon fillet', '150g cod fillet'],
+  ];
+  for (const [a, b] of mustDiffer) {
+    assert(
+      dedupeKey(a) !== dedupeKey(b),
+      `"${a}" and "${b}" must stay separate, both keyed as "${dedupeKey(a)}"`
+    );
+    const pair = named([{ recipe: { ingredients: [a] } }, { recipe: { ingredients: [b] } }]);
+    assert(pair.length === 2, `"${a}" and "${b}" produce two lines, got: ${pair.join(' | ')}`);
+  }
+
+  // Stripping everything must still leave a usable key.
+  assert(dedupeKey('300g diced raw') !== '', 'an all-preparation line still keys to something');
+  assert(dedupeKey('') === '', 'an empty line keys to nothing');
 
   return 'grocery.ts: all checks passed';
 }

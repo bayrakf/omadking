@@ -211,7 +211,7 @@ ein Auslassungszeichen zeigen.
 
 ---
 
-## 10. [ ] Zubereitungswörter beim Zusammenfassen ignorieren
+## 10. [x] Zubereitungswörter beim Zusammenfassen ignorieren
 
 **Warum:** Die Mengen-Summierung aus Punkt 4 greift bei echten Daten nicht. Drei Hähnchen-Zeilen
 ergeben drei Schlüssel:
@@ -234,6 +234,8 @@ Wort enthalten, und beide Nicht-Verschmelzungen gehören als Selbstcheck veranke
 
 **Fertig wenn:** die drei Zeilen oben ergeben eine Position mit korrekter Summe, und die
 Nicht-Verschmelzungen sind geprüft.
+
+**Erledigt** 2026-08-05 — 104 Checks. Sieben Nicht-Verschmelzungen als Selbstcheck verankert.
 
 ---
 

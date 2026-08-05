@@ -313,8 +313,14 @@ export default async function run() {
     // list kept the first amount and dropped the rest, so shopping from it left
     // you short for the second day.
     const twoPlans = [
-      { date: '2026-08-04', recipe: { ingredients: ['320g chicken breast', '2 tbsp olive oil', 'Sea salt, to taste'] } },
-      { date: '2026-08-05', recipe: { ingredients: ['400g chicken breast', '1.2 kg beef', 'Sea salt, to taste'] } },
+      { date: '2026-08-04', recipe: { ingredients: [
+        '320g chicken breast', '2 tbsp olive oil', 'Sea salt, to taste',
+        '350g sweet potato',
+      ] } },
+      { date: '2026-08-05', recipe: { ingredients: [
+        '400g raw boneless skinless chicken breast, diced into 2cm cubes',
+        '1.2 kg beef', 'Sea salt, to taste', '200g potato',
+      ] } },
     ];
     const { context, page } = await newPage(browser, {
       ...SEED,
@@ -324,8 +330,14 @@ export default async function run() {
     await page.waitForTimeout(2000);
 
     const list = await body(page);
-    check(has(list, '720g chicken breast'), '320g and 400g add up to 720g', list.match(/\d+g chicken breast/i)?.[0]);
+    // The wording differs across the two plans; only stripping preparation
+    // words lets the amounts meet at all.
+    check(/720g[^|]*chicken breast/i.test(list), '320g and 400g add up despite different wording',
+      list.match(/\d+g[^\n]{0,40}chicken breast/i)?.[0]);
     check(!has(list, '320g chicken'), 'the first amount is no longer shown on its own');
+    // The guard that matters more than the merge itself.
+    check(has(list, 'sweet potato') && has(list, '200g potato'),
+      'sweet potato and potato stay separate');
     check(has(list, '1.2kg beef'), 'kilograms are kept as kilograms', list.match(/[\d.]+kg beef/i)?.[0]);
     check(has(list, '2 tbsp olive oil'), 'spoons are left as spoons');
     // Duplicated across both plans, but it is one thing to buy.
