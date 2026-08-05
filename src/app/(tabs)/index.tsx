@@ -8,7 +8,7 @@ import {
 import { Icon, type IconName } from '@/components/icons';
 import DayDial from '@/components/DayDial';
 import {
-  dailyTargets, fastingState, formatCountdown, hydrationTargetMl, toMinutes, DEFAULT_PROFILE,
+  dailyTargets, fastingState, fastingStage, formatCountdown, hydrationTargetMl, toMinutes, DEFAULT_PROFILE,
   type UserProfile, type FastingState,
 } from '@/lib/nutrition';
 import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
@@ -135,6 +135,10 @@ export default function DashboardScreen() {
     setWeighedToday(true);
   };
 
+  // Hours into the current fast, for the physiology band.
+  const hoursFasted = fast.isEating ? 0 : fast.fastingHours * (fast.progressPct / 100);
+  const stage = fastingStage(hoursFasted);
+
   const waterPct = Math.min(100, (hydration.ml / waterTarget) * 100);
   const windowLabel =
     `${fast.windowStart}–${fast.windowEnd} · ${fast.fastingHours}H FAST` +
@@ -167,6 +171,21 @@ export default function DashboardScreen() {
           caption={fast.isEating ? `left · closes ${fast.windowEnd}` : `until ${fast.windowStart}`}
         />
         <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
+
+        {/* What is roughly happening right now. Bands are approximate and the
+            caption says so — the transitions are gradual and shift with the
+            last meal, training and the person. */}
+        {!fast.isEating && (
+          <View style={s.stage}>
+            <Txt variant="small" color={c.text} style={s.stageLabel}>
+              {stage.label}
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={s.stageNote}>
+              {stage.note}
+            </Txt>
+            <Eyebrow style={{ textAlign: 'center', marginTop: Space.sm }}>Approximate</Eyebrow>
+          </View>
+        )}
       </Enter>
 
       {/* The one thing to do next, rather than a restatement of state. */}
@@ -360,6 +379,9 @@ export default function DashboardScreen() {
 
 const s = StyleSheet.create({
   head: { paddingTop: Space.sm, paddingBottom: Space.xl },
+  stage: { marginTop: Space.lg, paddingHorizontal: Space.sm },
+  stageLabel: { textAlign: 'center' },
+  stageNote: { textAlign: 'center', marginTop: 4, lineHeight: 19 },
   flex: { flex: 1 },
   rowCentre: { flexDirection: 'row', alignItems: 'center' },
 

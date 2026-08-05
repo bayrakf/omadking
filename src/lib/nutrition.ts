@@ -351,6 +351,68 @@ export function fastingState(p: UserProfile, now: Date = new Date()): FastingSta
  * Seconds only appear inside the final hour. Nineteen hours out they are noise,
  * and the three-part string is too wide to sit inside the dial.
  */
+/**
+ * Roughly what the body is doing at a given point in a fast.
+ *
+ * This is the thing someone opens a fasting app to see, and it is also the
+ * easiest place to overclaim. So the rules here are strict:
+ *
+ * - Bands are **approximate**. The transitions are gradual and move with the
+ *   last meal, training, sleep and the person. The UI says so.
+ * - Describes physiology only. No claim that any of it produces a health
+ *   outcome, no disease language, no numbers presented as measured.
+ * - `note` never promises. It says what is typically happening and, where it
+ *   matters, what that means for how you will feel training.
+ */
+export type FastingStage = {
+  id: 'fed' | 'post-absorptive' | 'glycogen-falling' | 'ketosis-rising' | 'deep';
+  label: string;
+  /** Hours into the fast at which this band begins. */
+  from: number;
+  note: string;
+};
+
+const STAGES: FastingStage[] = [
+  {
+    id: 'fed',
+    label: 'Fed',
+    from: 0,
+    note: 'Still absorbing the last meal. Insulin is high and fuel is coming from the plate.',
+  },
+  {
+    id: 'post-absorptive',
+    label: 'Post-absorptive',
+    from: 4,
+    note: 'Absorption is finishing. The body starts drawing on stored glycogen for glucose.',
+  },
+  {
+    id: 'glycogen-falling',
+    label: 'Glycogen falling',
+    from: 12,
+    note: 'Liver glycogen is running down. Hard efforts start to feel more expensive around here.',
+  },
+  {
+    id: 'ketosis-rising',
+    label: 'Ketones rising',
+    from: 16,
+    note: 'More fuel is coming from fat, and ketones climb. Sodium losses climb with them.',
+  },
+  {
+    id: 'deep',
+    label: 'Deep fast',
+    from: 20,
+    note: 'Fat is the main fuel. Most people feel steady here; some feel cold or flat.',
+  },
+];
+
+/** The band a fast of this many hours falls in. Clamped, never null. */
+export function fastingStage(hoursFasted: number): FastingStage {
+  const h = isFinite(hoursFasted) ? Math.max(0, hoursFasted) : 0;
+  let current = STAGES[0];
+  for (const stage of STAGES) if (h >= stage.from) current = stage;
+  return current;
+}
+
 export function formatCountdown(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);
@@ -583,6 +645,34 @@ export function demo() {
       hydrationTargetMl(normalizeProfile({ weight_kg: 82 })),
     'training days need more fluid'
   );
+
+  // Fasting bands: boundaries, clamping, and the wording rules.
+  assert(fastingStage(0).id === 'fed', 'a fast starts fed');
+  assert(fastingStage(3.9).id === 'fed', 'still fed just before four hours');
+  assert(fastingStage(4).id === 'post-absorptive', 'four hours begins the post-absorptive band');
+  assert(fastingStage(11.9).id === 'post-absorptive', 'and it runs to twelve');
+  assert(fastingStage(12).id === 'glycogen-falling', 'twelve hours begins glycogen falling');
+  assert(fastingStage(16).id === 'ketosis-rising', 'sixteen hours begins ketones rising');
+  assert(fastingStage(20).id === 'deep', 'twenty hours is a deep fast');
+  assert(fastingStage(23.5).id === 'deep', 'and it stays that way to the window');
+  assert(fastingStage(-5).id === 'fed', 'a negative fast clamps to fed');
+  assert(fastingStage(NaN).id === 'fed', 'a NaN fast does not throw');
+  assert(fastingStage(1000).id === 'deep', 'an absurd fast clamps to the last band');
+
+  // Bands must be ordered and contiguous, or a fast could fall through a gap.
+  for (let i = 1; i < STAGES.length; i++) {
+    assert(STAGES[i].from > STAGES[i - 1].from, 'stage boundaries increase');
+  }
+
+  // The wording rule: physiology only, never an outcome or a disease.
+  for (const stage of STAGES) {
+    assert(stage.note.length > 20, `${stage.id} explains itself`);
+    assert(
+      !/cure|prevent|disease|cancer|heal|detox|toxin|guarantee|proven/i.test(stage.note),
+      `${stage.id} makes no health claim`
+    );
+    assert(!/%|\bstudies\b/i.test(stage.note), `${stage.id} invents no statistic`);
+  }
 
   // Protocols are a naming layer over the window length; the maths is unchanged.
   assert(protocolForHours(1)?.id === 'omad-strict', 'a one-hour window is strict OMAD');

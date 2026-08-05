@@ -106,6 +106,14 @@ export default async function run() {
     check(has(await body(page), '0.8 / 3.3 L'), 'hydration survives a reload');
 
     check(has(await body(page), 'Window opens'), 'the day timeline renders');
+
+    // Physiology band under the dial, labelled as approximate.
+    const dash = await body(page);
+    check(/Fed|Post-absorptive|Glycogen falling|Ketones rising|Deep fast/.test(dash),
+      'the dial names the fasting stage', dash.match(/Fed|Post-absorptive|Glycogen falling|Ketones rising|Deep fast/)?.[0]);
+    check(has(dash, 'approximate'), 'and marks it as approximate');
+    // The wording rule, enforced where a user would actually read it.
+    check(!/cure|prevent|detox|proven|guarantee/i.test(dash), 'the dashboard makes no health claim');
     await page.getByLabel(/Log the fast at/).click();
     await page.waitForTimeout(700);
     const after = await body(page);

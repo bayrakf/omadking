@@ -283,7 +283,7 @@ Protokoll und die freie Eingabe ab.
 
 ---
 
-## 14. [ ] Fastenphasen am Zifferblatt
+## 14. [x] Fastenphasen am Zifferblatt
 
 **Warum:** Der Zähler sagt „18h 55m" und sonst nichts. Was zu diesem Zeitpunkt im Körper passiert,
 ist genau das, wofür jemand eine OMAD-App öffnet.
@@ -295,6 +295,8 @@ postabsorptiv, Glykogen zur Neige, Ketose steigend, langes Fasten. Eine Zeile un
 verschieben sich mit letzter Mahlzeit, Training und Person. Kein Versprechen über Gesundheit.
 
 **Fertig wenn:** jedes Band hat Selbstchecks an seinen Grenzen, und kein Text behauptet eine Wirkung.
+
+**Erledigt** 2026-08-05 — 113 Checks. Die Wortwahl-Regel ist als Selbstcheck verankert.
 
 ---
 
