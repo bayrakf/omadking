@@ -15,6 +15,8 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 9 | Titel umbrechen statt abschneiden | grün — 103 Checks | `7ed45c3` |
 | — | Punkt 17 aufgenommen (Quota-Meldung) | Backlog | `93a1d0c` |
 | 10 | Zubereitungswörter ignorieren | grün — 104 Checks | `07290c5` |
+| 11 | Kurzname groß, Zubereitung klein | grün — 106 Checks | `d67760d` |
+| 12 | Einkaufsliste nach Ladenweg | grün — 107 Checks | `c3489be` |
 
 ---
 
@@ -344,3 +346,30 @@ again in a minute", auch wenn das Tageskontingent erschöpft ist. Aufgefallen be
 Punkt 8.
 
 **Verifikation:** alle vier Gates grün · 104 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
+
+
+---
+
+## Durchläufe 11 und 12 — Einkaufsliste fertig aufgeräumt
+
+**Punkt 11:** `splitDisplay()` trennt, was man kauft, von dem, wie es zubereitet wird. Originale
+Groß-/Kleinschreibung und Wortstellung bleiben — das ist Anzeigetext, kein Schlüssel.
+
+**Ein echter Fehler beim Verdrahten:** Die *erste* gesehene Zeile bestimmte die Formulierung der
+Gruppe, und die erste ist meist die kargste. „320g chicken breast" mit „400g raw chicken breast,
+diced into 2cm cubes" zu verschmelzen summierte also korrekt und warf die Zubereitung weg. Jetzt
+gewinnt die informativere Zeile das Detail.
+
+**Punkt 12:** Kategorien in Ladenweg-Reihenfolge. `categorise()` liefert einen Index in dasselbe
+Array, Umsortieren ändert also nur die Ausgabe. Trotzdem abgesichert — eine indexbasierte Zuordnung
+ist genau die Sorte, die still bricht, wenn das Array sich bewegt.
+
+**Ein Test war falsch, nicht der Code:** Der Fixture-Datensatz enthielt kein Gemüse, also fehlte die
+Kategorie „Vegetables & fruit" auf dem Bildschirm, und der erste Check verglich gegen etwas, das gar
+nicht da war. Broccoli ergänzt, statt den Check aufzuweichen.
+
+**Ergebnis am echten Datensatz:** 10 Positionen statt 24. Hähnchen zu einer Zeile zusammengefasst
+(800 g) mit „raw boneless skinless, diced into 2cm cubes" leise darunter, „sweet potato" und
+„potato" getrennt.
+
+**Verifikation:** alle vier Gates grün · 107 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
