@@ -24,6 +24,7 @@ export const KEYS = {
   cookLog: 'cook_log',
   chatLog: 'chat_log',
   lastSession: 'last_session',
+  portions: 'cook_portions',
 } as const;
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -182,6 +183,19 @@ export async function unmarkFastComplete(date = todayISO()): Promise<string[]> {
   const next = (await loadFastLog()).filter((d) => d !== date);
   await writeJSON(KEYS.fastLog, next);
   return next;
+}
+
+// --- Batch size ------------------------------------------------------------
+
+/** How many portions the user cooks at a time. Clamped, never NaN. */
+export async function loadPortions(): Promise<number> {
+  const raw = await AsyncStorage.getItem(KEYS.portions);
+  const n = Number(raw);
+  return n === 2 || n === 3 ? n : 1;
+}
+
+export async function savePortions(n: number): Promise<void> {
+  await AsyncStorage.setItem(KEYS.portions, String(n === 2 || n === 3 ? n : 1));
 }
 
 // --- Last planner input ----------------------------------------------------

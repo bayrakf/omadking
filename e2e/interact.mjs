@@ -138,7 +138,7 @@ export default async function run() {
           source: 'ai',
           recipe: {
             title: 'Seared Honey-Sesame Chicken Breast with Jasmine Rice and Charred Tenderstem',
-            ingredients: ['400g chicken breast', '500g sweet potato', '2 tbsp olive oil'],
+            ingredients: ['450g chicken breast', '500g sweet potato', 'Sea salt, to taste'],
             instructions: '1. Season the chicken. 2. Roast the potato at 200C for 25 minutes.',
             reheat_instructions: '1. Skillet: 4 minutes over medium heat.',
             prep_time_min: 30,
@@ -190,6 +190,18 @@ export default async function run() {
     // The app computed when to eat for weeks without ever saying how.
     check(has(plan, 'Breaking the fast'), 'the plan says how to start eating');
     check(has(plan, 'Start with protein'), 'and protein leads');
+
+    // Cooking for two must not double the day's macro targets.
+    const macrosBefore = plan.match(/(\d+)\s*\n?\s*protein/i)?.[1];
+    await page.getByLabel('2 portions').click();
+    await page.waitForTimeout(800);
+    const doubled = await body(page);
+    check(has(doubled, '900g chicken breast'), 'two portions double the ingredients',
+      doubled.match(/[\d.]+(g|kg) chicken breast/i)?.[0]);
+    check(doubled.match(/(\d+)\s*\n?\s*protein/i)?.[1] === macrosBefore,
+      'but the macro targets stay put — they are for one portion',
+      `${macrosBefore} -> ${doubled.match(/(\d+)\s*\n?\s*protein/i)?.[1]}`);
+    check(has(doubled, 'Sea salt, to taste'), 'and an amount-less line is untouched');
     check(has(plan, 'Method'), 'method steps render');
     check(has(plan, '2 of 3 plans left'), 'the quota decrements', plan.match(/\d OF 3 PLANS LEFT/i)?.[0]);
     check(errors.length === 0, 'no console errors', errors[0] ?? '');

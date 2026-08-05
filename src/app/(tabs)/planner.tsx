@@ -14,7 +14,7 @@ import {
 import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
 import {
   loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
-  loadLastSession, saveLastSession, type Quota,
+  loadLastSession, saveLastSession, loadPortions, savePortions, type Quota,
 } from '@/lib/store';
 import { resync } from '@/lib/notify';
 
@@ -53,6 +53,7 @@ export default function PlannerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [plan, setPlan] = useState<MealPlan | null>(null);
+  const [portions, setPortions] = useState(1);
   const [history, setHistory] = useState<MealPlan[]>([]);
 
   useFocusEffect(
@@ -60,9 +61,10 @@ export default function PlannerScreen() {
       let active = true;
       (async () => {
         const p = await loadProfileOrDefault();
-        const [h, q, last] = await Promise.all([
+        const [h, q, batch, last] = await Promise.all([
           loadPlanHistory<MealPlan>(),
           getQuota(),
+          loadPortions(),
           // Prefill from the last session, falling back to the profile's usual
           // training time when there is nothing stored yet.
           loadLastSession(p.default_training_time),
@@ -76,6 +78,7 @@ export default function PlannerScreen() {
         setTrainingTime(last.start_time);
         setHistory(h);
         setQuota(q);
+        setPortions(batch);
         setMounted(true);
       })();
       return () => { active = false; };
@@ -264,7 +267,11 @@ export default function PlannerScreen() {
       {plan ? (
         <Enter index={5}>
           <Timing plan={plan} />
-          <RecipeCard plan={plan} />
+          <RecipeCard
+            plan={plan}
+            portions={portions}
+            onPortions={(n) => { setPortions(n); savePortions(n); }}
+          />
           <Button
             label={Platform.OS === 'web' ? 'Copy plan' : 'Share plan'}
             icon="share"

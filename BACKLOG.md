@@ -392,7 +392,7 @@ genau der Grund, die Fake-Streak damals zu entfernen.
 `accessibilityState` nicht nach `aria-checked`, und die e2e-Suite hatte kein Selektor-Zeitlimit.
 ---
 
-## 19. [ ] Portionen für echtes Vorkochen
+## 19. [x] Portionen für echtes Vorkochen
 
 **Warum:** Die Rezepte tragen Aufwärm-Anleitungen und die Karte sagt „einmal
 kochen, morgen essen" — die Mengen sind aber für **eine** Portion. Die
@@ -407,6 +407,8 @@ Kernschleife der App fordert etwas, das ihre eigenen Zahlen nicht hergeben.
 
 **Fertig wenn:** 2× verdoppelt jede erkannte Menge, lässt mengenlose Zeilen in
 Ruhe, und die Makro-Anzeige bleibt unverändert.
+
+**Erledigt** 2026-08-05 — 141 Checks.
 
 ---
 

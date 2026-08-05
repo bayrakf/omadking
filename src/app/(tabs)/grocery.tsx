@@ -7,8 +7,8 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Tap, Divider, Empty, PageHeader, Bar, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { loadPlanHistory, KEYS } from '@/lib/store';
-import { buildGroceryList, type GroceryCategory } from '@/lib/grocery';
+import { loadPlanHistory, loadPortions, KEYS } from '@/lib/store';
+import { buildGroceryList, scaleIngredients, type GroceryCategory } from '@/lib/grocery';
 import type { MealPlan } from '@/lib/ai';
 
 export default function GroceryScreen() {
@@ -18,20 +18,28 @@ export default function GroceryScreen() {
   const [mounted, setMounted] = useState(false);
   const [categories, setCategories] = useState<GroceryCategory[]>([]);
   const [copied, setCopied] = useState(false);
+  const [batch, setBatch] = useState(1);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       (async () => {
-        const [plans, raw] = await Promise.all([
+        const [plans, raw, batch] = await Promise.all([
           loadPlanHistory<MealPlan>(),
           AsyncStorage.getItem(KEYS.groceryChecked),
+          loadPortions(),
         ]);
         if (!active) return;
         let checks: Record<string, boolean> = {};
         try { checks = raw ? JSON.parse(raw) : {}; } catch { checks = {}; }
         // Last three plans — a week of prep without dragging in months of history.
-        setCategories(buildGroceryList(plans.slice(0, 3), checks));
+        // Buy for the batch size the planner is set to, not for one portion.
+        const scaled = plans.slice(0, 3).map((plan) => ({
+          ...plan,
+          recipe: { ...plan.recipe, ingredients: scaleIngredients(plan.recipe?.ingredients, batch) },
+        }));
+        setBatch(batch);
+        setCategories(buildGroceryList(scaled, checks));
         setMounted(true);
       })();
       return () => { active = false; };
@@ -102,7 +110,10 @@ export default function GroceryScreen() {
   return (
     <Screen>
       <Enter index={0}>
-        <PageHeader eyebrow={`${done} of ${total} in the basket`} title="Shopping" />
+        <PageHeader
+          eyebrow={`${done} of ${total} in the basket${batch > 1 ? ` · ${batch} portions` : ''}`}
+          title="Shopping"
+        />
         <View style={{ marginTop: -Space.md, marginBottom: Space.lg }}>
           <Bar pct={(done / total) * 100} color={c.accent} />
         </View>

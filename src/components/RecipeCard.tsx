@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
 import { Card, Txt, Eyebrow, Tap, Divider, useTheme } from './ui';
 import { Icon } from './icons';
-import { splitSteps } from '@/lib/grocery';
+import { splitSteps, scaleIngredients } from '@/lib/grocery';
 import type { MealPlan } from '@/lib/ai';
 
 /**
@@ -11,7 +11,15 @@ import type { MealPlan } from '@/lib/ai';
  * free — the state is intentionally not persisted, since it only means anything
  * for the length of one cook.
  */
-export default function RecipeCard({ plan }: { plan: MealPlan }) {
+export default function RecipeCard({
+  plan,
+  portions = 1,
+  onPortions,
+}: {
+  plan: MealPlan;
+  portions?: number;
+  onPortions?: (n: number) => void;
+}) {
   const c = useTheme();
   const [done, setDone] = useState<Record<string, boolean>>({});
   const toggle = (k: string) => setDone((p) => ({ ...p, [k]: !p[k] }));
@@ -73,8 +81,37 @@ export default function RecipeCard({ plan }: { plan: MealPlan }) {
         ))}
       </View>
 
-      <Eyebrow style={s.section}>Ingredients</Eyebrow>
-      {plan.recipe.ingredients.map((item, i) => (
+      <View style={s.ingredientHead}>
+        <Eyebrow>Ingredients</Eyebrow>
+        {onPortions && (
+          <View style={s.portions}>
+            {[1, 2, 3].map((n) => (
+              <Tap
+                key={n}
+                onPress={() => onPortions(n)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: portions === n }}
+                accessibilityLabel={`${n} portions`}
+              >
+                <View
+                  style={[
+                    s.portion,
+                    {
+                      borderColor: portions === n ? c.accent : c.line,
+                      backgroundColor: portions === n ? c.accent : 'transparent',
+                    },
+                  ]}
+                >
+                  <Txt variant="data" color={portions === n ? c.onAccent : c.textDim}>
+                    {n}×
+                  </Txt>
+                </View>
+              </Tap>
+            ))}
+          </View>
+        )}
+      </View>
+      {scaleIngredients(plan.recipe.ingredients, portions).map((item, i) => (
         <View key={`${item}-${i}`} style={s.ingredient}>
           <View style={[s.dot, { backgroundColor: c.lineStrong }]} />
           <Txt variant="body" style={{ flex: 1 }}>{item}</Txt>
@@ -114,6 +151,16 @@ const s = StyleSheet.create({
   },
   macro: { flex: 1, alignItems: 'center' },
   section: { marginTop: Space.lg, marginBottom: Space.md },
+  ingredientHead: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: Space.lg, marginBottom: Space.md,
+  },
+  portions: { flexDirection: 'row', marginRight: -Space.xs },
+  portion: {
+    minWidth: 34, height: 28, borderRadius: Radius.pill, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center', marginRight: Space.xs,
+    paddingHorizontal: Space.sm,
+  },
   ingredient: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
   dot: { width: 4, height: 4, borderRadius: 2, marginRight: Space.md },
   step: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 7 },

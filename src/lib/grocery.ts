@@ -134,6 +134,31 @@ export function splitDisplay(line: string): { core: string; detail: string | nul
 }
 
 /**
+ * Scales the amounts in an ingredient list.
+ *
+ * The recipes carry reheating instructions and the card says "cook once, eat
+ * tomorrow", but the quantities were always for one portion — the app's own
+ * core loop asked for something its numbers did not deliver.
+ *
+ * Only recognised amounts move. "Sea salt, to taste" is not three times as
+ * much salt, and a line whose amount cannot be parsed is left exactly as
+ * written rather than guessed at.
+ */
+export function scaleIngredients(ingredients: unknown, factor: number): string[] {
+  const list = Array.isArray(ingredients) ? ingredients : [];
+  const strings = list.filter((x): x is string => typeof x === 'string');
+  const f = isFinite(factor) && factor > 0 ? factor : 1;
+  if (f === 1) return strings;
+
+  return strings.map((line) => {
+    const amount = parseAmount(line);
+    if (!amount) return line;
+    // formatAmount owns the unit choice, so 2 x 600g becomes 1.2kg on its own.
+    return formatAmount(amount.value * f, amount.canon, amount.rest);
+  });
+}
+
+/**
  * The identity of a shop item: amount, preparation and alternatives removed.
  * If stripping everything would leave nothing, the original wins — a key is
  * worth more than a perfect key.
@@ -468,6 +493,28 @@ export function demo() {
     { recipe: { ingredients: ['200g oats'] } },
   ]);
   assert(three.length === 1 && three[0] === '450g oats', `three plans sum, got: ${three.join(' | ')}`);
+
+  // --- portion scaling -----------------------------------------------------
+
+  const single = ['600g chicken breast', '2 tbsp olive oil', 'Sea salt, to taste', '1.5 kg potato'];
+  const doubled = scaleIngredients(single, 2);
+  assert(doubled[0] === '1.2kg chicken breast', `grams roll up to kilos, got: ${doubled[0]}`);
+  assert(doubled[1] === '4 tbsp olive oil', `spoons double, got: ${doubled[1]}`);
+  assert(doubled[2] === 'Sea salt, to taste', 'an amount-less line is left exactly as written');
+  assert(doubled[3] === '3kg potato', `kilos double, got: ${doubled[3]}`);
+
+  const tripled = scaleIngredients(single, 3);
+  assert(tripled[1] === '6 tbsp olive oil', `three times, got: ${tripled[1]}`);
+
+  assert(scaleIngredients(single, 1)[0] === '600g chicken breast', 'a factor of one changes nothing');
+  assert(scaleIngredients(single, 0).length === 4, 'a nonsense factor falls back to one');
+  assert(scaleIngredients(single, NaN)[0] === '600g chicken breast', 'NaN does not corrupt the list');
+  assert(scaleIngredients(null, 2).length === 0, 'a missing list does not throw');
+  assert(scaleIngredients([null, 5, '200g rice'] as any, 2).length === 1, 'junk entries are dropped');
+
+  // The scaled list still merges correctly downstream.
+  const scaledList = buildGroceryList([{ recipe: { ingredients: scaleIngredients(['300g chicken breast'], 2) } }]);
+  assert(scaledList[0].items[0].name === '600g chicken breast', `scaling feeds the shop list, got: ${scaledList[0].items[0].name}`);
 
   // --- shop order ----------------------------------------------------------
 
