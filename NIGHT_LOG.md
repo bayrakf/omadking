@@ -21,6 +21,8 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 14 | Fastenphasen am Zifferblatt | grün — 113 Checks | `3a1e75d` |
 | 15 | Anpassungsphase aus dem Log | grün — 116 Checks | `86c3822` |
 | 16 | Fastenbrechen + „Über OMAD" | grün — 132 Checks | `1178b10` |
+| 17 | Kontingent-Meldung korrigiert | grün — 134 Checks | `d311f6c` |
+| 18 | Fasten nachtragen/zurücknehmen | grün — 138 Checks | `c052f7d` |
 
 ---
 
@@ -451,3 +453,34 @@ hinterlässt seine eigene Regressionsprobe.
 
 Offen: 17 (Quota-Meldung), 18 (Fasten nachtragen), 19 (Portionen), 20 (Fehlerbildschirm),
 21 (Schriftgröße), 22 (Startseite + README), 23 (Konten — Entscheidung, nicht autonom).
+
+
+---
+
+## Durchläufe 17 und 18
+
+**Punkt 17 — die Meldung sagt jetzt die Wahrheit.** `askCoach` verwarf den Antwortkörper komplett
+und machte aus jedem 429 „try again in a minute". Gemini hat mindestens zwei Rate Limits, und sie
+sind nicht dasselbe.
+
+**Der „retry in Xs"-Hinweis taugt nicht zur Unterscheidung** — beim Tageslimit meldete er hier unter
+einer Minute. Das steht als eigener Selbstcheck, weil genau das die Falle ist. Der Metrikname in
+Googles `detail` unterscheidet sie; eine unbekannte Form macht gar keine Zeitaussage, statt zu raten.
+
+**Punkt 18 — der Streak lässt sich korrigieren.** `unmarkFastComplete` existierte seit dem
+Streak-Feature, ohne dass irgendetwas es aufrief. Ein Fehltipp war nicht rücknehmbar, ein vergessener
+Tag nicht nachtragbar. Ein unwahrer Streak ist schlechter als keiner — genau deshalb war der
+erfundene entfernt worden.
+
+**Zwei Funde, die nicht das Feature waren:**
+
+1. **RN-Web übersetzt `accessibilityState` in dieser Version nicht nach `aria-checked`.** Jede
+   Checkbox der App — die Einkaufsliste eingeschlossen — sah für einen Screenreader gleich aus,
+   egal ob angehakt oder nicht. `Tap` setzt das Attribut jetzt direkt.
+2. **Die e2e-Suite hatte kein Selektor-Zeitlimit.** Ein Selektor, der nichts trifft, wartete ewig und
+   hing die ganze Suite zehn Minuten auf, statt zu scheitern. Ein falscher Test soll laut sein, nicht
+   langsam. Jetzt 15 s.
+
+Beide fand ich nur, weil der eigene Test hängen blieb — nicht durch Nachdenken über Barrierefreiheit.
+
+**Verifikation:** alle vier Gates grün · 138 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
