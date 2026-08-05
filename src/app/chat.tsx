@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
-import { Txt, Eyebrow, Tap, useTheme, useReducedMotion } from '@/components/ui';
+import { Txt, Eyebrow, Tap, Markdown, useTheme, useReducedMotion } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { askCoach, conversationOf, type ChatTurn, type MealPlan } from '@/lib/ai';
 import { loadProfile, loadLastPlan, loadChat, saveChat, clearChat, todayISO } from '@/lib/store';
@@ -134,7 +134,7 @@ export default function ChatScreen() {
         </Tap>
         <View style={s.flex}>
           <Txt variant="subheading">Coach</Txt>
-          <Eyebrow>Nutrition guidance · not medical advice</Eyebrow>
+          <Eyebrow numberOfLines={1}>Not medical advice</Eyebrow>
         </View>
         {messages.length > 1 && (
           <Tap onPress={wipe} accessibilityLabel="Clear conversation">
@@ -168,7 +168,11 @@ export default function ChatScreen() {
                     : { backgroundColor: c.accentWash, borderColor: c.accentDim, alignSelf: 'flex-end' },
                 ]}
               >
-                <Txt variant="body" color={m.failed ? c.negative : c.text}>{m.text}</Txt>
+                {ai && !m.failed ? (
+                  <Markdown text={m.text} />
+                ) : (
+                  <Txt variant="body" color={m.failed ? c.negative : c.text}>{m.text}</Txt>
+                )}
               </View>
             );
           })}

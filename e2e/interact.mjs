@@ -340,7 +340,13 @@ export default async function run() {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ response: 'Aim for 3 to 5 grams of sodium a day.' }),
+        body: JSON.stringify({
+          response:
+            'Aim for **3 to 5 grams** of sodium a day.\n\n' +
+            '* **Sodium:** 3,000-5,000 mg\n' +
+            '* **Potassium:** 1,000-2,000 mg\n\n' +
+            '**Why:** Fasting lowers insulin.',
+        }),
       })
     );
 
@@ -350,7 +356,22 @@ export default async function run() {
     await page.getByLabel('Message').fill('How much sodium?');
     await page.getByLabel('Send').click();
     await page.waitForTimeout(2500);
-    check(has(await body(page), '3 to 5 grams'), 'the coach answers');
+    const answered = await body(page);
+    check(has(answered, '3 to 5 grams'), 'the coach answers');
+    // The regression this guards: markdown used to print verbatim on screen.
+    check(!answered.includes('**'), 'no literal asterisks are shown',
+      answered.match(/\*\*[^*]{0,20}/)?.[0] ?? '');
+    check(!/(^|\s)\* /.test(answered), 'no literal bullet markers are shown');
+    check(has(answered, 'Sodium:') && has(answered, 'Potassium:'), 'the bullet content survives');
+    // Structure, not the glyph: the renderer draws its own dot, so asserting a
+    // bullet character would pin the test to an implementation detail.
+    const blocks = await page.evaluate(() => {
+      const labelled = [...document.querySelectorAll('[aria-label]')]
+        .map((el) => el.getAttribute('aria-label') ?? '')
+        .filter((l) => l.includes('Sodium'));
+      return labelled[0]?.split('\n').filter(Boolean).length ?? 0;
+    });
+    check(blocks >= 4, 'the answer renders as separate blocks, not one run-on', String(blocks));
 
     // The regression this guards: the thread used to reset on every open, so
     // askCoach received an empty history and the coach could not follow up.

@@ -157,7 +157,7 @@ Wochengrenze ab; Karte rendert in beiden Themes ohne Querscroll.
 
 ---
 
-## 7. [ ] Markdown im Coach rendern
+## 7. [x] Markdown im Coach rendern
 
 **Warum:** Der Coach antwortet in Markdown, `src/app/chat.tsx` setzt das in ein einfaches `<Txt>`.
 Auf dem Bildschirm steht wörtlich `**sodium, potassium, and magnesium**` und
@@ -174,6 +174,8 @@ Auf dem Bildschirm steht wörtlich `**sodium, potassium, and magnesium**` und
 
 **Fertig wenn:** keine literalen `**` oder `* ` mehr im Chat, als e2e-Check mit gestubbter
 Markdown-Antwort verankert.
+
+**Erledigt** 2026-08-05 — 102 Checks.
 
 ---
 

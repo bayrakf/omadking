@@ -18,7 +18,8 @@ import {
   type TextStyle,
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
-import { Colors, Type, Space, Radius, Motion, MaxContentWidth, TabBarClearance, type ThemePalette } from '@/constants/theme';
+import { Colors, Type, Space, Radius, Motion, Font, MaxContentWidth, TabBarClearance, type ThemePalette } from '@/constants/theme';
+import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
 import { Icon, type IconName } from './icons';
 
 export function useTheme(): ThemePalette {
@@ -149,11 +150,79 @@ export function Txt({
   );
 }
 
+/**
+ * Renders what the coach writes.
+ *
+ * The model replies in Markdown; printing it verbatim put literal `**` and
+ * `* ` on screen. Blocks are spaced with margins because `gap` breaks this
+ * RN-Web version, and the whole reply carries one accessibility label so a
+ * screen reader hears prose rather than a list of fragments.
+ */
+export function Markdown({ text, color }: { text: string; color?: string }) {
+  const c = useTheme();
+  const blocks = React.useMemo(() => parseMarkdown(text), [text]);
+  const fg = color ?? c.text;
+
+  // Nothing recognised at all — show the source rather than an empty bubble.
+  if (blocks.length === 0) {
+    return <Txt variant="body" color={fg}>{text}</Txt>;
+  }
+
+  const inline = (spans: Span[]) =>
+    spans.map((s, i) => {
+      if (s.type === 'bold') return <Text key={i} style={{ fontFamily: Font.bodySemi }}>{s.text}</Text>;
+      if (s.type === 'italic') return <Text key={i} style={{ fontStyle: 'italic' }}>{s.text}</Text>;
+      if (s.type === 'code') {
+        return (
+          <Text key={i} style={{ fontFamily: Font.mono, fontSize: 13, color: c.accent }}>
+            {s.text}
+          </Text>
+        );
+      }
+      return <Text key={i}>{s.text}</Text>;
+    });
+
+  return (
+    <View accessible accessibilityLabel={plainText(blocks)}>
+      {blocks.map((b: Block, i) => {
+        const first = i === 0;
+        if (b.type === 'heading') {
+          return (
+            <Text
+              key={i}
+              style={[Type.subheading, { color: fg, marginTop: first ? 0 : Space.base, marginBottom: Space.xs }]}
+            >
+              {inline(b.spans)}
+            </Text>
+          );
+        }
+        if (b.type === 'bullet' || b.type === 'ordered') {
+          return (
+            <View key={i} style={[styles.mdRow, { marginTop: first ? 0 : Space.sm }]}>
+              {b.type === 'ordered' ? (
+                <Text style={[Type.body, { color: c.textDim, width: 22 }]}>{b.index}.</Text>
+              ) : (
+                <View style={[styles.mdDot, { backgroundColor: c.textFaint }]} />
+              )}
+              <Text style={[Type.body, { color: fg, flex: 1 }]}>{inline(b.spans)}</Text>
+            </View>
+          );
+        }
+        return (
+          <Text key={i} style={[Type.body, { color: fg, marginTop: first ? 0 : Space.md }]}>
+            {inline(b.spans)}
+          </Text>
+        );
+      })}
+    </View>
+  );
+}
+
 /** Uppercase mono micro-label. Carries data, never decoration. */
-export function Eyebrow({ children, color, style }: { children: React.ReactNode; color?: string; style?: StyleProp<TextStyle> }) {
+export function Eyebrow({ children, color, style, numberOfLines }: { children: React.ReactNode; color?: string; style?: StyleProp<TextStyle>; numberOfLines?: number }) {
   const c = useTheme();
   return (
-    <Text style={[Type.eyebrow, { color: color ?? c.textFaint, textTransform: 'uppercase' }, style]}>
+    <Text numberOfLines={numberOfLines} style={[Type.eyebrow, { color: color ?? c.textFaint, textTransform: 'uppercase' }, style]}>
       {children}
     </Text>
   );
@@ -512,6 +581,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  mdRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  mdDot: { width: 4, height: 4, borderRadius: 2, marginTop: 9, marginRight: 10 },
   notice: {
     flexDirection: 'row',
     alignItems: 'center',
