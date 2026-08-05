@@ -20,7 +20,7 @@
  * number derived from it.
  */
 
-import { weeklyTrend } from './nutrition';
+import { weeklyTrend, fastingState, toMinutes, type UserProfile } from './nutrition';
 import { parseISO, todayISO } from './dates';
 
 /** Standard approximation for a kilogram of body mass. */
@@ -153,6 +153,108 @@ export function effectiveMaintenance(
 ): number | undefined {
   if (!premium) return undefined;
   return measuredMaintenance(intakeLog, weights, estimateKcal, today).kcal ?? undefined;
+}
+
+/**
+ * Which day the app should ask about, if any.
+ *
+ * The first version asked only in the six hours after the window closed, so
+ * anyone who opened the app next morning silently lost the day. The fix is to
+ * name the day rather than the moment: every eating window that has closed
+ * belongs to a date, and that date is answerable until the next one closes.
+ *
+ * The date comes from winding the clock back by "minutes since the window
+ * opened", which `fastingState` already computes in a way that survives a
+ * window crossing midnight. No date arithmetic of its own, no special cases.
+ */
+export type IntakeQuestion = { date: string; hoursSinceClose: number };
+
+export function intakeQuestionFor(
+  profile: UserProfile,
+  intakeLog: unknown,
+  now: Date = new Date()
+): IntakeQuestion | null {
+  const fast = fastingState(profile, now);
+  // Nothing to report on while the window is still open.
+  if (fast.isEating) return null;
+
+  const startMin = toMinutes(profile.omad_window_start);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const sinceOpen = ((nowMin - startMin) % 1440 + 1440) % 1440;
+
+  const openedAt = new Date(now.getTime() - sinceOpen * 60000);
+  const date = todayISO(openedAt);
+
+  const answered = (Array.isArray(intakeLog) ? intakeLog : []).some(
+    (e: any) => e && e.date === date
+  );
+  if (answered) return null;
+
+  const windowMin = profile.omad_window_hours * 60;
+  return { date, hoursSinceClose: Math.round(((sinceOpen - windowMin) / 60) * 10) / 10 };
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * A stall, told as arithmetic rather than as a verdict.
+ *
+ * People quit at plateaus, and usually because they read a flat line as
+ * failure. It is not: holding weight while eating X means X *is* maintenance
+ * now. The number moved, not the person's discipline — and saying that with the
+ * new figure attached is the difference between someone continuing and someone
+ * deleting the app.
+ */
+export type PlateauRead = {
+  stalled: boolean;
+  days: number;
+  /** What to eat now, given the stall. Null when there is not enough to say. */
+  newTarget: number | null;
+  note: string;
+};
+
+/** A stall has to last this long before it is a stall and not a fortnight. */
+export const PLATEAU_DAYS = 14;
+
+export function readPlateau(
+  intakeLog: unknown,
+  weights: unknown,
+  goal: string,
+  deficitKcal: number,
+  today: string = todayISO()
+): PlateauRead {
+  const none: PlateauRead = { stalled: false, days: 0, newTarget: null, note: '' };
+  if (goal !== 'weight_loss') return none;
+
+  const trend = readTrend(weights, today);
+  if (trend.state !== 'steady') return none;
+
+  const weighed = withinWindow<WeighIn>(weights, today).sort((a, b) => a.date.localeCompare(b.date));
+  const days = weighed.length >= 2 ? daysBetween(weighed[0].date, weighed[weighed.length - 1].date) : 0;
+  if (days < PLATEAU_DAYS) return none;
+
+  // A flat trend means intake and maintenance have met, so the measurement is
+  // at its most trustworthy here — no estimate needed to bound it.
+  const measured = measuredMaintenance(intakeLog, weights, 0, today);
+  if (measured.kcal === null) {
+    return {
+      stalled: true,
+      days,
+      newTarget: null,
+      note: `Weight has held for ${days} days. That usually means maintenance has moved rather `
+        + `than that anything went wrong — ${measured.missing} would let the app say by how much.`,
+    };
+  }
+
+  const newTarget = Math.round((measured.kcal - Math.abs(deficitKcal)) / 10) * 10;
+  return {
+    stalled: true,
+    days,
+    newTarget,
+    note: `Weight has held for ${days} days while you ate about ${measured.kcal} kcal. That is what `
+      + `maintenance costs now — the number moved, not your discipline. Eating ${newTarget} puts the `
+      + `deficit back.`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -314,6 +416,76 @@ export function demo() {
   assert(effectiveMaintenance(intake14, losing, 2400, true, TODAY) !== undefined, 'premium gets the measured figure');
   assert(effectiveMaintenance(intake14, losing, 2400, false, TODAY) === undefined, 'without premium the target does not move');
   assert(effectiveMaintenance([], [], 2400, true, TODAY) === undefined, 'and premium without data still gets nothing');
+
+  // --- which day to ask about ----------------------------------------------
+
+  const prof = { omad_window_start: '18:00', omad_window_hours: 2, weight_kg: 85, height_cm: 183,
+    age: 34, sex: 'male', fitness_level: 'advanced', goal: 'weight_loss',
+    default_training_time: '19:00' } as any;
+
+  const at = (h: number, m = 0, dayOffset = 0) => {
+    const dt = new Date(2026, 7, 20, h, m, 0);
+    dt.setDate(dt.getDate() + dayOffset);
+    return dt;
+  };
+
+  // Inside the window there is nothing to report yet.
+  assert(intakeQuestionFor(prof, [], at(19)) === null, 'no question while still eating');
+
+  // Just after it closes, and hours later, and next morning: same day, still asked.
+  const justAfter = intakeQuestionFor(prof, [], at(20, 30));
+  assert(justAfter?.date === '2026-08-20', `asked right after closing: ${justAfter?.date}`);
+  assert(intakeQuestionFor(prof, [], at(23))?.date === '2026-08-20', 'still asked late that night');
+  // This is the case the first version lost entirely.
+  assert(intakeQuestionFor(prof, [], at(9, 0, 1))?.date === '2026-08-20',
+    'and still asked next morning, about the right day');
+  assert(intakeQuestionFor(prof, [], at(17, 30, 1))?.date === '2026-08-20',
+    'right up until the next window opens');
+
+  // Once answered it stops asking, and the next day is its own question.
+  assert(intakeQuestionFor(prof, [{ date: '2026-08-20', factor: 1, target_kcal: 1800 }], at(9, 0, 1)) === null,
+    'an answered day is not asked again');
+  assert(intakeQuestionFor(prof, [{ date: '2026-08-20', factor: 1, target_kcal: 1800 }], at(21, 0, 1))?.date
+    === '2026-08-21', 'the following day is asked on its own');
+
+  // A window crossing midnight still lands on the day it opened.
+  const lateProf = { ...prof, omad_window_start: '23:00', omad_window_hours: 2 };
+  assert(intakeQuestionFor(lateProf, [], at(2, 0, 1))?.date === '2026-08-20',
+    'a window opened before midnight belongs to that day');
+  assert(intakeQuestionFor(lateProf, [], at(23, 30)) === null, 'and is not asked while still open');
+
+  // --- the plateau ---------------------------------------------------------
+
+  const flat14 = Array.from({ length: 8 }, (_, i) => ({ date: day(14 - i * 2), weight_kg: 85 }));
+  const intakeFlat = Array.from({ length: 14 }, (_, i) => ({
+    date: day(13 - i), factor: 1, target_kcal: 2100,
+  }));
+
+  const stall = readPlateau(intakeFlat, flat14, 'weight_loss', 500, TODAY);
+  assert(stall.stalled, 'a fortnight of held weight is a stall');
+  assert(stall.days >= 14, `and reports how long: ${stall.days}`);
+  assert(stall.newTarget !== null && Math.abs(stall.newTarget - 1600) <= 40,
+    `with a target that puts the deficit back: ${stall.newTarget}`);
+  assert(/not your discipline/.test(stall.note), 'and says whose fault it is not');
+
+  // Still losing is not a stall; nor is a short flat patch.
+  assert(!readPlateau(intake14, losing, 'weight_loss', 500, TODAY).stalled, 'losing weight is not a stall');
+  const shortFlat = Array.from({ length: 4 }, (_, i) => ({ date: day(6 - i * 2), weight_kg: 85 }));
+  assert(!readPlateau(intakeFlat, shortFlat, 'weight_loss', 500, TODAY).stalled, 'a week flat is not a plateau');
+
+  // Muscle gain is a different conversation entirely.
+  assert(!readPlateau(intakeFlat, flat14, 'muscle_gain', 500, TODAY).stalled, 'gaining is not judged here');
+
+  // Stalled but unmeasurable: say so, do not invent a target.
+  const noIntake = readPlateau([], flat14, 'weight_loss', 500, TODAY);
+  assert(noIntake.stalled && noIntake.newTarget === null, 'a stall without intake data gives no number');
+  assert(/would let the app say/.test(noIntake.note), 'and explains what is missing');
+
+  // Same wording discipline as everywhere else.
+  for (const note of [stall.note, noIntake.note]) {
+    assert(!/cure|prevent|detox|proven|guarantee/i.test(note), 'no health claim in a plateau note');
+    assert(!/\bstudies\b|%/.test(note), 'no invented statistic in a plateau note');
+  }
 
   // --- reading the trend ---------------------------------------------------
 

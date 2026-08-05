@@ -17,7 +17,7 @@ import {
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
   saveProfile, recordIntake, intakeFor, loadIntakeLog, isPremium, todayISO, type Hydration,
 } from '@/lib/store';
-import { readTrend, effectiveMaintenance } from '@/lib/energy';
+import { readTrend, effectiveMaintenance, intakeQuestionFor, type IntakeQuestion } from '@/lib/energy';
 import type { MealPlan } from '@/lib/ai';
 import { resync } from '@/lib/notify';
 
@@ -46,7 +46,7 @@ export default function DashboardScreen() {
   const [weighedToday, setWeighedToday] = useState(true);
   const [weightInput, setWeightInput] = useState('');
   const [dateLabel, setDateLabel] = useState('');
-  const [answeredToday, setAnsweredToday] = useState(true);
+  const [question, setQuestion] = useState<IntakeQuestion | null>(null);
   const [trend, setTrend] = useState<ReturnType<typeof readTrend> | null>(null);
   const [measured, setMeasured] = useState<number | undefined>(undefined);
 
@@ -56,11 +56,11 @@ export default function DashboardScreen() {
   }, []);
 
   const refresh = useCallback(async () => {
-    const [p, h, fl, cl, last, weights, todaysAnswer, intake, prem] = await Promise.all([
+    const [p, h, fl, cl, last, weights, intake, prem] = await Promise.all([
       loadProfileOrDefault(), loadHydration(), loadFastLog(), loadCookLog(),
-      loadLastPlan<MealPlan>(), loadWeightLog(), intakeFor(), loadIntakeLog(), isPremium(),
+      loadLastPlan<MealPlan>(), loadWeightLog(), loadIntakeLog(), isPremium(),
     ]);
-    setAnsweredToday(todaysAnswer !== null);
+    setQuestion(intakeQuestionFor(p, intake));
     setTrend(readTrend(weights));
     setMeasured(effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem));
     setProfile(p);
@@ -131,8 +131,11 @@ export default function DashboardScreen() {
    * metabolism better than a precise diary nobody keeps up.
    */
   const answerIntake = async (factor: number | null) => {
-    if (factor !== null) await recordIntake(factor, kcal);
-    setAnsweredToday(true);
+    if (!question) return;
+    // Recorded against the day the window belonged to, not against now — the
+    // answer is just as valid the morning after.
+    if (factor !== null) await recordIntake(factor, kcal, question.date);
+    setQuestion(null);
   };
 
   const logWeight = async () => {
@@ -205,14 +208,16 @@ export default function DashboardScreen() {
         )}
       </Enter>
 
-      {/* Asked once, just after the window closes — hoursFasted is small only
-          in the hours after eating, which is exactly when the answer is easy
-          to give. Miss it and the day simply does not count: the measurement
-          needs eight days out of twenty-one, not a perfect record. */}
-      {!fast.isEating && !answeredToday && hoursFasted < 6 && (
+      {/* Asked about the day the eating window belonged to, and stays askable
+          until the next one closes. The first version only offered it for six
+          hours after the window shut, so anyone opening the app next morning
+          lost that day without ever being asked. */}
+      {question && (
         <Enter index={2}>
           <Card style={{ marginTop: Space.xl }} tone="accent">
-            <Eyebrow color={c.accent}>How did today go?</Eyebrow>
+            <Eyebrow color={c.accent}>
+              {question.date === todayISO() ? 'How did today go?' : 'How did yesterday go?'}
+            </Eyebrow>
             <Txt variant="body" style={{ marginTop: Space.sm }}>
               Roughly, against the {kcal} kcal target. This is what lets the app measure what your
               body actually costs.

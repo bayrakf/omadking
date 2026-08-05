@@ -8,7 +8,7 @@ import {
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, type UserProfile } from '@/lib/nutrition';
-import { measuredMaintenance, type Measurement } from '@/lib/energy';
+import { measuredMaintenance, readPlateau, type Measurement, type PlateauRead } from '@/lib/energy';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
@@ -80,6 +80,7 @@ export default function ProgressScreen() {
   const [adapt, setAdapt] = useState<AdaptationStage | null>(null);
   const [week, setWeek] = useState<FastDay[]>([]);
   const [measured, setMeasured] = useState<Measurement | null>(null);
+  const [plateau, setPlateau] = useState<PlateauRead | null>(null);
   const [premium, setPremium] = useState(false);
   const [fasts, setFasts] = useState<string[]>([]);
 
@@ -97,6 +98,8 @@ export default function ProgressScreen() {
         setPremium(prem);
         // The formula's answer is only a bound and a comparison here.
         setMeasured(measuredMaintenance(intake, log, dailyTargets(p, null).maintenance_kcal));
+        // 500 is the deficit dailyTargets applies for weight loss.
+        setPlateau(readPlateau(intake, log, p.goal, 500));
         setReview(weeklyReview(fasts, cooks, log, plans));
         setAdapt(adaptationStage(fasts));
         setFasts(fasts);
@@ -176,6 +179,33 @@ export default function ProgressScreen() {
           title="Progress"
         />
       </Enter>
+
+      {/* The moment people quit. A flat line reads as failure; it is not one,
+          and the arithmetic says so. Above the measurement card because when
+          this fires it is the more urgent thing on the screen. */}
+      {plateau?.stalled && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }} tone="ember">
+            <View style={s.split}>
+              <Eyebrow color={c.ember}>Weight has held</Eyebrow>
+              <Txt variant="data" color={c.textFaint}>{plateau.days} days</Txt>
+            </View>
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+              {premium || plateau.newTarget === null
+                ? plateau.note
+                : 'Holding this long usually means maintenance has moved rather than that anything '
+                  + 'went wrong. Premium works out the new figure from your own data.'}
+            </Txt>
+            {!premium && plateau.newTarget !== null && (
+              <Button
+                label="See the new target"
+                onPress={() => router.push('/paywall')}
+                style={{ marginTop: Space.md }}
+              />
+            )}
+          </Card>
+        </Enter>
+      )}
 
       {/* The reason to pay, and it has to be visible before paying: the app
           says plainly that it measured something, and what it means is the

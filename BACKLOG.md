@@ -736,3 +736,33 @@ dass dünne Daten eine Nachfrage erzeugen statt einer Zahl.
 **Nebenher aufgeräumt:** Das Profil war auf zehn Karten angewachsen — ich hatte Feature um Feature
 angehängt. Jetzt getrennt in „Du" und „App", der Wiederherstellungssatz sitzt beim Sync statt bei
 den Rechtstexten. Und auf Progress führt jetzt die Messung statt „nichts geloggt".
+
+
+---
+
+## 33. [x] Das Plateau aussprechen und die Abendfrage retten
+
+**Zwei Lücken aus Punkt 32, beide echt.**
+
+**Die Abendfrage verlor Tage.** Sie erschien nur, solange `hoursFasted < 6` — also sechs Stunden
+nach Fensterschluss. Wer am nächsten Morgen in die App schaute, wurde nie gefragt und der Tag fiel
+aus der Messung. `intakeQuestionFor` benennt jetzt den **Tag** statt den Moment: das Fenster, das
+zuletzt geöffnet hat, ist bis zum nächsten Fensterschluss beantwortbar.
+
+Das Datum kommt aus dem Zurückdrehen der Uhr um „Minuten seit Fensteröffnung" — eine Größe, die
+`fastingState` bereits mitternachtsfest rechnet. Kein eigenes Datumsrechnen, keine Sonderfälle.
+Als Selbstcheck verankert: gefragt direkt danach, spät nachts, am nächsten Morgen und bis kurz vor
+dem nächsten Fenster; nicht mehr nach der Antwort; und ein Fenster ab 23:00 gehört zum Tag, an dem
+es öffnete.
+
+**Das Plateau war erkannt, aber stumm.** `readTrend` lieferte `steady`, ohne dass jemand es erfuhr.
+`readPlateau` sagt es jetzt als Rechnung statt als Urteil: „Das Gewicht hält seit 16 Tagen bei rund
+2.100 kcal. Das ist, was Erhaltung jetzt kostet — die Zahl hat sich bewegt, nicht deine Disziplin.
+1.600 setzt das Defizit zurück."
+
+Genau das ist der Moment, in dem Menschen aufhören, und der Grund ist fast immer, dass sie eine
+flache Linie als Versagen lesen. Sie ist keins.
+
+**Premium-Grenze wie zuvor:** der Stillstand wird allen genannt, die neue Zahl kostet.
+
+**Erledigt** 2026-08-05 — 192 Checks.

@@ -265,6 +265,51 @@ export default async function run() {
     await context.close();
   }
 
+  // ---------------------------------------------------------------- PLATEAU
+  section('Plateau');
+  {
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    // Sixteen days of held weight while eating ~2100.
+    const flat = Array.from({ length: 8 }, (_, i) => ({ id: `f${i}`, date: day(16 - i * 2), weight_kg: 85 }));
+    const intake = Array.from({ length: 14 }, (_, i) => ({ date: day(14 - i), factor: 1, target_kcal: 2100 }));
+    const seed = {
+      ...SEED,
+      onboarding_profile: JSON.stringify({
+        weight_kg: 85, height_cm: 183, age: 34, sex: 'male',
+        fitness_level: 'advanced', goal: 'weight_loss',
+        omad_window_start: '18:00', omad_window_hours: 2, default_training_time: '19:00',
+      }),
+      weight_log: JSON.stringify(flat),
+      intake_log: JSON.stringify(intake),
+    };
+
+    {
+      const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Weight has held'), 'a stall is named rather than left to be guessed at');
+      check(has(t, 'not your discipline'), 'and it says whose fault it is not');
+      check(/Eating \d{4} puts the deficit back/.test(t), 'with a concrete new target',
+        t.match(/Eating \d{4}[^.]*/)?.[0] ?? '');
+      await context.close();
+    }
+
+    {
+      const { context, page } = await newPage(browser, seed);
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Weight has held'), 'the stall itself is shown without premium');
+      check(!/Eating \d{4} puts/.test(t), 'but the new figure is not');
+      await context.close();
+    }
+  }
+
   // -------------------------------------------------- MEASURING MAINTENANCE
   section('Measured maintenance');
   {
