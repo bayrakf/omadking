@@ -557,7 +557,7 @@ handgeänderte Backup-Datei schaltete Premium frei, an RevenueCat vorbei. Genau 
 
 ---
 
-## 27. [ ] Schlüsselablage und anonymes Konto
+## 27. [x] Schlüsselablage und anonymes Konto
 
 **Was:** `src/lib/keystore.ts` + `.web.ts` (nativ `expo-secure-store`, Web `localStorage` mit
 ehrlichem Hinweis, dass Browserdaten-Löschen den Schlüssel mitnimmt). Anonyme Anmeldung über
@@ -570,18 +570,24 @@ Drittlandsübermittlung ohne Not.
 **Fertig wenn:** Anmeldung überlebt einen Neustart, Abmelden entfernt den Schlüssel nicht
 versehentlich, Bundle-Probe zeigt 0 Treffer für `expo-secure-store` im Web-Bundle.
 
-**Code fertig 2026-08-05, live BLOCKIERT.** Der `.web.ts`-Split hält (0 Treffer im Web-Bundle),
-alle Gates grün. Aber gegen das echte Projekt schlägt die Anmeldung fehl:
+**Erledigt** 2026-08-05. Der `.web.ts`-Split hält (0 Treffer für `expo-secure-store` im Web-Bundle).
+
+**Der Blocker war nicht die Einstellung.** Nach dem Aktivieren meldete `/auth/v1/settings` zwar
+`anonymous_users: true`, die Anmeldung schlug aber weiter fehl — mit leerer Fehlermeldung im SDK.
+Roh gegen die API:
 
 ```
-FEHLER: Anonymous sign-ins are disabled
-GET /auth/v1/settings → "external": { "anonymous_users": false }
+POST /auth/v1/signup → 500
+{"error_code":"unexpected_failure","msg":"Database error creating anonymous user"}
 ```
 
-Projekt-Ref stimmt mit dem Deploy-Ziel überein (`icsosdyzwwnxhhztmwef`), es ist also nicht das
-falsche Projekt — die Einstellung ist im Projekt schlicht nicht aktiv. Zu prüfen im Dashboard unter
-**Authentication → Sign In / Providers → Allow anonymous sign-ins**, danach dieselbe Abfrage
-wiederholen; sie muss `true` melden. Erst dann ist der Punkt abhakbar.
+Ursache: der Trigger `on_auth_user_created` aus Migration 001 legte bei jedem neuen Nutzer eine
+Klartext-Zeile in `profiles` und `subscriptions` an und scheiterte dabei. Er hätte **jede**
+Kontoerstellung verhindert, nicht nur die anonyme. Migration `002` entfernt ihn — was ohnehin nötig
+war, weil er genau die Klartext-Tabellen befüllte, die dieser Umbau abschafft.
+
+Der angemeldete Nutzer hält bestätigt: `id, aud, role, last_sign_in_at, created_at, updated_at,
+is_anonymous`. Keine E-Mail, keine Telefonnummer.
 
 ---
 
