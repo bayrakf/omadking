@@ -78,6 +78,21 @@ export async function resetOnboarding(): Promise<void> {
   await AsyncStorage.multiRemove([KEYS.profile, KEYS.onboardingComplete]);
 }
 
+/**
+ * Removes everything this app has ever stored on the device.
+ *
+ * `resetOnboarding` only clears the profile, which is what "start over" means
+ * — but a deletion request means the weight log, the fast log and the chat
+ * history go too. Those survived a reset, so anyone who pressed it expecting
+ * their data gone was wrong.
+ *
+ * Enumerated from KEYS rather than listed by hand, so a new key cannot be
+ * forgotten here.
+ */
+export async function eraseEverything(): Promise<void> {
+  await AsyncStorage.multiRemove(Object.values(KEYS));
+}
+
 // --- Hydration (resets daily) ---------------------------------------------
 
 export type Hydration = { date: string; ml: number; electrolytes: boolean };

@@ -18,6 +18,7 @@ const ROUTES = [
   ['paywall', '/paywall', SEED_WITH_PLAN],
   ['landing', '/landing', SEED_WITH_PLAN],
   ['about', '/about', SEED_WITH_PLAN],
+  ['legal', '/legal', SEED_WITH_PLAN],
 ];
 
 export default async function run() {

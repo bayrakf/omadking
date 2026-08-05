@@ -5,7 +5,7 @@
  * out premium for free.
  */
 
-import { BASE, SEED, createReporter, launch, newPage, body, has } from './harness.mjs';
+import { BASE, SEED, SEED_WITH_PLAN, createReporter, launch, newPage, body, has } from './harness.mjs';
 
 export default async function run() {
   const r = createReporter('INTERACT');
@@ -262,6 +262,56 @@ export default async function run() {
     const goodAt = t.toLowerCase().indexOf('plausibly help');
     check(warnAt !== -1 && warnAt < goodAt, 'the warning comes before the upside',
       `warning@${warnAt} upside@${goodAt}`);
+    await context.close();
+  }
+
+  // ------------------------------------------------------------------- LEGAL
+  section('Privacy and imprint');
+  {
+    const { context, page } = await newPage(browser, SEED);
+    await page.goto(BASE + '/legal', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1800);
+
+    const t = await body(page);
+    // The draft banner must be impossible to miss while details are missing.
+    check(has(t, 'Entwurf'), 'an unfilled page says so in plain sight');
+    check(!has(t, 'TODO'), 'but never shows the raw placeholder', t.match(/TODO/)?.[0] ?? '');
+
+    // Every recipient the code actually talks to has to be named.
+    for (const r of ['Supabase', 'Google', 'RevenueCat']) {
+      check(has(t, r), `recipient named: ${r}`);
+    }
+    check(has(t, 'Nur auf deinem Ger'), 'and it says what never leaves the device');
+    // The claim the edge function now backs.
+    check(has(t, 'nicht mitgeschickt'), 'the policy states which fields are withheld');
+    check(has(t, 'Datenschutzbeh'), 'the supervisory authority is named');
+
+    await page.getByLabel('Impressum').click();
+    await page.waitForTimeout(900);
+    const imp = await body(page);
+    check(has(imp, 'Firmenbuch'), 'the imprint lists the required fields');
+    check(!has(imp, 'TODO'), 'and shows no raw placeholder either');
+    await context.close();
+  }
+
+  // ------------------------------------------------------------ DELETE MY DATA
+  section('Deleting everything');
+  {
+    const { context, page } = await newPage(browser, SEED_WITH_PLAN);
+    page.on('dialog', (dlg) => dlg.accept());
+    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+
+    check(has(await body(page), 'Delete all data'), 'deletion is offered, not just reset');
+    await page.getByLabel('Delete all data').click();
+    await page.waitForTimeout(2500);
+
+    // Deletion means onboarding, and nothing left behind in storage.
+    check(page.url().includes('/onboarding'), 'the app returns to onboarding', page.url());
+    const left = await page.evaluate(() =>
+      Object.keys(localStorage).filter((k) => /profile|weight_log|fast_log|chat_log|meal_history/.test(k))
+    );
+    check(left.length === 0, 'no logs survive the deletion', left.join(', '));
     await context.close();
   }
 

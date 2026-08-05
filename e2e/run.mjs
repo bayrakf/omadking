@@ -141,7 +141,12 @@ try {
   process.exitCode = failures === 0 ? 0 : 1;
 } catch (err) {
   console.error('\nE2E run failed:', err?.message ?? err);
-  process.exitCode = 1;
+  server?.close();
+  // Hard exit, not just an exit code. A suite that throws mid-run leaves its
+  // browser open, and Playwright's connection keeps node alive indefinitely —
+  // so a mistyped selector used to hang for as long as anyone let it instead
+  // of failing in fifteen seconds. A broken run must end.
+  process.exit(1);
 } finally {
   server?.close();
 }

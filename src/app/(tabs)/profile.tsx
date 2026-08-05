@@ -11,7 +11,7 @@ import {
   DEFAULT_PROFILE, type UserProfile,
 } from '@/lib/nutrition';
 import {
-  loadProfileOrDefault, saveProfile, resetOnboarding, getQuota, isPremium,
+  loadProfileOrDefault, saveProfile, resetOnboarding, eraseEverything, getQuota, isPremium,
   loadLastPlan, loadFastLog, loadCookLog, todayISO, type Quota,
 } from '@/lib/store';
 import {
@@ -84,6 +84,19 @@ export default function ProfileScreen() {
     Alert.alert('Reset profile', msg, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Reset', style: 'destructive', onPress: run },
+    ]);
+  };
+
+  /** Deletion, not reset. Everything, including the logs a reset leaves alone. */
+  const eraseAll = () => {
+    const run = async () => { await eraseEverything(); router.replace('/onboarding'); };
+    const msg =
+      'This deletes everything on this device: profile, weight log, fast log, plans, shopping list '
+      + 'and chat history. It cannot be undone. Export first if you want a copy.';
+    if (Platform.OS === 'web') { if (window.confirm(msg)) run(); return; }
+    Alert.alert('Delete all data', msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete everything', style: 'destructive', onPress: run },
     ]);
   };
 
@@ -315,6 +328,15 @@ export default function ProfileScreen() {
             <Button label="Restore" variant="ghost" onPress={doImport} style={s.dataBtn} />
           </View>
           {notice && <Notice tone={notice.ok ? 'ok' : 'error'}>{notice.text}</Notice>}
+          <Divider style={{ marginVertical: Space.base }} />
+          {/* Separate from Reset on purpose: that one keeps the logs, this one
+              does not, and confusing the two costs someone their history. */}
+          <Tap onPress={eraseAll} accessibilityLabel="Delete all data">
+            <View style={s.row}>
+              <Txt variant="body" color={c.negative}>Delete all data</Txt>
+              <Icon name="chevronRight" size={16} color={c.negative} />
+            </View>
+          </Tap>
         </Card>
       </Enter>
 
@@ -331,6 +353,24 @@ export default function ProfileScreen() {
           </Tap>
           <Divider />
           {/* The landing page was fully designed and reachable only by URL. */}
+          <Tap onPress={() => router.push('/legal?tab=privacy')} accessibilityLabel="Privacy">
+            <View style={s.row}>
+              <Txt variant="body" color={c.textDim}>Privacy</Txt>
+              <View style={s.value}>
+                <Icon name="chevronRight" size={16} color={c.textFaint} />
+              </View>
+            </View>
+          </Tap>
+          <Divider />
+          <Tap onPress={() => router.push('/legal?tab=imprint')} accessibilityLabel="Imprint">
+            <View style={s.row}>
+              <Txt variant="body" color={c.textDim}>Imprint</Txt>
+              <View style={s.value}>
+                <Icon name="chevronRight" size={16} color={c.textFaint} />
+              </View>
+            </View>
+          </Tap>
+          <Divider />
           <Tap onPress={() => router.push('/landing')} accessibilityLabel="What this app is for">
             <View style={s.row}>
               <Txt variant="body" color={c.textDim}>What this app is for</Txt>

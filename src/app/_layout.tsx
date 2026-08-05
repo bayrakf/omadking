@@ -96,6 +96,7 @@ export default function RootLayout() {
         <Stack.Screen name="landing" />
         <Stack.Screen name="chat" />
         <Stack.Screen name="about" />
+        <Stack.Screen name="legal" />
       </Stack>
     </SafeAreaProvider>
   );
