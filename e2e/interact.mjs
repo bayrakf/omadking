@@ -307,9 +307,30 @@ export default async function run() {
     check(has(t, 'four weeks'), 'the consequence extrapolates the trend');
 
     // Adaptation phase, counted from logged days rather than a calendar.
+    check(has(t, 'Fasts this week'), 'the week strip renders');
     check(has(t, 'First week'), 'the adaptation phase is named', t.match(/First (days|week)|Settling|Settled/)?.[0]);
     check(has(t, '4 days logged'), 'and counts the days actually logged');
     check(!/cure|prevent|detox|proven|guarantee/i.test(t), 'progress makes no health claim');
+
+    // A streak you cannot correct stops being true — that is the whole point.
+    const cells = page.locator('[role="checkbox"]');
+    const before = await cells.count();
+    check(before === 7, 'seven days are offered', String(before));
+
+    const dayCount = () => page.evaluate(() =>
+      Number((document.body.innerText.match(/(\d+) days? logged/) ?? [])[1] ?? -1));
+    const startDays = await dayCount();
+    // Tick an unlogged day, then untick it again.
+    const unticked = page.locator('[role="checkbox"][aria-checked="false"]').first();
+    await unticked.click();
+    await page.waitForTimeout(900);
+    check(await dayCount() === startDays + 1, 'adding a missed fast counts it',
+      `${startDays} -> ${await dayCount()}`);
+
+    await page.locator('[role="checkbox"][aria-checked="true"]').last().click();
+    await page.waitForTimeout(900);
+    check(await dayCount() === startDays, 'and a mistap can be taken back',
+      `back to ${await dayCount()}`);
     // The wording rule: counted facts only.
     check(!t.includes('%'), 'no invented percentage appears');
     check(!/great job|well done|keep it up/i.test(t), 'no praise is offered');

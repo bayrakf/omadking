@@ -146,6 +146,32 @@ export function weeklyReview(
   };
 }
 
+export type FastDay = { date: string; logged: boolean; future: boolean; label: string };
+
+/**
+ * The last seven days as a strip you can correct.
+ *
+ * A mistap could not be undone and a forgotten day could not be filled in, so
+ * the streak drifted away from what actually happened. An unhonest streak is
+ * worse than none — it was the reason the fake one was removed in the first
+ * place.
+ */
+export function fastWeek(fastLog: string[], today: string = todayISO()): FastDay[] {
+  const logged = dateSet(fastLog);
+  const todayDate = parseISO(today);
+
+  return windowDays(today)
+    .slice()
+    .reverse()
+    .map((date) => ({
+      date,
+      logged: logged.has(date),
+      // Nothing ahead of today can be claimed as done.
+      future: parseISO(date).getTime() > todayDate.getTime(),
+      label: parseISO(date).toLocaleDateString(undefined, { weekday: 'narrow' }),
+    }));
+}
+
 /**
  * Where someone is in adapting to the schedule.
  *
@@ -306,6 +332,21 @@ export function demo() {
     [], TODAY
   );
   assert(!level.headline.includes('-0'), `no negative zero, got: ${level.headline}`);
+
+  // --- the correctable week ------------------------------------------------
+
+  const week = fastWeek([day(0), day(2)], TODAY);
+  assert(week.length === 7, 'the strip covers seven days');
+  assert(week[6].date === TODAY, 'today is last, so the strip reads left to right');
+  assert(week[0].date === day(6), 'and six days back is first');
+  assert(week[6].logged && week[4].logged, 'logged days are marked');
+  assert(!week[5].logged, 'unlogged days are not');
+  assert(week.every((d) => !d.future), 'nothing in a backward window is in the future');
+  assert(week.every((d) => d.label.length > 0), 'every day carries a label');
+
+  // A window ending in the past must still refuse days after today.
+  const past = fastWeek([], '2020-01-01');
+  assert(past.every((d) => !d.future), 'a historical window has no future days');
 
   // --- adaptation ----------------------------------------------------------
 

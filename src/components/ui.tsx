@@ -288,6 +288,15 @@ export function Tap({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}
+      // This version of RN-Web does not translate accessibilityState into
+      // aria-checked, so a screen reader could not tell a ticked box from an
+      // empty one. Native ignores the extra prop.
+      {...(accessibilityState && 'checked' in accessibilityState
+        ? { 'aria-checked': !!accessibilityState.checked }
+        : null)}
+      {...(accessibilityState && accessibilityState.disabled
+        ? { 'aria-disabled': true }
+        : null)}
     >
       <Animated.View style={[{ transform: [{ scale: s }] }, style]}>{children}</Animated.View>
     </Pressable>

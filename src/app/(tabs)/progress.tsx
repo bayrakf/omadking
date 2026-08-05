@@ -4,14 +4,19 @@ import { useFocusEffect } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, Tap, useTheme,
 } from '@/components/ui';
+import { Icon } from '@/components/icons';
 import { DEFAULT_PROFILE, weeklyTrend, type UserProfile } from '@/lib/nutrition';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
-  loadFastLog, loadCookLog, loadPlanHistory, todayISO, type WeightEntry,
+  loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
+  todayISO, type WeightEntry,
 } from '@/lib/store';
-import { weeklyReview, adaptationStage, type WeeklyReview, type AdaptationStage } from '@/lib/review';
+import {
+  weeklyReview, adaptationStage, fastWeek,
+  type WeeklyReview, type AdaptationStage, type FastDay,
+} from '@/lib/review';
 
 /**
  * A trend line, not bars. Bodyweight is a noisy continuous signal, and a line
@@ -71,6 +76,8 @@ export default function ProgressScreen() {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [review, setReview] = useState<WeeklyReview | null>(null);
   const [adapt, setAdapt] = useState<AdaptationStage | null>(null);
+  const [week, setWeek] = useState<FastDay[]>([]);
+  const [fasts, setFasts] = useState<string[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,6 +92,8 @@ export default function ProgressScreen() {
         setEntries(log);
         setReview(weeklyReview(fasts, cooks, log, plans));
         setAdapt(adaptationStage(fasts));
+        setFasts(fasts);
+        setWeek(fastWeek(fasts));
         setDateInput(todayISO());
         setMounted(true);
       })();
@@ -93,6 +102,16 @@ export default function ProgressScreen() {
   );
 
   if (!mounted) return null;
+
+  /** Correcting a day rewrites the streak, so everything derived is rebuilt. */
+  const toggleDay = async (dayDate: string, logged: boolean) => {
+    const next = logged ? await unmarkFastComplete(dayDate) : await markFastComplete(dayDate);
+    setFasts(next);
+    setWeek(fastWeek(next));
+    setAdapt(adaptationStage(next));
+    const [cooks, plans] = await Promise.all([loadCookLog(), loadPlanHistory<{ date: string }>()]);
+    setReview(weeklyReview(next, cooks, entries, plans));
+  };
 
   const save = async () => {
     const w = parseFloat(weightInput.replace(',', '.'));
@@ -204,6 +223,45 @@ export default function ProgressScreen() {
           </Card>
         </Enter>
       )}
+
+      {/* Correctable, because a streak that cannot be fixed stops being true. */}
+      <Enter index={2}>
+        <Card style={{ marginBottom: Space.base }}>
+          <View style={s.split}>
+            <Eyebrow>Fasts this week</Eyebrow>
+            <Txt variant="data" color={c.textFaint}>tap to correct</Txt>
+          </View>
+          <View style={s.weekRow}>
+            {week.map((d) => (
+              <Tap
+                key={d.date}
+                onPress={d.future ? undefined : () => toggleDay(d.date, d.logged)}
+                disabled={d.future}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: d.logged, disabled: d.future }}
+                accessibilityLabel={`Fast on ${d.date}`}
+                style={s.weekCell}
+              >
+                <View style={s.weekCellInner}>
+                  <Txt variant="small" color={c.textFaint}>{d.label}</Txt>
+                  <View
+                    style={[
+                      s.weekDot,
+                      {
+                        backgroundColor: d.logged ? c.ember : 'transparent',
+                        borderColor: d.future ? c.line : d.logged ? c.ember : c.lineStrong,
+                        opacity: d.future ? 0.4 : 1,
+                      },
+                    ]}
+                  >
+                    {d.logged && <Icon name="check" size={13} color={c.onAccent} strokeWidth={2.4} />}
+                  </View>
+                </View>
+              </Tap>
+            ))}
+          </View>
+        </Card>
+      </Enter>
 
       <Enter index={3}>
         <Card>
@@ -353,6 +411,13 @@ const s = StyleSheet.create({
   reviewCell: { flex: 1 },
   reviewFigure: { fontSize: 24, marginBottom: 2 },
   reviewLine: { width: 1, height: 32, marginHorizontal: Space.md },
+  weekRow: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.xs },
+  weekCell: { flex: 1, marginRight: Space.xs },
+  weekCellInner: { alignItems: 'center' },
+  weekDot: {
+    width: 30, height: 30, borderRadius: 15, borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center', marginTop: 6,
+  },
   figRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
   inputs: { flexDirection: 'row', marginRight: -Space.md },
   inputCol: { flex: 1, marginRight: Space.md },

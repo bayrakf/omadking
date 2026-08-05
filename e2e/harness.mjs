@@ -110,6 +110,9 @@ export async function launch() {
 export async function newPage(browser, seed = SEED) {
   const context = await browser.newContext({ viewport: { width: 420, height: 900 } });
   const page = await context.newPage();
+  // Without this a mistyped selector waits forever and the whole suite hangs
+  // instead of failing. A wrong test should be loud, not slow.
+  page.setDefaultTimeout(15000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text().slice(0, 200)));

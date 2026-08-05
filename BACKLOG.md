@@ -370,7 +370,7 @@ eine unbekannte Form ab.
 
 ---
 
-## 18. [ ] Fasten nachtragen und zurücknehmen
+## 18. [x] Fasten nachtragen und zurücknehmen
 
 **Warum:** `unmarkFastComplete()` existiert seit dem Streak-Feature, hat aber
 keine Oberfläche. Ein Fehlklick lässt sich nicht korrigieren, ein vergessener
@@ -387,6 +387,9 @@ genau der Grund, die Fake-Streak damals zu entfernen.
 **Fertig wenn:** Nachtragen und Zurücknehmen ändern die Streak korrekt, auch
 über eine Lücke hinweg; als E2E-Check verankert.
 
+
+**Erledigt** 2026-08-05 — 138 Checks. Dabei zwei Funde: RN-Web übersetzte
+`accessibilityState` nicht nach `aria-checked`, und die e2e-Suite hatte kein Selektor-Zeitlimit.
 ---
 
 ## 19. [ ] Portionen für echtes Vorkochen
