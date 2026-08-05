@@ -265,6 +265,68 @@ export default async function run() {
     await context.close();
   }
 
+  // -------------------------------------------------- MEASURING MAINTENANCE
+  section('Measured maintenance');
+  {
+    // Fourteen days at 1800 kcal while losing ~0.5 kg/week → about 2350.
+    const day = (back) => {
+      const d = new Date('2026-08-20T12:00:00Z');
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    const intake = Array.from({ length: 14 }, (_, i) => ({
+      date: day(13 - i), factor: 1, target_kcal: 1800,
+    }));
+    const weights = Array.from({ length: 7 }, (_, i) => ({
+      id: `w${i}`, date: day(12 - i * 2), weight_kg: 85 - i * (0.5 * 2 / 7),
+    }));
+
+    // Without premium: the app says it measured something, not what.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED, intake_log: JSON.stringify(intake), weight_log: JSON.stringify(weights),
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'What your body actually costs'), 'the measurement card is shown to everyone');
+      check(has(t, '14 days'), 'and says what it is based on');
+      check(!/\b2[0-9]{3}\s*kcal a day/.test(t), 'but the figure itself is not given away',
+        t.match(/\d+\s*kcal a day/)?.[0] ?? '');
+      check(has(t, 'Premium'), 'and it names what unlocks it');
+      await context.close();
+    }
+
+    // With premium: the number, and the gap to the formula.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED, intake_log: JSON.stringify(intake), weight_log: JSON.stringify(weights),
+        user_premium: 'true',
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(/\d{4}\s*kcal a day/.test(t), 'premium sees the measured figure',
+        t.match(/\d{4}\s*kcal a day/)?.[0] ?? '');
+      check(has(t, 'formula'), 'and how it compares to the estimate');
+      check(has(t, '7,700'), 'and that it rests on an approximation');
+      await context.close();
+    }
+
+    // Too little data: it asks rather than inventing a number.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED, intake_log: JSON.stringify(intake.slice(0, 2)), user_premium: 'true',
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Not enough to measure yet'), 'thin data produces a request, not a figure');
+      check(!/\d{4}\s*kcal a day/.test(t), 'and no number is shown');
+      await context.close();
+    }
+  }
+
   // ------------------------------------------------------ SYNC SENDS CIPHERTEXT
   section('Sync sends nothing readable');
   {

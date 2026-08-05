@@ -25,6 +25,7 @@ export const KEYS = {
   chatLog: 'chat_log',
   lastSession: 'last_session',
   portions: 'cook_portions',
+  intakeLog: 'intake_log',
   syncedAt: 'sync_last',
 } as const;
 
@@ -199,6 +200,38 @@ export async function unmarkFastComplete(date = todayISO()): Promise<string[]> {
   const next = (await loadFastLog()).filter((d) => d !== date);
   await writeJSON(KEYS.fastLog, next);
   return next;
+}
+
+// --- What was actually eaten -----------------------------------------------
+
+/**
+ * One answer per day to "how did today go".
+ *
+ * Deliberately not a food diary. The app promises fewer decisions, so the
+ * signal is three taps and an honest factor; fourteen of those measure a
+ * metabolism better than a formula does, and people actually keep doing it.
+ */
+export type IntakeEntry = { date: string; factor: number; target_kcal: number };
+
+export async function loadIntakeLog(): Promise<IntakeEntry[]> {
+  const rows = await readJSON<IntakeEntry[]>(KEYS.intakeLog, []);
+  return Array.isArray(rows)
+    ? rows.filter((r) => r && typeof r.date === 'string' && isFinite(r.factor) && isFinite(r.target_kcal))
+    : [];
+}
+
+/** One entry per day; answering again corrects the day rather than adding to it. */
+export async function recordIntake(factor: number, targetKcal: number, date = todayISO()): Promise<IntakeEntry[]> {
+  const log = (await loadIntakeLog()).filter((r) => r.date !== date);
+  const next = [...log, { date, factor, target_kcal: Math.round(targetKcal) }]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-400);
+  await writeJSON(KEYS.intakeLog, next);
+  return next;
+}
+
+export async function intakeFor(date = todayISO()): Promise<IntakeEntry | null> {
+  return (await loadIntakeLog()).find((r) => r.date === date) ?? null;
 }
 
 // --- Batch size ------------------------------------------------------------

@@ -353,8 +353,11 @@ export default function ProfileScreen() {
         </Card>
       </Enter>
 
-      <Enter index={7}>
-        <Card style={{ marginTop: Space.base }}>
+      {/* Everything above is about the person; everything below is about the
+          app. Ten cards in a row read as a junk drawer without this break. */}
+      <Enter index={7} style={{ marginTop: Space.xl }}>
+        <Eyebrow style={{ marginBottom: Space.md }}>App</Eyebrow>
+        <Card>
           <Eyebrow style={{ marginBottom: Space.sm }}>Your data</Eyebrow>
           <Txt variant="small" color={c.textDim}>
             Everything lives on this device. There are no accounts, so a backup is the only copy that
@@ -393,6 +396,14 @@ export default function ProfileScreen() {
             disabled={syncing}
             style={{ marginTop: Space.md }}
           />
+          <Tap onPress={() => router.push('/recovery')} accessibilityLabel="Recovery phrase">
+            <View style={s.row}>
+              <Txt variant="body" color={c.textDim}>Recovery phrase</Txt>
+              <View style={s.value}>
+                <Icon name="chevronRight" size={16} color={c.textFaint} />
+              </View>
+            </View>
+          </Tap>
           {syncedAt && (
             <Tap onPress={removeAccount} accessibilityLabel="Delete account">
               <View style={s.row}>
@@ -410,15 +421,6 @@ export default function ProfileScreen() {
               <Txt variant="body" color={c.textDim}>About OMAD</Txt>
               <View style={s.value}>
                 <Txt variant="data" color={c.accent}>Read</Txt>
-                <Icon name="chevronRight" size={16} color={c.textFaint} />
-              </View>
-            </View>
-          </Tap>
-          <Divider />
-          <Tap onPress={() => router.push('/recovery')} accessibilityLabel="Recovery phrase">
-            <View style={s.row}>
-              <Txt variant="body" color={c.textDim}>Recovery phrase</Txt>
-              <View style={s.value}>
                 <Icon name="chevronRight" size={16} color={c.textFaint} />
               </View>
             </View>

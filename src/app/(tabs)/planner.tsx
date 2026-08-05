@@ -14,8 +14,10 @@ import {
 import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
 import {
   loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
-  loadLastSession, saveLastSession, loadPortions, savePortions, type Quota,
+  loadLastSession, saveLastSession, loadPortions, savePortions,
+  loadIntakeLog, loadWeightLog, isPremium, type Quota,
 } from '@/lib/store';
+import { effectiveMaintenance } from '@/lib/energy';
 import { resync } from '@/lib/notify';
 
 const SPORTS = [
@@ -54,6 +56,8 @@ export default function PlannerScreen() {
   const [copied, setCopied] = useState(false);
   const [plan, setPlan] = useState<MealPlan | null>(null);
   const [portions, setPortions] = useState(1);
+  // Undefined until measured — dailyTargets then behaves exactly as before.
+  const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [history, setHistory] = useState<MealPlan[]>([]);
 
   useFocusEffect(
@@ -61,10 +65,13 @@ export default function PlannerScreen() {
       let active = true;
       (async () => {
         const p = await loadProfileOrDefault();
-        const [h, q, batch, last] = await Promise.all([
+        const [h, q, batch, intake, weights, prem, last] = await Promise.all([
           loadPlanHistory<MealPlan>(),
           getQuota(),
           loadPortions(),
+          loadIntakeLog(),
+          loadWeightLog(),
+          isPremium(),
           // Prefill from the last session, falling back to the profile's usual
           // training time when there is nothing stored yet.
           loadLastSession(p.default_training_time),
@@ -79,6 +86,9 @@ export default function PlannerScreen() {
         setHistory(h);
         setQuota(q);
         setPortions(batch);
+        setMeasured(
+          effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem)
+        );
         setMounted(true);
       })();
       return () => { active = false; };
@@ -93,14 +103,15 @@ export default function PlannerScreen() {
 
   // Live preview — the figures move as you change the session, so it is obvious
   // that intensity and duration actually drive the plan.
-  const preview = dailyTargets(profile, training);
+  // Follows the measured maintenance once there is one; otherwise the formula.
+  const preview = dailyTargets(profile, training, measured);
 
   const generate = async () => {
     if (quota && !quota.premium && quota.remaining <= 0) return router.push('/paywall');
     setLoading(true);
     setError(null);
     try {
-      const next = await generateMealPlan(profile, training);
+      const next = await generateMealPlan(profile, training, measured);
       // Remembered only once a plan was actually built, so idly tapping through
       // the options does not overwrite what worked yesterday.
       await saveLastSession({

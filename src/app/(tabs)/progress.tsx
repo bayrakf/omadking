@@ -1,17 +1,18 @@
 import React, { useCallback, useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, Tap, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { DEFAULT_PROFILE, weeklyTrend, type UserProfile } from '@/lib/nutrition';
+import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, type UserProfile } from '@/lib/nutrition';
+import { measuredMaintenance, type Measurement } from '@/lib/energy';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
-  todayISO, type WeightEntry,
+  loadIntakeLog, isPremium, todayISO, type WeightEntry,
 } from '@/lib/store';
 import {
   weeklyReview, adaptationStage, fastWeek,
@@ -68,6 +69,7 @@ function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?
 
 export default function ProgressScreen() {
   const c = useTheme();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [entries, setEntries] = useState<WeightEntry[]>([]);
@@ -77,19 +79,24 @@ export default function ProgressScreen() {
   const [review, setReview] = useState<WeeklyReview | null>(null);
   const [adapt, setAdapt] = useState<AdaptationStage | null>(null);
   const [week, setWeek] = useState<FastDay[]>([]);
+  const [measured, setMeasured] = useState<Measurement | null>(null);
+  const [premium, setPremium] = useState(false);
   const [fasts, setFasts] = useState<string[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       (async () => {
-        const [p, log, fasts, cooks, plans] = await Promise.all([
+        const [p, log, fasts, cooks, plans, intake, prem] = await Promise.all([
           loadProfileOrDefault(), loadWeightLog(), loadFastLog(), loadCookLog(),
-          loadPlanHistory<{ date: string }>(),
+          loadPlanHistory<{ date: string }>(), loadIntakeLog(), isPremium(),
         ]);
         if (!active) return;
         setProfile(p);
         setEntries(log);
+        setPremium(prem);
+        // The formula's answer is only a bound and a comparison here.
+        setMeasured(measuredMaintenance(intake, log, dailyTargets(p, null).maintenance_kcal));
         setReview(weeklyReview(fasts, cooks, log, plans));
         setAdapt(adaptationStage(fasts));
         setFasts(fasts);
@@ -169,6 +176,61 @@ export default function ProgressScreen() {
           title="Progress"
         />
       </Enter>
+
+      {/* The reason to pay, and it has to be visible before paying: the app
+          says plainly that it measured something, and what it means is the
+          part that costs. No artificial limit on anything that already worked. */}
+      {measured && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }} tone={measured.kcal ? 'accent' : undefined}>
+            <View style={s.split}>
+              <Eyebrow color={measured.kcal ? c.accent : undefined}>What your body actually costs</Eyebrow>
+              {measured.kcal !== null && (
+                <Txt variant="data" color={c.textFaint}>
+                  {measured.confidence === 'good' ? 'measured' : 'early'}
+                </Txt>
+              )}
+            </View>
+
+            {measured.kcal === null ? (
+              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                Not enough to measure yet — {measured.missing}. Until then the target comes from a
+                formula, which is right for a population and often wrong for a person.
+              </Txt>
+            ) : premium ? (
+              <>
+                <Txt variant="heading" style={{ marginTop: Space.md }}>
+                  {measured.kcal}
+                  <Txt variant="small" color={c.textFaint}> kcal a day</Txt>
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                  {measured.deltaToEstimate === null || measured.deltaToEstimate === 0
+                    ? 'Which is what the formula estimated.'
+                    : `That is ${Math.abs(measured.deltaToEstimate)} kcal ${measured.deltaToEstimate < 0 ? 'below' : 'above'} the formula's estimate. Measured from ${measured.intakeDays} days of eating and ${measured.weighIns} weigh-ins, so your target follows it.`}
+                </Txt>
+                <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
+                  Based on the standard approximation of 7,700 kcal per kilogram. It moves as you do.
+                </Txt>
+              </>
+            ) : (
+              <>
+                <Txt variant="body" style={{ marginTop: Space.md }}>
+                  Measured from {measured.intakeDays} days of eating and {measured.weighIns} weigh-ins.
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                  The formula's estimate is off — Premium shows by how much and moves your target to
+                  the measured figure.
+                </Txt>
+                <Button
+                  label="See what it measured"
+                  onPress={() => router.push('/paywall')}
+                  style={{ marginTop: Space.md }}
+                />
+              </>
+            )}
+          </Card>
+        </Enter>
+      )}
 
       {review && (
         <Enter index={1}>

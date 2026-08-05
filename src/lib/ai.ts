@@ -146,9 +146,10 @@ function isUsableRecipe(r: any): r is Recipe {
  */
 export async function generateMealPlan(
   profile: UserProfile,
-  training: Training | null
+  training: Training | null,
+  measuredMaintenance?: number
 ): Promise<MealPlan> {
-  const targets = dailyTargets(profile, training);
+  const targets = dailyTargets(profile, training, measuredMaintenance);
   const timing = mealTiming(profile, training);
 
   let recipe: Recipe | null = null;

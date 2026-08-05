@@ -38,6 +38,7 @@ const DATE_LOGS: readonly string[] = [KEYS.fastLog, KEYS.cookLog];
 const DATED_RECORDS: readonly { key: string; by: string }[] = [
   { key: KEYS.weightLog, by: 'date' },
   { key: KEYS.planHistory, by: 'date' },
+  { key: KEYS.intakeLog, by: 'date' },
 ];
 
 /** Free-form lists deduplicated by id, order preserved. */
@@ -166,6 +167,22 @@ export function demo() {
   const w = mergeStates(wLocal, wRemote)[KEYS.weightLog] as any[];
   assert(w.length === 2, `one entry per day, not per device: ${JSON.stringify(w)}`);
   assert(w[0].weight_kg === 82.5, 'a corrected weigh-in wins over the original');
+
+  // Intake is real history and merges like any other dated record: a day
+  // answered on the phone must survive a sync from the web.
+  const iA = { state: { [KEYS.intakeLog]: [{ date: '2026-08-01', factor: 1, target_kcal: 1800 }] }, at: OLD };
+  const iB = {
+    state: {
+      [KEYS.intakeLog]: [
+        { date: '2026-08-01', factor: 0.75, target_kcal: 1800 },
+        { date: '2026-08-02', factor: 1, target_kcal: 1800 },
+      ],
+    },
+    at: NEW,
+  };
+  const merged3 = mergeStates(iA, iB)[KEYS.intakeLog] as any[];
+  assert(merged3.length === 2, `one answer per day: ${JSON.stringify(merged3)}`);
+  assert(merged3[0].factor === 0.75, 'a corrected answer wins over the original');
 
   // --- scalars follow the clock --------------------------------------------
 

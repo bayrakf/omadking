@@ -701,3 +701,38 @@ Datenschutzerklärung beschreibt, was genau verschwindet.
 
 Die Function nimmt keinen Parameter. Ein Endpunkt, der eine ID annimmt, löscht früher oder später
 fremde Konten.
+
+
+---
+
+## 32. [x] Die App misst den Stoffwechsel, statt ihn zu schätzen
+
+**Warum:** `dailyTargets` rechnete `BMR × NEAT + Training − 500` und blieb dabei. Mifflin-St Jeor
+liegt bei Einzelpersonen regelmäßig ±20 % daneben. Wer real 2.200 kcal verbraucht, bekommt 2.110
+verordnet, nimmt acht Wochen nichts ab und gibt sich selbst die Schuld. Und die App fragte nie, ob
+überhaupt gegessen wurde — es gab kein einziges Zufuhrfeld.
+
+**Was gebaut wurde:**
+- **Drei Taps statt Ernährungstagebuch.** Nach Fensterschluss eine Frage auf dem Dashboard: Plan
+  gegessen / weniger / mehr / komplett anders. Die Faktoren stehen offen dabei.
+- **`src/lib/energy.ts`**, rein, geprüft: `measuredMaintenance` rechnet die Energiebilanz
+  (Erhaltung ≈ Zufuhr − Trend × 1100) und **verweigert die Antwort**, solange die Datenlage sie
+  nicht trägt — mit der Angabe, was noch fehlt.
+- **`readTrend`** unterscheidet Rauschen von Signal. Der Satz „heute 0,8 kg über der Linie, die
+  Linie fällt weiter" ist das, was eine Waage nicht kann.
+- **`dailyTargets` bekam einen optionalen dritten Parameter.** Fehlt er, ändert sich nichts — zehn
+  Bildschirme rufen die Funktion auf.
+- **`effectiveMaintenance`** hält die Premium-Regel an genau einer Stelle.
+
+**Die Sperren sind die Substanz, nicht die Formel:** ≥8 Zufuhrtage, ≥4 Wiegungen über ≥10 Tage,
+Korrektur höchstens ±15 % pro Schritt, nie unter BMR.
+
+**Premium-Grenze, ehrlich:** Die Karte zeigt allen, *dass* gemessen wurde und woraus. Was
+gemessen wurde, kostet. Kein künstliches Limit auf etwas, das vorher kostenlos war.
+
+**Erledigt** 2026-08-05 — 187 Checks, zwölf geprüfte Module. E2E belegt beide Seiten der Grenze und
+dass dünne Daten eine Nachfrage erzeugen statt einer Zahl.
+
+**Nebenher aufgeräumt:** Das Profil war auf zehn Karten angewachsen — ich hatte Feature um Feature
+angehängt. Jetzt getrennt in „Du" und „App", der Wiederherstellungssatz sitzt beim Sync statt bei
+den Rechtstexten. Und auf Progress führt jetzt die Messung statt „nichts geloggt".

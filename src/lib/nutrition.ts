@@ -216,11 +216,25 @@ export function trainingBurnKcal(p: UserProfile, t: Training | null): number {
 /**
  * Daily targets. Pass today's training (or null for a rest day) — the same
  * profile on a rest day and a max-intensity day must not return the same kcal.
+ *
+ * `measuredMaintenance` overrides the formula's resting estimate when the app
+ * has measured one from intake and the weight trend (see `energy.ts`). It is
+ * optional on purpose: a dozen screens call this, and omitting it must behave
+ * exactly as before. The training burn is still added on top, because a
+ * measurement taken across mixed days already averages the *usual* week, not
+ * today's session.
  */
-export function dailyTargets(p: UserProfile, t: Training | null = null): Macros & { burn_kcal: number; maintenance_kcal: number } {
+export function dailyTargets(
+  p: UserProfile,
+  t: Training | null = null,
+  measuredMaintenance?: number
+): Macros & { burn_kcal: number; maintenance_kcal: number; measured: boolean } {
   const restingKcal = bmr(p);
   const burn = trainingBurnKcal(p, t);
-  const maintenance = Math.round(restingKcal * neatMultiplier(p.fitness_level)) + burn;
+  const useMeasured = typeof measuredMaintenance === 'number' && isFinite(measuredMaintenance) && measuredMaintenance > 0;
+  const maintenance = useMeasured
+    ? Math.round(measuredMaintenance!) + burn
+    : Math.round(restingKcal * neatMultiplier(p.fitness_level)) + burn;
 
   let kcal = maintenance;
   if (p.goal === 'weight_loss') kcal -= 500;
@@ -238,7 +252,7 @@ export function dailyTargets(p: UserProfile, t: Training | null = null): Macros 
 
   const carbs_g = Math.max(0, Math.round((kcal - (protein_g * 4 + fat_g * 9)) / 4));
 
-  return { kcal, protein_g, carbs_g, fat_g, burn_kcal: burn, maintenance_kcal: maintenance };
+  return { kcal, protein_g, carbs_g, fat_g, burn_kcal: burn, maintenance_kcal: maintenance, measured: useMeasured };
 }
 
 /**
@@ -734,6 +748,30 @@ export function demo() {
     assert(profile.omad_window_hours === p.windowHours, `${p.id} survives profile normalisation`);
     assert(fastingState(profile, new Date(2026, 0, 1, 12)).fastingHours === 24 - p.windowHours, `${p.id} implies a ${24 - p.windowHours}h fast`);
   }
+
+  // A measured maintenance replaces the formula's estimate, and only then.
+  const prof = normalizeProfile({ weight_kg: 82, height_cm: 183, age: 34, sex: 'male', fitness_level: 'advanced', goal: 'weight_loss' });
+  const guessed = dailyTargets(prof, null);
+  assert(guessed.measured === false, 'without a measurement nothing claims to be measured');
+
+  const known = dailyTargets(prof, null, 2350);
+  assert(known.measured === true, 'a measurement is reported as one');
+  assert(known.maintenance_kcal === 2350, `and is used as maintenance: ${known.maintenance_kcal}`);
+  assert(known.kcal === Math.max(2350 - 500, bmr(prof)), `the deficit comes off the measured figure: ${known.kcal}`);
+  assert(guessed.kcal !== known.kcal, 'so the target actually moves');
+
+  // Omitting it must change nothing — a dozen screens call this.
+  assert(dailyTargets(prof, null, undefined).kcal === guessed.kcal, 'omitting the parameter is the old behaviour');
+  for (const bad of [0, -100, NaN, Infinity, 'x' as any, null as any]) {
+    assert(dailyTargets(prof, null, bad).kcal === guessed.kcal, `a nonsense measurement is ignored: ${bad}`);
+  }
+
+  // The BMR floor still applies to a measured figure.
+  assert(dailyTargets(prof, null, 1200).kcal >= bmr(prof), 'the floor holds against a low measurement');
+
+  // Training burn is still added on top of a measurement.
+  const session = { sport: 'running', duration_min: 60, intensity: 'high' as const, start_time: '19:00' };
+  assert(dailyTargets(prof, session, 2350).maintenance_kcal > 2350, 'a session still adds its burn');
 
   // Session drafts come back from device storage, so they are validated.
   const goodSession = normalizeSession(

@@ -15,8 +15,9 @@ import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
 import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
-  saveProfile, todayISO, type Hydration,
+  saveProfile, recordIntake, intakeFor, loadIntakeLog, isPremium, todayISO, type Hydration,
 } from '@/lib/store';
+import { readTrend, effectiveMaintenance } from '@/lib/energy';
 import type { MealPlan } from '@/lib/ai';
 import { resync } from '@/lib/notify';
 
@@ -45,6 +46,9 @@ export default function DashboardScreen() {
   const [weighedToday, setWeighedToday] = useState(true);
   const [weightInput, setWeightInput] = useState('');
   const [dateLabel, setDateLabel] = useState('');
+  const [answeredToday, setAnsweredToday] = useState(true);
+  const [trend, setTrend] = useState<ReturnType<typeof readTrend> | null>(null);
+  const [measured, setMeasured] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     setDateLabel(new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }));
@@ -52,10 +56,13 @@ export default function DashboardScreen() {
   }, []);
 
   const refresh = useCallback(async () => {
-    const [p, h, fl, cl, last, weights] = await Promise.all([
+    const [p, h, fl, cl, last, weights, todaysAnswer, intake, prem] = await Promise.all([
       loadProfileOrDefault(), loadHydration(), loadFastLog(), loadCookLog(),
-      loadLastPlan<MealPlan>(), loadWeightLog(),
+      loadLastPlan<MealPlan>(), loadWeightLog(), intakeFor(), loadIntakeLog(), isPremium(),
     ]);
+    setAnsweredToday(todaysAnswer !== null);
+    setTrend(readTrend(weights));
+    setMeasured(effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem));
     setProfile(p);
     setHydration(h);
     setStreak(currentStreak(fl));
@@ -88,7 +95,7 @@ export default function DashboardScreen() {
 
   const { items, next } = dayAgenda(profile, plan, { cooked, fastLogged }, now);
 
-  const baseline = dailyTargets(profile, null);
+  const baseline = dailyTargets(profile, null, measured);
   const kcal = plan ? plan.total_kcal : baseline.kcal;
   const protein = plan ? plan.protein_g : baseline.protein_g;
   const waterTarget = hydrationTargetMl(profile, plan?.training_start_time
@@ -116,6 +123,16 @@ export default function DashboardScreen() {
     }
     // A completed step should stop reminding.
     await resync();
+  };
+
+  /**
+   * The whole intake signal, in one tap. Deliberately not a food diary — the
+   * app promises fewer decisions, and a fortnight of rough answers measures a
+   * metabolism better than a precise diary nobody keeps up.
+   */
+  const answerIntake = async (factor: number | null) => {
+    if (factor !== null) await recordIntake(factor, kcal);
+    setAnsweredToday(true);
   };
 
   const logWeight = async () => {
@@ -187,6 +204,41 @@ export default function DashboardScreen() {
           </View>
         )}
       </Enter>
+
+      {/* Asked once, just after the window closes — hoursFasted is small only
+          in the hours after eating, which is exactly when the answer is easy
+          to give. Miss it and the day simply does not count: the measurement
+          needs eight days out of twenty-one, not a perfect record. */}
+      {!fast.isEating && !answeredToday && hoursFasted < 6 && (
+        <Enter index={2}>
+          <Card style={{ marginTop: Space.xl }} tone="accent">
+            <Eyebrow color={c.accent}>How did today go?</Eyebrow>
+            <Txt variant="body" style={{ marginTop: Space.sm }}>
+              Roughly, against the {kcal} kcal target. This is what lets the app measure what your
+              body actually costs.
+            </Txt>
+            <View style={s.intakeRow}>
+              {([
+                ['Ate the plan', 1, ''],
+                ['Ate less', 0.75, '≈ 25% under'],
+                ['Ate more', 1.3, '≈ 30% over'],
+              ] as const).map(([label, factor, hint]) => (
+                <Tap key={label} onPress={() => answerIntake(factor)} accessibilityLabel={label} style={s.intakeCell}>
+                  <View style={[s.intakeBtn, { borderColor: c.line, backgroundColor: c.well }]}>
+                    <Txt variant="small" style={{ textAlign: 'center' }}>{label}</Txt>
+                    {hint ? <Eyebrow style={{ marginTop: 2 }}>{hint}</Eyebrow> : null}
+                  </View>
+                </Tap>
+              ))}
+            </View>
+            <Tap onPress={() => answerIntake(null)} accessibilityLabel="Completely different">
+              <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md, textAlign: 'center' }}>
+                Completely different — skip today
+              </Txt>
+            </Tap>
+          </Card>
+        </Enter>
+      )}
 
       {/* The one thing to do next, rather than a restatement of state. */}
       {next && (
@@ -363,6 +415,18 @@ export default function DashboardScreen() {
               </View>
             </>
           )}
+
+          {/* The sentence a scale cannot produce. Someone weighing daily sees a
+              jump and concludes the week went wrong; the fitted line usually
+              has not moved at all. */}
+          {trend && trend.state !== 'insufficient' && (
+            <>
+              <Divider style={{ marginVertical: Space.base }} />
+              <Txt variant="small" color={trend.state === 'steady' ? c.textDim : c.text}>
+                {trend.note}
+              </Txt>
+            </>
+          )}
         </Card>
       </Enter>
 
@@ -380,6 +444,12 @@ export default function DashboardScreen() {
 const s = StyleSheet.create({
   head: { paddingTop: Space.sm, paddingBottom: Space.xl },
   stage: { marginTop: Space.lg, paddingHorizontal: Space.sm },
+  intakeRow: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm },
+  intakeCell: { flex: 1, marginRight: Space.sm },
+  intakeBtn: {
+    minHeight: 56, borderRadius: Radius.md, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 8,
+  },
   stageLabel: { textAlign: 'center' },
   stageNote: { textAlign: 'center', marginTop: 4, lineHeight: 19 },
   flex: { flex: 1 },
