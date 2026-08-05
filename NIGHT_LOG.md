@@ -19,6 +19,8 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 12 | Einkaufsliste nach Ladenweg | grün — 107 Checks | `c3489be` |
 | 13 | Protokoll-Typen | grün — 110 Checks | `bae2f8a` |
 | 14 | Fastenphasen am Zifferblatt | grün — 113 Checks | `3a1e75d` |
+| 15 | Anpassungsphase aus dem Log | grün — 116 Checks | `86c3822` |
+| 16 | Fastenbrechen + „Über OMAD" | grün — 132 Checks | `1178b10` |
 
 ---
 
@@ -406,3 +408,46 @@ Mahlzeit, Training und Person; sie als Schalter darzustellen wäre die eigentlic
 
 **Verifikation beider Punkte:** alle vier Gates grün · 113 Checks · Bundle-Probe: fünf native
 Module, 0 Treffer.
+
+
+---
+
+## Durchläufe 15 und 16 — Anpassungsphase und die Inhaltsfläche
+
+**Punkt 15:** `adaptationStage()` zählt aus **tatsächlich geloggten Tagen**, nicht ab einem
+Startdatum. Wer vier Tage loggt, vierzehn Tage aussetzt und zurückkommt, ist bei Tag fünf — eine
+kalenderbasierte Variante hätte ihn grundlos an den Anfang zurückgesetzt, was zugleich falsch und
+entmutigend wäre. Direkt abgesichert.
+
+**Punkt 16, Teil 1:** Die Reihenfolge beim Fastenbrechen steht jetzt auf dem Plan. Protein zuerst,
+Kohlenhydrate früh wenn nüchtern trainiert wurde, Fett später, langsam, bei angenehmer Sättigung
+aufhören.
+
+**Punkt 16, Teil 2 — die Fläche, an der diese App am leichtesten überziehen könnte.**
+
+Die Regeln stehen als Checks, nicht als Vorsatz:
+
+- **Gegenanzeigen stehen an zweiter Stelle der Seite, nicht am Ende.** Sie unter die Vorteile zu
+  schieben ist die Art, wie eine Ernährungs-App Schaden anrichtet. Die e2e-Suite prüft die
+  Reihenfolge über die Zeichenposition: Warnung@280, Nutzen@1107.
+- Keine erfundenen Zahlen, keine Studienprozente, keine Erfolgsquoten, keine Testimonials.
+- Der Abschnitt „was es nicht tut" ist so lang wie der Nutzen-Abschnitt und sagt ausdrücklich, dass
+  OMAD derselben Nahrung über drei Mahlzeiten **nicht** stoffwechselseitig überlegen ist — wo es
+  wirkt, ist die ehrliche Erklärung Adhärenz.
+
+**Ein Check musste präzisiert werden, nicht die Seite.** `/treat/` traf „treatment" im eigenen
+Disclaimer der Seite („not a diagnosis or treatment for anything") — also genau das Gegenteil einer
+Behauptung. Jetzt wortgrenzenbasierte Verben, damit eine echte Behauptung weiterhin auffliegt.
+
+**Verifikation beider Punkte:** alle vier Gates grün · 132 Checks · Bundle-Probe: fünf native
+Module, 0 Treffer.
+
+---
+
+## Zwischenstand
+
+**16 von 23 Punkten erledigt.** Die e2e-Suite ist von 65 auf 132 Checks gewachsen — jeder Punkt
+hinterlässt seine eigene Regressionsprobe.
+
+Offen: 17 (Quota-Meldung), 18 (Fasten nachtragen), 19 (Portionen), 20 (Fehlerbildschirm),
+21 (Schriftgröße), 22 (Startseite + README), 23 (Konten — Entscheidung, nicht autonom).
