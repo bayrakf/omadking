@@ -457,7 +457,7 @@ die Rechnung liegt deshalb als achtes Modul in `src/lib/typography.ts` mit eigen
 
 ---
 
-## 22. [ ] Startseite erreichbar machen und README nachziehen
+## 22. [x] Startseite erreichbar machen und README nachziehen
 
 **Warum:** `/landing` ist fertig gestaltet, aber aus der App nicht verlinkt und
 für bestehende Nutzer nicht auffindbar. Das README beschreibt außerdem einen
@@ -471,6 +471,8 @@ Stand vor Agenda, Erinnerungen, Vorkoch-Schleife und Sicherung.
 
 **Fertig wenn:** README beschreibt den Stand, den ein frischer Checkout
 vorfindet, und die Startseite ist aus der App erreichbar.
+
+**Erledigt** 2026-08-05 — 144 Checks.
 
 ---
 

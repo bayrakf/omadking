@@ -265,6 +265,21 @@ export default async function run() {
     await context.close();
   }
 
+  // -------------------------------------------------------- LANDING REACHABLE
+  section('Landing from the app');
+  {
+    const { context, page } = await newPage(browser, SEED);
+    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+
+    check(has(await body(page), 'What this app is for'), 'the profile links to the landing page');
+    await page.getByLabel('What this app is for').click();
+    await page.waitForTimeout(1800);
+    check(page.url().includes('/landing'), 'and it goes there', page.url());
+    check((await body(page)).trim().length > 200, 'the landing page has content');
+    await context.close();
+  }
+
   // ---------------------------------------------------------------- PAYWALL
   section('Paywall honesty');
   {

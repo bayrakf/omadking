@@ -330,6 +330,16 @@ export default function ProfileScreen() {
             </View>
           </Tap>
           <Divider />
+          {/* The landing page was fully designed and reachable only by URL. */}
+          <Tap onPress={() => router.push('/landing')} accessibilityLabel="What this app is for">
+            <View style={s.row}>
+              <Txt variant="body" color={c.textDim}>What this app is for</Txt>
+              <View style={s.value}>
+                <Icon name="chevronRight" size={16} color={c.textFaint} />
+              </View>
+            </View>
+          </Tap>
+          <Divider />
           <View style={s.row}>
             <Txt variant="body" color={c.textDim}>Version</Txt>
             <Txt variant="data" color={c.textFaint}>1.0.0</Txt>
