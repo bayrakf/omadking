@@ -338,6 +338,10 @@ export default async function run() {
     // The guard that matters more than the merge itself.
     check(has(list, 'sweet potato') && has(list, '200g potato'),
       'sweet potato and potato stay separate');
+    // The name is what you buy; how it is cut sits underneath.
+    check(!/720g[^\n]{0,10}(raw|boneless|skinless|diced)/i.test(list),
+      'preparation words are not part of the name');
+    check(has(list, 'diced into 2cm cubes'), 'but the preparation detail is still shown');
     check(has(list, '1.2kg beef'), 'kilograms are kept as kilograms', list.match(/[\d.]+kg beef/i)?.[0]);
     check(has(list, '2 tbsp olive oil'), 'spoons are left as spoons');
     // Duplicated across both plans, but it is one thing to buy.

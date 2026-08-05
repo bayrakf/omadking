@@ -147,13 +147,23 @@ export default function GroceryScreen() {
                     }]}>
                       {item.checked && <Icon name="check" size={12} color={c.onAccent} strokeWidth={2.4} />}
                     </View>
-                    <Txt
-                      variant="body"
-                      color={item.checked ? c.textFaint : c.text}
-                      style={[{ flex: 1 }, item.checked && s.struck]}
-                    >
-                      {item.name}
-                    </Txt>
+                    <View style={s.itemText}>
+                      <Txt
+                        variant="bodyMedium"
+                        color={item.checked ? c.textFaint : c.text}
+                        style={item.checked ? s.struck : undefined}
+                      >
+                        {item.name}
+                      </Txt>
+                      {/* Preparation belongs under the name, not in it: at a
+                          shelf you are looking for the thing, not for how to
+                          cut it. */}
+                      {item.detail && (
+                        <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
+                          {item.detail}
+                        </Txt>
+                      )}
+                    </View>
                   </View>
                 </Tap>
               </View>
@@ -171,10 +181,11 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', height: 34,
     paddingHorizontal: Space.md, borderRadius: Radius.pill, borderWidth: 1, marginRight: Space.sm,
   },
-  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: Space.md },
+  item: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Space.md },
+  itemText: { flex: 1 },
   box: {
     width: 20, height: 20, borderRadius: 6, borderWidth: 1.5,
-    alignItems: 'center', justifyContent: 'center', marginRight: Space.md,
+    alignItems: 'center', justifyContent: 'center', marginRight: Space.md, marginTop: 1,
   },
   struck: { textDecorationLine: 'line-through' },
 });

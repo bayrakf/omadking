@@ -239,7 +239,7 @@ Nicht-Verschmelzungen sind geprüft.
 
 ---
 
-## 11. [ ] Kurzname groß, Zubereitung klein
+## 11. [x] Kurzname groß, Zubereitung klein
 
 **Warum:** „480g raw boneless skinless chicken breast, diced into 2cm cubes" braucht zwei Zeilen für
 den Namen allein. Im Laden liest das niemand.
@@ -248,6 +248,8 @@ den Namen allein. Im Laden liest das niemand.
 Beiwerk. Die Liste zeigt „1,04 kg Hähnchenbrust" prominent, „roh, in 2-cm-Würfeln" klein darunter.
 
 **Fertig wenn:** keine Position braucht mehr zwei Zeilen für den Namen.
+
+**Erledigt** 2026-08-05 — 106 Checks.
 
 ---
 

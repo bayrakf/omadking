@@ -3,7 +3,7 @@
  * parsing rules can be checked by `demo()` instead of by eye in the simulator.
  */
 
-export type GroceryItem = { id: string; name: string; checked: boolean };
+export type GroceryItem = { id: string; name: string; detail: string | null; checked: boolean };
 export type GroceryCategory = { name: string; emoji: string; items: GroceryItem[] };
 
 type PlanLike = { recipe?: { ingredients?: unknown } };
@@ -83,6 +83,48 @@ function coreOf(line: string): string {
     .split(/\s+or\s+/i)[0]  // "chicken breast or crispy tofu"
     .split('(')[0]          // "greek yogurt (0% fat)"
     .trim();
+}
+
+/** True when a whitespace token is preparation rather than identity. */
+function isPrep(token: string): boolean {
+  const parts = token.toLowerCase().replace(/[^a-z-]/g, '').split('-').filter(Boolean);
+  return parts.length > 0 && parts.some((part) => PREP_WORDS.has(part));
+}
+
+/**
+ * Splits a line into what you are buying and how it will be used.
+ *
+ * "480g raw boneless skinless chicken breast, diced into 2cm cubes" needed two
+ * lines for the name alone, which nobody reads standing in a shop. The core is
+ * what goes on the shelf label; the rest belongs underneath, quietly.
+ *
+ * Original casing and word order are kept — this is display text, not a key.
+ */
+export function splitDisplay(line: string): { core: string; detail: string | null } {
+  const text = String(line ?? '').replace(UNIT, '').trim();
+  if (!text) return { core: '', detail: null };
+
+  // Everything past the first comma, " or " or bracket is already detail.
+  const cut = text.search(/,|\s+or\s+|\(/i);
+  const head = (cut === -1 ? text : text.slice(0, cut)).trim();
+  const tail = (cut === -1 ? '' : text.slice(cut))
+    .replace(/^[,(]\s*/, '')
+    .replace(/^or\s+/i, '')
+    .replace(/\)\s*$/, '')
+    .trim();
+
+  const core: string[] = [];
+  const prep: string[] = [];
+  for (const token of head.split(/\s+/)) {
+    if (!token) continue;
+    (isPrep(token) ? prep : core).push(token);
+  }
+
+  // A line that is nothing but preparation still needs a name.
+  if (core.length === 0) return { core: head, detail: tail || null };
+
+  const detail = [prep.join(' ').trim(), tail].filter(Boolean).join(', ');
+  return { core: core.join(' '), detail: detail || null };
 }
 
 /**
@@ -243,6 +285,9 @@ export function buildGroceryList(
 
       if (existing && amount) {
         existing.value += amount.value;
+        // Keep the most informative wording: the first occurrence is often the
+        // barest one, and dropping "diced into 2cm cubes" loses real guidance.
+        if (!splitDisplay(existing.raw).detail && splitDisplay(line).detail) existing.raw = line;
       } else if (!existing) {
         groups.set(id, {
           key: id,
@@ -258,11 +303,15 @@ export function buildGroceryList(
 
   const buckets: GroceryCategory[] = CATEGORIES.map((c) => ({ name: c.name, emoji: c.emoji, items: [] }));
   for (const g of groups.values()) {
-    const name = g.canon === 'none' ? g.raw : formatAmount(g.value, g.canon, g.rest);
+    const display = splitDisplay(g.raw);
+    const name =
+      g.canon === 'none'
+        ? display.core || g.raw
+        : formatAmount(g.value, g.canon, display.core);
     // Fall back to the old plain-key tick so an existing list is not un-ticked
     // by this change.
     const wasChecked = checked[g.key] ?? checked[g.key.split('|')[0]];
-    buckets[categorise(g.raw)].items.push({ id: g.key, name, checked: !!wasChecked });
+    buckets[categorise(g.raw)].items.push({ id: g.key, name, detail: display.detail, checked: !!wasChecked });
   }
 
   return buckets
@@ -404,7 +453,7 @@ export function demo() {
     { recipe: { ingredients: ['Sea salt, to taste'] } },
     { recipe: { ingredients: ['Sea salt, to taste'] } },
   ]);
-  assert(vague.length === 1 && vague[0] === 'Sea salt, to taste', `vague lines survive intact, got: ${vague.join(' | ')}`);
+  assert(vague.length === 1 && vague[0] === 'Sea salt', `an amount-less line keeps its name, got: ${vague.join(' | ')}`);
 
   // Three plans, so summing is not a two-item special case.
   const three = named([
@@ -413,6 +462,41 @@ export function demo() {
     { recipe: { ingredients: ['200g oats'] } },
   ]);
   assert(three.length === 1 && three[0] === '450g oats', `three plans sum, got: ${three.join(' | ')}`);
+
+  // --- display split -------------------------------------------------------
+
+  const long = splitDisplay('480g raw boneless skinless chicken breast, diced into 2cm cubes');
+  assert(long.core === 'chicken breast', `the core is what you buy, got: ${long.core}`);
+  assert(long.detail === 'raw boneless skinless, diced into 2cm cubes', `the rest is detail, got: ${long.detail}`);
+
+  const alt = splitDisplay('293g Herb-Marinated Chicken Breast or Crispy Tofu');
+  assert(alt.core === 'Chicken Breast', `casing is preserved for display, got: ${alt.core}`);
+  assert(!!alt.detail?.includes('Crispy Tofu'), `the alternative is kept as detail, got: ${alt.detail}`);
+
+  const plainLine = splitDisplay('250g broccoli');
+  assert(plainLine.core === 'broccoli' && plainLine.detail === null, 'a plain line has no detail');
+
+  const vagueLine = splitDisplay('Sea salt, to taste');
+  assert(vagueLine.core === 'Sea salt' && vagueLine.detail === 'to taste', `vague lines split too, got: ${JSON.stringify(vagueLine)}`);
+
+  // Nothing but preparation must still produce a name rather than an empty row.
+  const allPrep = splitDisplay('300g diced');
+  assert(allPrep.core.length > 0, 'an all-preparation line still shows something');
+  assert(splitDisplay('').core === '', 'an empty line splits to nothing');
+
+  // A later, richer line wins the detail; the barest one usually comes first.
+  const richer = buildGroceryList([
+    { recipe: { ingredients: ['320g chicken breast'] } },
+    { recipe: { ingredients: ['400g raw chicken breast, diced into 2cm cubes'] } },
+  ]);
+  const merged = richer[0].items[0];
+  assert(merged.name === '720g chicken breast', `amounts still sum, got: ${merged.name}`);
+  assert(!!merged.detail?.includes('diced into 2cm cubes'), `the richer detail survives, got: ${merged.detail}`);
+
+  // The detail never swallows the amount.
+  const amounts = buildGroceryList([{ recipe: { ingredients: ['480g raw chicken breast, diced'] } }]);
+  assert(amounts[0].items[0].name.startsWith('480g'), `the amount stays on the name, got: ${amounts[0].items[0].name}`);
+  assert(!amounts[0].items[0].detail?.includes('480'), 'the amount is not repeated in the detail');
 
   // --- preparation words ---------------------------------------------------
 
