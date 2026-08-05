@@ -795,3 +795,39 @@ absichtliche Sabotage verifiziert — sie fängt ein eingeschmuggeltes `btoa(` s
 über ihre Web-Zwillinge getestet. Das kann nur ein Gerätelauf klären.
 
 **Erledigt** 2026-08-05 — 192 Checks.
+
+
+---
+
+## 35. [x] Vier Premium-Funktionen, die aus den eigenen Daten kommen
+
+**1. Die Prognose, die sich biegt.** Jede App teilt Distanz durch aktuelle Rate und ist damit
+systematisch zu optimistisch: ein leichterer Körper kostet weniger, das Defizit schrumpft von
+selbst. `forecast()` iteriert wochenweise mit fallender Erhaltung — die Rate kommt aus der
+BMR-Formel der App selbst, nicht aus einer Konstante. Als Selbstcheck festgenagelt, dass das
+Ergebnis **später** liegt als die naive Division.
+
+Und der Satz, den sonst niemand sagt: bei zu kleinem Defizit nennt sie das Gewicht, bei dem es
+stehen bleibt — „für 70 kg musst du später weniger essen, nicht länger".
+
+**2. Die Diätpause.** `deficitSpell()` zählt die Wochen ununterbrochenen Verlusts. Nach acht
+Wochen wird eine Woche auf Erhaltung vorgeschlagen, mit der Zahl. Als Entscheidung formuliert,
+nicht als Vorwurf: „Planen ist der Unterschied dazu, dass es aus Versehen passiert."
+
+**3. Das Fenster, das zum Training passt.** `suggestWindow()` erkennt die Überschneidung und nennt
+eine konkrete neue Startzeit. Die App warnte davor seit dem Timing-Modul — und hat den Fix nie
+vorgeschlagen.
+
+**4. Der Wochenentscheid.** `weeklyDecision()` priorisiert alles zu **einer** Sache: Plateau →
+Diätpause → Fenster → fehlende Daten → weitermachen. Mehrere wahre Aussagen gleichzeitig sind
+Rauschen, und Rauschen wird nicht mehr gelesen.
+
+**Zwei Fehler, die die Prüfungen fanden:**
+
+- Ich reichte `DEFAULT_PROFILE.default_training_time` an `loadLastSession` durch statt der
+  Trainingszeit **des Nutzers** — der Fenstervorschlag kam aus der falschen Zeit.
+- Schlimmer: die Bezahlschranke saß im Bildschirm und hätte den Fenstervorschlag mitkassiert —
+  eine Uhrzeit-Rechnung, die vorher kostenlos war. Jetzt entscheidet `weeklyDecision` selbst per
+  `premiumOnly`, was gemessen ist und was nicht, und die Regel steht als Selbstcheck.
+
+**Erledigt** 2026-08-06 — 201 Checks.

@@ -20,7 +20,7 @@
  * number derived from it.
  */
 
-import { weeklyTrend, fastingState, toMinutes, type UserProfile } from './nutrition';
+import { weeklyTrend, fastingState, toMinutes, bmr, type UserProfile } from './nutrition';
 import { parseISO, todayISO } from './dates';
 
 /** Standard approximation for a kilogram of body mass. */
@@ -257,6 +257,156 @@ export function readPlateau(
   };
 }
 
+/**
+ * Where this intake actually leads, and when.
+ *
+ * Every app answers "when will I get there" by dividing the distance by the
+ * current rate. That is always too optimistic, and predictably so: a lighter
+ * body costs less to run, so the same plate becomes a smaller deficit every
+ * week. The line bends, and eventually it flattens.
+ *
+ * Which produces the sentence nobody else says — not "keep going" but "this
+ * amount of food levels off at 79.4 kg, and reaching 75 needs a smaller plate
+ * later". That is a plan someone can act on rather than a countdown that keeps
+ * sliding.
+ *
+ * The rate at which maintenance falls is taken from the app's own BMR formula
+ * rather than a constant, so it stays consistent with every other number shown.
+ */
+export type Forecast = {
+  /** Weeks to the target at this intake. Null when it is never reached. */
+  weeks: number | null;
+  /** ISO date for that, or null. */
+  date: string | null;
+  /** Where this intake stops producing a deficit. Null if the target comes first. */
+  stallWeight: number | null;
+  note: string;
+};
+
+/** Below this a weekly deficit is not distinguishable from measurement error. */
+const MIN_MEANINGFUL_DEFICIT = 50;
+const MAX_WEEKS = 260;
+
+export function forecast(
+  profile: UserProfile,
+  currentWeight: number,
+  targetWeight: number,
+  maintenanceNow: number,
+  intakeKcal: number,
+  today: string = todayISO()
+): Forecast {
+  const none: Forecast = { weeks: null, date: null, stallWeight: null, note: '' };
+  if (![currentWeight, targetWeight, maintenanceNow, intakeKcal].every((n) => isFinite(n) && n > 0)) return none;
+  if (targetWeight >= currentWeight) return none;
+
+  // How much daily maintenance moves per kilogram, from this app's own BMR.
+  const perKg = Math.abs(
+    bmr({ ...profile, weight_kg: currentWeight }) - bmr({ ...profile, weight_kg: currentWeight - 1 })
+  ) * (maintenanceNow / Math.max(1, bmr({ ...profile, weight_kg: currentWeight })));
+
+  let weight = currentWeight;
+  let weeks = 0;
+
+  while (weeks < MAX_WEEKS) {
+    const maintenance = maintenanceNow - perKg * (currentWeight - weight);
+    const deficit = maintenance - intakeKcal;
+
+    if (deficit < MIN_MEANINGFUL_DEFICIT) {
+      const stall = Math.round(weight * 10) / 10;
+      return {
+        weeks: null,
+        date: null,
+        stallWeight: stall,
+        note:
+          `At ${Math.round(intakeKcal)} kcal this levels off around ${stall} kg — a lighter body `
+          + `costs less to run, so the deficit closes on its own. Reaching ${targetWeight} kg means `
+          + `eating less later, not longer.`,
+      };
+    }
+
+    weight -= (deficit * 7) / KCAL_PER_KG;
+    weeks += 1;
+
+    if (weight <= targetWeight) {
+      const when = parseISO(today);
+      when.setDate(when.getDate() + weeks * 7);
+      const date = todayISO(when);
+      return {
+        weeks,
+        date,
+        stallWeight: null,
+        note:
+          `About ${weeks} week${weeks === 1 ? '' : 's'} to ${targetWeight} kg at this intake, so `
+          + `around ${date}. The rate eases as you get lighter — that is expected, not a stall.`,
+      };
+    }
+  }
+
+  return { ...none, note: 'Too slow at this intake to put a date on.' };
+}
+
+/**
+ * How long this has been going on, and whether a week off is due.
+ *
+ * A long unbroken deficit gets harder to hold — hunger climbs, adherence
+ * slips, and most people break it badly rather than deliberately. Planning the
+ * break is the difference between a maintenance week and a lost month.
+ *
+ * The app knows how long because it has the weight log. It does not know why
+ * anyone feels how they feel, so this says what has happened and what the
+ * usual next move is, and stops there.
+ */
+export type DeficitSpell = {
+  weeks: number;
+  breakDue: boolean;
+  /** What to eat during a maintenance week, if it can be worked out. */
+  maintenanceKcal: number | null;
+  note: string;
+};
+
+/** Weeks of continuous deficit after which a planned week off is worth offering. */
+export const BREAK_AFTER_WEEKS = 8;
+
+export function deficitSpell(
+  intakeLog: unknown,
+  weights: unknown,
+  goal: string,
+  today: string = todayISO()
+): DeficitSpell {
+  const none: DeficitSpell = { weeks: 0, breakDue: false, maintenanceKcal: null, note: '' };
+  if (goal !== 'weight_loss') return none;
+
+  const weighed = (Array.isArray(weights) ? weights : [])
+    .filter((w: any) => w && typeof w.date === 'string' && isFinite(w.weight_kg) && w.weight_kg > 0)
+    .sort((a: any, b: any) => a.date.localeCompare(b.date)) as WeighIn[];
+  if (weighed.length < 2) return none;
+
+  // Net loss from the earliest logged weigh-in. Deliberately simple: a spell is
+  // "you have been lighter than where you started and heading down", not an
+  // attempt to detect every pause in between.
+  const first = weighed[0];
+  const last = weighed[weighed.length - 1];
+  if (last.weight_kg >= first.weight_kg) return none;
+
+  const days = daysBetween(first.date, last.date);
+  const weeks = Math.floor(days / 7);
+  if (weeks < 1) return none;
+
+  const measured = measuredMaintenance(intakeLog, weights, 0, today);
+
+  return {
+    weeks,
+    breakDue: weeks >= BREAK_AFTER_WEEKS,
+    maintenanceKcal: measured.kcal,
+    note:
+      weeks >= BREAK_AFTER_WEEKS
+        ? `${weeks} weeks of losing without a break. A week at maintenance`
+          + (measured.kcal ? ` — about ${measured.kcal} kcal — ` : ' ')
+          + `is the usual next move: it is easier to hold, and it is a decision rather than a slip.`
+        : `${weeks} week${weeks === 1 ? '' : 's'} in.`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 
 export type TrendRead = {
@@ -485,6 +635,63 @@ export function demo() {
   for (const note of [stall.note, noIntake.note]) {
     assert(!/cure|prevent|detox|proven|guarantee/i.test(note), 'no health claim in a plateau note');
     assert(!/\bstudies\b|%/.test(note), 'no invented statistic in a plateau note');
+  }
+
+  // --- how long this has been going on -------------------------------------
+
+  // Eleven entries so the span really is sixty days, not fifty-four.
+  const eightWeeks = Array.from({ length: 11 }, (_, i) => ({
+    date: day(60 - i * 6), weight_kg: 90 - i * 0.5,
+  }));
+  const spell = deficitSpell(intake14, eightWeeks, 'weight_loss', TODAY);
+  assert(spell.weeks >= 8, `a long run is counted: ${spell.weeks}`);
+  assert(spell.breakDue, 'and a break is offered after eight weeks');
+  assert(/decision rather than a slip/.test(spell.note), 'framed as a plan, not a failure');
+
+  const twoWeeks = [{ date: day(14), weight_kg: 86 }, { date: day(0), weight_kg: 85 }];
+  assert(!deficitSpell(intake14, twoWeeks, 'weight_loss', TODAY).breakDue, 'two weeks is not a long run');
+  assert(!deficitSpell(intake14, eightWeeks, 'muscle_gain', TODAY).breakDue, 'gaining is not a deficit spell');
+  assert(deficitSpell(intake14, [], 'weight_loss', TODAY).weeks === 0, 'no weigh-ins, no spell');
+  const gainingRun = [{ date: day(60), weight_kg: 85 }, { date: day(0), weight_kg: 88 }];
+  assert(deficitSpell(intake14, gainingRun, 'weight_loss', TODAY).weeks === 0, 'putting weight on is not a deficit');
+
+  // --- the forecast --------------------------------------------------------
+
+  const fProf = { weight_kg: 95, height_cm: 183, age: 34, sex: 'male',
+    fitness_level: 'advanced', goal: 'weight_loss', omad_window_start: '18:00',
+    omad_window_hours: 2, default_training_time: '19:00' } as any;
+
+  // A real deficit reaches the target, and later than a naive division would say.
+  const reach = forecast(fProf, 95, 85, 2600, 2100, TODAY);
+  assert(reach.weeks !== null, `a genuine deficit produces a date: ${reach.note}`);
+  const naiveWeeks = (95 - 85) / (((2600 - 2100) * 7) / KCAL_PER_KG);
+  assert(reach.weeks! > naiveWeeks, `and it is later than the naive figure (${reach.weeks} vs ${naiveWeeks.toFixed(1)})`);
+  assert(reach.date !== null && reach.date! > TODAY, 'the date lies in the future');
+  assert(reach.stallWeight === null, 'nothing stalls when the target is reached');
+
+  // The sentence that matters: too little deficit levels off short of the goal.
+  const levels = forecast(fProf, 95, 70, 2600, 2450, TODAY);
+  assert(levels.weeks === null, 'a thin deficit never reaches a distant target');
+  assert(levels.stallWeight !== null, `and reports where it levels off: ${levels.stallWeight}`);
+  assert(levels.stallWeight! > 70 && levels.stallWeight! < 95, `between here and there: ${levels.stallWeight}`);
+  assert(/eating less later, not longer/.test(levels.note), 'and says what to do about it');
+
+  // Eating at or above maintenance goes nowhere at all.
+  assert(forecast(fProf, 95, 85, 2600, 2600, TODAY).stallWeight === 95, 'no deficit, no movement');
+  assert(forecast(fProf, 95, 85, 2600, 3000, TODAY).stallWeight === 95, 'a surplus does not lose weight');
+
+  // Nonsense in, nothing out.
+  assert(forecast(fProf, 95, 100, 2600, 2100, TODAY).weeks === null, 'a target above current weight is not a forecast');
+  assert(forecast(fProf, 95, 95, 2600, 2100, TODAY).weeks === null, 'nor is standing still');
+  for (const bad of [0, -1, NaN, Infinity]) {
+    assert(forecast(fProf, bad, 85, 2600, 2100, TODAY).weeks === null, `bad weight rejected: ${bad}`);
+    assert(forecast(fProf, 95, 85, bad, 2100, TODAY).weeks === null, `bad maintenance rejected: ${bad}`);
+  }
+
+  // Same wording discipline.
+  for (const note of [reach.note, levels.note]) {
+    assert(!/cure|prevent|detox|proven|guarantee/i.test(note), 'no health claim in a forecast');
+    assert(!/\bstudies\b|%/.test(note), 'no invented statistic in a forecast');
   }
 
   // --- reading the trend ---------------------------------------------------

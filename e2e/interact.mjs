@@ -265,6 +265,79 @@ export default async function run() {
     await context.close();
   }
 
+  // -------------------------------------------------------- THIS WEEK'S CHANGE
+  section('One change a week');
+  {
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    // Explicit profile: SEED trains at 19:00 inside an 18:00 window and is set
+    // to muscle gain, so it exercises different branches than these blocks want.
+    const losingProfile = (windowStart) => JSON.stringify({
+      weight_kg: 90, height_cm: 183, age: 34, sex: 'male',
+      fitness_level: 'advanced', goal: 'weight_loss',
+      omad_window_start: windowStart, omad_window_hours: 2, default_training_time: '19:00',
+    });
+
+    // A window that clashes with training is a fixable, concrete thing.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED, onboarding_profile: losingProfile('18:00'),
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1600);
+      const t = await body(page);
+      check(has(t, 'This week'), 'the decision card leads the screen');
+      check(has(t, 'Move your eating window'), 'a session inside the window is the thing to fix');
+      check(has(t, '20:15'), 'with the time to move it to');
+    await context.close();
+    }
+
+    // Window already fine, nothing logged: ask for the signal that unlocks the rest.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED, onboarding_profile: losingProfile('20:30'),
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1600);
+      const t = await body(page);
+      check(has(t, 'Answer the evening question'), 'otherwise it asks for the missing signal');
+      // Anchored to the decision card, not to any "more days" on the screen —
+      // the measurement card says something similar and made this pass once
+      // for the wrong reason.
+      check(/Answer the evening question\s*\n?\s*8 more days/.test(t),
+        'counting exactly what is needed', t.match(/\d+ more days[^.]*/)?.[0] ?? '');
+      await context.close();
+    }
+
+    // A long deficit outranks the window, and names what to eat.
+    {
+      const weights = Array.from({ length: 11 }, (_, i) => ({
+        id: `d${i}`, date: day(60 - i * 6), weight_kg: 90 - i * 0.5,
+      }));
+      const intake = Array.from({ length: 14 }, (_, i) => ({
+        date: day(13 - i), factor: 1, target_kcal: 2000,
+      }));
+      const { context, page } = await newPage(browser, {
+        ...SEED, user_premium: 'true', onboarding_profile: losingProfile('18:00'),
+        weight_log: JSON.stringify(weights), intake_log: JSON.stringify(intake),
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Take a week at maintenance'), 'a long run outranks the window clash');
+      check(/Eat \d{4} kcal for seven days/.test(t), 'with a figure to eat during it',
+        t.match(/Eat \d{4} kcal for seven days/)?.[0] ?? '');
+      check(has(t, 'by accident'), 'and says why planning it matters');
+      // The forecast that bends rather than divides.
+      check(/About \d+ weeks to [\d.]+ kg/.test(t), 'and the forecast names a horizon',
+        t.match(/About \d+ weeks to [\d.]+ kg/)?.[0] ?? '');
+      await context.close();
+    }
+  }
+
   // ---------------------------------------------------------------- PLATEAU
   section('Plateau');
   {

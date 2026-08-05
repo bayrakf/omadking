@@ -230,6 +230,96 @@ export function adaptationStage(fastLog: string[]): AdaptationStage {
   return { id: current.id, label: current.label, note: current.note, daysLogged };
 }
 
+/**
+ * One change, once a week.
+ *
+ * The app can now say several true things at once — a stall, a long deficit, a
+ * window that collides with training, thin data. All of them at once is noise,
+ * and noise is what people stop reading. This picks the one that matters most
+ * right now and says what to do about it.
+ *
+ * A pure prioritiser: it takes what the other modules already worked out
+ * rather than recomputing any of it, so the ordering is the only thing it can
+ * get wrong, and the ordering is what the checks pin down.
+ */
+export type Decision = {
+  headline: string;
+  action: string;
+  why: string;
+  /**
+   * Whether the action rests on a measurement rather than on arithmetic the app
+   * would do for anyone. The module decides this, not the screen — the first
+   * version gated in the UI and quietly put a free timing correction behind the
+   * paywall, which is the one thing this design promised not to do.
+   */
+  premiumOnly: boolean;
+};
+
+export function weeklyDecision(input: {
+  stalled?: boolean;
+  newTarget?: number | null;
+  breakDue?: boolean;
+  deficitWeeks?: number;
+  maintenanceKcal?: number | null;
+  windowStart?: string | null;
+  intakeDays?: number;
+  trendNote?: string;
+}): Decision {
+  const {
+    stalled, newTarget, breakDue, deficitWeeks = 0, maintenanceKcal,
+    windowStart, intakeDays = 0, trendNote = '',
+  } = input;
+
+  // A stall outranks everything: it is the thing that makes people quit.
+  if (stalled) {
+    return {
+      headline: 'Your maintenance has moved',
+      action: newTarget ? `Eat ${newTarget} kcal this week.` : 'Answer a few more days so the new figure can be worked out.',
+      why: 'Holding weight at this intake means the deficit has closed. The number changed, not your effort.',
+      // Only the figure is measured; a stall without one is just a request.
+      premiumOnly: newTarget !== null && newTarget !== undefined,
+    };
+  }
+
+  // Then the thing that is about to make them quit.
+  if (breakDue) {
+    return {
+      headline: 'Take a week at maintenance',
+      action: maintenanceKcal ? `Eat ${maintenanceKcal} kcal for seven days, then go back down.` : 'Eat at maintenance for seven days.',
+      why: `${deficitWeeks} weeks without a break. Planning the week off is what keeps it from happening by accident.`,
+      premiumOnly: maintenanceKcal !== null && maintenanceKcal !== undefined,
+    };
+  }
+
+  // Then a fixable mismatch that costs a little every single session.
+  if (windowStart) {
+    return {
+      headline: 'Move your eating window',
+      action: `Open it at ${windowStart} instead.`,
+      why: 'Your session currently runs into the window, so the meal lands mid-workout.',
+      // Clock arithmetic, not a measurement. It was free before and stays free.
+      premiumOnly: false,
+    };
+  }
+
+  // Then the thing that unlocks everything else.
+  if (intakeDays < 8) {
+    return {
+      headline: 'Answer the evening question',
+      action: `${8 - intakeDays} more day${8 - intakeDays === 1 ? '' : 's'} and the app can measure what your body costs.`,
+      why: 'Three taps a day is the whole signal. Without it the target stays a formula.',
+      premiumOnly: false,
+    };
+  }
+
+  return {
+    headline: 'Carry on',
+    action: 'Nothing to change this week.',
+    why: trendNote || 'The plan is working as set.',
+    premiumOnly: false,
+  };
+}
+
 // ---------------------------------------------------------------------------
 
 export function demo() {
@@ -383,6 +473,55 @@ export function demo() {
     );
     assert(!/%|\bstudies\b/i.test(stage.note), `${stage.id} invents no statistic`);
     assert(!/you will|guaranteed|always/i.test(stage.note), `${stage.id} promises nothing`);
+  }
+
+  // --- one change, in the right order --------------------------------------
+
+  // Everything true at once: the stall must win.
+  const all = weeklyDecision({
+    stalled: true, newTarget: 1600, breakDue: true, deficitWeeks: 9,
+    maintenanceKcal: 2300, windowStart: '20:15', intakeDays: 2,
+  });
+  assert(/maintenance has moved/.test(all.headline), `a stall outranks everything: ${all.headline}`);
+  assert(/1600/.test(all.action), 'and carries the new number');
+
+  const brk = weeklyDecision({ breakDue: true, deficitWeeks: 9, maintenanceKcal: 2300, windowStart: '20:15', intakeDays: 2 });
+  assert(/week at maintenance/.test(brk.headline), 'then the break');
+  assert(/2300/.test(brk.action), 'with what to eat during it');
+
+  const win = weeklyDecision({ windowStart: '20:15', intakeDays: 2 });
+  assert(/eating window/.test(win.headline), 'then the window');
+  assert(/20:15/.test(win.action), 'with the time to move it to');
+
+  const needData = weeklyDecision({ intakeDays: 3 });
+  assert(/evening question/.test(needData.headline), 'then the missing data');
+  assert(/5 more days/.test(needData.action), `counted exactly: ${needData.action}`);
+  assert(/1 more day\b/.test(weeklyDecision({ intakeDays: 7 }).action), 'and singular at one');
+
+  const fine = weeklyDecision({ intakeDays: 14, trendNote: 'Down 0.4 kg a week.' });
+  assert(/Carry on/.test(fine.headline), 'and nothing to change is a valid answer');
+  assert(/0.4/.test(fine.why), 'backed by the trend rather than a platitude');
+
+  assert(weeklyDecision({}).headline.length > 0, 'empty input still produces something sayable');
+
+  // Which advice is paid for, decided here rather than by a screen. Moving the
+  // eating window is clock arithmetic the app already did for free — putting it
+  // behind the paywall would take away something people already had.
+  assert(win.premiumOnly === false, 'a window correction stays free');
+  assert(needData.premiumOnly === false, 'asking for data is not a product');
+  assert(fine.premiumOnly === false, 'and neither is "carry on"');
+  assert(all.premiumOnly === true, 'a measured target is the paid part');
+  assert(brk.premiumOnly === true, 'so is the maintenance figure');
+  assert(weeklyDecision({ stalled: true, newTarget: null }).premiumOnly === false,
+    'a stall with no figure to give is not sold as one');
+
+  // A stall the app cannot price still gives an instruction.
+  const blind = weeklyDecision({ stalled: true, newTarget: null });
+  assert(/more days/.test(blind.action), 'a stall without a figure asks for data');
+
+  for (const dcn of [all, brk, win, needData, fine]) {
+    assert(!/cure|prevent|detox|proven|guarantee/i.test(dcn.why + dcn.action), 'no health claim in a decision');
+    assert(!/\bstudies\b|%/.test(dcn.why + dcn.action), 'no invented statistic in a decision');
   }
 
   return 'review.ts: all checks passed';

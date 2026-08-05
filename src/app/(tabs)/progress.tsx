@@ -7,16 +7,19 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, Tap, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, type UserProfile } from '@/lib/nutrition';
-import { measuredMaintenance, readPlateau, type Measurement, type PlateauRead } from '@/lib/energy';
+import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, type UserProfile } from '@/lib/nutrition';
+import {
+  measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend,
+  type Measurement, type PlateauRead, type Forecast,
+} from '@/lib/energy';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
-  loadIntakeLog, isPremium, todayISO, type WeightEntry,
+  loadIntakeLog, loadLastSession, isPremium, todayISO, type WeightEntry,
 } from '@/lib/store';
 import {
-  weeklyReview, adaptationStage, fastWeek,
-  type WeeklyReview, type AdaptationStage, type FastDay,
+  weeklyReview, adaptationStage, fastWeek, weeklyDecision,
+  type WeeklyReview, type AdaptationStage, type FastDay, type Decision,
 } from '@/lib/review';
 
 /**
@@ -81,6 +84,8 @@ export default function ProgressScreen() {
   const [week, setWeek] = useState<FastDay[]>([]);
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [plateau, setPlateau] = useState<PlateauRead | null>(null);
+  const [outlook, setOutlook] = useState<Forecast | null>(null);
+  const [decision, setDecision] = useState<Decision | null>(null);
   const [premium, setPremium] = useState(false);
   const [fasts, setFasts] = useState<string[]>([]);
 
@@ -88,9 +93,14 @@ export default function ProgressScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const [p, log, fasts, cooks, plans, intake, prem] = await Promise.all([
-          loadProfileOrDefault(), loadWeightLog(), loadFastLog(), loadCookLog(),
+        // The profile first: the session's fallback training time has to be
+        // *this* user's, not the app default. Passing DEFAULT_PROFILE here made
+        // the window suggestion come out of the wrong session time entirely.
+        const p = await loadProfileOrDefault();
+        const [log, fasts, cooks, plans, intake, prem, session] = await Promise.all([
+          loadWeightLog(), loadFastLog(), loadCookLog(),
           loadPlanHistory<{ date: string }>(), loadIntakeLog(), isPremium(),
+          loadLastSession(p.default_training_time),
         ]);
         if (!active) return;
         setProfile(p);
@@ -100,6 +110,33 @@ export default function ProgressScreen() {
         setMeasured(measuredMaintenance(intake, log, dailyTargets(p, null).maintenance_kcal));
         // 500 is the deficit dailyTargets applies for weight loss.
         setPlateau(readPlateau(intake, log, p.goal, 500));
+        // Forecast from the measured maintenance where there is one, the
+        // formula's otherwise — the shape of the answer is the same either way.
+        const est = dailyTargets(p, null);
+        const m = measuredMaintenance(intake, log, est.maintenance_kcal);
+        const hM2 = p.height_cm / 100;
+        setOutlook(
+          p.goal === 'weight_loss'
+            ? forecast(p, p.weight_kg, Math.round(22 * hM2 * hM2 * 10) / 10, m.kcal ?? est.maintenance_kcal, est.kcal)
+            : null
+        );
+
+        // One instruction, chosen from everything the app now knows.
+        const stall = readPlateau(intake, log, p.goal, 500);
+        const spell = deficitSpell(intake, log, p.goal);
+        const winFix = session.restDay ? null : suggestWindow(p, session.start_time, session.duration_min);
+        setDecision(
+          weeklyDecision({
+            stalled: stall.stalled,
+            newTarget: stall.newTarget,
+            breakDue: spell.breakDue,
+            deficitWeeks: spell.weeks,
+            maintenanceKcal: spell.maintenanceKcal,
+            windowStart: winFix?.start ?? null,
+            intakeDays: intake.length,
+            trendNote: readTrend(log).note,
+          })
+        );
         setReview(weeklyReview(fasts, cooks, log, plans));
         setAdapt(adaptationStage(fasts));
         setFasts(fasts);
@@ -179,6 +216,57 @@ export default function ProgressScreen() {
           title="Progress"
         />
       </Enter>
+
+      {/* The only card on this screen that tells anyone to do anything. The
+          rest are read-outs; several true statements at once is noise, and
+          noise is what stops being read. */}
+      {decision && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }} tone={decision.headline === 'Carry on' ? undefined : 'accent'}>
+            <Eyebrow color={decision.headline === 'Carry on' ? undefined : c.accent}>This week</Eyebrow>
+            <Txt variant="subheading" style={{ marginTop: Space.sm }}>{decision.headline}</Txt>
+            <Txt variant="body" style={{ marginTop: Space.sm }}>
+              {premium || !decision.premiumOnly
+                ? decision.action
+                : 'Premium works the change out from your own numbers.'}
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{decision.why}</Txt>
+          </Card>
+        </Enter>
+      )}
+
+      {/* The question everyone actually has, answered without the flattery.
+          A naive projection divides distance by current rate and is always
+          optimistic, because a lighter body costs less to run. This one bends,
+          and when the plate is too big to reach the goal it says so. */}
+      {outlook && (outlook.weeks !== null || outlook.stallWeight !== null) && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <View style={s.split}>
+              <Eyebrow>Where this leads</Eyebrow>
+              {premium && outlook.weeks !== null && (
+                <Txt variant="data" color={c.accent}>{outlook.weeks} weeks</Txt>
+              )}
+            </View>
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+              {premium
+                ? outlook.note
+                : outlook.stallWeight !== null
+                  ? 'At your current intake the weight levels off before the target — a lighter body '
+                    + 'costs less to run. Premium shows where, and what to eat instead.'
+                  : 'Premium works out how long this takes at your current intake, allowing for the '
+                    + 'fact that the rate eases as you get lighter.'}
+            </Txt>
+            {!premium && (
+              <Button
+                label="See where this leads"
+                onPress={() => router.push('/paywall')}
+                style={{ marginTop: Space.md }}
+              />
+            )}
+          </Card>
+        </Enter>
+      )}
 
       {/* The moment people quit. A flat line reads as failure; it is not one,
           and the arithmetic says so. Above the measurement card because when

@@ -559,6 +559,46 @@ export function breakFastSteps(pattern: MealTiming['pattern']): string[] {
   return shared;
 }
 
+/**
+ * A window that fits the session, when the current one does not.
+ *
+ * Training inside the eating window means eating mid-session — the app has
+ * warned about that on individual plans since the timing engine landed, but it
+ * never once suggested the fix, which is to move the window by an hour.
+ *
+ * Returns null when the window already works. Nothing to say is better than
+ * something to ignore.
+ */
+export function suggestWindow(
+  p: UserProfile,
+  trainingTime: string,
+  durationMin: number
+): { start: string; note: string } | null {
+  if (!trainingTime || !isFinite(durationMin) || durationMin <= 0) return null;
+
+  const winStart = toMinutes(p.omad_window_start);
+  const winLen = p.omad_window_hours * 60;
+  const trainStart = toMinutes(trainingTime);
+  const trainEnd = trainStart + Math.min(360, durationMin);
+
+  // Overlap, wrapped for a window that crosses midnight.
+  const rel = (m: number) => ((m - winStart) % 1440 + 1440) % 1440;
+  const overlaps = rel(trainStart) < winLen || rel(trainEnd) < winLen;
+  if (!overlaps) return null;
+
+  // Fifteen minutes after the session ends: long enough to stop sweating,
+  // short enough to still be the post-training meal.
+  const suggested = fromMinutes((trainEnd + 15) % 1440);
+  if (suggested === p.omad_window_start) return null;
+
+  return {
+    start: suggested,
+    note:
+      `Your session runs into the eating window, so the meal lands mid-workout. Opening at `
+      + `${suggested} instead puts it after you finish.`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Weight trend
 // ---------------------------------------------------------------------------
@@ -733,6 +773,18 @@ export function demo() {
     );
     assert(!/%|\bstudies\b/i.test(stage.note), `${stage.id} invents no statistic`);
   }
+
+  // A window that collides with training gets a concrete alternative.
+  const clash = normalizeProfile({ omad_window_start: '18:00', omad_window_hours: 2, default_training_time: '19:00' });
+  const fix = suggestWindow(clash, '19:00', 60);
+  assert(fix !== null, 'a session inside the window is noticed');
+  assert(fix!.start === '20:15', `and the window is moved past it: ${fix!.start}`);
+
+  const clear = normalizeProfile({ omad_window_start: '19:00', omad_window_hours: 2, default_training_time: '16:00' });
+  assert(suggestWindow(clear, '16:00', 60) === null, 'a window that already works is left alone');
+  assert(suggestWindow(clash, '', 60) === null, 'no session, no advice');
+  assert(suggestWindow(clash, '19:00', 0) === null, 'a zero-length session is not a session');
+  assert(suggestWindow(clash, '19:00', NaN) === null, 'nonsense duration is refused');
 
   // Protocols are a naming layer over the window length; the maths is unchanged.
   assert(protocolForHours(1)?.id === 'omad-strict', 'a one-hour window is strict OMAD');
