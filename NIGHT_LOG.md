@@ -17,6 +17,8 @@ Ein Eintrag pro Durchlauf: Punkt, Ergebnis, Commit oder Blocker.
 | 10 | Zubereitungswörter ignorieren | grün — 104 Checks | `07290c5` |
 | 11 | Kurzname groß, Zubereitung klein | grün — 106 Checks | `d67760d` |
 | 12 | Einkaufsliste nach Ladenweg | grün — 107 Checks | `c3489be` |
+| 13 | Protokoll-Typen | grün — 110 Checks | `bae2f8a` |
+| 14 | Fastenphasen am Zifferblatt | grün — 113 Checks | `3a1e75d` |
 
 ---
 
@@ -373,3 +375,34 @@ nicht da war. Broccoli ergänzt, statt den Check aufzuweichen.
 „potato" getrennt.
 
 **Verifikation:** alle vier Gates grün · 107 Checks · Bundle-Probe: fünf native Module, 0 Treffer.
+
+
+---
+
+## Durchläufe 13 und 14 — OMAD kommt inhaltlich an
+
+**Punkt 13:** `PROTOCOLS` benennt die Spielarten — Strict OMAD, OMAD, Warrior 20:4, 18:6, 16:8 —
+je mit einer Zeile dazu, was sie kosten und bringen.
+
+Das ist eine **Namensschicht, keine neue Rechnung.** `windowHours` treibt weiterhin alles, eine
+handgetippte Fensterlänge funktioniert unverändert und trägt schlicht keinen Namen.
+`protocolForHours` liefert `null` statt auf den nächstgelegenen zu runden — jemandes
+3-Stunden-Fenster still als etwas anderes zu etikettieren wäre gelogen.
+
+Für jedes Protokoll ist geprüft, dass das Profil es akzeptiert **und** dass es die Fastenlänge
+ergibt, die sein Name behauptet. Label und Rechnung können damit nicht auseinanderlaufen.
+
+**Punkt 14:** `fastingStage()` bändert das Fasten — fed, post-absorptive, glycogen falling, ketones
+rising, deep. Grenzen beidseitig geprüft, damit kein Fasten durch eine Lücke fällt; Unsinn klemmt
+statt zu werfen.
+
+**Die Wortwahl-Regel steht als Selbstcheck, nicht als Vorsatz.** Jede Notiz wird darauf geprüft,
+dass sie kein cure/prevent/detox/proven enthält, keine Krankheitsbegriffe, keinen Prozentwert und
+keinen Verweis auf „studies". Die e2e-Suite wiederholt dieselbe Prüfung gegen das gerenderte
+Dashboard — die Regel zählt dort, wo jemand liest, nicht nur dort, wo sie geschrieben steht.
+
+Im UI steht sichtbar „Approximate". Die Übergänge sind fließend und verschieben sich mit letzter
+Mahlzeit, Training und Person; sie als Schalter darzustellen wäre die eigentliche Unwahrheit.
+
+**Verifikation beider Punkte:** alle vier Gates grün · 113 Checks · Bundle-Probe: fünf native
+Module, 0 Treffer.
