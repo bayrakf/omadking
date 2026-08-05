@@ -315,7 +315,7 @@ export default async function run() {
     const twoPlans = [
       { date: '2026-08-04', recipe: { ingredients: [
         '320g chicken breast', '2 tbsp olive oil', 'Sea salt, to taste',
-        '350g sweet potato',
+        '350g sweet potato', '250g broccoli',
       ] } },
       { date: '2026-08-05', recipe: { ingredients: [
         '400g raw boneless skinless chicken breast, diced into 2cm cubes',
@@ -342,6 +342,11 @@ export default async function run() {
     check(!/720g[^\n]{0,10}(raw|boneless|skinless|diced)/i.test(list),
       'preparation words are not part of the name');
     check(has(list, 'diced into 2cm cubes'), 'but the preparation detail is still shown');
+    // Aisle order, not code order.
+    const produceAt = list.toLowerCase().indexOf('vegetables & fruit');
+    const proteinAt = list.toLowerCase().indexOf('protein');
+    check(produceAt !== -1 && produceAt < proteinAt, 'produce is listed before protein',
+      `produce@${produceAt} protein@${proteinAt}`);
     check(has(list, '1.2kg beef'), 'kilograms are kept as kilograms', list.match(/[\d.]+kg beef/i)?.[0]);
     check(has(list, '2 tbsp olive oil'), 'spoons are left as spoons');
     // Duplicated across both plans, but it is one thing to buy.

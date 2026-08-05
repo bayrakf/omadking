@@ -8,26 +8,32 @@ export type GroceryCategory = { name: string; emoji: string; items: GroceryItem[
 
 type PlanLike = { recipe?: { ingredients?: unknown } };
 
+/**
+ * Ordered the way a shop is walked, not the way the code was written.
+ * Produce sits by the door in most supermarkets, chilled goods sit together,
+ * and pantry items are the last detour. Categorise() returns an index into
+ * this array, so reordering here reorders the printed list and nothing else.
+ */
 export const CATEGORIES = [
-  {
-    name: 'Protein',
-    emoji: '🥩',
-    keywords: ['chicken', 'beef', 'steak', 'pork', 'salmon', 'tuna', 'cod', 'fish', 'tofu', 'tempeh', 'seitan', 'egg', 'whey', 'yogurt', 'yoghurt', 'skyr', 'quark', 'turkey', 'lamb', 'shrimp', 'prawn', 'mince', 'cottage cheese'],
-  },
   {
     name: 'Vegetables & fruit',
     emoji: '🥦',
     keywords: ['broccoli', 'spinach', 'carrot', 'kale', 'lettuce', 'tomato', 'cucumber', 'pepper', 'onion', 'garlic', 'zucchini', 'courgette', 'asparagus', 'cauliflower', 'mushroom', 'cabbage', 'aubergine', 'eggplant', 'celery', 'leek', 'apple', 'banana', 'berry', 'berries', 'lemon', 'lime', 'orange', 'avocado', 'rocket', 'arugula'],
   },
   {
-    name: 'Carbs',
-    emoji: '🍠',
-    keywords: ['sweet potato', 'potato', 'rice', 'oat', 'quinoa', 'pasta', 'noodle', 'bread', 'tortilla', 'bean', 'lentil', 'chickpea', 'corn', 'couscous', 'bulgur', 'barley'],
+    name: 'Protein',
+    emoji: '🥩',
+    keywords: ['chicken', 'beef', 'steak', 'pork', 'salmon', 'tuna', 'cod', 'fish', 'tofu', 'tempeh', 'seitan', 'egg', 'whey', 'yogurt', 'yoghurt', 'skyr', 'quark', 'turkey', 'lamb', 'shrimp', 'prawn', 'mince', 'cottage cheese'],
   },
   {
     name: 'Fats & dairy',
     emoji: '🥑',
     keywords: ['olive oil', 'coconut oil', 'butter', 'ghee', 'almond', 'walnut', 'peanut', 'cashew', 'pecan', 'chia', 'flax', 'hemp', 'cheese', 'bacon', 'cream', 'tahini', 'milk', 'oil'],
+  },
+  {
+    name: 'Carbs',
+    emoji: '🍠',
+    keywords: ['sweet potato', 'potato', 'rice', 'oat', 'quinoa', 'pasta', 'noodle', 'bread', 'tortilla', 'bean', 'lentil', 'chickpea', 'corn', 'couscous', 'bulgur', 'barley'],
   },
   {
     name: 'Seasoning & pantry',
@@ -462,6 +468,30 @@ export function demo() {
     { recipe: { ingredients: ['200g oats'] } },
   ]);
   assert(three.length === 1 && three[0] === '450g oats', `three plans sum, got: ${three.join(' | ')}`);
+
+  // --- shop order ----------------------------------------------------------
+
+  // Produce first, pantry near the end: the order the aisles come in.
+  const order = CATEGORIES.map((cat) => cat.name);
+  assert(order[0] === 'Vegetables & fruit', `produce comes first, got: ${order[0]}`);
+  assert(order.indexOf('Protein') < order.indexOf('Seasoning & pantry'), 'fresh goods come before the pantry');
+  assert(order[order.length - 1] === 'Supplements', 'supplements are the last stop');
+  assert(new Set(order).size === order.length, 'no category is listed twice');
+
+  // The categoriser indexes into the same array, so reordering must not
+  // reassign anything.
+  assert(CATEGORIES[categorise('320g chicken breast')].name === 'Protein', 'chicken is still protein');
+  assert(CATEGORIES[categorise('350g sweet potato')].name === 'Carbs', 'sweet potato is still a carb');
+  assert(CATEGORIES[categorise('2 tbsp olive oil')].name === 'Fats & dairy', 'olive oil is still a fat');
+  assert(CATEGORIES[categorise('250g broccoli')].name === 'Vegetables & fruit', 'broccoli is still produce');
+  assert(CATEGORIES[categorise('1 tsp paprika')].name === 'Seasoning & pantry', 'paprika is still pantry');
+
+  // A real list comes out in aisle order.
+  const walk = buildGroceryList([
+    { recipe: { ingredients: ['1 tsp paprika', '320g chicken breast', '250g broccoli', '2 tbsp olive oil'] } },
+  ]).map((cat) => cat.name);
+  assert(walk[0] === 'Vegetables & fruit', `the list starts with produce, got: ${walk.join(' | ')}`);
+  assert(walk[walk.length - 1] === 'Seasoning & pantry', `and ends in the pantry, got: ${walk.join(' | ')}`);
 
   // --- display split -------------------------------------------------------
 

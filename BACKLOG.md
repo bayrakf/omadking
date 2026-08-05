@@ -253,7 +253,7 @@ Beiwerk. Die Liste zeigt „1,04 kg Hähnchenbrust" prominent, „roh, in 2-cm-W
 
 ---
 
-## 12. [ ] Einkaufsliste nach Ladenweg sortieren
+## 12. [x] Einkaufsliste nach Ladenweg sortieren
 
 **Warum:** Die Kategorien existieren, ihre Reihenfolge folgt aber keinem Weg durch einen Laden.
 
@@ -261,6 +261,8 @@ Beiwerk. Die Liste zeigt „1,04 kg Hähnchenbrust" prominent, „roh, in 2-cm-W
 Kohlenhydrate → Vorrat → Supplemente. Alphabet innerhalb bleibt.
 
 **Fertig wenn:** die Kategorien erscheinen in dieser Reihenfolge.
+
+**Erledigt** 2026-08-05 — 107 Checks.
 
 ---
 
