@@ -15,7 +15,7 @@ import { KEYS } from './store';
 import { exportBackup, importBackup, FORMAT, VERSION } from './backup';
 import { mergeStates } from './sync-merge';
 import { seal, open as openSealed } from './crypto';
-import { ensureAccount, supabase } from './account';
+import { ensureAccount, supabase, signOutAndForget } from './account';
 
 const TABLE = 'sync_state';
 
@@ -117,13 +117,35 @@ export async function syncNow(): Promise<SyncResult> {
   return { ok: true, at };
 }
 
-/** Removes the server copy. The device keeps its data. */
-export async function deleteRemote(): Promise<boolean> {
+/**
+ * Deletes the account itself, not just its row.
+ *
+ * The sync_state row cascades with the user, and the edge function derives who
+ * that is from the caller's own token — there is no id to pass, so there is no
+ * id to get wrong. The device keeps its local data; only the server copy, the
+ * account and this device's key go.
+ */
+export async function deleteAccount(): Promise<boolean> {
   const sb = supabase();
-  const account = await ensureAccount();
-  if (!sb || !account) return false;
-  const { error } = await sb.from(TABLE).delete().eq('user_id', account.userId);
-  if (error) return false;
+  if (!sb) return false;
+
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return false;
+
+  try {
+    const res = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete_account`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+  } catch {
+    return false;
+  }
+
   await AsyncStorage.removeItem(KEYS.syncedAt);
+  // The key opens a blob that no longer exists; keeping it would only be
+  // confusing on the next sync.
+  await signOutAndForget();
   return true;
 }

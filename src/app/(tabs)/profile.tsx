@@ -19,7 +19,7 @@ import {
   setEnabled as setReminders, scheduledCount, resync,
 } from '@/lib/notify';
 import { exportBackup, importBackup } from '@/lib/backup';
-import { syncNow, lastSyncedAt, deleteRemote } from '@/lib/sync';
+import { syncNow, lastSyncedAt, deleteAccount } from '@/lib/sync';
 import { saveBackup, pickBackup } from '@/lib/backup-file';
 import type { MealPlan } from '@/lib/ai';
 
@@ -116,20 +116,22 @@ export default function ProfileScreen() {
     }
   };
 
-  const removeRemote = () => {
+  const removeAccount = () => {
     const run = async () => {
-      const ok = await deleteRemote();
-      setSyncedAt(null);
+      const ok = await deleteAccount();
+      if (ok) setSyncedAt(null);
       setNotice({
-        text: ok ? 'The server copy is gone. This device keeps its data.' : 'Could not reach the server.',
+        text: ok
+          ? 'Account and server copy deleted. Your data stays on this device.'
+          : 'Could not reach the server.',
         ok,
       });
     };
     const msg =
-      'This deletes the encrypted copy on the server. Your data stays on this device, but other '
-      + 'devices will no longer receive it.';
+      'This deletes your account and the encrypted copy on the server. Your data stays on this '
+      + 'device, but other devices will no longer receive it and the recovery phrase stops working.';
     if (Platform.OS === 'web') { if (window.confirm(msg)) run(); return; }
-    Alert.alert('Delete server copy', msg, [
+    Alert.alert('Delete account', msg, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: run },
     ]);
@@ -392,9 +394,9 @@ export default function ProfileScreen() {
             style={{ marginTop: Space.md }}
           />
           {syncedAt && (
-            <Tap onPress={removeRemote} accessibilityLabel="Delete server copy">
+            <Tap onPress={removeAccount} accessibilityLabel="Delete account">
               <View style={s.row}>
-                <Txt variant="small" color={c.negative}>Delete the server copy</Txt>
+                <Txt variant="small" color={c.negative}>Delete account and server copy</Txt>
               </View>
             </Tap>
           )}

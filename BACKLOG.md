@@ -642,7 +642,7 @@ Danach geprüft: alle sechs melden 404, `sync_state` antwortet.
 
 ---
 
-## 30. [ ] README und Kontingent ehrlich nachziehen
+## 30. [x] README und Kontingent ehrlich nachziehen
 
 **Was:** Der Abschnitt „Not built yet" beschreibt Konten als fehlend. Nach 24–29 stimmt das nicht
 mehr — und die neue Wahrheit gehört genauso hin: **serverseitige Quota wird durch anonyme Konten nur
@@ -651,6 +651,8 @@ pro IP. Das als gelöst zu verkaufen wäre falsch.
 
 **Fertig wenn:** README beschreibt, was der Server hält und was nicht, und benennt die Grenze der
 Quota-Durchsetzung.
+
+**Erledigt** 2026-08-05.
 
 
 ---
@@ -675,7 +677,7 @@ Datenschutzerklärung behauptet werden.
 
 ---
 
-## 31. [ ] Konto wirklich löschen
+## 31. [x] Konto wirklich löschen
 
 **Warum:** „Serverkopie löschen" entfernt die Zeile in `sync_state`. Der anonyme `auth.users`-Eintrag
 bleibt — eine UUID mit Zeitstempeln, sonst nichts, aber eine Löschung nach Art. 17 sollte ihn
@@ -687,3 +689,15 @@ ausschließlich diesen einen Nutzer löscht. Kein Parameter, der eine fremde ID 
 
 **Fertig wenn:** Nach dem Löschen liefert eine Anmeldung mit derselben Session einen Fehler, und die
 Datenschutzerklärung beschreibt, was genau verschwindet.
+
+**Erledigt** 2026-08-05 — 178 Checks. Gegen das echte Projekt geprüft, inklusive Angriff:
+
+| Versuch | Ergebnis |
+|---|---|
+| Ohne Token | 401 |
+| Gefälschtes Token | 401 |
+| Fremde `user_id` im Rumpf mitgeschickt | 200 — **das eigene** Konto gelöscht, das Opfer existiert weiter |
+| Eigenes Token | gelöscht; danach „User from sub claim in JWT does not exist" |
+
+Die Function nimmt keinen Parameter. Ein Endpunkt, der eine ID annimmt, löscht früher oder später
+fremde Konten.
