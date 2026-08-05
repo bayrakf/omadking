@@ -530,7 +530,7 @@ App danach im Onboarding startet.
 
 ---
 
-## 26. [ ] Krypto-Kern und Zusammenführung (rein, geprüft)
+## 26. [x] Krypto-Kern und Zusammenführung (rein, geprüft)
 
 **Warum:** Der ganze Plan steht und fällt damit, dass der Server nichts lesen kann. Und weil er
 nichts lesen kann, muss das Zusammenführen im Client passieren.
@@ -545,6 +545,15 @@ nichts lesen kann, muss das Zusammenführen im Client passieren.
 
 **Fertig wenn:** Selbstchecks decken ab: Rundlauf, falscher Schlüssel, gekipptes Bit im Chiffrat,
 Nonce wiederholt sich nicht, Merge ist idempotent und für Logs kommutativ, `premium` bleibt unberührt.
+
+**Erledigt** 2026-08-05 — zehn Module in `npm run check`. Zwei echte Fehler fanden die Checks:
+der Wiederherstellungssatz war mit 52 Zeichen zu kurz für 44 % aller Schlüssel, und die
+handgeschriebene Prüfsumme war wegen `31 ≡ 1 (mod 30)` positionsblind. Beide vor jeder Zeile UI
+gefunden.
+
+**Nebenbefund, heute schon aktiv:** `importBackup` schrieb `user_premium` zurück — eine
+handgeänderte Backup-Datei schaltete Premium frei, an RevenueCat vorbei. Genau das Loch, das
+`purchases.ts` schließen sollte. `NEVER_RESTORED` deckt jetzt Datei und Sync ab.
 
 ---
 

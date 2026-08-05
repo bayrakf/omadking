@@ -8,13 +8,18 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const MODULES = ['nutrition', 'dates', 'grocery', 'agenda', 'ai', 'review', 'markdown', 'typography', 'legal'];
+const MODULES = ['nutrition', 'dates', 'grocery', 'agenda', 'ai', 'review', 'markdown', 'typography', 'legal', 'crypto', 'sync-merge'];
 
-const outDir = mkdtempSync(join(tmpdir(), 'omadcoach-check-'));
+// Inside the project, not the system temp dir: the compiled modules import
+// real packages now (@noble/ciphers), and node resolves those by walking up
+// from the importing file. From /tmp there is nothing to walk up to.
+const cacheRoot = join(process.cwd(), 'node_modules', '.cache');
+mkdirSync(cacheRoot, { recursive: true });
+const outDir = mkdtempSync(join(cacheRoot, 'omadcoach-check-'));
 
 try {
   execFileSync(

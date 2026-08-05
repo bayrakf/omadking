@@ -10,6 +10,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KEYS } from './store';
 import { normalizeProfile } from './nutrition';
+import { NEVER_RESTORED } from './sync-merge';
 
 const FORMAT = 'omadcoach-backup';
 const VERSION = 1;
@@ -21,8 +22,16 @@ export type Backup = {
   data: Record<string, unknown>;
 };
 
-/** Every key the app owns. Anything not listed here is not user data. */
-const EXPORTED = Object.values(KEYS);
+/**
+ * Every key the app owns, minus the ones a file must never carry.
+ *
+ * `user_premium` is read directly by `isPremium()`, so a backup containing
+ * `"user_premium": "true"` granted premium outright — the same hole
+ * `purchases.ts` was written to close, reopened by this path. Leaving it out
+ * of the export as well as the import means there is nothing to tamper with in
+ * the first place.
+ */
+const EXPORTED = Object.values(KEYS).filter((k) => !NEVER_RESTORED.includes(k));
 
 export async function exportBackup(): Promise<Backup> {
   const pairs = await AsyncStorage.multiGet(EXPORTED);
