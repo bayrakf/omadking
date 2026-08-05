@@ -28,10 +28,10 @@ export type RecipeSource = 'ai' | 'offline';
  * a model outage never makes the *plan* wrong — only the meal suggestion
  * duller. Saying so is what stops a silent fallback looking like a bad app.
  */
-export function describeRecipeFallback(reason: string | null | undefined): string {
+export function describeRecipeFallback(reason: string | null | undefined, detail?: string | null): string {
   switch (reason) {
     case 'quota':
-      return 'The recipe service is over its limit right now, so this is the standard plate. Your macros and timing are unaffected.';
+      return `${describeQuotaError(detail)} This is the standard plate meanwhile — your macros and timing are unaffected.`;
     case 'auth':
     case 'no_key':
       return 'The recipe service is not set up, so this is the standard plate. Your macros and timing are unaffected.';
@@ -45,6 +45,31 @@ export function describeRecipeFallback(reason: string | null | undefined): strin
     default:
       return 'This is the standard plate rather than a tailored recipe. Your macros and timing are unaffected.';
   }
+}
+
+/**
+ * Turns a rate-limit failure into something true.
+ *
+ * Every 429 used to become "try again in a minute". Gemini has at least two,
+ * and they are not the same thing: a per-minute rate limit that clears in
+ * seconds, and the free tier's daily request cap that clears tomorrow. Telling
+ * someone to wait a minute for a daily cap makes them retry all evening.
+ *
+ * The "please retry in Xs" hint cannot be used to tell them apart — when the
+ * daily cap was hit here it still reported under a minute. The metric name in
+ * Google's own detail is what actually distinguishes them, so that is what this
+ * reads, and when it recognises neither it makes no claim about timing at all.
+ */
+export function describeQuotaError(detail?: string | null): string {
+  const text = String(detail ?? '').toLowerCase();
+
+  if (/per_?minute|per-minute/.test(text)) {
+    return 'That was too many requests in one minute. Give it a moment and try again.';
+  }
+  if (/free_?tier|per_?day|daily/.test(text)) {
+    return 'The free daily limit is used up. It resets tomorrow.';
+  }
+  return 'The coach is rate limited right now. Try again later.';
 }
 
 export type Recipe = {
@@ -130,6 +155,7 @@ export async function generateMealPlan(
   // The function already reports both; discarding them is what made an outage
   // indistinguishable from a working app serving a boring recipe.
   let reason: string | null = SUPABASE_URL ? null : 'no_key';
+  let detail: string | null = null;
 
   if (SUPABASE_URL) {
     try {
@@ -155,7 +181,10 @@ export async function generateMealPlan(
       if (res.ok) {
         const data = await res.json();
         if (isUsableRecipe(data?.recipe)) recipe = data.recipe;
-        else reason = typeof data?.reason === 'string' ? data.reason : 'empty';
+        else {
+          reason = typeof data?.reason === 'string' ? data.reason : 'empty';
+          detail = typeof data?.detail === 'string' ? data.detail : null;
+        }
       } else {
         reason = 'upstream';
       }
@@ -183,7 +212,7 @@ export async function generateMealPlan(
     training_start_time: training?.start_time ?? null,
     training_duration_min: training?.duration_min ?? 0,
     recipe_source: recipe ? 'ai' : 'offline',
-    recipe_note: recipe ? null : describeRecipeFallback(reason),
+    recipe_note: recipe ? null : describeRecipeFallback(reason, detail),
     recipe: recipe ?? offlineRecipe(profile, training, targets),
   };
 }
@@ -293,11 +322,12 @@ export async function askCoach(
   }, TIMEOUT_CHAT_MS);
 
   if (!res.ok) {
-    throw new Error(
-      res.status === 429
-        ? 'Too many questions right now — try again in a minute.'
-        : 'Coach is unavailable right now.'
-    );
+    // The function reports reason and Google's own detail; both were discarded.
+    const body = await res.json().catch(() => ({} as any));
+    if (res.status === 429 || body?.reason === 'quota') {
+      throw new Error(describeQuotaError(body?.detail));
+    }
+    throw new Error('Coach is unavailable right now.');
   }
 
   const data = await res.json();
@@ -316,7 +346,8 @@ export function demo() {
   };
 
   const quota = describeRecipeFallback('quota');
-  assert(quota.includes('over its limit'), 'quota names the limit');
+  assert(quota.includes('rate limited'), `quota names the limit, got: ${quota}`);
+  assert(quota.includes('unaffected'), 'and still reassures that the numbers hold');
   assert(describeRecipeFallback('auth') === describeRecipeFallback('no_key'), 'auth and no_key read the same to a user');
   assert(describeRecipeFallback('network').includes('No connection'), 'network says so plainly');
   assert(describeRecipeFallback('truncated') === describeRecipeFallback('unparseable'), 'unreadable output reads the same however it broke');
@@ -335,6 +366,29 @@ export function demo() {
     );
   }
   assert(describeRecipeFallback('truncated').includes('Try again'), 'a transient failure invites a retry');
+
+  // Quota wording: never promise a minute unless it is a minute.
+  const perMinute = describeQuotaError('Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_requests_per_minute_per_project_per_model');
+  assert(perMinute.includes('one minute'), `a per-minute limit says a minute, got: ${perMinute}`);
+
+  const daily = describeQuotaError('Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20');
+  assert(daily.includes('resets tomorrow'), 'a daily cap says tomorrow');
+  assert(!/minute/i.test(daily), 'and never claims a minute — that is the bug this exists for');
+
+  // The retry hint is not evidence: a daily cap reported under a minute here.
+  const misleading = describeQuotaError('Please retry in 39.5s. Quota exceeded for metric: generate_content_free_tier_requests');
+  assert(!/minute/i.test(misleading), 'a short retry hint does not turn a daily cap into a minute');
+
+  for (const unknown of [null, undefined, '', 'something new from Google']) {
+    const msg = describeQuotaError(unknown as any);
+    assert(msg.length > 20, 'an unrecognised limit still explains itself');
+    assert(!/minute|tomorrow/i.test(msg), `an unknown limit makes no timing claim, got: ${msg}`);
+  }
+
+  // The recipe fallback carries the same distinction rather than its own words.
+  const recipeDaily = describeRecipeFallback('quota', 'generate_content_free_tier_requests, limit: 20');
+  assert(recipeDaily.includes('resets tomorrow'), 'the planner says tomorrow too');
+  assert(recipeDaily.includes('unaffected'), 'and still reassures that the numbers hold');
 
   // conversationOf: the greeting and failed sends are not conversation.
   const thread: StoredMessage[] = [

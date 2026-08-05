@@ -342,7 +342,7 @@ Gegenanzeigen sind ohne Scrollen sichtbar.
 
 ---
 
-## 17. [ ] Kontingent-Meldung im Client stimmt nicht
+## 17. [x] Kontingent-Meldung im Client stimmt nicht
 
 **Warum:** `askCoach` in `src/lib/ai.ts` bildet jeden 429 auf „Too many questions right now — try
 again in a minute" ab. Gemini liefert aber zwei verschiedene 429: ein Minutenlimit, das sich in
@@ -365,6 +365,8 @@ Die Edge Function liefert `reason` und Googles `detail` bereits mit — der Clie
 
 **Fertig wenn:** ein Tageslimit sagt nicht „in a minute"; Selbstchecks decken beide 429-Arten und
 eine unbekannte Form ab.
+
+**Erledigt** 2026-08-05 — 134 Checks.
 
 ---
 

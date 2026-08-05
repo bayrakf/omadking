@@ -482,6 +482,38 @@ export default async function run() {
     await context.close();
   }
 
+  // ------------------------------------------------------------ QUOTA WORDING
+  section('Rate-limit wording');
+  {
+    const { context, page } = await newPage(browser, SEED);
+    // A daily cap, reported exactly as Google reports it — including a retry
+    // hint under a minute, which is what made the old message wrong.
+    await context.route('**/functions/v1/chat', (route) =>
+      route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'UPSTREAM',
+          reason: 'quota',
+          detail:
+            'You exceeded your current quota. Please retry in 39.5s. ' +
+            'Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20',
+        }),
+      })
+    );
+
+    await page.goto(BASE + '/chat', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    await page.getByLabel('Message').fill('anything');
+    await page.getByLabel('Send').click();
+    await page.waitForTimeout(2500);
+
+    const t = await body(page);
+    check(has(t, 'resets tomorrow'), 'a daily cap says it resets tomorrow');
+    check(!/try again in a minute/i.test(t), 'and never tells the user to wait a minute');
+    await context.close();
+  }
+
   // ------------------------------------------------- OFFLINE RECIPE FALLBACK
   section('Offline recipe fallback');
   {
