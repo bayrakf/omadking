@@ -146,6 +146,64 @@ export function weeklyReview(
   };
 }
 
+/**
+ * Where someone is in adapting to the schedule.
+ *
+ * Counted from days actually logged, not from a start date. Someone who logs
+ * four days, stops for a fortnight and comes back is on day five, not back at
+ * the beginning — a calendar would have reset them for no reason.
+ *
+ * Same wording rules as the fasting bands: describes what typically changes,
+ * promises nothing, and names no outcome.
+ */
+export type AdaptationStage = {
+  id: 'none' | 'early' | 'first-week' | 'settling' | 'settled';
+  label: string;
+  /** Distinct days ever logged. */
+  daysLogged: number;
+  note: string;
+};
+
+const ADAPTATION: { id: AdaptationStage['id']; from: number; label: string; note: string }[] = [
+  {
+    id: 'none',
+    from: 0,
+    label: 'Not started',
+    note: 'Log your first completed fast and this starts tracking what changes.',
+  },
+  {
+    id: 'early',
+    from: 1,
+    label: 'First days',
+    note: 'Hunger tends to arrive in waves rather than build. Most waves pass inside twenty minutes.',
+  },
+  {
+    id: 'first-week',
+    from: 4,
+    label: 'First week',
+    note: 'Headaches and flat sessions this week are usually sodium rather than willpower. Salt the water.',
+  },
+  {
+    id: 'settling',
+    from: 8,
+    label: 'Settling',
+    note: 'Appetite usually steadies around now. How training feels often lags a week or so behind it.',
+  },
+  {
+    id: 'settled',
+    from: 29,
+    label: 'Settled',
+    note: 'Past the usual adjustment window. What you feel now is mostly the food, not the schedule.',
+  },
+];
+
+export function adaptationStage(fastLog: string[]): AdaptationStage {
+  const daysLogged = dateSet(fastLog).size;
+  let current = ADAPTATION[0];
+  for (const stage of ADAPTATION) if (daysLogged >= stage.from) current = stage;
+  return { id: current.id, label: current.label, note: current.note, daysLogged };
+}
+
 // ---------------------------------------------------------------------------
 
 export function demo() {
@@ -248,6 +306,43 @@ export function demo() {
     [], TODAY
   );
   assert(!level.headline.includes('-0'), `no negative zero, got: ${level.headline}`);
+
+  // --- adaptation ----------------------------------------------------------
+
+  assert(adaptationStage([]).id === 'none', 'no logged days means not started');
+  assert(adaptationStage([day(0)]).id === 'early', 'one day is the early phase');
+  assert(adaptationStage([0, 1, 2].map(day)).id === 'early', 'three days is still early');
+  assert(adaptationStage([0, 1, 2, 3].map(day)).id === 'first-week', 'four days begins the first week');
+  assert(adaptationStage([0, 1, 2, 3, 4, 5, 6].map(day)).id === 'first-week', 'seven days is still the first week');
+  assert(adaptationStage(Array.from({ length: 8 }, (_, i) => day(i))).id === 'settling', 'eight days is settling');
+  assert(adaptationStage(Array.from({ length: 29 }, (_, i) => day(i))).id === 'settled', 'twenty-nine days is settled');
+
+  // Gaps must not reset progress: coming back after a fortnight is day five,
+  // not day one. A calendar-based version would have punished the return.
+  const withGap = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-08-05'];
+  assert(adaptationStage(withGap).daysLogged === 5, 'every logged day counts, however spread out');
+  assert(adaptationStage(withGap).id === 'first-week', 'a gap does not send you back to the start');
+
+  // Duplicates and junk cannot inflate the count.
+  assert(adaptationStage([day(0), day(0), day(0)]).daysLogged === 1, 'the same day counts once');
+  assert(adaptationStage([null, 7, day(0)] as any).daysLogged === 1, 'junk entries are ignored');
+  assert(adaptationStage(null as any).id === 'none', 'a missing log does not throw');
+
+  // Bands are ordered, so no day count can fall through a gap.
+  for (let i = 1; i < ADAPTATION.length; i++) {
+    assert(ADAPTATION[i].from > ADAPTATION[i - 1].from, 'adaptation boundaries increase');
+  }
+
+  // Same wording rule as the fasting bands, enforced rather than intended.
+  for (const stage of ADAPTATION) {
+    assert(stage.note.length > 20, `${stage.id} explains itself`);
+    assert(
+      !/cure|prevent|disease|heal|detox|toxin|guarantee|proven|burn fat/i.test(stage.note),
+      `${stage.id} makes no health claim`
+    );
+    assert(!/%|\bstudies\b/i.test(stage.note), `${stage.id} invents no statistic`);
+    assert(!/you will|guaranteed|always/i.test(stage.note), `${stage.id} promises nothing`);
+  }
 
   return 'review.ts: all checks passed';
 }

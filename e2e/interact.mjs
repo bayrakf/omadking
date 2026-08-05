@@ -270,6 +270,11 @@ export default async function run() {
     check(has(t, '4 of 7 fasts logged'), 'fasts are counted', t.match(/\d of 7 fasts logged/i)?.[0]);
     check(has(t, '2 cooked'), 'cooks are counted');
     check(has(t, 'four weeks'), 'the consequence extrapolates the trend');
+
+    // Adaptation phase, counted from logged days rather than a calendar.
+    check(has(t, 'First week'), 'the adaptation phase is named', t.match(/First (days|week)|Settling|Settled/)?.[0]);
+    check(has(t, '4 days logged'), 'and counts the days actually logged');
+    check(!/cure|prevent|detox|proven|guarantee/i.test(t), 'progress makes no health claim');
     // The wording rule: counted facts only.
     check(!t.includes('%'), 'no invented percentage appears');
     check(!/great job|well done|keep it up/i.test(t), 'no praise is offered');

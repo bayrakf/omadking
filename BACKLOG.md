@@ -300,7 +300,7 @@ verschieben sich mit letzter Mahlzeit, Training und Person. Kein Versprechen üb
 
 ---
 
-## 15. [ ] Anpassungsphase aus dem eigenen Log
+## 15. [x] Anpassungsphase aus dem eigenen Log
 
 **Warum:** Die ersten Tage OMAD fühlen sich anders an als die vierte Woche. Die App weiß, wie lange
 jemand dabei ist, und sagt nichts dazu.
@@ -311,6 +311,8 @@ was sich in dieser Phase typischerweise ändert, ohne es zu versprechen.
 
 **Fertig wenn:** Phasen wechseln an den richtigen Zählständen, Lücken im Log setzen nicht zurück,
 beides als Selbstcheck.
+
+**Erledigt** 2026-08-05 — 116 Checks.
 
 ---
 
