@@ -514,6 +514,37 @@ export function mealTiming(p: UserProfile, t: Training | null): MealTiming {
   };
 }
 
+/**
+ * How to start eating after a long fast.
+ *
+ * The app has computed *when* to eat since the timing engine landed and never
+ * said *how*. After twenty-odd hours the first ten minutes matter: the order
+ * decides whether the meal sits well.
+ *
+ * Practical only. No claim about what any of it does to health.
+ */
+export function breakFastSteps(pattern: MealTiming['pattern']): string[] {
+  const shared = [
+    'Start with protein. It blunts the urge to eat everything at once and is what the session actually needs.',
+    'Eat the first few minutes slowly. Most of the discomfort people blame on OMAD is speed, not volume.',
+    'Leave the fat until later in the meal. It slows everything down and fills you before the protein is in.',
+    'Stop at comfortably full, not at finished. The plate is a target, not an obligation.',
+  ];
+
+  if (pattern === 'post') {
+    // Trained fasted: carbohydrate earns its place near the front.
+    return [
+      shared[0],
+      'Put the carbohydrate in early too — you trained on an empty tank and glycogen is what you are replacing.',
+      shared[1],
+      shared[2],
+      shared[3],
+    ];
+  }
+
+  return shared;
+}
+
 // ---------------------------------------------------------------------------
 // Weight trend
 // ---------------------------------------------------------------------------
@@ -645,6 +676,21 @@ export function demo() {
       hydrationTargetMl(normalizeProfile({ weight_kg: 82 })),
     'training days need more fluid'
   );
+
+  // Breaking the fast: order, and the same wording discipline.
+  const post = breakFastSteps('post');
+  const pre = breakFastSteps('pre');
+  assert(post.length === 5 && pre.length === 4, 'a fasted session gets the extra carbohydrate step');
+  assert(post[0].startsWith('Start with protein'), 'protein leads either way');
+  assert(pre[0].startsWith('Start with protein'), 'protein leads on a fed pattern too');
+  assert(post[1].includes('carbohydrate'), 'the fasted pattern moves carbohydrate forward');
+  assert(!pre.some((s) => s.includes('trained on an empty tank')), 'the fed pattern does not claim a fasted session');
+  assert(post[post.length - 1].includes('Stop at comfortably full'), 'the sequence ends on stopping');
+  for (const step of [...post, ...pre]) {
+    assert(step.length > 30, 'each step says something');
+    assert(!/cure|prevent|disease|detox|toxin|proven|guarantee|burn fat/i.test(step), 'no health claim in the sequence');
+    assert(!/%|\bstudies\b/i.test(step), 'no invented statistic in the sequence');
+  }
 
   // Fasting bands: boundaries, clamping, and the wording rules.
   assert(fastingStage(0).id === 'fed', 'a fast starts fed');

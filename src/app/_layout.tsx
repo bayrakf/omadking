@@ -90,6 +90,7 @@ export default function RootLayout() {
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
         <Stack.Screen name="landing" />
         <Stack.Screen name="chat" />
+        <Stack.Screen name="about" />
       </Stack>
     </SafeAreaProvider>
   );

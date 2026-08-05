@@ -7,7 +7,10 @@ import {
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import RecipeCard from '@/components/RecipeCard';
-import { dailyTargets, DEFAULT_PROFILE, type Intensity, type Training, type UserProfile } from '@/lib/nutrition';
+import {
+  dailyTargets, breakFastSteps, DEFAULT_PROFILE,
+  type Intensity, type Training, type UserProfile,
+} from '@/lib/nutrition';
 import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
 import {
   loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
@@ -342,6 +345,17 @@ function Timing({ plan }: { plan: MealPlan }) {
       ))}
       <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>{plan.ai_reasoning}</Txt>
       {plan.timing_warning && <Notice tone="warn">{plan.timing_warning}</Notice>}
+
+      {/* The app has worked out when to eat since the timing engine landed and
+          never said how. After twenty-odd hours the order matters. */}
+      <Divider style={{ marginVertical: Space.base }} />
+      <Eyebrow style={{ marginBottom: Space.md }}>Breaking the fast</Eyebrow>
+      {breakFastSteps(plan.timing_pattern).map((step, i) => (
+        <View key={i} style={s.breakRow}>
+          <Txt variant="data" color={c.ember} style={s.breakNum}>{i + 1}</Txt>
+          <Txt variant="small" color={c.textDim} style={{ flex: 1 }}>{step}</Txt>
+        </View>
+      ))}
     </Card>
   );
 }
@@ -364,6 +378,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  breakRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Space.md },
+  breakNum: { width: 20 },
   histRow: {
     flexDirection: 'row', alignItems: 'center', padding: Space.base,
     borderRadius: Radius.md, borderWidth: 1, marginBottom: Space.sm,

@@ -17,6 +17,7 @@ const ROUTES = [
   ['chat', '/chat', SEED_WITH_PLAN],
   ['paywall', '/paywall', SEED_WITH_PLAN],
   ['landing', '/landing', SEED_WITH_PLAN],
+  ['about', '/about', SEED_WITH_PLAN],
 ];
 
 export default async function run() {

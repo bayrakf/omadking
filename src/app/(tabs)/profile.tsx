@@ -320,6 +320,16 @@ export default function ProfileScreen() {
 
       <Enter index={8}>
         <Card style={{ marginTop: Space.base }}>
+          <Tap onPress={() => router.push('/about')} accessibilityLabel="About OMAD">
+            <View style={s.row}>
+              <Txt variant="body" color={c.textDim}>About OMAD</Txt>
+              <View style={s.value}>
+                <Txt variant="data" color={c.accent}>Read</Txt>
+                <Icon name="chevronRight" size={16} color={c.textFaint} />
+              </View>
+            </View>
+          </Tap>
+          <Divider />
           <View style={s.row}>
             <Txt variant="body" color={c.textDim}>Version</Txt>
             <Txt variant="data" color={c.textFaint}>1.0.0</Txt>

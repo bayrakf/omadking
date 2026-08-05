@@ -187,6 +187,9 @@ export default async function run() {
     check(!has(plan, 'standard plate'), 'a generated recipe carries no fallback notice');
     check(/Main meal\s*\d\d:\d\d/.test(plan), 'the main meal time is shown', plan.match(/Main meal\s*\d\d:\d\d/)?.[0]);
     check(has(plan, 'Ingredients'), 'ingredients render');
+    // The app computed when to eat for weeks without ever saying how.
+    check(has(plan, 'Breaking the fast'), 'the plan says how to start eating');
+    check(has(plan, 'Start with protein'), 'and protein leads');
     check(has(plan, 'Method'), 'method steps render');
     check(has(plan, '2 of 3 plans left'), 'the quota decrements', plan.match(/\d OF 3 PLANS LEFT/i)?.[0]);
     check(errors.length === 0, 'no console errors', errors[0] ?? '');
@@ -215,6 +218,38 @@ export default async function run() {
     await page.getByText('Build the plan').click();
     await page.waitForTimeout(2500);
     check(has(await body(page), 'Premium'), 'a spent quota routes to the paywall');
+    await context.close();
+  }
+
+  // ------------------------------------------------------------- ABOUT OMAD
+  section('About OMAD');
+  {
+    const { context, page } = await newPage(browser, SEED);
+    await page.goto(BASE + '/about', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1800);
+
+    const t = await body(page);
+    check(has(t, 'Not for everyone'), 'the page states who should not do this');
+    for (const item of ['Pregnancy', 'Diabetes', 'disordered eating', 'Under 18']) {
+      check(has(t, item), `contraindication listed: ${item}`);
+    }
+
+    // The rule that matters most: this must not read as a sales page.
+    check(!t.includes('%'), 'no percentage is invented');
+    check(!/\bstudies (show|prove)|proven|clinically|guarantee/i.test(t), 'no study or proof is claimed');
+    // Word-bounded verbs, so the disclaimer's own "not a diagnosis or treatment"
+    // does not trip a check that exists to catch the opposite claim.
+    check(!/\b(cures?|treats?|prevents?|reverses?|heals?|detox\w*|toxins?)\b/i.test(t),
+      'nothing claims to cure, treat or detox',
+      t.match(/\b(cures?|treats?|prevents?|reverses?|heals?|detox\w*|toxins?)\b/i)?.[0] ?? '');
+    check(has(t, 'not medical advice'), 'and the page says it is not medical advice');
+    check(has(t, 'not metabolically superior'), 'and it says plainly what OMAD does not do');
+
+    // Contraindications must come before the benefits, not after them.
+    const warnAt = t.indexOf('Not for everyone');
+    const goodAt = t.toLowerCase().indexOf('plausibly help');
+    check(warnAt !== -1 && warnAt < goodAt, 'the warning comes before the upside',
+      `warning@${warnAt} upside@${goodAt}`);
     await context.close();
   }
 

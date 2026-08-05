@@ -316,7 +316,7 @@ beides als Selbstcheck.
 
 ---
 
-## 16. [ ] Fasten brechen und „Über OMAD"
+## 16. [x] Fasten brechen und „Über OMAD"
 
 **Warum:** Die App rechnet den Zeitpunkt der Mahlzeit seit Wochen aus und sagt nie, *wie* man nach
 22 Stunden anfängt. Und sie erklärt die Methode nirgends.
@@ -337,6 +337,8 @@ beides als Selbstcheck.
 
 **Fertig wenn:** die Fläche enthält keine Zahl ohne Beleg im Text und keine Krankheitsaussage; die
 Gegenanzeigen sind ohne Scrollen sichtbar.
+
+**Erledigt** 2026-08-05 — 132 Checks. Die Reihenfolge (Warnung vor Nutzen) ist als Check verankert.
 
 ---
 
