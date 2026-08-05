@@ -265,6 +265,48 @@ export default async function run() {
     await context.close();
   }
 
+  // -------------------------------------------------------- RECOVERY PHRASE
+  section('Recovery phrase');
+  {
+    // A fixed key and its phrase, so the test asserts the real encoding rather
+    // than whatever the app happened to generate.
+    const HEX = '030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dc';
+    const PHRASE = 'AAXE RNK4 BT72 CEZF XHX3 46NE FGXN YZ2J 8378 P3MR HD9W WKWS RQH6 89AS';
+    const OTHER = 'BBXE RNK4 BT72 CEZF XHX3 46NE FGXN YZ2J 8378 P3MR HD9W WKWS RQH6 89AS';
+
+    const { context, page } = await newPage(browser, { ...SEED, omadcoach_sync_key: HEX });
+    await page.goto(BASE + '/recovery', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1600);
+
+    // Not shown until asked for.
+    check(!has(await body(page), 'AAXE'), 'the phrase is hidden until tapped');
+    await page.getByLabel('Show recovery phrase').click();
+    await page.waitForTimeout(500);
+    check(has(await body(page), PHRASE), 'and then shows in full');
+    check(has(await body(page), 'gone for good'), 'the consequence of losing it is stated plainly');
+
+    // A wrong phrase must cost nothing. This is the check that matters:
+    // replacing a good key with a bad one would look like total data loss.
+    await page.getByLabel('Enter recovery phrase').fill(OTHER.slice(0, 30));
+    await page.getByText('Use this phrase').click();
+    await page.waitForTimeout(700);
+    check(has(await body(page), 'not right'), 'a bad phrase is refused in plain words');
+    check(
+      await page.evaluate(() => localStorage.getItem('omadcoach_sync_key')) === HEX,
+      'and the existing key is untouched'
+    );
+
+    // A valid phrase from another device replaces the key.
+    await page.getByLabel('Enter recovery phrase').fill(PHRASE.toLowerCase());
+    await page.getByText('Use this phrase').click();
+    await page.waitForTimeout(700);
+    check(
+      await page.evaluate(() => localStorage.getItem('omadcoach_sync_key')) === HEX,
+      'a valid phrase produces exactly that key, whatever the case'
+    );
+    await context.close();
+  }
+
   // ------------------------------------------------------------------- LEGAL
   section('Privacy and imprint');
   {

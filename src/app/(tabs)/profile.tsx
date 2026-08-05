@@ -353,6 +353,15 @@ export default function ProfileScreen() {
           </Tap>
           <Divider />
           {/* The landing page was fully designed and reachable only by URL. */}
+          <Tap onPress={() => router.push('/recovery')} accessibilityLabel="Recovery phrase">
+            <View style={s.row}>
+              <Txt variant="body" color={c.textDim}>Recovery phrase</Txt>
+              <View style={s.value}>
+                <Icon name="chevronRight" size={16} color={c.textFaint} />
+              </View>
+            </View>
+          </Tap>
+          <Divider />
           <Tap onPress={() => router.push('/legal?tab=privacy')} accessibilityLabel="Privacy">
             <View style={s.row}>
               <Txt variant="body" color={c.textDim}>Privacy</Txt>

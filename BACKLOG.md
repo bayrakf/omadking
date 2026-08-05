@@ -591,7 +591,7 @@ is_anonymous`. Keine E-Mail, keine Telefonnummer.
 
 ---
 
-## 28. [ ] Wiederherstellungssatz
+## 28. [x] Wiederherstellungssatz
 
 **Warum:** Er ist zugleich Wiederherstellung und Gerätekopplung. Und er ist die einzige Kopie —
 ohne ihn sind die Daten bei Geräteverlust endgültig weg.
@@ -601,6 +601,15 @@ Verlust gehört in den sichtbaren Bereich, nicht ins Kleingedruckte.
 
 **Fertig wenn:** Ein falscher Satz auf dem zweiten Gerät ergibt eine verständliche Meldung und
 löscht nichts.
+
+**Erledigt** 2026-08-05 — 169 Checks. Die Prüfung nutzt ein festes Schlüssel/Satz-Paar, testet also
+die echte Kodierung statt dessen, was die App zufällig erzeugt hat.
+
+**Eine Abweichung vom Plan:** Der Plan sagte „einmal anzeigen, danach nie wieder". Der Satz lässt
+sich stattdessen erneut aufdecken — hinter einem bewussten Tippen. Wegsperren schützt gegen jemanden
+mit dem entsperrten Telefon; der weit wahrscheinlichere Fall ist aber der verlorene Zettel, und eine
+App, die dann „du hattest deine Chance" sagt, macht aus einem kleinen Fehler endgültigen
+Datenverlust.
 
 ---
 

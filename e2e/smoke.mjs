@@ -19,6 +19,7 @@ const ROUTES = [
   ['landing', '/landing', SEED_WITH_PLAN],
   ['about', '/about', SEED_WITH_PLAN],
   ['legal', '/legal', SEED_WITH_PLAN],
+  ['recovery', '/recovery', SEED_WITH_PLAN],
 ];
 
 export default async function run() {
