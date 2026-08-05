@@ -160,7 +160,10 @@ export async function generateMealPlan(
   if (SUPABASE_URL) {
     try {
       const res = await postJSON('generate_meal_plan', {
-        ...profile,
+        // Deliberately not the whole profile. The targets below already encode
+        // weight, height, age and sex, so sending them as well would ship the
+        // most identifying fields we hold to a third country for nothing.
+        goal: profile.goal,
         sport_type: training?.sport ?? 'rest',
         duration_min: training?.duration_min ?? 0,
         intensity: training?.intensity ?? 'low',

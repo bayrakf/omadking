@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
 
@@ -12,9 +11,6 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
  */
 const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-flash-latest';
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const SUPABASE_SERVICE_ROLE_KEY =
-  Deno.env.get('SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -42,7 +38,7 @@ function buildPrompt(p: Record<string, any>): string {
 
 Design ONE meal that hits these exact targets (do not change them):
 - ${p.target_kcal} kcal, ${p.target_protein_g}g protein, ${p.target_carbs_g}g carbs, ${p.target_fat_g}g fat
-- Athlete: ${p.weight_kg}kg, ${p.height_cm}cm, ${p.age}y, ${p.sex}, goal ${p.goal}
+- Goal: ${p.goal}
 - Session: ${p.sport_type}, ${p.duration_min}min, ${p.intensity} intensity at ${p.planned_start_time}
 
 ${timingNote}
@@ -111,52 +107,11 @@ serve(async (req) => {
       return json({ error: 'INVALID_TARGETS', message: 'Calorie target out of range.' }, 400);
     }
 
-    const supabase =
-      SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-        ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-        : null;
-
-    // Server-side quota, when the caller is a signed-in user. Anonymous callers
-    // are limited client-side; this is the authoritative check once auth exists.
-    let userId: string | null = null;
-    const authHeader = req.headers.get('Authorization');
-    if (supabase && authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data } = await supabase.auth.getUser(token);
-      userId = data?.user?.id ?? null;
-    }
-
-    if (supabase && userId) {
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('plan')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!sub || sub.plan === 'free') {
-        const startOfWeek = new Date();
-        // Monday-anchored, matching the client's quota window.
-        const day = (startOfWeek.getDay() + 6) % 7;
-        startOfWeek.setDate(startOfWeek.getDate() - day);
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        const { count } = await supabase
-          .from('meal_plans')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .gte('created_at', startOfWeek.toISOString());
-
-        if ((count ?? 0) >= 3) {
-          return json(
-            {
-              error: 'LIMIT_REACHED',
-              message: 'Free tier limit (3 plans/week) reached. Upgrade for unlimited plans.',
-            },
-            402
-          );
-        }
-      }
-    }
+    // No server-side quota here on purpose. The version that used to live in
+    // this spot counted rows in `meal_plans`, which meant enforcing a limit
+    // required storing a copy of every meal the user was served. Quota needs a
+    // counter, not a transcript. It returns as a counter keyed by user id once
+    // accounts ship; until then the client-side limit is the only one.
 
     let recipe: any = null;
     // Why the recipe is missing, when it is. Reported back so a deploy can be
@@ -230,49 +185,9 @@ serve(async (req) => {
       return json({ recipe: null, source: 'unavailable', reason, key_shape: keyShape(GEMINI_API_KEY), detail: detailOut });
     }
 
-    // Persist for signed-in users. Never let a storage failure lose the plan
-    // the user is waiting on — log it and still return the plan.
-    if (supabase && userId) {
-      try {
-        const { data: mealPlan } = await supabase
-          .from('meal_plans')
-          .insert({
-            user_id: userId,
-            date: new Date().toISOString().split('T')[0],
-            eating_window_start: payload.eating_window_start ?? null,
-            eating_window_end: payload.eating_window_end ?? null,
-            total_kcal: payload.target_kcal,
-            protein_g: payload.target_protein_g,
-            carbs_g: payload.target_carbs_g,
-            fat_g: payload.target_fat_g,
-            pre_training_snack_time: payload.pre_training_snack_time ?? null,
-            main_meal_time: payload.main_meal_time ?? null,
-            ai_reasoning: payload.ai_reasoning ?? null,
-          })
-          .select()
-          .single();
-
-        if (mealPlan) {
-          await supabase.from('recipes').insert({
-            meal_plan_id: mealPlan.id,
-            title: recipe.title,
-            ingredients: recipe.ingredients,
-            instructions: recipe.instructions,
-            reheat_instructions: recipe.reheat_instructions ?? null,
-            prep_time_min: recipe.prep_time_min ?? 30,
-            macros: {
-              kcal: payload.target_kcal,
-              protein: payload.target_protein_g,
-              carbs: payload.target_carbs_g,
-              fat: payload.target_fat_g,
-            },
-            is_meal_prep: recipe.is_meal_prep ?? true,
-          });
-        }
-      } catch (e) {
-        console.error('Failed to persist meal plan', e);
-      }
-    }
+    // Deliberately not persisted. The server has no business holding the
+    // athlete's meals, and once anonymous accounts ship this block would have
+    // started doing exactly that without anyone deciding to.
 
     return json({ recipe, source: 'ai' });
   } catch (err) {
