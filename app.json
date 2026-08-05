@@ -49,6 +49,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "omadking",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "58fbfb71-0f6b-4938-b8f6-d3bbbd90d75d"
+      }
     }
   }
 }
