@@ -211,6 +211,46 @@ export default async function run() {
     await context.close();
   }
 
+  // --------------------------------------------------------- WEEKLY REVIEW
+  section('Weekly review');
+  {
+    // Sparse first: an empty week must say what is missing, not show a blank card.
+    const bare = await newPage(browser, SEED);
+    await bare.page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await bare.page.waitForTimeout(1800);
+    check(has(await body(bare.page), 'Last 7 days'), 'the review card is on Progress');
+    check(has(await body(bare.page), 'reads back'), 'a sparse week says what is missing');
+    await bare.context.close();
+
+    // A week with real data reports counted facts and one consequence.
+    const iso = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    const { context, page } = await newPage(browser, {
+      ...SEED,
+      fast_log: JSON.stringify([0, 1, 2, 3].map(iso)),
+      cook_log: JSON.stringify([0, 2].map(iso)),
+      weight_log: JSON.stringify([
+        { id: '1', date: iso(6), weight_kg: 83.0 },
+        { id: '2', date: iso(3), weight_kg: 82.6 },
+        { id: '3', date: iso(0), weight_kg: 82.3 },
+      ]),
+    });
+    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1800);
+
+    const t = await body(page);
+    check(has(t, '4 of 7 fasts logged'), 'fasts are counted', t.match(/\d of 7 fasts logged/i)?.[0]);
+    check(has(t, '2 cooked'), 'cooks are counted');
+    check(has(t, 'four weeks'), 'the consequence extrapolates the trend');
+    // The wording rule: counted facts only.
+    check(!t.includes('%'), 'no invented percentage appears');
+    check(!/great job|well done|keep it up/i.test(t), 'no praise is offered');
+    await context.close();
+  }
+
   // -------------------------------------------------------- SESSION MEMORY
   section('Planner remembers the session');
   {

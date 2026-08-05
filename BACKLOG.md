@@ -134,7 +134,7 @@ Planer öffnen: alles steht noch so da.
 
 ---
 
-## 6. [ ] Wochenrückblick auf Progress
+## 6. [x] Wochenrückblick auf Progress
 
 **Warum:** Die App sammelt Fastenlog, Kochlog, Gewicht und Pläne, wertet aber
 nichts über den Tag hinaus aus. Der einzige Ort, an dem Durchhalten sichtbar
@@ -152,6 +152,8 @@ wird, ist eine Streak-Zahl.
 
 **Fertig wenn:** Selbstchecks decken volle Woche, Teilwoche, leere Woche und
 Wochengrenze ab; Karte rendert in beiden Themes ohne Querscroll.
+
+**Erledigt** 2026-08-05 — 98 Checks.
 
 ---
 

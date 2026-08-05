@@ -8,8 +8,10 @@ import {
 } from '@/components/ui';
 import { DEFAULT_PROFILE, weeklyTrend, type UserProfile } from '@/lib/nutrition';
 import {
-  loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog, todayISO, type WeightEntry,
+  loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
+  loadFastLog, loadCookLog, loadPlanHistory, todayISO, type WeightEntry,
 } from '@/lib/store';
+import { weeklyReview, type WeeklyReview } from '@/lib/review';
 
 /**
  * A trend line, not bars. Bodyweight is a noisy continuous signal, and a line
@@ -67,15 +69,20 @@ export default function ProgressScreen() {
   const [weightInput, setWeightInput] = useState('');
   const [dateInput, setDateInput] = useState(todayISO());
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [review, setReview] = useState<WeeklyReview | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       (async () => {
-        const [p, log] = await Promise.all([loadProfileOrDefault(), loadWeightLog()]);
+        const [p, log, fasts, cooks, plans] = await Promise.all([
+          loadProfileOrDefault(), loadWeightLog(), loadFastLog(), loadCookLog(),
+          loadPlanHistory<{ date: string }>(),
+        ]);
         if (!active) return;
         setProfile(p);
         setEntries(log);
+        setReview(weeklyReview(fasts, cooks, log, plans));
         setDateInput(todayISO());
         setMounted(true);
       })();
@@ -142,7 +149,45 @@ export default function ProgressScreen() {
         />
       </Enter>
 
-      <Enter index={1}>
+      {review && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }} tone={review.sparse ? 'default' : 'accent'}>
+            <Eyebrow>Last 7 days</Eyebrow>
+            {review.sparse ? (
+              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                {review.consequence}
+              </Txt>
+            ) : (
+              <>
+                <View style={s.reviewRow}>
+                  <View style={s.reviewCell}>
+                    <Txt variant="heading" style={s.reviewFigure}>{review.fastDays}<Txt variant="small" color={c.textFaint}>/7</Txt></Txt>
+                    <Txt variant="small" color={c.textDim}>fasts</Txt>
+                  </View>
+                  <Divider style={s.reviewLine} />
+                  <View style={s.reviewCell}>
+                    <Txt variant="heading" style={s.reviewFigure}>{review.cookDays}</Txt>
+                    <Txt variant="small" color={c.textDim}>cooked</Txt>
+                  </View>
+                  <Divider style={s.reviewLine} />
+                  <View style={s.reviewCell}>
+                    <Txt variant="heading" style={s.reviewFigure}>{review.weighIns}</Txt>
+                    <Txt variant="small" color={c.textDim}>weigh-ins</Txt>
+                  </View>
+                </View>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
+                  {review.headline}
+                </Txt>
+                <Txt variant="small" color={c.text} style={{ marginTop: Space.sm }}>
+                  {review.consequence}
+                </Txt>
+              </>
+            )}
+          </Card>
+        </Enter>
+      )}
+
+      <Enter index={2}>
         <Card>
           <View style={s.split}>
             <View style={{ flex: 1 }}>
@@ -186,7 +231,7 @@ export default function ProgressScreen() {
         </Card>
       </Enter>
 
-      <Enter index={2}>
+      <Enter index={3}>
         <Card style={{ marginTop: Space.base }}>
           <View style={s.split}>
             <Eyebrow>Toward target</Eyebrow>
@@ -210,7 +255,7 @@ export default function ProgressScreen() {
         </Card>
       </Enter>
 
-      <Enter index={3}>
+      <Enter index={4}>
         <Card style={{ marginTop: Space.base }}>
           <Eyebrow style={{ marginBottom: Space.base }}>Log a weigh-in</Eyebrow>
           <View style={s.inputs}>
@@ -246,7 +291,7 @@ export default function ProgressScreen() {
       </Enter>
 
       {entries.length > 0 ? (
-        <Enter index={4} style={{ marginTop: Space.xxl }}>
+        <Enter index={5} style={{ marginTop: Space.xxl }}>
           <Eyebrow style={{ marginBottom: Space.md }}>History</Eyebrow>
           <Card style={{ paddingVertical: Space.sm }}>
             {entries.slice(0, 10).map((e, i, arr) => {
@@ -272,7 +317,7 @@ export default function ProgressScreen() {
           </Card>
         </Enter>
       ) : (
-        <Enter index={4}>
+        <Enter index={5}>
           <Empty
             icon="chart"
             title="Nothing logged yet"
@@ -286,6 +331,10 @@ export default function ProgressScreen() {
 
 const s = StyleSheet.create({
   split: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  reviewRow: { flexDirection: 'row', alignItems: 'center', marginTop: Space.base },
+  reviewCell: { flex: 1 },
+  reviewFigure: { fontSize: 24, marginBottom: 2 },
+  reviewLine: { width: 1, height: 32, marginHorizontal: Space.md },
   figRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
   inputs: { flexDirection: 'row', marginRight: -Space.md },
   inputCol: { flex: 1, marginRight: Space.md },
