@@ -476,23 +476,123 @@ vorfindet, und die Startseite ist aus der App erreichbar.
 
 ---
 
-## 23. [ ] Konten und Synchronisierung — Entscheidung nötig, nicht autonom bauen
+## 23. [x] Konten und Synchronisierung — Entscheidung getroffen
 
-**Warum:** Größte offene Lücke. Alles liegt auf dem Gerät; Deinstallieren
-löscht Monate. Das Schema in `supabase/migrations/001_initial_schema.sql`
-inklusive Row-Level-Security liegt seit dem ersten Tag bereit — es fehlt die
-Client-Seite. Ohne Konten ist außerdem das Kontingent nur gerätelokal und die
-serverseitige Prüfung wirkungslos.
+**Entschieden am 2026-08-05:** anonymes Konto, Ende-zu-Ende verschlüsselter Sync, E-Mail höchstens
+später und freiwillig. Die App bleibt ohne Konto vollständig nutzbar. Der Server hält eine UUID und
+ein Chiffrat, zu dem der Betreiber keinen Schlüssel hat.
 
-**Warum nicht im Loop:** Betrifft Anmeldung, Datenhoheit, Migration
-vorhandener lokaler Daten und die Kontingent-Durchsetzung gleichzeitig. Das ist
-eine Produktentscheidung, keine Aufgabe, die zwischen zwei Commits fällt.
+Die drei offenen Fragen sind damit beantwortet:
+- **Magic-Link oder Passwort?** Weder noch. Anonyme Anmeldung, Wiederherstellungssatz statt Konto.
+- **Ohne Konto nutzbar?** Ja, unverändert. Sync ist ein Schalter, kein Tor.
+- **Was passiert mit lokalen Daten?** Zusammenführen, im Client, nach festen Regeln (Punkt 26).
 
-**Vorzulegen, wenn wieder jemand mitliest:**
-- Magic-Link oder Passwort?
-- Bleibt die App ohne Konto voll nutzbar (lokal zuerst, Konto optional)?
-- Was passiert beim ersten Login mit den vorhandenen Gerätedaten — hochladen,
-  zusammenführen, verwerfen?
+Aufgeteilt in die Punkte 24–30. Voller Plan samt rechtlicher Einordnung:
+`~/.claude/plans/cuddly-dancing-ladybug.md`.
 
-**Fertig wenn:** Die drei Fragen beantwortet sind. Erst danach entsteht ein
-eigener Plan.
+---
+
+## 24. [ ] Impressum und Datenschutzerklärung
+
+**Warum:** Beides fehlt im gesamten Code. In Österreich ist ein Impressum für eine kommerzielle App
+Pflicht (§5 ECG, §25 MedienG), eine Datenschutzerklärung ohnehin. Das gilt **heute schon**, ohne
+Konten — die App schickt bereits Gewicht, Ziel und freien Chattext an Google Gemini.
+
+**Was:**
+- Zwei Routen im Muster von `src/app/about.tsx`, verlinkt aus Profil und Landing.
+- Inhalt aus dem, was der Code tatsächlich tut: Empfänger (Supabase als Auftragsverarbeiter,
+  Google Gemini als Drittland), Zweck und Rechtsgrundlage je Datenfluss, Löschung, Auskunft,
+  Beschwerderecht bei der österreichischen Datenschutzbehörde.
+- Sichtbar als **anwaltlich zu prüfender Entwurf** gekennzeichnet.
+- Keine Behauptung über Vertragsverhältnisse, die noch nicht geschlossen sind.
+
+**Fertig wenn:** Beide Flächen sind aus der App erreichbar, nennen jeden realen Datenfluss, und ein
+e2e-Check hält fest, dass sie nichts behaupten, was der Code nicht tut.
+
+---
+
+## 25. [ ] „Meine Daten" — sehen, mitnehmen, löschen
+
+**Warum:** Auskunft und Löschung sind Rechte, keine Freundlichkeiten. Export existiert bereits als
+`saveBackup` in `src/lib/backup-file.ts`, ist aber nirgends als Datenschutzfunktion sichtbar.
+
+**Was:** Eine Fläche, die auflistet, was auf dem Gerät liegt; Export; und ein Löschen, das wirklich
+löscht — inklusive Bestätigung, weil es nicht umkehrbar ist. Braucht keinen Server.
+
+**Fertig wenn:** Löschen leert jeden Schlüssel aus `KEYS`, und ein e2e-Check weist nach, dass die
+App danach im Onboarding startet.
+
+---
+
+## 26. [ ] Krypto-Kern und Zusammenführung (rein, geprüft)
+
+**Warum:** Der ganze Plan steht und fällt damit, dass der Server nichts lesen kann. Und weil er
+nichts lesen kann, muss das Zusammenführen im Client passieren.
+
+**Was:**
+- `src/lib/crypto.ts`: XChaCha20-Poly1305 aus `@noble/ciphers`. **Bewusst reines JavaScript** — ein
+  natives Kryptomodul bräuchte einen `.web.ts`-Split. `seal` / `open` / `generateKey` /
+  Wiederherstellungssatz mit Prüfsumme. `open` gibt bei falschem Schlüssel `null` zurück statt zu
+  werfen.
+- `src/lib/sync-merge.ts`: Logs vereinigen, Skalare nach Zeitstempel. **`premium` kommt nie aus dem
+  Sync** — sonst wäre der Paywall über eine präparierte Datei aushebelbar.
+
+**Fertig wenn:** Selbstchecks decken ab: Rundlauf, falscher Schlüssel, gekipptes Bit im Chiffrat,
+Nonce wiederholt sich nicht, Merge ist idempotent und für Logs kommutativ, `premium` bleibt unberührt.
+
+---
+
+## 27. [ ] Schlüsselablage und anonymes Konto
+
+**Was:** `src/lib/keystore.ts` + `.web.ts` (nativ `expo-secure-store`, Web `localStorage` mit
+ehrlichem Hinweis, dass Browserdaten-Löschen den Schlüssel mitnimmt). Anonyme Anmeldung über
+`supabase.auth.signInAnonymously()`.
+
+**Voraussetzung außerhalb des Codes:** Im Supabase-Dashboard „Allow anonymous sign-ins" aktivieren
+**und die Projektregion auf EU (Frankfurt) prüfen** — bei einer US-Region entstünde eine
+Drittlandsübermittlung ohne Not.
+
+**Fertig wenn:** Anmeldung überlebt einen Neustart, Abmelden entfernt den Schlüssel nicht
+versehentlich, Bundle-Probe zeigt 0 Treffer für `expo-secure-store` im Web-Bundle.
+
+---
+
+## 28. [ ] Wiederherstellungssatz
+
+**Warum:** Er ist zugleich Wiederherstellung und Gerätekopplung. Und er ist die einzige Kopie —
+ohne ihn sind die Daten bei Geräteverlust endgültig weg.
+
+**Was:** Einmal anzeigen, Bestätigung abfragen, danach nie wieder. Der Satz über den endgültigen
+Verlust gehört in den sichtbaren Bereich, nicht ins Kleingedruckte.
+
+**Fertig wenn:** Ein falscher Satz auf dem zweiten Gerät ergibt eine verständliche Meldung und
+löscht nichts.
+
+---
+
+## 29. [ ] Sync
+
+**Was:**
+- `supabase/migrations/002_sync_state.sql`: eine Tabelle aus `user_id`, `ciphertext`, `nonce`,
+  `revision`, `updated_at`. Row-Level-Security, vier Policies, alle `user_id = auth.uid()`.
+  Dieselbe Migration entfernt die ungenutzten Klartext-Tabellen aus `001` — **vorher bestätigen,
+  dass sie leer sind**, ein `drop table` ist nicht umkehrbar.
+- `src/lib/sync.ts`: ziehen, öffnen, zusammenführen, versiegeln, schreiben. `revision` gegen
+  verlorene Schreibvorgänge.
+- Profil: Sync an/aus, zuletzt abgeglichen, zweites Gerät koppeln, Konto löschen (muss `auth.users`
+  treffen, nicht nur die Zeile).
+
+**Fertig wenn:** Ein e2e-Check fängt die ausgehende Anfrage ab und weist nach, dass **weder Gewicht
+noch Rezepttitel im Rumpf vorkommen**. Das ist die Prüfung, die die ganze Behauptung trägt.
+
+---
+
+## 30. [ ] README und Kontingent ehrlich nachziehen
+
+**Was:** Der Abschnitt „Not built yet" beschreibt Konten als fehlend. Nach 24–29 stimmt das nicht
+mehr — und die neue Wahrheit gehört genauso hin: **serverseitige Quota wird durch anonyme Konten nur
+etwas besser, nicht gelöst.** Ein anonymes Konto ist kostenlos neu erstellbar; Supabase begrenzt nur
+pro IP. Das als gelöst zu verkaufen wäre falsch.
+
+**Fertig wenn:** README beschreibt, was der Server hält und was nicht, und benennt die Grenze der
+Quota-Durchsetzung.
