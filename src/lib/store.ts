@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { normalizeProfile, normalizeSession, type SessionDraft, type UserProfile } from './nutrition';
 import { todayISO, weekKey, currentStreak } from './dates';
 import { conversationOf, type StoredMessage } from './ai';
+import { recipeRotation, type CookedRecipe } from './grocery';
 
 export { todayISO, currentStreak };
 
@@ -26,6 +27,7 @@ export const KEYS = {
   lastSession: 'last_session',
   portions: 'cook_portions',
   intakeLog: 'intake_log',
+  cookedRecipes: 'cooked_recipes',
   syncedAt: 'sync_last',
 } as const;
 
@@ -301,8 +303,32 @@ export async function isCooked(date = todayISO()): Promise<boolean> {
  * the pan, so leaving them ticked would carry stale state into the next list.
  * This is what closes the planner -> shopping -> kitchen loop.
  */
-export async function markCooked(date = todayISO()): Promise<string[]> {
+/**
+ * Recipes that survive the ten-plan window.
+ *
+ * Kept apart from `planHistory` on purpose: that list is a rolling ten, so a
+ * favourite cooked in April would be gone by May. A rotation has to outlive it.
+ */
+export async function loadCookedRecipes(): Promise<CookedRecipe[]> {
+  return recipeRotation(await readJSON<unknown[]>(KEYS.cookedRecipes, []));
+}
+
+async function rememberRecipe(plan: any, date: string): Promise<void> {
+  const title = typeof plan?.recipe?.title === 'string' ? plan.recipe.title.trim() : '';
+  if (!title) return;
+
+  const rows = await loadCookedRecipes();
+  const seen = rows.find((r) => r.title === title);
+  const next = seen
+    ? rows.map((r) => (r.title === title ? { ...r, count: r.count + 1, lastCooked: date } : r))
+    : [...rows, { title, count: 1, lastCooked: date, recipe: plan.recipe }];
+
+  await writeJSON(KEYS.cookedRecipes, next.slice(-60));
+}
+
+export async function markCooked(date = todayISO(), plan?: unknown): Promise<string[]> {
   const log = await loadCookLog();
+  if (plan) await rememberRecipe(plan, date);
   if (!log.includes(date)) {
     const next = [...log, date].sort().slice(-400);
     await writeJSON(KEYS.cookLog, next);

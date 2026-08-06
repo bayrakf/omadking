@@ -7,11 +7,14 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, Tap, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, type UserProfile } from '@/lib/nutrition';
+import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
-  type Measurement, type Forecast, type WeekdayPattern, type WeekBudget,
+  proteinAdherence, cycleWeek, trainingDaysPerWeek,
+  type Measurement, type Forecast, type WeekdayPattern, type WeekBudget, type ProteinAdherence,
+  type WeekCycle,
 } from '@/lib/energy';
+import { consistency, currentStreak } from '@/lib/dates';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
@@ -87,6 +90,9 @@ export default function ProgressScreen() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [pattern, setPattern] = useState<WeekdayPattern | null>(null);
   const [budget, setBudget] = useState<WeekBudget | null>(null);
+  const [protein, setProtein] = useState<ProteinAdherence>(null);
+  const [cycle, setCycle] = useState<WeekCycle>(null);
+  const [steady, setSteady] = useState<{ hit: number; days: number; streak: number } | null>(null);
   const [premium, setPremium] = useState(false);
   const [fasts, setFasts] = useState<string[]>([]);
 
@@ -130,6 +136,10 @@ export default function ProgressScreen() {
         );
 
         setPattern(weekdayPattern(intake));
+        setProtein(proteinAdherence(intake));
+        const trainDays = trainingDaysPerWeek(plans);
+        setCycle(trainDays ? cycleWeek(est.kcal * 7, trainDays, bmr(p)) : null);
+        setSteady({ ...consistency(fasts, 30), streak: currentStreak(fasts) });
         setBudget(weekBudget(est.kcal, intake));
 
         // One instruction, chosen from everything the app now knows.
@@ -248,6 +258,68 @@ export default function ProgressScreen() {
                 : 'Premium works the change out from your own numbers.'}
             </Txt>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{decision.why}</Txt>
+          </Card>
+        </Enter>
+      )}
+
+      {/* The same week, arranged around the sessions. The balance is untouched;
+          only how easy the week is to hold changes. */}
+      {cycle && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <Eyebrow>Around your training</Eyebrow>
+            {premium ? (
+              <>
+                <View style={[s.split, { marginTop: Space.md }]}>
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="subheading">{cycle.trainingKcal}</Txt>
+                    <Eyebrow style={{ marginTop: 2 }}>{cycle.trainingDays} training days</Eyebrow>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="subheading" color={c.textDim}>{cycle.restKcal}</Txt>
+                    <Eyebrow style={{ marginTop: 2 }}>{cycle.restDays} rest days</Eyebrow>
+                  </View>
+                </View>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{cycle.note}</Txt>
+              </>
+            ) : (
+              <>
+                <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                  You train {cycle.trainingDays} days a week. The same weekly total eats more easily
+                  when it follows the sessions — Premium works out the split.
+                </Txt>
+                <Button
+                  label="See the split"
+                  onPress={() => router.push('/paywall')}
+                  style={{ marginTop: Space.md }}
+                />
+              </>
+            )}
+          </Card>
+        </Enter>
+      )}
+
+      {/* Consistency in front, streak behind it. A streak that resets on one
+          missed day is the mechanic that makes people delete a fitness app —
+          forty days of work destroyed by one Tuesday with the flu. This number
+          survives real life. */}
+      {steady && steady.days > 0 && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <View style={s.split}>
+              <Eyebrow>Consistency</Eyebrow>
+              {steady.streak > 0 && (
+                <Txt variant="data" color={c.textFaint}>{steady.streak} in a row</Txt>
+              )}
+            </View>
+            <Txt variant="heading" style={{ marginTop: Space.md }}>
+              {steady.hit}
+              <Txt variant="small" color={c.textFaint}> of the last {steady.days} days</Txt>
+            </Txt>
+            <Bar pct={(steady.hit / steady.days) * 100} color={c.accent} />
+            {protein && (
+              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{protein.note}</Txt>
+            )}
           </Card>
         </Enter>
       )}

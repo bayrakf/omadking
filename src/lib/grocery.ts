@@ -134,6 +134,47 @@ export function splitDisplay(line: string): { core: string; detail: string | nul
 }
 
 /**
+ * The meals you actually cook, rather than the ones you were offered.
+ *
+ * `markCooked` recorded a date and nothing else, and `savePlan` keeps only the
+ * last ten plans — so after three weeks every favourite had quietly expired.
+ * That is backwards: three weeks in is exactly when nobody wants a new recipe
+ * every day any more, they want their rotation.
+ *
+ * Keyed by title, because the same meal cooked again is the same meal.
+ */
+export type CookedRecipe = { title: string; count: number; lastCooked: string; recipe: unknown };
+
+export function recipeRotation(rows: unknown): CookedRecipe[] {
+  const byTitle = new Map<string, CookedRecipe>();
+
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const r = row as any;
+    const title = typeof r?.title === 'string' ? r.title.trim() : '';
+    if (!title) continue;
+
+    const count = Number.isFinite(r.count) && r.count > 0 ? Math.floor(r.count) : 1;
+    const lastCooked = typeof r.lastCooked === 'string' ? r.lastCooked : '';
+    const seen = byTitle.get(title);
+
+    byTitle.set(title, seen
+      ? {
+          title,
+          count: seen.count + count,
+          lastCooked: lastCooked > seen.lastCooked ? lastCooked : seen.lastCooked,
+          recipe: seen.recipe ?? r.recipe,
+        }
+      : { title, count, lastCooked, recipe: r.recipe });
+  }
+
+  // Most cooked first; the most recent wins a tie, since that is the one on
+  // the person's mind.
+  return [...byTitle.values()].sort(
+    (a, b) => b.count - a.count || b.lastCooked.localeCompare(a.lastCooked)
+  );
+}
+
+/**
  * Scales the amounts in an ingredient list.
  *
  * The recipes carry reheating instructions and the card says "cook once, eat
@@ -515,6 +556,33 @@ export function demo() {
   // The scaled list still merges correctly downstream.
   const scaledList = buildGroceryList([{ recipe: { ingredients: scaleIngredients(['300g chicken breast'], 2) } }]);
   assert(scaledList[0].items[0].name === '600g chicken breast', `scaling feeds the shop list, got: ${scaledList[0].items[0].name}`);
+
+  // --- the rotation --------------------------------------------------------
+
+  const cooked = recipeRotation([
+    { title: 'Chicken and rice', count: 3, lastCooked: '2026-08-01', recipe: { title: 'Chicken and rice' } },
+    { title: 'Salmon bowl', count: 5, lastCooked: '2026-08-04', recipe: { title: 'Salmon bowl' } },
+    { title: 'Chicken and rice', count: 2, lastCooked: '2026-08-06', recipe: null },
+  ]);
+  assert(cooked.length === 2, `the same dish is one entry: ${cooked.length}`);
+  assert(cooked[0].title === 'Chicken and rice', `most cooked leads: ${cooked[0].title}`);
+  assert(cooked[0].count === 5, `counts add up: ${cooked[0].count}`);
+  assert(cooked[0].lastCooked === '2026-08-06', 'and the later date wins');
+  assert((cooked[0].recipe as any)?.title === 'Chicken and rice', 'the recipe itself is not lost to a null');
+
+  // A tie goes to whatever was cooked most recently.
+  const tie = recipeRotation([
+    { title: 'Older', count: 2, lastCooked: '2026-08-01' },
+    { title: 'Newer', count: 2, lastCooked: '2026-08-05' },
+  ]);
+  assert(tie[0].title === 'Newer', `a tie goes to the recent one: ${tie[0].title}`);
+
+  assert(recipeRotation([]).length === 0, 'nothing cooked, nothing to show');
+  assert(recipeRotation(null).length === 0, 'null does not throw');
+  assert(recipeRotation([{ count: 3 }, null, 'x', { title: '   ' }] as any).length === 0,
+    'entries without a usable title are dropped');
+  assert(recipeRotation([{ title: 'A', count: -5, lastCooked: '' }])[0].count === 1,
+    'a nonsense count falls back to one');
 
   // --- shop order ----------------------------------------------------------
 

@@ -15,8 +15,9 @@ import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
 import {
   loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
   loadLastSession, saveLastSession, loadPortions, savePortions,
-  loadIntakeLog, loadWeightLog, isPremium, type Quota,
+  loadIntakeLog, loadWeightLog, isPremium, loadCookedRecipes, type Quota,
 } from '@/lib/store';
+import type { CookedRecipe } from '@/lib/grocery';
 import { effectiveMaintenance } from '@/lib/energy';
 import { resync } from '@/lib/notify';
 
@@ -58,6 +59,7 @@ export default function PlannerScreen() {
   const [portions, setPortions] = useState(1);
   // Undefined until measured — dailyTargets then behaves exactly as before.
   const [measured, setMeasured] = useState<number | undefined>(undefined);
+  const [rotation, setRotation] = useState<CookedRecipe[]>([]);
   const [history, setHistory] = useState<MealPlan[]>([]);
 
   useFocusEffect(
@@ -65,13 +67,14 @@ export default function PlannerScreen() {
       let active = true;
       (async () => {
         const p = await loadProfileOrDefault();
-        const [h, q, batch, intake, weights, prem, last] = await Promise.all([
+        const [h, q, batch, intake, weights, prem, cooked, last] = await Promise.all([
           loadPlanHistory<MealPlan>(),
           getQuota(),
           loadPortions(),
           loadIntakeLog(),
           loadWeightLog(),
           isPremium(),
+          loadCookedRecipes(),
           // Prefill from the last session, falling back to the profile's usual
           // training time when there is nothing stored yet.
           loadLastSession(p.default_training_time),
@@ -86,6 +89,7 @@ export default function PlannerScreen() {
         setHistory(h);
         setQuota(q);
         setPortions(batch);
+        setRotation(cooked);
         setMeasured(
           effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem)
         );
@@ -302,6 +306,36 @@ export default function PlannerScreen() {
         </Enter>
       )}
 
+      {/* The meals actually cooked, which outlive the ten-plan window. Tapping
+          one costs no quota: nothing is generated, it is the user's own recipe
+          coming back. Three weeks in, this is what people want — their
+          rotation, not another stranger. */}
+      {rotation.length > 0 && (
+        <Enter index={6} style={{ marginTop: Space.xxl }}>
+          <View style={s.rotationHead}>
+            <Eyebrow>Cooked before</Eyebrow>
+            <Txt variant="data" color={c.textFaint}>no plan used</Txt>
+          </View>
+          {rotation.slice(0, 6).map((r) => (
+            <Tap
+              key={r.title}
+              onPress={() => r.recipe && setPlan({ ...(plan ?? {}), recipe: r.recipe } as MealPlan)}
+              accessibilityLabel={`Cook ${r.title} again`}
+            >
+              <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>
+                <View style={{ flex: 1 }}>
+                  <Txt variant="bodyMedium" numberOfLines={2}>{r.title}</Txt>
+                  <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
+                    cooked {r.count}×{r.lastCooked ? ` · last ${r.lastCooked}` : ''}
+                  </Txt>
+                </View>
+                <Icon name="chevronRight" size={16} color={c.textFaint} />
+              </View>
+            </Tap>
+          ))}
+        </Enter>
+      )}
+
       {history.length > 0 && (
         <Enter index={6} style={{ marginTop: Space.xxl }}>
           <Eyebrow style={{ marginBottom: Space.md }}>Recent plans</Eyebrow>
@@ -396,6 +430,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rotationHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.md },
   breakRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Space.md },
   breakNum: { width: 20 },
   histRow: {

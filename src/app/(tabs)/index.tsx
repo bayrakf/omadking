@@ -118,7 +118,8 @@ export default function DashboardScreen() {
       setStreak(currentStreak(await markFastComplete()));
       setFastLogged(true);
     } else if (kind === 'cook') {
-      await markCooked();
+      // Pass the plan so the recipe joins the rotation, not just the date.
+      await markCooked(todayISO(), plan);
       setCooked(true);
     }
     // A completed step should stop reminding.

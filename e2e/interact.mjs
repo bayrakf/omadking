@@ -265,6 +265,53 @@ export default async function run() {
     await context.close();
   }
 
+  // ------------------------------------------------ ROTATION AND CONSISTENCY
+  section('Rotation and consistency');
+  {
+    const day = (back) => {
+      const dt = new Date();
+      dt.setDate(dt.getDate() - back);
+      return dt.toISOString().slice(0, 10);
+    };
+
+    // A rotation outlives the ten-plan window, so it is stored separately.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED_WITH_PLAN,
+        cooked_recipes: JSON.stringify([
+          { title: 'Salmon and jasmine rice', count: 5, lastCooked: day(2), recipe: { title: 'Salmon and jasmine rice', ingredients: ['300g salmon'], instructions: '1. Cook.' } },
+          { title: 'Chicken and sweet potato', count: 2, lastCooked: day(6), recipe: { title: 'Chicken and sweet potato', ingredients: ['300g chicken'], instructions: '1. Cook.' } },
+        ]),
+      });
+      await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Cooked before'), 'the rotation is offered');
+      check(has(t, 'cooked 5×'), 'with how often each was made', t.match(/cooked \d+×/)?.[0] ?? '');
+      // Most cooked leads, whatever the dates say.
+      check(t.indexOf('Salmon and jasmine rice') < t.indexOf('Chicken and sweet potato'),
+        'and the most cooked one leads');
+      check(has(t, 'no plan used'), 'and it says re-cooking costs no quota');
+      await context.close();
+    }
+
+    // Consistency survives a gap that destroys the streak.
+    {
+      const fasts = Array.from({ length: 30 }, (_, i) => day(i)).filter((_, i) => i !== 3);
+      const { context, page } = await newPage(browser, {
+        ...SEED, fast_log: JSON.stringify(fasts),
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Consistency'), 'consistency is shown');
+      check(has(t, '29'), 'and one missed day costs exactly one', t.match(/29/)?.[0] ?? '');
+      // The streak collapsed to 3, and that is deliberately not the headline.
+      check(has(t, '3 in a row'), 'the streak is still there, behind it');
+      await context.close();
+    }
+  }
+
   // --------------------------------------------------- PATTERN AND BUDGET
   section('Pattern and weekly budget');
   {

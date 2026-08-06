@@ -584,6 +584,113 @@ export function costOfExtra(extraKcal: number, dailyDeficitKcal: number): ExtraC
   };
 }
 
+/**
+ * Whether the protein target was actually met, at no cost to the user.
+ *
+ * On one meal a day protein is the hard part — it is what falls off the plate
+ * first when the day goes sideways. The app has set a protein target since the
+ * beginning and never once checked it, even though the answer was already in
+ * the intake log: eating the plan means eating its protein.
+ *
+ * No new question, no new tap. Just reading what is there.
+ */
+export type ProteinAdherence = { hit: number; days: number; note: string } | null;
+
+/** A hair under counts as met; nobody eats to the gram. */
+const PROTEIN_TOLERANCE = 0.95;
+
+export function proteinAdherence(intakeLog: unknown, today: string = todayISO()): ProteinAdherence {
+  const rows = withinWindow<IntakeEntry>(intakeLog, today).filter(
+    (e) => isFinite(e.factor) && e.factor > 0
+  );
+  if (rows.length < 5) return null;
+
+  const hit = rows.filter((r) => r.factor >= PROTEIN_TOLERANCE).length;
+  const missed = rows.length - hit;
+
+  return {
+    hit,
+    days: rows.length,
+    note:
+      missed === 0
+        ? `Protein met on all ${rows.length} logged days.`
+        : `Protein met on ${hit} of ${rows.length} logged days. On the other ${missed} you ate under `
+          + `the plan — on one meal a day that is the part that goes first.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * How many days a week this person actually trains, from their own plans.
+ *
+ * Not asked, because it would be another question and the answer is already in
+ * the plan history: a plan carries a training start time when there was a
+ * session. Ten plans is a small sample, so this is a rounded estimate and the
+ * caller says so.
+ */
+export function trainingDaysPerWeek(planHistory: unknown): number | null {
+  const plans = (Array.isArray(planHistory) ? planHistory : []).filter(
+    (p: any) => p && typeof p.date === 'string'
+  );
+  if (plans.length < 5) return null;
+
+  const withSession = plans.filter((p: any) => !!p.training_start_time).length;
+  const days = Math.round((withSession / plans.length) * 7);
+  return days > 0 && days < 7 ? days : null;
+}
+
+/**
+ * The same week, distributed around training.
+ *
+ * More on the days there is a session to fuel, less on the days there is not,
+ * with the weekly total untouched. The balance does not change; how easy the
+ * week is to hold does.
+ *
+ * `bmrFloor` is not optional politeness — a rest day must never drop under it,
+ * which is the same rule `dailyTargets` enforces.
+ */
+export type WeekCycle = {
+  trainingKcal: number;
+  restKcal: number;
+  trainingDays: number;
+  restDays: number;
+  note: string;
+} | null;
+
+/** Most a training day may sit above the flat average. */
+const MAX_SPREAD = 400;
+
+export function cycleWeek(weeklyKcal: number, trainingDays: number, bmrFloor: number): WeekCycle {
+  if (!isFinite(weeklyKcal) || weeklyKcal <= 0) return null;
+  if (!Number.isInteger(trainingDays) || trainingDays <= 0 || trainingDays >= 7) return null;
+  if (!isFinite(bmrFloor) || bmrFloor <= 0) return null;
+
+  const restDays = 7 - trainingDays;
+  const base = weeklyKcal / 7;
+  if (base <= bmrFloor) return null;
+
+  // Whatever is added to training days comes off the rest days, so the week is
+  // unchanged by construction: training * a === rest * b.
+  const maxByFloor = ((base - bmrFloor) * restDays) / trainingDays;
+  const a = Math.min(MAX_SPREAD, maxByFloor);
+  if (a < 50) return null;   // too small a difference to be worth the complication
+
+  const b = (trainingDays * a) / restDays;
+  const trainingKcal = Math.round((base + a) / 10) * 10;
+  const restKcal = Math.round((base - b) / 10) * 10;
+
+  return {
+    trainingKcal,
+    restKcal,
+    trainingDays,
+    restDays,
+    note:
+      `Same week, distributed differently: ${trainingKcal} on your ${trainingDays} training days, `
+      + `${restKcal} on the other ${restDays}. The weekly total does not change.`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 
 export type TrendRead = {
@@ -949,6 +1056,66 @@ export function demo() {
   assert(costOfExtra(0, 500) === null, 'nothing extra costs nothing');
   assert(costOfExtra(500, 0) === null, 'without a deficit there is no delay to state');
   assert(costOfExtra(NaN, 500) === null, 'nonsense in, nothing out');
+
+  // --- protein, for free ---------------------------------------------------
+
+  const mixed = [
+    ...Array.from({ length: 18 }, (_, i) => ({ date: day(20 - i), factor: 1, target_kcal: 2000 })),
+    ...Array.from({ length: 3 }, (_, i) => ({ date: day(i), factor: 0.7, target_kcal: 2000 })),
+  ];
+  const prot = proteinAdherence(mixed, TODAY)!;
+  assert(prot.hit === 18 && prot.days === 21, `counted, not estimated: ${prot.hit}/${prot.days}`);
+  assert(/goes first/.test(prot.note), 'and it says why that matters on one meal a day');
+
+  const allHit = proteinAdherence(
+    Array.from({ length: 10 }, (_, i) => ({ date: day(i), factor: 1, target_kcal: 2000 })), TODAY
+  )!;
+  assert(allHit.hit === allHit.days, 'a clean run reads as clean');
+  assert(/all 10/.test(allHit.note), `and is phrased as such: ${allHit.note}`);
+
+  // Eating more than the plan still means the protein was there.
+  assert(proteinAdherence(
+    Array.from({ length: 6 }, (_, i) => ({ date: day(i), factor: 1.4, target_kcal: 2000 })), TODAY
+  )!.hit === 6, 'eating over the plan still meets the protein');
+
+  assert(proteinAdherence([], TODAY) === null, 'too little data gives nothing, not a zero');
+  assert(proteinAdherence(null, TODAY) === null, 'null does not throw');
+
+  // --- how often they train, from their own plans --------------------------
+
+  const plans = (sessions: boolean[]) =>
+    sessions.map((s, i) => ({ date: day(i), training_start_time: s ? '19:00' : null }));
+
+  assert(trainingDaysPerWeek(plans([true, true, true, false, false, false, false])) === 3,
+    `three of seven reads as three: ${trainingDaysPerWeek(plans([true, true, true, false, false, false, false]))}`);
+  assert(trainingDaysPerWeek(plans(Array(10).fill(false))) === null, 'no sessions, no cycle to offer');
+  assert(trainingDaysPerWeek(plans(Array(10).fill(true))) === null, 'training every day is not a cycle either');
+  assert(trainingDaysPerWeek(plans([true, false])) === null, 'two plans is too small a sample');
+  assert(trainingDaysPerWeek(null) === null, 'null does not throw');
+
+  // --- the training-day cycle ----------------------------------------------
+
+  const cyc = cycleWeek(1900 * 7, 3, 1700)!;
+  assert(cyc.trainingKcal > cyc.restKcal, 'training days get more');
+  const total = cyc.trainingKcal * 3 + cyc.restKcal * 4;
+  assert(Math.abs(total - 1900 * 7) < 80, `and the week still adds up: ${total} vs ${1900 * 7}`);
+  assert(cyc.restKcal >= 1700, `rest days never go under the floor: ${cyc.restKcal}`);
+  assert(/does not change/.test(cyc.note), 'and the note says the total is untouched');
+
+  // The floor binds when there is little room, rather than being ignored.
+  const tight = cycleWeek(1800 * 7, 3, 1750);
+  assert(tight === null || tight.restKcal >= 1750, `the floor holds even when tight: ${JSON.stringify(tight)}`);
+
+  assert(cycleWeek(1900 * 7, 0, 1700) === null, 'no training days, nothing to redistribute');
+  assert(cycleWeek(1900 * 7, 7, 1700) === null, 'every day a training day is the same as none');
+  assert(cycleWeek(0, 3, 1700) === null, 'no week, no cycle');
+  assert(cycleWeek(1900 * 7, 2.5 as any, 1700) === null, 'half a training day is not a thing');
+  assert(cycleWeek(1750 * 7, 3, 1800) === null, 'a week already at the floor cannot be cycled');
+
+  for (const n of [prot.note, cyc.note]) {
+    assert(!/cure|prevent|detox|proven|should/i.test(n), `no claim or scolding: ${n}`);
+    assert(!/\bstudies\b|%/.test(n), 'no invented statistic');
+  }
 
   // --- reading the trend ---------------------------------------------------
 

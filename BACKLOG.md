@@ -914,3 +914,33 @@ einmal die falsche Trainingszeit in den Fenstervorschlag gebracht hat.
 600 statt 607 Zeilen, bei einer Karte weniger und einer Regel mehr.
 
 **Erledigt** 2026-08-06 — 215 Checks.
+
+
+---
+
+## 36. [x] Vier Funktionen aus Daten, die die App wegwarf
+
+**Die Rotation.** `markCooked` speicherte nur ein Datum, und `savePlan` behält zehn Pläne — nach
+drei Wochen war jedes Lieblingsessen weg. Genau dann will aber niemand mehr täglich ein neues
+Rezept, sondern seine Rotation. Gekochte Rezepte liegen jetzt in `KEYS.cookedRecipes`, unabhängig
+vom Zehn-Pläne-Fenster, nach Häufigkeit sortiert. **Nochmal kochen verbraucht kein Kontingent** —
+es wird nichts generiert.
+
+**Konsistenz statt Streak.** `currentStreak` fiel bei einem verpassten Tag auf null: vierzig Tage
+Arbeit, zerstört von einem kranken Dienstag. Das ist die Mechanik, die Leute die App löschen lässt.
+`consistency()` zählt „29 von 30" — der Streak bleibt daneben stehen, aber vorne steht eine Zahl,
+die Rückschläge überlebt. Der Selbstcheck hält beides nebeneinander fest: eine Lücke kostet einen
+Tag, während der Streak auf drei zusammenfällt.
+
+**Protein-Treue ohne eine einzige neue Eingabe.** Die App setzt seit Tag eins ein Proteinziel — auf
+OMAD der schwierigste Teil — und hat nie nachgesehen. Die Antwort stand längst im Zufuhrprotokoll:
+Faktor ≥ 1 heißt, der Plan wurde gegessen, also auch dessen Protein.
+
+**Trainingstage-Zyklus.** Gleiche Wochensumme, mehr an Trainingstagen. Wie oft jemand trainiert,
+wird aus der Planhistorie abgeleitet statt gefragt. Ruhetage nie unter BMR — als Selbstcheck.
+
+**Premium-Grenze:** Rotation, Konsistenz und Protein sind **kostenlos** — der freie Tarif wird
+absichtlich deutlich besser. Bezahlt sind das Anpassen eines Rezepts an die heutigen Zahlen und der
+Zyklus, beides braucht die Messung.
+
+**Erledigt** 2026-08-06 — 233 Checks.

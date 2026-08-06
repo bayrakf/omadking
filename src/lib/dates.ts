@@ -47,6 +47,28 @@ export function currentStreak(dates: string[], today = todayISO()): number {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * How many of the last N days were logged — a number a bad Tuesday cannot
+ * destroy.
+ *
+ * `currentStreak` falls to zero on one missed day. Someone who holds forty
+ * days and then gets ill loses all of it, and that is the mechanic that makes
+ * people delete a fitness app. This sits next to the streak rather than
+ * replacing it: the streak is still there for whoever enjoys it, but the
+ * figure in front is one that survives real life.
+ */
+export function consistency(dates: string[], days = 30, today = todayISO()): { hit: number; days: number } {
+  const set = new Set(Array.isArray(dates) ? dates.filter((d) => typeof d === 'string') : []);
+  const cursor = parseISO(today);
+  let hit = 0;
+
+  for (let i = 0; i < days; i++) {
+    if (set.has(todayISO(cursor))) hit++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return { hit, days };
+}
+
 export function demo() {
   const assert = (cond: boolean, msg: string) => {
     if (!cond) throw new Error('FAIL: ' + msg);
@@ -76,6 +98,29 @@ export function demo() {
   const saturday = new Date(2026, 2, 7);
   assert(weekKey(saturday) === weekKey(sunday), 'Saturday and Sunday share a week');
   assert(weekKey(sunday) !== weekKey(monday), 'Monday starts a new week');
+
+  // --- consistency ---------------------------------------------------------
+
+  const day = (back: number) => {
+    const d = parseISO('2026-08-20');
+    d.setDate(d.getDate() - back);
+    return todayISO(d);
+  };
+
+  const perfect = Array.from({ length: 30 }, (_, i) => day(i));
+  assert(consistency(perfect, 30, '2026-08-20').hit === 30, 'thirty of thirty');
+
+  // The whole point: one missed day costs one day, not the lot.
+  const oneMissed = perfect.filter((d) => d !== day(3));
+  assert(consistency(oneMissed, 30, '2026-08-20').hit === 29, 'a single gap costs exactly one day');
+  assert(currentStreak(oneMissed, '2026-08-20') === 3, 'while the streak collapses to three');
+
+  assert(consistency([], 30, '2026-08-20').hit === 0, 'nothing logged is nothing');
+  assert(consistency(perfect, 7, '2026-08-20').hit === 7, 'a shorter window counts fewer');
+  assert(consistency([...perfect, ...perfect], 30, '2026-08-20').hit === 30, 'duplicates do not inflate it');
+  assert(consistency(['2020-01-01'], 30, '2026-08-20').hit === 0, 'dates outside the window do not count');
+  assert(consistency(null as any, 30, '2026-08-20').hit === 0, 'a missing log does not throw');
+  assert(consistency([null, 7, day(1)] as any, 30, '2026-08-20').hit === 1, 'junk entries are ignored');
 
   return 'dates.ts: all checks passed';
 }
