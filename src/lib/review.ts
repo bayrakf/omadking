@@ -533,6 +533,104 @@ export function bestWeeks(
 }
 
 /**
+ * The log, written out for someone who is not the app.
+ *
+ * A doctor's appointment is the moment this data is worth most and reaches
+ * least: it lives on the phone in charts nobody else can read. This is the
+ * same numbers as plain text.
+ *
+ * It is a record, not a report. Every figure comes out of the logs passed in;
+ * nothing here interprets, scores, or advises, and the one sentence that is not
+ * a number says exactly that. A document that looked like a finding would be
+ * worse than no document — a doctor would have to work out which parts an app
+ * made up, and the answer has to be "none of it".
+ *
+ * Free, and not as a concession: this is data portability (Art. 20 GDPR), and
+ * charging for the readable form of someone's own record would be absurd.
+ */
+export const SUMMARY_DISCLAIMER =
+  'This is a self-kept log produced by an app, not a medical assessment. '
+  + 'Nothing in it has been reviewed by a clinician.';
+
+/** Circumstances where the protocol is not appropriate. Same list as the About page. */
+export const SUMMARY_NOT_FOR = [
+  'Pregnancy or breastfeeding',
+  'Diabetes, particularly on insulin or sulfonylureas',
+  'A history of disordered eating',
+  'Medication for blood pressure or blood glucose',
+  'Under 18',
+];
+
+export function healthSummary(input: {
+  windowStart?: string | null;
+  windowHours?: number | null;
+  weights?: unknown;
+  intakeLog?: unknown;
+  fastLog?: unknown;
+  today?: string;
+}): string {
+  const today = input.today ?? todayISO();
+
+  const weighed = (Array.isArray(input.weights) ? input.weights : [])
+    .filter((w: any) => w && typeof w.date === 'string' && isFinite(w.weight_kg) && w.weight_kg > 0)
+    .sort((a: any, b: any) => a.date.localeCompare(b.date)) as WeighIn[];
+
+  const intake = (Array.isArray(input.intakeLog) ? input.intakeLog : []).filter(
+    (e: any) => e && typeof e.date === 'string' && isFinite(e.factor) && isFinite(e.target_kcal)
+  ) as { date: string; factor: number; target_kcal: number }[];
+
+  const fasts = [...dateSet(input.fastLog)].sort();
+
+  const lines: string[] = [`# Self-kept log`, '', `Produced ${today}.`, ''];
+
+  if (weighed.length === 0 && intake.length === 0 && fasts.length === 0) {
+    // Zeroes would read as measurements. Nothing recorded is not "0 kg".
+    lines.push('Nothing has been recorded yet, so there is nothing to report.', '');
+    lines.push('## Please note', '', SUMMARY_DISCLAIMER, '');
+    return lines.join('\n');
+  }
+
+  const dates = [...weighed.map((w) => w.date), ...intake.map((e) => e.date), ...fasts].sort();
+  lines.push('## Period', '', `${dates[0]} to ${dates[dates.length - 1]}`, '');
+
+  if (weighed.length > 0) {
+    lines.push('## Weight', '');
+    lines.push(`- First recorded: ${weighed[0].weight_kg} kg on ${weighed[0].date}`);
+    lines.push(
+      `- Most recent: ${weighed[weighed.length - 1].weight_kg} kg on ${weighed[weighed.length - 1].date}`
+    );
+    lines.push(`- Weigh-ins recorded: ${weighed.length}`);
+    const t = weeklyTrend(weighed);
+    // A single weigh-in, or several on one day, has no direction to state.
+    if (t !== null) lines.push(`- Fitted trend: ${kg(t)} kg per week`);
+    lines.push('');
+  }
+
+  if (intake.length > 0) {
+    const avg = Math.round(intake.reduce((s, e) => s + e.factor * e.target_kcal, 0) / intake.length);
+    lines.push('## Intake', '');
+    lines.push(`- Days with an answer: ${intake.length}`);
+    lines.push(`- Mean intake across those days: ${avg} kcal`);
+    lines.push('- Recorded as a rough category per day, not a weighed diary.', '');
+  }
+
+  lines.push('## Eating schedule', '');
+  lines.push(
+    input.windowStart && input.windowHours
+      ? `- One meal a day, in a ${input.windowHours}-hour window from ${input.windowStart}`
+      : '- One meal a day'
+  );
+  lines.push(`- Days the fast was logged as completed: ${fasts.length}`, '');
+
+  lines.push('## Please note', '', SUMMARY_DISCLAIMER, '');
+  lines.push('The protocol is not appropriate in these circumstances:', '');
+  for (const item of SUMMARY_NOT_FOR) lines.push(`- ${item}`);
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
  * Which single card on Progress may ask for money.
  *
  * Three could at once before: the forecast, the plateau and the measurement,
@@ -851,6 +949,80 @@ export function demo() {
     progressCards({ premium: false, hasMeasured: false, hasOutlook: true }).sell === 'outlook',
     'and the forecast carries it otherwise'
   );
+  // --- the log, written out for someone who is not the app -----------------
+
+  {
+    const w = [
+      { date: '2026-05-01', weight_kg: 95 },
+      { date: '2026-05-15', weight_kg: 93.4 },
+      { date: '2026-06-01', weight_kg: 91.2 },
+    ];
+    const eaten = [
+      { date: '2026-05-02', factor: 1, target_kcal: 2000 },
+      { date: '2026-05-03', factor: 0.75, target_kcal: 2000 },
+    ];
+    const text = healthSummary({
+      windowStart: '18:00', windowHours: 2,
+      weights: w, intakeLog: eaten, fastLog: ['2026-05-02', '2026-05-03', '2026-05-04'],
+      today: '2026-06-02',
+    });
+
+    assert(/2026-05-01 to 2026-06-01/.test(text), `the period is stated: ${text.slice(0, 80)}`);
+    assert(/95 kg on 2026-05-01/.test(text), 'with the first weight');
+    assert(/91.2 kg on 2026-06-01/.test(text), 'and the most recent');
+    assert(/Weigh-ins recorded: 3/.test(text), 'and how many there were');
+    assert(/kg per week/.test(text), 'and the fitted trend');
+    assert(/Days with an answer: 2/.test(text), 'the intake days are counted');
+    assert(/1750 kcal/.test(text), `and averaged from the entries: ${text.match(/Mean[^\n]*/)}`);
+    assert(/2-hour window from 18:00/.test(text), 'the schedule is described');
+    assert(/completed: 3/.test(text), 'and the fasts counted');
+
+    // The sentence without which the document would be dangerous.
+    assert(text.includes(SUMMARY_DISCLAIMER), 'the disclaimer is present verbatim');
+    for (const item of SUMMARY_NOT_FOR) {
+      assert(text.includes(item), `the contraindication "${item}" is carried across`);
+    }
+
+    // A record, not a report. No judgement, no advice, no diagnosis.
+    assert(
+      !/\b(good|bad|excellent|poor|healthy|unhealthy|should|recommend|suggests?|indicates?|risk of|diagnos)/i
+        .test(text.replace(SUMMARY_DISCLAIMER, '')),
+      'nothing in it interprets or advises'
+    );
+
+    // Every figure has to trace back to the logs handed in, because a number
+    // the app invented is the one thing a doctor could not check. Tested by
+    // moving each input and requiring the document to move with it — a
+    // whitelist of expected digits would pass just as happily on a constant.
+    const moved = healthSummary({
+      windowStart: '18:00', windowHours: 2,
+      weights: w.map((x) => ({ ...x, weight_kg: x.weight_kg - 7 })),
+      intakeLog: eaten.map((e) => ({ ...e, target_kcal: 2400 })),
+      fastLog: ['2026-05-02'],
+      today: '2026-06-02',
+    });
+    assert(/88 kg on 2026-05-01/.test(moved), 'a different weight log produces different weights');
+    assert(!/95 kg/.test(moved), 'and the old figure is gone rather than cached');
+    assert(/2100 kcal/.test(moved), `a different target produces a different mean: ${moved.match(/Mean[^\n]*/)}`);
+    assert(/completed: 1/.test(moved), 'and a shorter fast log counts fewer fasts');
+    // The mean is the arithmetic mean of what was passed, not a rounded guess.
+    assert(
+      /Mean intake across those days: 1750 kcal/.test(text),
+      `(1 + 0.75) x 2000 / 2 = 1750: ${text.match(/Mean[^\n]*/)}`
+    );
+
+    // An empty log must not read as a measurement of zero.
+    const blank = healthSummary({ today: '2026-06-02' });
+    assert(/nothing to report/i.test(blank), 'an empty log says so');
+    assert(!/0 kg|0 kcal/.test(blank), 'rather than printing zeroes as findings');
+    assert(blank.includes(SUMMARY_DISCLAIMER), 'and still carries the disclaimer');
+
+    // One weigh-in has no direction, and none is claimed.
+    const single = healthSummary({ weights: [{ date: '2026-05-01', weight_kg: 95 }], today: '2026-06-02' });
+    assert(/Weigh-ins recorded: 1/.test(single), 'a single weigh-in is reported');
+    assert(!/per week/.test(single), 'but no trend is fitted from it');
+  }
+
   // --- what was different about the weeks that worked ----------------------
 
   {

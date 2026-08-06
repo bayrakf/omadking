@@ -470,6 +470,49 @@ export default async function run() {
     }
   }
 
+  // ------------------------------------------------------ SUMMARY TO TAKE
+  section('The log can be taken to an appointment');
+  {
+    // A doctor's appointment is where this data is worth most and reaches
+    // least: it sits on the phone in charts nobody else can read.
+    const { context, page } = await newPage(browser, {
+      ...SEED,
+      weight_log: JSON.stringify([
+        { id: 's1', date: '2026-05-01', weight_kg: 95 },
+        { id: 's2', date: '2026-06-01', weight_kg: 91.2 },
+      ]),
+      intake_log: JSON.stringify([
+        { date: '2026-05-02', factor: 1, target_kcal: 2000 },
+        { date: '2026-05-03', factor: 0.75, target_kcal: 2000 },
+      ]),
+      fast_log: JSON.stringify(['2026-05-02', '2026-05-03']),
+    });
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+
+    const btn = page.getByText('Summary for an appointment');
+    check(await btn.count() === 1, 'the action is offered');
+    await btn.click();
+    await page.waitForTimeout(900);
+    check(has(await body(page), 'Copied'), 'and reports that it produced something');
+
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    check(/2026-05-01 to 2026-06-01/.test(text), 'the period is in it',
+      text.match(/\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}/)?.[0] ?? '');
+    check(/95 kg/.test(text) && /91.2 kg/.test(text), 'with both weights');
+    check(/1750 kcal/.test(text), 'and the mean intake computed from the entries',
+      text.match(/Mean[^\n]*/)?.[0] ?? '');
+    check(/completed: 2/.test(text), 'and the fasts counted');
+    // The sentence without which the document would be dangerous.
+    check(/not a medical assessment/.test(text), 'it says plainly what it is not');
+    check(/Pregnancy or breastfeeding/.test(text), 'and carries the contraindications');
+    // A record, not a report.
+    check(!/should|recommend|indicates|risk of|diagnos/i.test(text),
+      'and nothing in it interprets or advises');
+    await context.close();
+  }
+
   // -------------------------------------------------------- THE BEST WEEKS
   section('What the best weeks had in common');
   {

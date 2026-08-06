@@ -1056,3 +1056,27 @@ in diesem Protokoll."*
 **Premium.** Ohne acht gemessene Wochen gibt es nichts zu zählen, und geschätzt wird hier nichts.
 
 **Erledigt** 2026-08-06 — 269 Checks.
+
+---
+
+## 41. Der Verlauf zum Mitnehmen
+
+Ein Arzttermin ist der Moment, in dem diese Daten am meisten wert sind und am wenigsten ankommen:
+sie liegen auf dem Telefon in Diagrammen, die sonst niemand lesen kann. `healthSummary` in
+`src/lib/review.ts` schreibt dieselben Zahlen als Text.
+
+**Ein Protokoll, kein Befund.** Jede Zahl stammt aus den übergebenen Logs; nichts darin deutet,
+bewertet oder rät, und der eine Satz, der keine Zahl ist, sagt genau das. Ein Dokument, das wie ein
+Befund aussieht, wäre schlimmer als keines — ein Arzt müsste herausfinden, welche Teile eine App
+erfunden hat, und die Antwort muss „keine" lauten.
+
+Der Selbstcheck beweist das, indem er **jede Eingabe verschiebt** und verlangt, dass sich das
+Dokument mitbewegt. Eine Liste erwarteter Ziffern hätte bei einer Konstanten genauso zufrieden
+bestanden.
+
+Ein leeres Protokoll druckt keine Nullen: „Es wurde noch nichts aufgezeichnet" statt „0 kg". Eine
+einzelne Wiegung bekommt keinen Trend.
+
+**Kostenlos**, und nicht als Zugeständnis: das ist Datenübertragbarkeit (Art. 20 DSGVO).
+
+**Erledigt** 2026-08-06 — 278 Checks.

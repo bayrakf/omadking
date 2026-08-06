@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, TextInput, Platform, Alert, Switch } from 'react-native';
+import { View, StyleSheet, TextInput, Platform, Alert, Switch, Share } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
@@ -12,13 +12,14 @@ import {
 } from '@/lib/nutrition';
 import {
   loadProfileOrDefault, saveProfile, resetOnboarding, eraseEverything, getQuota, isPremium,
-  loadLastPlan, loadFastLog, loadCookLog, todayISO, type Quota,
+  loadLastPlan, loadFastLog, loadCookLog, loadWeightLog, loadIntakeLog, todayISO, type Quota,
 } from '@/lib/store';
 import {
   isSupported as remindersSupported, isEnabled as remindersOn,
   setEnabled as setReminders, scheduledCount, resync,
 } from '@/lib/notify';
 import { exportBackup, importBackup } from '@/lib/backup';
+import { healthSummary } from '@/lib/review';
 import { syncNow, lastSyncedAt, deleteAccount } from '@/lib/sync';
 import { saveBackup, pickBackup } from '@/lib/backup-file';
 import type { MealPlan } from '@/lib/ai';
@@ -158,6 +159,33 @@ export default function ProfileScreen() {
     setNotice(null);
     const res = await saveBackup(await exportBackup());
     if (!res.ok && res.message) setNotice({ text: res.message, ok: false });
+  };
+
+  /**
+   * The same numbers as plain text, for the appointment where they are worth
+   * most and reach least. A record, not a report — everything in it is read out
+   * of the logs, and review.ts holds the rule that nothing interprets.
+   */
+  const doSummary = async () => {
+    setNotice(null);
+    const [weights, fasts, intake] = await Promise.all([
+      loadWeightLog(), loadFastLog(), loadIntakeLog(),
+    ]);
+    const text = healthSummary({
+      windowStart: profile.omad_window_start,
+      windowHours: profile.omad_window_hours,
+      weights, intakeLog: intake, fastLog: fasts,
+    });
+    if (Platform.OS === 'web') {
+      try {
+        await navigator.clipboard.writeText(text);
+        setNotice({ text: 'Copied. Paste it wherever you need it.', ok: true });
+      } catch {
+        setNotice({ text: 'Could not reach the clipboard.', ok: false });
+      }
+    } else {
+      await Share.share({ message: text });
+    }
   };
 
   const doImport = async () => {
@@ -357,6 +385,16 @@ export default function ProfileScreen() {
             <Button label="Export" variant="secondary" icon="share" onPress={doExport} style={s.dataBtn} />
             <Button label="Restore" variant="ghost" onPress={doImport} style={s.dataBtn} />
           </View>
+          {/* Free, and not as a concession: the readable form of your own
+              record is data portability, and charging for it would be absurd.
+              Separate from Export because that file is for the app to read
+              back and this text is for a person. */}
+          <Button
+            label="Summary for an appointment"
+            variant="ghost"
+            onPress={doSummary}
+            style={{ marginTop: Space.sm }}
+          />
           {notice && <Notice tone={notice.ok ? 'ok' : 'error'}>{notice.text}</Notice>}
           <Divider style={{ marginVertical: Space.base }} />
           {/* Separate from Reset on purpose: that one keeps the logs, this one

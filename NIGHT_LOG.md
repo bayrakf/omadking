@@ -656,3 +656,17 @@ einen erfundenen kausalen Satz durch dieselbe Prüfung schickt und erwartet, das
 Prüfung, die nur bestätigt, dass sie nichts findet, kann auch kaputt sein und dasselbe sagen.
 
 **Stand:** e2e **269 Checks**.
+
+---
+
+## Punkt 41 — eine Prüfung, die eine Konstante bestanden hätte
+
+Mein erster Selbstcheck für den Arztbericht sammelte die erwarteten Ziffern in einer Whitelist und
+prüfte, dass keine anderen auftauchen. Das hätte auch dann bestanden, wenn `healthSummary` einen
+fest verdrahteten Text zurückgegeben hätte — die Zahlen wären ja alle „erwartet" gewesen.
+
+Ersetzt durch das Gegenteil: jede Eingabe verschieben und verlangen, dass das Dokument sich
+mitbewegt, samt der Prüfung, dass die alte Zahl **verschwindet**. Das ist der Unterschied zwischen
+„die Ausgabe sieht plausibel aus" und „die Ausgabe hängt an der Eingabe".
+
+**Stand:** e2e **278 Checks**, `npm run check` über vierzehn Module plus zwei Guards.
