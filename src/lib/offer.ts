@@ -25,6 +25,8 @@ export type Gate =
   | 'progress_pattern'
   /** `isPremium()` read before the training/rest split is shown. */
   | 'progress_cycle'
+  /** `isPremium()` read before the best weeks are counted against the rest. */
+  | 'progress_best'
   /** `isPremium()` read before the redistributed figure for a planned big day. */
   | 'week_ahead'
   /** `getQuota()` / `consumeQuota()` in the planner. */
@@ -33,7 +35,7 @@ export type Gate =
 /** Every gate the app can enforce. Kept next to the type so it can be iterated. */
 export const ALL_GATES: Gate[] = [
   'progress_measured', 'progress_forecast', 'progress_months',
-  'progress_pattern', 'progress_cycle', 'week_ahead', 'plan_quota',
+  'progress_pattern', 'progress_cycle', 'progress_best', 'week_ahead', 'plan_quota',
 ];
 
 export type Claim = {
@@ -79,6 +81,12 @@ export const PREMIUM_CLAIMS: Claim[] = [
     body: 'The same weekly total, split so training days carry more and rest days less. Never below '
       + 'what your body needs at rest.',
     gate: 'progress_cycle',
+  },
+  {
+    title: 'What your best weeks had in common',
+    body: 'Your strongest weeks counted against the rest — sessions, days on plan, fasts logged. '
+      + 'What the log actually shows, not what usually helps people.',
+    gate: 'progress_best',
   },
   {
     title: 'Plan the big day before it happens',
@@ -146,6 +154,7 @@ export const SELL_GATE: Record<string, Gate> = {
   outlook: 'progress_forecast',
   pattern: 'progress_pattern',
   cycle: 'progress_cycle',
+  best: 'progress_best',
   ahead: 'week_ahead',
 };
 

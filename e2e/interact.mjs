@@ -445,7 +445,7 @@ export default async function run() {
         // loosely — a pattern that silently stops matching would make this
         // check pass by finding nothing, which is the failure it exists for.
         n += await page.getByText(
-          /^(See what it measured|Compare the months|See which day|See the split|See where this leads|Plan the day)$/
+          /^(See what it measured|Compare the months|See which day|See the split|See where this leads|Plan the day|Count the difference)$/
         ).count();
       }
       return n;
@@ -466,6 +466,90 @@ export default async function run() {
       await page.waitForTimeout(2000);
       const n = await countBuys(page);
       check(n === 0, 'and someone who already paid is never asked again', String(n));
+      await context.close();
+    }
+  }
+
+  // -------------------------------------------------------- THE BEST WEEKS
+  section('What the best weeks had in common');
+  {
+    // Twelve measured weeks where the strong ones differ in exactly one thing.
+    // The claim is a count, and the check that matters is the one that reads
+    // the rendered sentence for a causal word.
+    const mon = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - back * 7);
+      return d.toISOString().slice(0, 10);
+    };
+    const plus = (iso, n) => {
+      const d = new Date(iso + 'T12:00:00Z');
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+    const weights = [];
+    const plans = [];
+    const intake = [];
+    let kg = 96;
+    for (let i = 12; i >= 1; i--) {
+      const m = mon(i);
+      const good = i >= 10;
+      weights.push({ id: `b${i}a`, date: m, weight_kg: Math.round(kg * 10) / 10 });
+      kg -= good ? 0.8 : 0.1;
+      weights.push({ id: `b${i}b`, date: plus(m, 6), weight_kg: Math.round(kg * 10) / 10 });
+      for (let t = 0; t < (good ? 4 : 1); t++) {
+        plans.push({ date: plus(m, t), training_start_time: '19:00', recipe: { ingredients: [] } });
+      }
+      for (let d = 0; d < 7; d++) intake.push({ date: plus(m, d), factor: 1, target_kcal: 2000 });
+    }
+    const seed = {
+      ...SEED,
+      weight_log: JSON.stringify(weights),
+      meal_history: JSON.stringify(plans),
+      intake_log: JSON.stringify(intake),
+    };
+
+    {
+      const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(2000);
+      const t = await bodyIn(page, 'Your body');
+      check(has(t, 'What your best weeks had in common'), 'the card is there');
+      check(/sessions a week, against/.test(t), 'and names the difference as a count',
+        t.match(/[\d.]+ sessions a week, against [\d.]+ in the others/)?.[0] ?? '');
+      // The rule the whole feature stands on.
+      check(
+        !/\b(because|causes?|leads to|results in|proves|works for you|makes you)\b/i.test(t),
+        'and states it without claiming a cause'
+      );
+      check(!/you should|try to|we recommend/i.test(t), 'and without instructing anyone');
+      await context.close();
+    }
+
+    {
+      const { context, page } = await newPage(browser, seed);
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(2000);
+      const t = await bodyIn(page, 'Your body');
+      check(has(t, 'What your best weeks had in common'), 'free users see the card exists');
+      check(!/sessions a week, against/.test(t), 'but not what the difference was');
+      await context.close();
+    }
+
+    // Three weeks: the honest answer is how many are missing, not a comparison
+    // of two against one.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED,
+        weight_log: JSON.stringify(weights.slice(-6)),
+        meal_history: JSON.stringify(plans), intake_log: JSON.stringify(intake),
+        user_premium: 'true',
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(2000);
+      const t = await bodyIn(page, 'Your body');
+      check(/\d+ more weeks?/.test(t), 'thin data asks for weeks rather than comparing',
+        t.match(/\d+ more weeks?[^.]*/)?.[0] ?? '');
+      check(!/sessions a week, against/.test(t), 'and names no difference');
       await context.close();
     }
   }

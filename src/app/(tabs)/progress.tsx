@@ -23,8 +23,9 @@ import {
 } from '@/lib/store';
 import {
   weeklyReview, adaptationStage, fastWeek, weeklyDecision, progressCards,
-  intakeWeek, nextIntakeFactor, intakeLabel,
+  intakeWeek, nextIntakeFactor, intakeLabel, bestWeeks,
   type WeeklyReview, type AdaptationStage, type FastDay, type Decision, type IntakeDay,
+  type BestWeeks,
 } from '@/lib/review';
 
 /**
@@ -96,6 +97,7 @@ export default function ProgressScreen() {
   const [floor, setFloor] = useState(0);
   /** Kept so the exception day can be recomputed without another read. */
   const [intake, setIntake] = useState<unknown[]>([]);
+  const [best, setBest] = useState<BestWeeks>(null);
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -150,6 +152,7 @@ export default function ProgressScreen() {
 
         setPattern(weekdayPattern(intake));
         setMonths(monthlyComparison(intake, log));
+        setBest(bestWeeks(intake, log, plans, fasts));
         setProtein(proteinAdherence(intake));
         const trainDays = trainingDaysPerWeek(plans);
         setCycle(trainDays ? cycleWeek(est.kcal * 7, trainDays, bmr(p)) : null);
@@ -269,6 +272,9 @@ export default function ProgressScreen() {
     hasPattern: !!pattern?.worst,
     hasCycle: !!cycle,
     hasAhead: daysAheadThisWeek().length > 0,
+    // Only sellable once there is something counted to sell — a card that says
+    // "five more weeks" is a request, not an offer.
+    hasBest: !!best && best.differences.length > 0,
   });
 
   // From the calendar week, not from the intake strip — that one runs seven
@@ -724,6 +730,33 @@ export default function ProgressScreen() {
                   />
                 )}
               </>
+            )}
+          </Card>
+        </Enter>
+      )}
+
+      {/* The one thing here nobody could have worked out for themselves,
+          because it needs months of their own log to exist. Counting, never
+          causation: "in your four best weeks you trained four times" is a
+          count; "training four times works for you" is a claim about a
+          mechanism drawn from four weeks, which this app does not make. The
+          rule is enforced in review.ts, not here. */}
+      {best && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <Eyebrow>What your best weeks had in common</Eyebrow>
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+              {best.differences.length === 0 || premium
+                ? best.note
+                : `Your best ${best.bestCount} weeks were measurably different from the other `
+                  + `${best.restCount}. Premium counts what changed.`}
+            </Txt>
+            {cards.sell === 'best' && (
+              <Button
+                label="Count the difference"
+                onPress={() => router.push('/paywall')}
+                style={{ marginTop: Space.md }}
+              />
             )}
           </Card>
         </Enter>

@@ -1028,3 +1028,31 @@ eine Nachkommastelle verspricht eine Genauigkeit, die es nicht gibt.
 **Premium.** Nachrechnen im Nachhinein bleibt kostenlos, Umplanen vorher ist die Leistung.
 
 **Erledigt** 2026-08-06 — 261 Checks.
+
+---
+
+## 40. Was deine besten Wochen gemeinsam hatten
+
+Die einzige Aussage, die niemand selbst hätte treffen können, weil sie Monate des eigenen
+Protokolls braucht, um überhaupt zu existieren.
+
+> In deinen besten 4 Wochen: 4 Trainings pro Woche, gegen 1 in den übrigen.
+
+`bestWeeks` in `src/lib/review.ts`, rein, mit `demo()`. Drei Regeln liegen im Modul, nicht im
+Bildschirm, weil die Wortwahl hier das eigentliche Risiko ist:
+
+- **Zählen, nie Ursache.** „In deinen vier besten Wochen hast du viermal trainiert" ist eine
+  Zählung. „Viermal Training funktioniert bei dir" ist eine Behauptung über einen Mechanismus,
+  gezogen aus vier Wochen. Der Selbstcheck durchsucht den erzeugten Satz nach kausalen Wörtern —
+  und prüft mit einem Gegenbeispiel, dass die Prüfung selbst greift.
+- **Nichts unter der Rauschgrenze.** Ein halber Trainingstag Unterschied ist Arithmetik, kein
+  Befund. Höchstens zwei Unterschiede, jeder über seiner Schwelle.
+- **Eine Woche mit nur einer Wiegung wird übersprungen**, nicht als Nullveränderung gezählt — das
+  hätte sie in die „besten" Gruppe gezogen.
+
+Sind zwölf Wochen gleich, sagt die Karte genau das: *„Was den Unterschied gemacht hat, steht nicht
+in diesem Protokoll."*
+
+**Premium.** Ohne acht gemessene Wochen gibt es nichts zu zählen, und geschätzt wird hier nichts.
+
+**Erledigt** 2026-08-06 — 269 Checks.

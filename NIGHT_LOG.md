@@ -642,3 +642,17 @@ Wort für zwei verschiedene Zeiträume benutzen, war der eigentliche Fund.
 verbleibende. Für die Anzeige war das nie falsch aufgefallen. Für eine Umverteilung schon.
 
 **Stand:** e2e **261 Checks**.
+
+---
+
+## Punkt 40 — die Prüfung, die sich selbst prüft
+
+Bei dieser Funktion ist nicht die Rechnung das Risiko, sondern der Satz. Eine Zählung über vier
+Wochen als „das funktioniert bei dir" auszugeben, wäre genau die Sorte Behauptung, die diese App
+nirgends sonst macht.
+
+Deshalb steht die Verbotsliste im Modul und nicht im Bildschirm — und daneben ein Selbstcheck, der
+einen erfundenen kausalen Satz durch dieselbe Prüfung schickt und erwartet, dass sie anschlägt. Eine
+Prüfung, die nur bestätigt, dass sie nichts findet, kann auch kaputt sein und dasselbe sagen.
+
+**Stand:** e2e **269 Checks**.

@@ -384,6 +384,155 @@ export function weeklyDecision(input: {
 // ---------------------------------------------------------------------------
 
 /**
+ * What was different about the weeks that worked.
+ *
+ * Every other reading here describes the present. This one is the only thing
+ * the app can say that a person could not have worked out themselves, because
+ * it needs months of their own log to exist at all.
+ *
+ * The wording is the whole risk, so the rules live here rather than in the
+ * screen:
+ *
+ * - **Counting, never causation.** "In your four best weeks you trained four
+ *   times" is a count. "Training four times a week works for you" is a claim
+ *   about a mechanism from a sample of four, and this app does not make those.
+ *   The self-check greps the produced sentence for causal words.
+ * - **Nothing below the noise floor.** A difference of half a training day is
+ *   arithmetic, not a finding. `readTrend` already refuses to narrate noise;
+ *   this refuses for the same reason.
+ * - **No recommendation in the return value.** What follows is for
+ *   `weeklyDecision` or for the person. This function counts.
+ */
+export const BEST_MIN_WEEKS = 8;
+
+/** Below these gaps the two groups are the same week told twice. */
+const BEST_THRESHOLDS = { trainings: 1, planDays: 1, fasts: 1 };
+
+type WeekStat = {
+  monday: string;
+  kgChange: number;
+  trainings: number;
+  planDays: number;
+  fasts: number;
+};
+
+export type BestWeeks = {
+  bestCount: number;
+  restCount: number;
+  /** At most two, each already above its threshold. */
+  differences: string[];
+  note: string;
+} | null;
+
+/** The Monday of the week a date falls in. */
+function mondayOf(date: string): string {
+  const d = parseISO(date);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return todayISO(d);
+}
+
+export function bestWeeks(
+  intakeLog: unknown,
+  weights: unknown,
+  planHistory: unknown,
+  fastLog: unknown,
+  today: string = todayISO()
+): BestWeeks {
+  const weighed = (Array.isArray(weights) ? weights : [])
+    .filter((w: any) => w && typeof w.date === 'string' && isFinite(w.weight_kg) && w.weight_kg > 0)
+    .sort((a: any, b: any) => a.date.localeCompare(b.date)) as WeighIn[];
+
+  const intake = (Array.isArray(intakeLog) ? intakeLog : []).filter(
+    (e: any) => e && typeof e.date === 'string' && isFinite(e.factor)
+  ) as { date: string; factor: number }[];
+
+  const plans = (Array.isArray(planHistory) ? planHistory : [])
+    .map((p: any) => (p && typeof p.date === 'string' ? p.date : null))
+    .filter(Boolean) as string[];
+
+  const fasts = dateSet(fastLog);
+
+  // A week counts only when it can be measured: two weigh-ins to give it a
+  // direction. A week without them is skipped, not treated as zero change.
+  const byWeek = new Map<string, WeighIn[]>();
+  for (const w of weighed) {
+    if (w.date > today) continue;
+    const k = mondayOf(w.date);
+    if (!byWeek.has(k)) byWeek.set(k, []);
+    byWeek.get(k)!.push(w);
+  }
+
+  const stats: WeekStat[] = [];
+  for (const [monday, ws] of [...byWeek.entries()].sort()) {
+    if (ws.length < 2) continue;
+    const days = new Set(
+      Array.from({ length: 7 }, (_, i) => {
+        const d = parseISO(monday);
+        d.setDate(d.getDate() + i);
+        return todayISO(d);
+      })
+    );
+    stats.push({
+      monday,
+      kgChange: ws[ws.length - 1].weight_kg - ws[0].weight_kg,
+      trainings: new Set(plans.filter((d) => days.has(d))).size,
+      // "Ate the plan or under" is what adherence means here; eating over is
+      // not adherence, and the factor already says which happened.
+      planDays: intake.filter((e) => days.has(e.date) && e.factor <= 1).length,
+      fasts: [...days].filter((d) => fasts.has(d)).length,
+    });
+  }
+
+  if (stats.length < BEST_MIN_WEEKS) {
+    const missing = BEST_MIN_WEEKS - stats.length;
+    return {
+      bestCount: 0,
+      restCount: 0,
+      differences: [],
+      note: `${missing} more week${missing === 1 ? '' : 's'} with two weigh-ins each and the app can `
+        + `compare your best weeks against the rest.`,
+    };
+  }
+
+  const ranked = [...stats].sort((a, b) => a.kgChange - b.kgChange);
+  const bestCount = Math.max(2, Math.floor(ranked.length / 3));
+  const best = ranked.slice(0, bestCount);
+  const rest = ranked.slice(bestCount);
+  if (rest.length < 2) return null;
+
+  const mean = (xs: WeekStat[], key: keyof WeekStat) =>
+    xs.reduce((s, x) => s + (x[key] as number), 0) / xs.length;
+  const one = (n: number) => Math.round(n * 10) / 10;
+
+  const candidates: { gap: number; text: string }[] = [];
+  const fields: [keyof typeof BEST_THRESHOLDS, keyof WeekStat, string][] = [
+    ['trainings', 'trainings', 'sessions'],
+    ['planDays', 'planDays', 'days on plan'],
+    ['fasts', 'fasts', 'fasts logged'],
+  ];
+  for (const [threshold, key, word] of fields) {
+    const a = mean(best, key);
+    const b = mean(rest, key);
+    const gap = Math.abs(a - b);
+    if (gap < BEST_THRESHOLDS[threshold]) continue;
+    candidates.push({ gap, text: `${one(a)} ${word} a week, against ${one(b)} in the others` });
+  }
+
+  candidates.sort((x, y) => y.gap - x.gap);
+  const differences = candidates.slice(0, 2).map((c) => c.text);
+
+  return {
+    bestCount: best.length,
+    restCount: rest.length,
+    differences,
+    note: differences.length === 0
+      ? `Your best ${best.length} weeks and your other ${rest.length} look the same on everything the `
+        + `app counts. Whatever made the difference is not in this log.`
+      : `In your best ${best.length} weeks: ${differences.join('; ')}.`,
+  };
+}
+
+/**
  * Which single card on Progress may ask for money.
  *
  * Three could at once before: the forecast, the plateau and the measurement,
@@ -393,7 +542,7 @@ export function weeklyDecision(input: {
  *
  * Here rather than in the JSX so the rule can be asserted.
  */
-export type SellCard = 'measured' | 'months' | 'outlook' | 'pattern' | 'cycle' | 'ahead';
+export type SellCard = 'measured' | 'months' | 'best' | 'outlook' | 'pattern' | 'cycle' | 'ahead';
 
 export type ProgressCards = {
   outlook: boolean;
@@ -408,7 +557,7 @@ export type ProgressCards = {
  * makes people quit — why the same plate stopped working. The rest are
  * refinements, and a refinement is a poor first pitch.
  */
-const SELL_ORDER: SellCard[] = ['measured', 'months', 'outlook', 'pattern', 'cycle', 'ahead'];
+const SELL_ORDER: SellCard[] = ['measured', 'months', 'best', 'outlook', 'pattern', 'cycle', 'ahead'];
 
 export function progressCards(input: {
   premium: boolean;
@@ -419,8 +568,9 @@ export function progressCards(input: {
   hasPattern?: boolean;
   hasCycle?: boolean;
   hasAhead?: boolean;
+  hasBest?: boolean;
 }): ProgressCards {
-  const { premium, hasOutlook, hasMeasured, hasMonths, hasPattern, hasCycle, hasAhead } = input;
+  const { premium, hasOutlook, hasMeasured, hasMonths, hasPattern, hasCycle, hasAhead, hasBest } = input;
   const available: Record<SellCard, boolean> = {
     measured: !!hasMeasured,
     months: !!hasMonths,
@@ -428,6 +578,7 @@ export function progressCards(input: {
     pattern: !!hasPattern,
     cycle: !!hasCycle,
     ahead: !!hasAhead,
+    best: !!hasBest,
   };
   return {
     outlook: !!hasOutlook,
@@ -700,6 +851,92 @@ export function demo() {
     progressCards({ premium: false, hasMeasured: false, hasOutlook: true }).sell === 'outlook',
     'and the forecast carries it otherwise'
   );
+  // --- what was different about the weeks that worked ----------------------
+
+  {
+    const mon = (i: number) => {
+      const d = new Date('2026-01-05T12:00:00Z');
+      d.setUTCDate(d.getUTCDate() + i * 7);
+      return d.toISOString().slice(0, 10);
+    };
+    const plus = (iso: string, n: number) => {
+      const d = new Date(iso + 'T12:00:00Z');
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+    const NOW = plus(mon(11), 6);
+
+    // Twelve weeks. The first four lose fast and train four times; the rest
+    // lose slowly and train once. Nothing else differs.
+    const weights: WeighIn[] = [];
+    const plans: { date: string }[] = [];
+    const intake: { date: string; factor: number }[] = [];
+    let kg = 95;
+    for (let i = 0; i < 12; i++) {
+      const good = i < 4;
+      weights.push({ date: mon(i), weight_kg: kg });
+      kg -= good ? 0.8 : 0.1;
+      weights.push({ date: plus(mon(i), 6), weight_kg: kg });
+      for (let t = 0; t < (good ? 4 : 1); t++) plans.push({ date: plus(mon(i), t) });
+      for (let d = 0; d < 7; d++) intake.push({ date: plus(mon(i), d), factor: 1 });
+    }
+
+    const r = bestWeeks(intake, weights, plans, [], NOW)!;
+    assert(r !== null, 'twelve measured weeks are enough to compare');
+    assert(r.bestCount === 4, `the best third is four weeks: ${r.bestCount}`);
+    assert(r.restCount === 8, `and the rest is eight: ${r.restCount}`);
+    assert(r.differences.length === 1, `only the difference that exists is named: ${r.differences}`);
+    assert(/4 sessions a week, against 1/.test(r.note), `and it is the sessions: ${r.note}`);
+    // The point of the threshold: adherence was identical, so it is not named.
+    assert(!/days on plan/.test(r.note), 'a field with no gap is left out');
+
+    // The rule the whole function stands on. A count is not a mechanism, and
+    // this app does not turn four weeks into a claim about anyone's body.
+    const CAUSAL = /\b(because|causes?|caused|leads? to|results? in|due to|thanks to|proves?|works for you|makes? you)\b/i;
+    assert(!CAUSAL.test(r.note), `no causal word in the sentence: ${r.note}`);
+    assert(!/should|must|try to|recommend/i.test(r.note), 'and no instruction either');
+    // Proof the guard can fail, so a future rewording cannot slip past it.
+    assert(CAUSAL.test('training four times causes faster loss'), 'the causal guard actually matches');
+
+    // Not enough weeks: it says how many are missing rather than comparing two.
+    const thin = bestWeeks(intake.slice(0, 21), weights.slice(0, 6), plans, [], NOW)!;
+    assert(thin.differences.length === 0, 'three weeks name no differences');
+    assert(/5 more weeks/.test(thin.note), `and count what is missing: ${thin.note}`);
+
+    // A week with one weigh-in cannot be placed, and is skipped rather than
+    // counted as no change — which would drag it into the "best" group.
+    const oneEach = weights.filter((_, i) => i % 2 === 0);
+    assert(/more weeks/.test(bestWeeks(intake, oneEach, plans, [], NOW)!.note),
+      'a week with a single weigh-in does not count as a measured week');
+
+    // Twelve identical weeks: nothing to say, and it says that rather than
+    // inventing a difference out of rounding.
+    const flat: WeighIn[] = [];
+    const flatPlans: { date: string }[] = [];
+    for (let i = 0; i < 12; i++) {
+      flat.push({ date: mon(i), weight_kg: 90 - i * 0.2 });
+      flat.push({ date: plus(mon(i), 6), weight_kg: 90 - i * 0.2 - 0.2 });
+      flatPlans.push({ date: plus(mon(i), 1) }, { date: plus(mon(i), 3) });
+    }
+    const same = bestWeeks(intake, flat, flatPlans, [], NOW)!;
+    assert(same.differences.length === 0, 'identical weeks produce no finding');
+    assert(/not in this log/.test(same.note), `and the sentence admits it: ${same.note}`);
+    assert(!CAUSAL.test(same.note), 'including in the empty case');
+
+    // At most two, however many clear the threshold.
+    const fasts: string[] = [];
+    for (let i = 0; i < 4; i++) for (let d = 0; d < 6; d++) fasts.push(plus(mon(i), d));
+    const three = bestWeeks(
+      intake.map((e) => ({ ...e, factor: e.date < mon(4) ? 1 : 1.4 })),
+      weights, plans, fasts, NOW
+    )!;
+    assert(three.differences.length === 2, `never more than two are named: ${three.differences.length}`);
+    assert(!CAUSAL.test(three.note), 'and still no causal word');
+
+    assert(bestWeeks([], [], [], [], NOW)!.differences.length === 0, 'an empty log finds nothing');
+    assert(/8 more weeks/.test(bestWeeks([], [], [], [], NOW)!.note), 'and asks for all eight');
+  }
+
   // The strip has to be able to take an answer back, not only give one.
   assert(nextIntakeFactor(null) === 1, 'an untouched day becomes the plan');
   assert(nextIntakeFactor(1) === 0.75, 'then less');
@@ -741,6 +978,10 @@ export function demo() {
   assert(
     progressCards({ premium: false, hasCycle: true }).sell === 'cycle',
     'and the cycle beats the planner when both are there'
+  );
+  assert(
+    progressCards({ premium: false, hasBest: true, hasPattern: true }).sell === 'best',
+    'eight weeks of the user own history outrank a weekday average'
   );
   assert(
     progressCards({ premium: false, hasAhead: true }).sell === 'ahead',
