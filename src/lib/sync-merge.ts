@@ -240,6 +240,20 @@ export function demo() {
   const wild = mergeStates({ state: {}, at: OLD }, { state: { [KEYS.profile]: { weight_kg: 400 } }, at: NEW });
   assert((wild[KEYS.profile] as any).weight_kg < 400, 'a tampered bodyweight is clamped by the merge');
 
+  // A goal the user chose has to survive the trip to the other device — the
+  // clamping runs every field through normalizeProfile, so a field it does not
+  // know about would be silently dropped rather than rejected loudly.
+  const withTarget = mergeStates(
+    { state: {}, at: OLD },
+    { state: { [KEYS.profile]: { weight_kg: 85, target_weight_kg: 79 } }, at: NEW }
+  );
+  assert((withTarget[KEYS.profile] as any).target_weight_kg === 79, 'a chosen target weight survives the merge');
+  const wildTarget = mergeStates(
+    { state: {}, at: OLD },
+    { state: { [KEYS.profile]: { target_weight_kg: 9999 } }, at: NEW }
+  );
+  assert((wildTarget[KEYS.profile] as any).target_weight_kg === 300, 'and a tampered one is clamped like any other');
+
   // Nothing outside the app's own keys is carried across.
   const smuggled = mergeStates({ state: {}, at: OLD }, { state: { evil_key: 'x' } as any, at: NEW });
   assert(!('evil_key' in smuggled), 'unknown keys are not carried across');
