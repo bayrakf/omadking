@@ -7,10 +7,10 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, Tap, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, type UserProfile } from '@/lib/nutrition';
+import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, type UserProfile } from '@/lib/nutrition';
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend,
-  type Measurement, type PlateauRead, type Forecast,
+  type Measurement, type Forecast,
 } from '@/lib/energy';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
@@ -18,7 +18,7 @@ import {
   loadIntakeLog, loadLastSession, isPremium, todayISO, type WeightEntry,
 } from '@/lib/store';
 import {
-  weeklyReview, adaptationStage, fastWeek, weeklyDecision,
+  weeklyReview, adaptationStage, fastWeek, weeklyDecision, progressCards,
   type WeeklyReview, type AdaptationStage, type FastDay, type Decision,
 } from '@/lib/review';
 
@@ -83,7 +83,6 @@ export default function ProgressScreen() {
   const [adapt, setAdapt] = useState<AdaptationStage | null>(null);
   const [week, setWeek] = useState<FastDay[]>([]);
   const [measured, setMeasured] = useState<Measurement | null>(null);
-  const [plateau, setPlateau] = useState<PlateauRead | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [premium, setPremium] = useState(false);
@@ -106,28 +105,35 @@ export default function ProgressScreen() {
         setProfile(p);
         setEntries(log);
         setPremium(prem);
-        // The formula's answer is only a bound and a comparison here.
-        setMeasured(measuredMaintenance(intake, log, dailyTargets(p, null).maintenance_kcal));
-        // 500 is the deficit dailyTargets applies for weight loss.
-        setPlateau(readPlateau(intake, log, p.goal, 500));
-        // Forecast from the measured maintenance where there is one, the
-        // formula's otherwise — the shape of the answer is the same either way.
+
+        // Computed once and shared. measuredMaintenance and readPlateau were
+        // each being called twice with identical arguments, which is a second
+        // chance to pass different ones by mistake.
         const est = dailyTargets(p, null);
         const m = measuredMaintenance(intake, log, est.maintenance_kcal);
-        const hM2 = p.height_cm / 100;
+        // 500 is the deficit dailyTargets applies for weight loss. The read
+        // feeds the decision only — the card it used to fill could never
+        // appear, because a stall outranks everything weeklyDecision ranks.
+        const stall = readPlateau(intake, log, p.goal, 500);
+
+        // The formula's answer is only a bound and a comparison here.
+        setMeasured(m);
+        // Forecast from the measured maintenance where there is one, the
+        // formula's otherwise — the shape of the answer is the same either way.
+        const start = log.length ? log[log.length - 1].weight_kg : p.weight_kg;
         setOutlook(
           p.goal === 'weight_loss'
-            ? forecast(p, p.weight_kg, Math.round(22 * hM2 * hM2 * 10) / 10, m.kcal ?? est.maintenance_kcal, est.kcal)
+            ? forecast(p, p.weight_kg, targetWeight(p, start), m.kcal ?? est.maintenance_kcal, est.kcal)
             : null
         );
 
         // One instruction, chosen from everything the app now knows.
-        const stall = readPlateau(intake, log, p.goal, 500);
         const spell = deficitSpell(intake, log, p.goal);
         const winFix = session.restDay ? null : suggestWindow(p, session.start_time, session.duration_min);
         setDecision(
           weeklyDecision({
             stalled: stall.stalled,
+            stalledDays: stall.days,
             newTarget: stall.newTarget,
             breakDue: spell.breakDue,
             deficitWeeks: spell.weeks,
@@ -195,10 +201,7 @@ export default function ProgressScreen() {
   const bmi = current / (hM * hM);
   const bmiLabel = bmi < 18.5 ? 'Under' : bmi < 25 ? 'Healthy' : bmi < 30 ? 'Over' : 'Obese';
 
-  const target =
-    profile.goal === 'weight_loss' ? Math.round(22 * hM * hM * 10) / 10
-    : profile.goal === 'muscle_gain' ? Math.round((start + 5) * 10) / 10
-    : Math.round(start * 10) / 10;
+  const target = targetWeight(profile, start);
 
   const good = profile.goal === 'weight_loss' ? change < 0 : profile.goal === 'muscle_gain' ? change > 0 : true;
 
@@ -207,6 +210,15 @@ export default function ProgressScreen() {
   const span = target - start;
   const moved = current - start;
   const pct = span === 0 ? 100 : Math.min(100, Math.max(0, (moved / span) * 100));
+
+  // What this screen is allowed to say, and which single card may ask for
+  // money. The rules live in review.ts so they can be asserted; the screen
+  // only obeys them.
+  const cards = progressCards({
+    premium,
+    hasOutlook: !!outlook && (outlook.weeks !== null || outlook.stallWeight !== null),
+    hasMeasured: measured?.kcal != null,
+  });
 
   return (
     <Screen>
@@ -239,7 +251,7 @@ export default function ProgressScreen() {
           A naive projection divides distance by current rate and is always
           optimistic, because a lighter body costs less to run. This one bends,
           and when the plate is too big to reach the goal it says so. */}
-      {outlook && (outlook.weeks !== null || outlook.stallWeight !== null) && (
+      {outlook && cards.outlook && (
         <Enter index={1}>
           <Card style={{ marginBottom: Space.base }}>
             <View style={s.split}>
@@ -257,7 +269,7 @@ export default function ProgressScreen() {
                   : 'Premium works out how long this takes at your current intake, allowing for the '
                     + 'fact that the rate eases as you get lighter.'}
             </Txt>
-            {!premium && (
+            {cards.sell === 'outlook' && (
               <Button
                 label="See where this leads"
                 onPress={() => router.push('/paywall')}
@@ -268,32 +280,11 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
-      {/* The moment people quit. A flat line reads as failure; it is not one,
-          and the arithmetic says so. Above the measurement card because when
-          this fires it is the more urgent thing on the screen. */}
-      {plateau?.stalled && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }} tone="ember">
-            <View style={s.split}>
-              <Eyebrow color={c.ember}>Weight has held</Eyebrow>
-              <Txt variant="data" color={c.textFaint}>{plateau.days} days</Txt>
-            </View>
-            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-              {premium || plateau.newTarget === null
-                ? plateau.note
-                : 'Holding this long usually means maintenance has moved rather than that anything '
-                  + 'went wrong. Premium works out the new figure from your own data.'}
-            </Txt>
-            {!premium && plateau.newTarget !== null && (
-              <Button
-                label="See the new target"
-                onPress={() => router.push('/paywall')}
-                style={{ marginTop: Space.md }}
-              />
-            )}
-          </Card>
-        </Enter>
-      )}
+      {/* The moment people quit — a flat line reads as failure and is not one.
+          It used to have a card of its own here, which could never appear:
+          weeklyDecision ranks a stall above everything, so the decision card
+          above was always already saying it. The days it had to add are now
+          part of that sentence instead. */}
 
       {/* The reason to pay, and it has to be visible before paying: the app
           says plainly that it measured something, and what it means is the
@@ -339,11 +330,13 @@ export default function ProgressScreen() {
                   The formula's estimate is off — Premium shows by how much and moves your target to
                   the measured figure.
                 </Txt>
-                <Button
-                  label="See what it measured"
-                  onPress={() => router.push('/paywall')}
-                  style={{ marginTop: Space.md }}
-                />
+                {cards.sell === 'measured' && (
+                  <Button
+                    label="See what it measured"
+                    onPress={() => router.push('/paywall')}
+                    style={{ marginTop: Space.md }}
+                  />
+                )}
               </>
             )}
           </Card>

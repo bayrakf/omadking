@@ -365,10 +365,16 @@ export default async function run() {
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
       const t = await body(page);
-      check(has(t, 'Weight has held'), 'a stall is named rather than left to be guessed at');
-      check(has(t, 'not your discipline'), 'and it says whose fault it is not');
-      check(/Eating \d{4} puts the deficit back/.test(t), 'with a concrete new target',
-        t.match(/Eating \d{4}[^.]*/)?.[0] ?? '');
+      // The stall used to have a card of its own, which could never appear:
+      // weeklyDecision ranks a stall above everything, so the decision card was
+      // always already saying it. These assert the surviving sentence.
+      check(has(t, 'your maintenance has moved'), 'a stall is named rather than left to be guessed at');
+      check(has(t, 'not your effort'), 'and it says whose fault it is not');
+      check(/\d+ days holding/.test(t), 'with the days it has held',
+        t.match(/\d+ days holding/)?.[0] ?? '');
+      check(/Eat \d{4} kcal this week/.test(t), 'and a concrete new target',
+        t.match(/Eat \d{4}[^.]*/)?.[0] ?? '');
+      check(!has(t, 'weight has held'), 'and the duplicate plateau card is gone');
       await context.close();
     }
 
@@ -377,8 +383,12 @@ export default async function run() {
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
       const t = await body(page);
-      check(has(t, 'Weight has held'), 'the stall itself is shown without premium');
-      check(!/Eating \d{4} puts/.test(t), 'but the new figure is not');
+      check(has(t, 'your maintenance has moved'), 'the stall itself is shown without premium');
+      check(/\d+ days holding/.test(t), 'including how long, which is not the paid part');
+      check(!/Eat \d{4} kcal this week/.test(t), 'but the new figure is not');
+      // Three cards could ask for money at once here before.
+      const asks = (t.match(/see (what it measured|where this leads|the new target)/gi) ?? []).length;
+      check(asks <= 1, `at most one card asks for money — found ${asks}`);
       await context.close();
     }
   }
@@ -947,6 +957,55 @@ export default async function run() {
     check(prof.weight_kg === 81.4, "today's weigh-in syncs into the profile", String(prof.weight_kg));
     check(errors.length === 0, 'no console errors', errors[0] ?? '');
     await context.close();
+  }
+
+  // ---------------------------------------------------------- TARGET WEIGHT
+  section('Target weight');
+  {
+    // The default is BMI 22, which at 183 cm asks for 73.7 kg — a population
+    // midpoint nobody chose, and the forecast used to aim at it regardless.
+    const profileOf = (extra) => JSON.stringify({
+      weight_kg: 85, height_cm: 183, age: 34, sex: 'male',
+      fitness_level: 'advanced', goal: 'weight_loss',
+      omad_window_start: '18:00', omad_window_hours: 2, default_training_time: '19:00',
+      ...extra,
+    });
+
+    {
+      const { context, page } = await newPage(browser, { ...SEED, onboarding_profile: profileOf({}) });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1500);
+      check(has(await body(page), 'target 73.7'), 'an unset target still falls back to a healthy BMI');
+      await context.close();
+    }
+
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED, onboarding_profile: profileOf({ target_weight_kg: 79 }),
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1500);
+      const t = await body(page);
+      check(has(t, 'target 79.0'), 'a chosen target is what the bar aims at');
+      check(!has(t, 'target 73.7'), 'and the formula no longer overrides it');
+      await context.close();
+    }
+
+    // Settable from the profile screen, or it is not really the user's choice.
+    {
+      const { context, page } = await newPage(browser, { ...SEED, onboarding_profile: profileOf({}) });
+      await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1500);
+      check(has(await body(page), 'target weight'), 'the profile offers a target weight');
+      await page.getByLabel('Edit Target weight').click();
+      await page.waitForTimeout(300);
+      await page.getByLabel('Target weight').fill('79');
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(800);
+      const saved = JSON.parse(await page.evaluate(() => localStorage.getItem('onboarding_profile')));
+      check(saved.target_weight_kg === 79, 'and stores what was typed', String(saved.target_weight_kg));
+      await context.close();
+    }
   }
 
   await browser.close();

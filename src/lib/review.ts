@@ -255,8 +255,13 @@ export type Decision = {
   premiumOnly: boolean;
 };
 
+/** The stall decision's headline, named once so progressCards can match it. */
+const STALL_HEADLINE = 'Your maintenance has moved';
+
 export function weeklyDecision(input: {
   stalled?: boolean;
+  /** How long the weight has held, so the decision can say it. */
+  stalledDays?: number;
   newTarget?: number | null;
   breakDue?: boolean;
   deficitWeeks?: number;
@@ -266,16 +271,18 @@ export function weeklyDecision(input: {
   trendNote?: string;
 }): Decision {
   const {
-    stalled, newTarget, breakDue, deficitWeeks = 0, maintenanceKcal,
+    stalled, stalledDays = 0, newTarget, breakDue, deficitWeeks = 0, maintenanceKcal,
     windowStart, intakeDays = 0, trendNote = '',
   } = input;
 
   // A stall outranks everything: it is the thing that makes people quit.
   if (stalled) {
     return {
-      headline: 'Your maintenance has moved',
+      headline: STALL_HEADLINE,
       action: newTarget ? `Eat ${newTarget} kcal this week.` : 'Answer a few more days so the new figure can be worked out.',
-      why: 'Holding weight at this intake means the deficit has closed. The number changed, not your effort.',
+      why: stalledDays > 0
+        ? `${stalledDays} days holding at this intake means the deficit has closed. The number changed, not your effort.`
+        : 'Holding weight at this intake means the deficit has closed. The number changed, not your effort.',
       // Only the figure is measured; a stall without one is just a request.
       premiumOnly: newTarget !== null && newTarget !== undefined,
     };
@@ -317,6 +324,39 @@ export function weeklyDecision(input: {
     action: 'Nothing to change this week.',
     why: trendNote || 'The plan is working as set.',
     premiumOnly: false,
+  };
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Which single card on Progress may ask for money.
+ *
+ * Three could at once before: the forecast, the plateau and the measurement,
+ * on the same screen as a decision card already saying the same thing in
+ * words. The screen's own comment says several true statements at once is
+ * noise; it had stopped following it.
+ *
+ * Here rather than in the JSX so the rule can be asserted.
+ */
+export type ProgressCards = {
+  outlook: boolean;
+  /** The single card allowed to show a paywall button, if any. */
+  sell: 'outlook' | 'measured' | null;
+};
+
+export function progressCards(input: {
+  premium: boolean;
+  hasOutlook?: boolean;
+  /** True once a maintenance figure actually exists to sell. */
+  hasMeasured?: boolean;
+}): ProgressCards {
+  const { premium, hasOutlook, hasMeasured } = input;
+  return {
+    outlook: !!hasOutlook,
+    // Nothing to sell to someone who already paid. Otherwise the measurement
+    // is the stronger argument, so it wins when there is one to make.
+    sell: premium ? null : hasMeasured ? 'measured' : hasOutlook ? 'outlook' : null,
   };
 }
 
@@ -523,6 +563,52 @@ export function demo() {
     assert(!/cure|prevent|detox|proven|guarantee/i.test(dcn.why + dcn.action), 'no health claim in a decision');
     assert(!/\bstudies\b|%/.test(dcn.why + dcn.action), 'no invented statistic in a decision');
   }
+
+  // --- what Progress is allowed to show ------------------------------------
+  // At most one card may ask for money. Three could before, on the same screen
+  // as a decision card already saying the same thing.
+  const cases = [
+    { premium: false, hasOutlook: true, hasMeasured: true },
+    { premium: false, hasOutlook: true, hasMeasured: false },
+    { premium: false, hasOutlook: false, hasMeasured: false },
+    { premium: true, hasOutlook: true, hasMeasured: true },
+  ];
+  for (const c of cases) {
+    const cards = progressCards(c);
+    assert(cards.sell === null || !c.premium, 'a paying user is never sold to again');
+    // One `sell` value by construction; this pins that it is a single slot
+    // rather than a set the screen can widen later.
+    assert(['outlook', 'measured', null].includes(cards.sell as any), 'the sell slot holds one card or none');
+  }
+
+  // A stall is stated once, by the decision card. The screen used to carry a
+  // second plateau card that could never appear, because weeklyDecision ranks
+  // a stall above everything else — this pins the ranking the deletion relies
+  // on, so restoring the card would be a visible decision rather than an
+  // accident.
+  assert(
+    weeklyDecision({ stalled: true, newTarget: 2200, breakDue: true, windowStart: '17:00', intakeDays: 0 })
+      .headline === STALL_HEADLINE,
+    'a stall outranks every other decision, so no second card is needed'
+  );
+  assert(
+    /14 days/.test(weeklyDecision({ stalled: true, newTarget: 2200, stalledDays: 14 }).why),
+    'and the decision carries the days the deleted card used to show'
+  );
+  assert(
+    !/undefined|NaN/.test(weeklyDecision({ stalled: true, newTarget: 2200 }).why),
+    'a stall with no day count still reads as a sentence'
+  );
+
+  assert(
+    progressCards({ premium: false, hasMeasured: true, hasOutlook: true }).sell === 'measured',
+    'the measurement is the stronger argument when there is one'
+  );
+  assert(
+    progressCards({ premium: false, hasMeasured: false, hasOutlook: true }).sell === 'outlook',
+    'and the forecast carries it otherwise'
+  );
+  assert(progressCards({ premium: true, hasMeasured: true }).sell === null, 'nothing is sold twice');
 
   return 'review.ts: all checks passed';
 }
