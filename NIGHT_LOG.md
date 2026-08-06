@@ -586,3 +586,24 @@ damit, und das eine Detail, das ihr voraus war, in den Satz der Entscheidung.
 Die Lehre aus diesen drei Punkten ist dieselbe wie aus den ersten 35: Was nicht in einem reinen
 Modul mit Selbstcheck liegt, driftet. Die Bezahlschranke war der teuerste Beleg dafür — eine
 Behauptung über Geld, die achtundzwanzig Commits lang niemandem auffiel.
+
+---
+
+## Punkt 37 — Ordnung vor Umfang
+
+Zwei Dinge, die ich falsch angenommen hatte, gehören ins Protokoll:
+
+- Ich hielt die fehlende Plateau-Karte für eine Regression und wollte sie zurückbauen. Sie war
+  bewusst entfernt worden, und der e2e-Kommentar sagte es wörtlich: die Karte konnte nie
+  erscheinen, weil `weeklyDecision` den Stillstand über alles andere stellt. Die Anweisung oben
+  sagte es längst.
+- Zwei Dashboard-Checks wurden rot, ohne dass sich Code geändert hatte. Es war 18:04 und das
+  Essfenster offen. Ein fest auf 18:00 gesetztes Fenster hieß, dass diese Checks zwei Stunden am
+  Tag rot waren — ein Test, der zweimal täglich über den Code lügt. `closedWindowProfile()` legt
+  das Fenster jetzt relativ zur Uhr, nicht absolut.
+
+Der Umbau selbst hat die e2e-Suite ehrlicher gemacht: Karten hinter Segmenten zwingen jeden Check,
+zu sagen, in welchem Segment die Karte lebt (`bodyIn`). Vorher prüfte er, was der Standardtab
+zufällig enthielt.
+
+**Stand:** e2e **245 Checks**, alle Gates grün, Bundle-Probe fünfmal 0.

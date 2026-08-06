@@ -944,3 +944,26 @@ absichtlich deutlich besser. Bezahlt sind das Anpassen eines Rezepts an die heut
 Zyklus, beides braucht die Messung.
 
 **Erledigt** 2026-08-06 — 233 Checks.
+
+---
+
+## 37. Progress bekommt eine Hierarchie, die Abendfrage eine Korrektur, der Verlauf einen Monatsvergleich
+
+Progress hatte sechzehn Karten mit demselben visuellen Gewicht — also keine Hierarchie, also liest
+man nichts mehr. Eine siebzehnte Karte hätte Wert vernichtet. Ganz oben steht jetzt genau eine
+Anweisung (die Wochenentscheidung), darunter die Konsistenz, darunter drei Segmente: **Diese
+Woche**, **Dein Körper**, **Verlauf**. Sichtbar sind höchstens fünf Karten statt sechzehn. Entfernt
+wurde nichts.
+
+**Eine Zufuhr-Antwort war nicht korrigierbar.** `recordIntake` wurde genau einmal gerufen, danach
+verschwand die Frage. Auf diesen Taps steht die gesamte gemessene Erhaltung — ein Fehltipp
+verfälschte den Stoffwechsel dauerhaft. Die beantwortete Karte bleibt jetzt stehen und lässt sich
+antippen; `recordIntake` ersetzt bereits nach Datum, es fehlte nur die Oberfläche. **Kostenlos** —
+eine Korrektur ist kein Produkt.
+
+**`monthlyComparison`** in `src/lib/energy.ts`: Kalendermonate mit ≥10 Zufuhrtagen und ≥4
+Wiegungen, sonst übersprungen; unter zwei vergleichbaren Monaten `null` statt Deutung. Sagt, warum
+es schwerer wird — ein leichterer Körper kostet weniger, dieselbe Portion ist kein Defizit mehr.
+**Premium**, weil die Aussage ohne Messung nicht ehrlich wäre.
+
+**Erledigt** 2026-08-06 — 245 Checks.

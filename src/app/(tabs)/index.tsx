@@ -47,6 +47,7 @@ export default function DashboardScreen() {
   const [weightInput, setWeightInput] = useState('');
   const [dateLabel, setDateLabel] = useState('');
   const [question, setQuestion] = useState<IntakeQuestion | null>(null);
+  const [answered, setAnswered] = useState<{ date: string; factor: number } | null>(null);
   const [trend, setTrend] = useState<ReturnType<typeof readTrend> | null>(null);
   const [measured, setMeasured] = useState<number | undefined>(undefined);
 
@@ -61,6 +62,13 @@ export default function DashboardScreen() {
       loadLastPlan<MealPlan>(), loadWeightLog(), loadIntakeLog(), isPremium(),
     ]);
     setQuestion(intakeQuestionFor(p, intake));
+    // Keep the answer visible instead of letting the card vanish: the measured
+    // maintenance is built on these, so a mistap has to be fixable.
+    // The most recent answer, whichever day it belongs to — asking about
+    // yesterday while showing today's answer would be two different days on
+    // one screen.
+    const latest = [...(intake ?? [])].sort((a, b) => a.date.localeCompare(b.date)).pop();
+    setAnswered(latest ? { date: latest.date, factor: latest.factor } : null);
     setTrend(readTrend(weights));
     setMeasured(effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem));
     setProfile(p);
@@ -135,8 +143,20 @@ export default function DashboardScreen() {
     if (!question) return;
     // Recorded against the day the window belonged to, not against now — the
     // answer is just as valid the morning after.
-    if (factor !== null) await recordIntake(factor, kcal, question.date);
+    if (factor !== null) {
+      await recordIntake(factor, kcal, question.date);
+      setAnswered({ date: question.date, factor });
+    }
     setQuestion(null);
+  };
+
+  /** Puts the question back so a wrong tap can be replaced. */
+  const reopenQuestion = async () => {
+    if (!answered) return;
+    const intake = await loadIntakeLog();
+    setAnswered(null);
+    // Hide the day being corrected so the question comes back for exactly it.
+    setQuestion(intakeQuestionFor(profile, intake.filter((e) => e.date !== answered.date)));
   };
 
   const logWeight = async () => {
@@ -243,6 +263,22 @@ export default function DashboardScreen() {
               </Txt>
             </Tap>
           </Card>
+        </Enter>
+      )}
+
+      {/* An answer that cannot be corrected is worse than none here: the
+          measured maintenance rests on these taps. */}
+      {!question && answered && (
+        <Enter index={2}>
+          <Tap onPress={reopenQuestion} accessibilityLabel="Change today's answer">
+            <View style={[s.answered, { borderColor: c.line }]}>
+              <Txt variant="small" color={c.textDim}>
+                {answered.date === todayISO() ? 'Today' : 'Yesterday'}:{' '}
+                {answered.factor >= 1.2 ? 'ate more' : answered.factor <= 0.9 ? 'ate less' : 'ate the plan'}
+              </Txt>
+              <Txt variant="small" color={c.accent}>change</Txt>
+            </View>
+          </Tap>
         </Enter>
       )}
 
@@ -450,6 +486,11 @@ export default function DashboardScreen() {
 const s = StyleSheet.create({
   head: { paddingTop: Space.sm, paddingBottom: Space.xl },
   stage: { marginTop: Space.lg, paddingHorizontal: Space.sm },
+  answered: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Space.base,
+    paddingVertical: Space.md, marginTop: Space.xl,
+  },
   intakeRow: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm },
   intakeCell: { flex: 1, marginRight: Space.sm },
   intakeBtn: {

@@ -5,7 +5,10 @@
  * out premium for free.
  */
 
-import { BASE, SEED, SEED_WITH_PLAN, createReporter, launch, newPage, body, has } from './harness.mjs';
+import {
+  BASE, SEED, SEED_WITH_PLAN, closedWindowProfile,
+  createReporter, launch, newPage, body, bodyIn, has,
+} from './harness.mjs';
 
 export default async function run() {
   const r = createReporter('INTERACT');
@@ -87,7 +90,11 @@ export default async function run() {
   // -------------------------------------------------------------- DASHBOARD
   section('Dashboard');
   {
-    const { context, page, errors } = await newPage(browser, SEED);
+    // The fasting stage only has a name while the window is shut, so the window
+    // is placed relative to the clock rather than fixed at 18:00.
+    const { context, page, errors } = await newPage(browser, {
+      ...SEED, onboarding_profile: closedWindowProfile(),
+    });
     await page.goto(BASE + '/', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
 
@@ -332,14 +339,14 @@ export default async function run() {
       const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await body(page);
+      const t = await bodyIn(page, 'Your body');
       check(has(t, 'Your pattern'), 'the pattern card is there');
       check(has(t, 'Saturdays run 30% over'), 'and names the day with its size',
         t.match(/\w+s run \d+% over/)?.[0] ?? '');
       check(/\d+ kcal more than planned/.test(t), 'and what it costs across a week',
         t.match(/about \d+ kcal more than planned/)?.[0] ?? '');
       // The budget is free arithmetic and must be visible either way.
-      check(has(t, "This week's budget"), 'the weekly budget is shown');
+      check(has(await bodyIn(page, 'This week'), "This week's budget"), 'the weekly budget is shown');
       await context.close();
     }
 
@@ -347,8 +354,8 @@ export default async function run() {
       const { context, page } = await newPage(browser, seed);
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await body(page);
-      check(has(t, "This week's budget"), 'the budget stays free');
+      check(has(await bodyIn(page, 'This week'), "This week's budget"), 'the budget stays free');
+      const t = await bodyIn(page, 'Your body');
       check(!has(t, 'Saturdays run'), 'but the day itself is not given away');
       check(has(t, 'Premium names it'), 'and it says what unlocks it');
       await context.close();
@@ -399,6 +406,37 @@ export default async function run() {
     const stored = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('onboarding_profile') ?? '{}').target_weight_kg);
     check(stored === 78.5, 'and it is what gets stored', String(stored));
+    await context.close();
+  }
+
+  // ------------------------------------------------------- CORRECTING AN ANSWER
+  section('The evening answer can be corrected');
+  {
+    // Everything measured about the metabolism rests on these taps, so a wrong
+    // one has to be replaceable — and replacing it must overwrite the day
+    // rather than log a second one, which would double-count the day.
+    const { context, page } = await newPage(browser, {
+      ...SEED, onboarding_profile: closedWindowProfile(),
+    });
+    await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1600);
+
+    await page.getByLabel('Ate the plan').click();
+    await page.waitForTimeout(600);
+    const t = await body(page);
+    check(/(Today|Yesterday): ate the plan/i.test(t), 'the answer stays on screen',
+      t.match(/(Today|Yesterday): ate \w+( \w+)?/i)?.[0] ?? '');
+    check(has(t, 'change'), 'and offers to change it');
+
+    await page.getByLabel("Change today's answer").click();
+    await page.waitForTimeout(600);
+    check(has(await body(page), 'Ate less'), 'tapping it puts the options back');
+
+    await page.getByLabel('Ate less').click();
+    await page.waitForTimeout(800);
+    const log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
+    check(log.length === 1, 'the correction replaces a day rather than adding one', String(log.length));
+    check(log[0]?.factor === 0.75, 'and the new answer is what survives', String(log[0]?.factor));
     await context.close();
   }
 
@@ -469,8 +507,9 @@ export default async function run() {
         t.match(/Eat \d{4} kcal for seven days/)?.[0] ?? '');
       check(has(t, 'by accident'), 'and says why planning it matters');
       // The forecast that bends rather than divides.
-      check(/About \d+ weeks to [\d.]+ kg/.test(t), 'and the forecast names a horizon',
-        t.match(/About \d+ weeks to [\d.]+ kg/)?.[0] ?? '');
+      const f = await bodyIn(page, 'Your body');
+      check(/About \d+ weeks to [\d.]+ kg/.test(f), 'and the forecast names a horizon',
+        f.match(/About \d+ weeks to [\d.]+ kg/)?.[0] ?? '');
       await context.close();
     }
   }
@@ -553,7 +592,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await body(page);
+      const t = await bodyIn(page, 'Your body');
       check(has(t, 'What your body actually costs'), 'the measurement card is shown to everyone');
       check(has(t, '14 days'), 'and says what it is based on');
       check(!/\b2[0-9]{3}\s*kcal a day/.test(t), 'but the figure itself is not given away',
@@ -570,7 +609,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await body(page);
+      const t = await bodyIn(page, 'Your body');
       check(/\d{4}\s*kcal a day/.test(t), 'premium sees the measured figure',
         t.match(/\d{4}\s*kcal a day/)?.[0] ?? '');
       check(has(t, 'formula'), 'and how it compares to the estimate');
@@ -585,9 +624,71 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await body(page);
+      const t = await bodyIn(page, 'Your body');
       check(has(t, 'Not enough to measure yet'), 'thin data produces a request, not a figure');
       check(!/\d{4}\s*kcal a day/.test(t), 'and no number is shown');
+      await context.close();
+    }
+  }
+
+  // ------------------------------------------------------- MONTH VS MONTH
+  section('Month against month');
+  {
+    // Two full months, same behaviour, different body. The point of the card is
+    // that the second month buys less weight loss for the same food — which is
+    // arithmetic, not encouragement.
+    const monthData = (ym, startKg, perDay, kcal) => ({
+      intake: Array.from({ length: 12 }, (_, i) => ({
+        date: `${ym}-${String(i + 2).padStart(2, '0')}`, factor: 1, target_kcal: kcal,
+      })),
+      weights: Array.from({ length: 5 }, (_, i) => ({
+        id: `${ym}-${i}`, date: `${ym}-${String(i * 6 + 2).padStart(2, '0')}`,
+        weight_kg: Math.round((startKg - i * 6 * perDay) * 10) / 10,
+      })),
+    });
+    const a = monthData('2026-05', 95, 0.07, 2400);
+    const b = monthData('2026-07', 84, 0.03, 2100);
+    const seed = {
+      ...SEED,
+      intake_log: JSON.stringify([...a.intake, ...b.intake]),
+      weight_log: JSON.stringify([...a.weights, ...b.weights]),
+    };
+
+    {
+      const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await bodyIn(page, 'Your body');
+      check(has(t, 'Month against month'), 'the comparison card is there');
+      check(has(t, '2026-05') && has(t, '2026-07'), 'and names both months');
+      check(/kg at \d{4} kcal a day/.test(t), 'with the weight change and what was eaten',
+        t.match(/[-\d.]+ kg at \d{4} kcal a day/)?.[0] ?? '');
+      check(/maintenance is about \d+ kcal lower/.test(t),
+        'and explains the falling maintenance rather than asserting it',
+        t.match(/maintenance is about \d+ kcal lower/)?.[0] ?? '');
+      await context.close();
+    }
+
+    {
+      const { context, page } = await newPage(browser, seed);
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await bodyIn(page, 'Your body');
+      check(has(t, 'Month against month'), 'free users see that the comparison exists');
+      check(!/maintenance is about \d+ kcal lower/.test(t), 'but not the figure itself');
+    await context.close();
+    }
+
+    // One month alone is not a comparison, and must not be dressed up as one.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED, user_premium: 'true',
+        intake_log: JSON.stringify(a.intake), weight_log: JSON.stringify(a.weights),
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      check(!has(await bodyIn(page, 'Your body'), 'Month against month'),
+        'a single month produces no card at all');
       await context.close();
     }
   }
@@ -1112,7 +1213,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, { ...SEED, onboarding_profile: profileOf({}) });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
-      check(has(await body(page), 'target 73.7'), 'an unset target still falls back to a healthy BMI');
+      check(has(await bodyIn(page, 'History'), 'target 73.7'), 'an unset target still falls back to a healthy BMI');
       await context.close();
     }
 
@@ -1122,7 +1223,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
-      const t = await body(page);
+      const t = await bodyIn(page, 'History');
       check(has(t, 'target 79.0'), 'a chosen target is what the bar aims at');
       check(!has(t, 'target 73.7'), 'and the formula no longer overrides it');
       await context.close();

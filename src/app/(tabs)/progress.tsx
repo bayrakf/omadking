@@ -10,9 +10,9 @@ import { Icon } from '@/components/icons';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
-  proteinAdherence, cycleWeek, trainingDaysPerWeek,
+  proteinAdherence, cycleWeek, trainingDaysPerWeek, monthlyComparison,
   type Measurement, type Forecast, type WeekdayPattern, type WeekBudget, type ProteinAdherence,
-  type WeekCycle,
+  type WeekCycle, type MonthlyComparison,
 } from '@/lib/energy';
 import { consistency, currentStreak } from '@/lib/dates';
 import {
@@ -89,9 +89,11 @@ export default function ProgressScreen() {
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [pattern, setPattern] = useState<WeekdayPattern | null>(null);
+  const [months, setMonths] = useState<MonthlyComparison>(null);
   const [budget, setBudget] = useState<WeekBudget | null>(null);
   const [protein, setProtein] = useState<ProteinAdherence>(null);
   const [cycle, setCycle] = useState<WeekCycle>(null);
+  const [tab, setTab] = useState<'week' | 'body' | 'history'>('week');
   const [steady, setSteady] = useState<{ hit: number; days: number; streak: number } | null>(null);
   const [premium, setPremium] = useState(false);
   const [fasts, setFasts] = useState<string[]>([]);
@@ -136,6 +138,7 @@ export default function ProgressScreen() {
         );
 
         setPattern(weekdayPattern(intake));
+        setMonths(monthlyComparison(intake, log));
         setProtein(proteinAdherence(intake));
         const trainDays = trainingDaysPerWeek(plans);
         setCycle(trainDays ? cycleWeek(est.kcal * 7, trainDays, bmr(p)) : null);
@@ -262,43 +265,6 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
-      {/* The same week, arranged around the sessions. The balance is untouched;
-          only how easy the week is to hold changes. */}
-      {cycle && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <Eyebrow>Around your training</Eyebrow>
-            {premium ? (
-              <>
-                <View style={[s.split, { marginTop: Space.md }]}>
-                  <View style={{ flex: 1 }}>
-                    <Txt variant="subheading">{cycle.trainingKcal}</Txt>
-                    <Eyebrow style={{ marginTop: 2 }}>{cycle.trainingDays} training days</Eyebrow>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Txt variant="subheading" color={c.textDim}>{cycle.restKcal}</Txt>
-                    <Eyebrow style={{ marginTop: 2 }}>{cycle.restDays} rest days</Eyebrow>
-                  </View>
-                </View>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{cycle.note}</Txt>
-              </>
-            ) : (
-              <>
-                <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                  You train {cycle.trainingDays} days a week. The same weekly total eats more easily
-                  when it follows the sessions — Premium works out the split.
-                </Txt>
-                <Button
-                  label="See the split"
-                  onPress={() => router.push('/paywall')}
-                  style={{ marginTop: Space.md }}
-                />
-              </>
-            )}
-          </Card>
-        </Enter>
-      )}
-
       {/* Consistency in front, streak behind it. A streak that resets on one
           missed day is the mechanic that makes people delete a fitness app —
           forty days of work destroyed by one Tuesday with the flu. This number
@@ -324,6 +290,41 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
+
+      {/* Three segments instead of sixteen cards of equal weight. Nothing is
+          removed — it becomes findable. The instruction stays above them,
+          because it is the only card that asks for anything. */}
+      <Enter index={2}>
+        <View style={s.segments}>
+          {([['week', 'This week'], ['body', 'Your body'], ['history', 'History']] as const).map(
+            ([key, label]) => (
+              <Tap
+                key={key}
+                onPress={() => setTab(key)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: tab === key }}
+                accessibilityLabel={label}
+                style={s.segmentCell}
+              >
+                <View
+                  style={[
+                    s.segment,
+                    {
+                      borderColor: tab === key ? c.accent : c.line,
+                      backgroundColor: tab === key ? c.accent : 'transparent',
+                    },
+                  ]}
+                >
+                  <Txt variant="small" color={tab === key ? c.onAccent : c.textDim}>{label}</Txt>
+                </View>
+              </Tap>
+            )
+          )}
+        </View>
+      </Enter>
+
+      {tab === 'week' && (
+        <>
       {/* The week as a budget, not seven verdicts. Free: it is arithmetic on a
           target the user already has, and gating it would take away something
           they could do on paper. */}
@@ -345,61 +346,138 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
-      {/* What everybody half knows about themselves, turned into a number. */}
-      {pattern && (pattern.worst || pattern.note) && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <Eyebrow>Your pattern</Eyebrow>
-            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-              {premium || !pattern.worst
-                ? pattern.note
-                : 'Your days are not alike — one of them runs well over the rest. Premium names it and '
-                  + 'works out what it costs across a week.'}
-            </Txt>
-            {!premium && pattern.worst && (
-              <Button
-                label="See which day"
-                onPress={() => router.push('/paywall')}
-                style={{ marginTop: Space.md }}
+      {/* Correctable, because a streak that cannot be fixed stops being true. */}
+      <Enter index={2}>
+        <Card style={{ marginBottom: Space.base }}>
+          <View style={s.split}>
+            <Eyebrow>Fasts this week</Eyebrow>
+            <Txt variant="data" color={c.textFaint}>tap to correct</Txt>
+          </View>
+          <View style={s.weekRow}>
+            {week.map((d) => (
+              <Tap
+                key={d.date}
+                onPress={d.future ? undefined : () => toggleDay(d.date, d.logged)}
+                disabled={d.future}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: d.logged, disabled: d.future }}
+                accessibilityLabel={`Fast on ${d.date}`}
+                style={s.weekCell}
+              >
+                <View style={s.weekCellInner}>
+                  <Txt variant="small" color={c.textFaint}>{d.label}</Txt>
+                  <View
+                    style={[
+                      s.weekDot,
+                      {
+                        backgroundColor: d.logged ? c.ember : 'transparent',
+                        borderColor: d.future ? c.line : d.logged ? c.ember : c.lineStrong,
+                        opacity: d.future ? 0.4 : 1,
+                      },
+                    ]}
+                  >
+                    {d.logged && <Icon name="check" size={13} color={c.onAccent} strokeWidth={2.4} />}
+                  </View>
+                </View>
+              </Tap>
+            ))}
+          </View>
+        </Card>
+      </Enter>
+
+      <Enter index={5}>
+        <Card style={{ marginTop: Space.base }}>
+          <Eyebrow style={{ marginBottom: Space.base }}>Log a weigh-in</Eyebrow>
+          <View style={s.inputs}>
+            <View style={s.inputCol}>
+              <Txt variant="small" color={c.textDim} style={{ marginBottom: 6 }}>Date</Txt>
+              <TextInput
+                value={dateInput}
+                onChangeText={setDateInput}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={c.textFaint}
+                accessibilityLabel="Date"
+                style={[s.input, Type.data, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
               />
+            </View>
+            <View style={s.inputCol}>
+              <Txt variant="small" color={c.textDim} style={{ marginBottom: 6 }}>Weight (kg)</Txt>
+              <TextInput
+                value={weightInput}
+                onChangeText={setWeightInput}
+                onSubmitEditing={save}
+                placeholder="82.4"
+                placeholderTextColor={c.textFaint}
+                keyboardType="numeric"
+                inputMode="decimal"
+                accessibilityLabel="Weight in kilograms"
+                style={[s.input, Type.data, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
+              />
+            </View>
+          </View>
+          <Button label="Save entry" onPress={save} style={{ marginTop: Space.base }} />
+          {msg && <Notice tone={msg.ok ? 'ok' : 'error'}>{msg.text}</Notice>}
+        </Card>
+      </Enter>
+
+      {review && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }} tone={review.sparse ? 'default' : 'accent'}>
+            <Eyebrow>Last 7 days</Eyebrow>
+            {review.sparse ? (
+              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                {review.consequence}
+              </Txt>
+            ) : (
+              <>
+                <View style={s.reviewRow}>
+                  <View style={s.reviewCell}>
+                    <Txt variant="heading" style={s.reviewFigure}>{review.fastDays}<Txt variant="small" color={c.textFaint}>/7</Txt></Txt>
+                    <Txt variant="small" color={c.textDim}>fasts</Txt>
+                  </View>
+                  <Divider style={s.reviewLine} />
+                  <View style={s.reviewCell}>
+                    <Txt variant="heading" style={s.reviewFigure}>{review.cookDays}</Txt>
+                    <Txt variant="small" color={c.textDim}>cooked</Txt>
+                  </View>
+                  <Divider style={s.reviewLine} />
+                  <View style={s.reviewCell}>
+                    <Txt variant="heading" style={s.reviewFigure}>{review.weighIns}</Txt>
+                    <Txt variant="small" color={c.textDim}>weigh-ins</Txt>
+                  </View>
+                </View>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
+                  {review.headline}
+                </Txt>
+                <Txt variant="small" color={c.text} style={{ marginTop: Space.sm }}>
+                  {review.consequence}
+                </Txt>
+              </>
             )}
           </Card>
         </Enter>
       )}
 
-      {/* The question everyone actually has, answered without the flattery.
-          A naive projection divides distance by current rate and is always
-          optimistic, because a lighter body costs less to run. This one bends,
-          and when the plate is too big to reach the goal it says so. */}
-      {outlook && cards.outlook && (
-        <Enter index={1}>
+      {adapt && adapt.daysLogged > 0 && (
+        <Enter index={2}>
           <Card style={{ marginBottom: Space.base }}>
             <View style={s.split}>
-              <Eyebrow>Where this leads</Eyebrow>
-              {premium && outlook.weeks !== null && (
-                <Txt variant="data" color={c.accent}>{outlook.weeks} weeks</Txt>
-              )}
+              <Eyebrow>{adapt.label}</Eyebrow>
+              <Txt variant="data" color={c.textFaint}>
+                {adapt.daysLogged} {adapt.daysLogged === 1 ? 'day' : 'days'} logged
+              </Txt>
             </View>
-            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-              {premium
-                ? outlook.note
-                : outlook.stallWeight !== null
-                  ? 'At your current intake the weight levels off before the target — a lighter body '
-                    + 'costs less to run. Premium shows where, and what to eat instead.'
-                  : 'Premium works out how long this takes at your current intake, allowing for the '
-                    + 'fact that the rate eases as you get lighter.'}
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+              {adapt.note}
             </Txt>
-            {cards.sell === 'outlook' && (
-              <Button
-                label="See where this leads"
-                onPress={() => router.push('/paywall')}
-                style={{ marginTop: Space.md }}
-              />
-            )}
           </Card>
         </Enter>
       )}
 
+        </>
+      )}
+      {tab === 'body' && (
+        <>
       {/* The moment people quit — a flat line reads as failure and is not one.
           It used to have a card of its own here, which could never appear:
           weeklyDecision ranks a stall above everything, so the decision card
@@ -463,99 +541,127 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
-      {review && (
+      {/* The answer to "why is it getting harder", from your own log rather
+          than from a study: a lighter body costs less to run, so the same
+          plate stops being a deficit. Nothing here is estimated — a month
+          without enough days is skipped, not guessed at. */}
+      {months && (
         <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }} tone={review.sparse ? 'default' : 'accent'}>
-            <Eyebrow>Last 7 days</Eyebrow>
-            {review.sparse ? (
-              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                {review.consequence}
-              </Txt>
-            ) : (
+          <Card style={{ marginBottom: Space.base }}>
+            <Eyebrow>Month against month</Eyebrow>
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+              {premium
+                ? months.note
+                : 'You have two months with enough data to compare. Premium works out what changed '
+                  + 'between them and what your maintenance did while you got lighter.'}
+            </Txt>
+            {!premium && (
+              <Button
+                label="Compare the months"
+                onPress={() => router.push('/paywall')}
+                style={{ marginTop: Space.md }}
+              />
+            )}
+          </Card>
+        </Enter>
+      )}
+
+      {/* What everybody half knows about themselves, turned into a number. */}
+      {pattern && (pattern.worst || pattern.note) && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <Eyebrow>Your pattern</Eyebrow>
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+              {premium || !pattern.worst
+                ? pattern.note
+                : 'Your days are not alike — one of them runs well over the rest. Premium names it and '
+                  + 'works out what it costs across a week.'}
+            </Txt>
+            {!premium && pattern.worst && (
+              <Button
+                label="See which day"
+                onPress={() => router.push('/paywall')}
+                style={{ marginTop: Space.md }}
+              />
+            )}
+          </Card>
+        </Enter>
+      )}
+
+      {/* The same week, arranged around the sessions. The balance is untouched;
+          only how easy the week is to hold changes. */}
+      {cycle && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <Eyebrow>Around your training</Eyebrow>
+            {premium ? (
               <>
-                <View style={s.reviewRow}>
-                  <View style={s.reviewCell}>
-                    <Txt variant="heading" style={s.reviewFigure}>{review.fastDays}<Txt variant="small" color={c.textFaint}>/7</Txt></Txt>
-                    <Txt variant="small" color={c.textDim}>fasts</Txt>
+                <View style={[s.split, { marginTop: Space.md }]}>
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="subheading">{cycle.trainingKcal}</Txt>
+                    <Eyebrow style={{ marginTop: 2 }}>{cycle.trainingDays} training days</Eyebrow>
                   </View>
-                  <Divider style={s.reviewLine} />
-                  <View style={s.reviewCell}>
-                    <Txt variant="heading" style={s.reviewFigure}>{review.cookDays}</Txt>
-                    <Txt variant="small" color={c.textDim}>cooked</Txt>
-                  </View>
-                  <Divider style={s.reviewLine} />
-                  <View style={s.reviewCell}>
-                    <Txt variant="heading" style={s.reviewFigure}>{review.weighIns}</Txt>
-                    <Txt variant="small" color={c.textDim}>weigh-ins</Txt>
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="subheading" color={c.textDim}>{cycle.restKcal}</Txt>
+                    <Eyebrow style={{ marginTop: 2 }}>{cycle.restDays} rest days</Eyebrow>
                   </View>
                 </View>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
-                  {review.headline}
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{cycle.note}</Txt>
+              </>
+            ) : (
+              <>
+                <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                  You train {cycle.trainingDays} days a week. The same weekly total eats more easily
+                  when it follows the sessions — Premium works out the split.
                 </Txt>
-                <Txt variant="small" color={c.text} style={{ marginTop: Space.sm }}>
-                  {review.consequence}
-                </Txt>
+                <Button
+                  label="See the split"
+                  onPress={() => router.push('/paywall')}
+                  style={{ marginTop: Space.md }}
+                />
               </>
             )}
           </Card>
         </Enter>
       )}
 
-      {adapt && adapt.daysLogged > 0 && (
-        <Enter index={2}>
+      {/* The question everyone actually has, answered without the flattery.
+          A naive projection divides distance by current rate and is always
+          optimistic, because a lighter body costs less to run. This one bends,
+          and when the plate is too big to reach the goal it says so. */}
+      {outlook && cards.outlook && (
+        <Enter index={1}>
           <Card style={{ marginBottom: Space.base }}>
             <View style={s.split}>
-              <Eyebrow>{adapt.label}</Eyebrow>
-              <Txt variant="data" color={c.textFaint}>
-                {adapt.daysLogged} {adapt.daysLogged === 1 ? 'day' : 'days'} logged
-              </Txt>
+              <Eyebrow>Where this leads</Eyebrow>
+              {premium && outlook.weeks !== null && (
+                <Txt variant="data" color={c.accent}>{outlook.weeks} weeks</Txt>
+              )}
             </View>
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-              {adapt.note}
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+              {premium
+                ? outlook.note
+                : outlook.stallWeight !== null
+                  ? 'At your current intake the weight levels off before the target — a lighter body '
+                    + 'costs less to run. Premium shows where, and what to eat instead.'
+                  : 'Premium works out how long this takes at your current intake, allowing for the '
+                    + 'fact that the rate eases as you get lighter.'}
             </Txt>
+            {cards.sell === 'outlook' && (
+              <Button
+                label="See where this leads"
+                onPress={() => router.push('/paywall')}
+                style={{ marginTop: Space.md }}
+              />
+            )}
           </Card>
         </Enter>
       )}
 
-      {/* Correctable, because a streak that cannot be fixed stops being true. */}
-      <Enter index={2}>
-        <Card style={{ marginBottom: Space.base }}>
-          <View style={s.split}>
-            <Eyebrow>Fasts this week</Eyebrow>
-            <Txt variant="data" color={c.textFaint}>tap to correct</Txt>
-          </View>
-          <View style={s.weekRow}>
-            {week.map((d) => (
-              <Tap
-                key={d.date}
-                onPress={d.future ? undefined : () => toggleDay(d.date, d.logged)}
-                disabled={d.future}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: d.logged, disabled: d.future }}
-                accessibilityLabel={`Fast on ${d.date}`}
-                style={s.weekCell}
-              >
-                <View style={s.weekCellInner}>
-                  <Txt variant="small" color={c.textFaint}>{d.label}</Txt>
-                  <View
-                    style={[
-                      s.weekDot,
-                      {
-                        backgroundColor: d.logged ? c.ember : 'transparent',
-                        borderColor: d.future ? c.line : d.logged ? c.ember : c.lineStrong,
-                        opacity: d.future ? 0.4 : 1,
-                      },
-                    ]}
-                  >
-                    {d.logged && <Icon name="check" size={13} color={c.onAccent} strokeWidth={2.4} />}
-                  </View>
-                </View>
-              </Tap>
-            ))}
-          </View>
-        </Card>
-      </Enter>
-
+        </>
+      )}
+      {tab === 'history' && (
+        <>
       <Enter index={3}>
         <Card>
           <View style={s.split}>
@@ -624,41 +730,6 @@ export default function ProgressScreen() {
         </Card>
       </Enter>
 
-      <Enter index={5}>
-        <Card style={{ marginTop: Space.base }}>
-          <Eyebrow style={{ marginBottom: Space.base }}>Log a weigh-in</Eyebrow>
-          <View style={s.inputs}>
-            <View style={s.inputCol}>
-              <Txt variant="small" color={c.textDim} style={{ marginBottom: 6 }}>Date</Txt>
-              <TextInput
-                value={dateInput}
-                onChangeText={setDateInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={c.textFaint}
-                accessibilityLabel="Date"
-                style={[s.input, Type.data, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
-              />
-            </View>
-            <View style={s.inputCol}>
-              <Txt variant="small" color={c.textDim} style={{ marginBottom: 6 }}>Weight (kg)</Txt>
-              <TextInput
-                value={weightInput}
-                onChangeText={setWeightInput}
-                onSubmitEditing={save}
-                placeholder="82.4"
-                placeholderTextColor={c.textFaint}
-                keyboardType="numeric"
-                inputMode="decimal"
-                accessibilityLabel="Weight in kilograms"
-                style={[s.input, Type.data, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
-              />
-            </View>
-          </View>
-          <Button label="Save entry" onPress={save} style={{ marginTop: Space.base }} />
-          {msg && <Notice tone={msg.ok ? 'ok' : 'error'}>{msg.text}</Notice>}
-        </Card>
-      </Enter>
-
       {entries.length > 0 ? (
         <Enter index={6} style={{ marginTop: Space.xxl }}>
           <Eyebrow style={{ marginBottom: Space.md }}>History</Eyebrow>
@@ -694,6 +765,9 @@ export default function ProgressScreen() {
           />
         </Enter>
       )}
+
+        </>
+      )}
     </Screen>
   );
 }
@@ -704,6 +778,12 @@ const s = StyleSheet.create({
   reviewCell: { flex: 1 },
   reviewFigure: { fontSize: 24, marginBottom: 2 },
   reviewLine: { width: 1, height: 32, marginHorizontal: Space.md },
+  segments: { flexDirection: 'row', marginBottom: Space.lg, marginRight: -Space.sm },
+  segmentCell: { flex: 1, marginRight: Space.sm },
+  segment: {
+    minHeight: 34, borderRadius: 17, borderWidth: 1, paddingVertical: 6,
+    alignItems: 'center', justifyContent: 'center',
+  },
   weekRow: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.xs },
   weekCell: { flex: 1, marginRight: Space.xs },
   weekCellInner: { alignItems: 'center' },

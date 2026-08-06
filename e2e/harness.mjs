@@ -33,6 +33,26 @@ export function chromePath() {
 }
 
 /** A profile with enough history that every screen has something to show. */
+/**
+ * A window that is definitely shut right now.
+ *
+ * Several checks only apply while fasting — the physiology band, the evening
+ * question. Seeding a fixed 18:00 meant they were red for the two hours a day
+ * the window happened to be open, which is a test that lies about the code
+ * twice a day.
+ */
+export function closedWindowProfile(extra = {}) {
+  const opensIn = (new Date().getHours() + 6) % 24;
+  return JSON.stringify({
+    weight_kg: 82, height_cm: 183, age: 34,
+    sex: 'male', fitness_level: 'advanced', goal: 'muscle_gain',
+    omad_window_start: `${String(opensIn).padStart(2, '0')}:00`,
+    omad_window_hours: 2,
+    default_training_time: '19:00',
+    ...extra,
+  });
+}
+
 export const SEED = {
   onboarding_complete: 'true',
   onboarding_profile: JSON.stringify({
@@ -126,6 +146,17 @@ export async function newPage(browser, seed = SEED) {
 
 export const body = (page) =>
   page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
+
+/**
+ * Progress shows five cards at a time behind three segments instead of sixteen
+ * at once. A test that asserts on a card therefore has to say which segment it
+ * lives in, or it asserts on whatever the default tab happens to hold.
+ */
+export async function bodyIn(page, segment) {
+  await page.getByLabel(segment).click();
+  await page.waitForTimeout(500);
+  return body(page);
+}
 
 /** Case-insensitive contains — Eyebrow uppercases via CSS, so innerText does too. */
 export const has = (haystack, needle) =>

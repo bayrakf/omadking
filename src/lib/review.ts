@@ -172,6 +172,35 @@ export function fastWeek(fastLog: string[], today: string = todayISO()): FastDay
     }));
 }
 
+export type IntakeDay = { date: string; factor: number | null; future: boolean; label: string };
+
+/**
+ * The last seven evenings as a strip you can correct.
+ *
+ * The fast log got this treatment already, for the reason that a streak nobody
+ * can fix stops being true. The intake log needs it more: the measured
+ * maintenance is built on these answers, so one mistap does not just look
+ * wrong, it moves the number the app tells you to eat.
+ */
+export function intakeWeek(intakeLog: unknown, today: string = todayISO()): IntakeDay[] {
+  const byDate = new Map<string, number>();
+  for (const row of Array.isArray(intakeLog) ? intakeLog : []) {
+    const r = row as any;
+    if (r && typeof r.date === 'string' && isFinite(r.factor)) byDate.set(r.date, r.factor);
+  }
+  const todayDate = parseISO(today);
+
+  return windowDays(today)
+    .slice()
+    .reverse()
+    .map((date) => ({
+      date,
+      factor: byDate.has(date) ? byDate.get(date)! : null,
+      future: parseISO(date).getTime() > todayDate.getTime(),
+      label: parseISO(date).toLocaleDateString(undefined, { weekday: 'narrow' }),
+    }));
+}
+
 /**
  * Where someone is in adapting to the schedule.
  *
@@ -477,6 +506,22 @@ export function demo() {
   // A window ending in the past must still refuse days after today.
   const past = fastWeek([], '2020-01-01');
   assert(past.every((d) => !d.future), 'a historical window has no future days');
+
+  // --- the correctable evening strip ---------------------------------------
+
+  const iw = intakeWeek([
+    { date: TODAY, factor: 1, target_kcal: 2000 },
+    { date: day(2), factor: 0.75, target_kcal: 2000 },
+  ], TODAY);
+  assert(iw.length === 7, 'seven evenings');
+  assert(iw[6].date === TODAY, 'today is last, so it reads left to right');
+  assert(iw[6].factor === 1, 'an answered day carries its factor');
+  assert(iw[4].factor === 0.75, 'including a corrected one');
+  assert(iw[5].factor === null, 'an unanswered day is null, not zero');
+  assert(iw.every((x) => !x.future), 'a backward window holds no future');
+  assert(intakeWeek([], TODAY).every((x) => x.factor === null), 'nothing answered, nothing marked');
+  assert(intakeWeek(null, TODAY).length === 7, 'a missing log still yields a week');
+  assert(intakeWeek([{ date: TODAY, factor: 'x' }] as any, TODAY)[6].factor === null, 'junk is not a factor');
 
   // --- adaptation ----------------------------------------------------------
 

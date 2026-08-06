@@ -691,6 +691,90 @@ export function cycleWeek(weeklyKcal: number, trainingDays: number, bmrFloor: nu
   };
 }
 
+/**
+ * The same person, months apart.
+ *
+ * "Why is it getting harder" is the question of the third month, and it has a
+ * real answer that nobody shows: a lighter body costs less, so the same plate
+ * is a smaller deficit than it was. Reading it out of this person's own log
+ * turns a discouraging feeling into arithmetic they can act on.
+ *
+ * The comparison is only drawn where both months carry enough data. A month
+ * that is thin gets skipped rather than estimated — half a month compared
+ * against a full one would produce a confident, wrong sentence.
+ */
+export type MonthStat = {
+  month: string;
+  avgIntake: number;
+  kgChange: number;
+  maintenance: number;
+};
+
+export type MonthlyComparison = {
+  first: MonthStat;
+  last: MonthStat;
+  maintenanceDrop: number;
+  kgLighter: number;
+  note: string;
+} | null;
+
+const MONTH_MIN_INTAKE = 10;
+const MONTH_MIN_WEIGHTS = 4;
+
+export function monthlyComparison(intakeLog: unknown, weights: unknown): MonthlyComparison {
+  const intake = (Array.isArray(intakeLog) ? intakeLog : []).filter(
+    (e: any) => e && typeof e.date === 'string' && isFinite(e.factor) && isFinite(e.target_kcal)
+  ) as IntakeEntry[];
+  const weighed = (Array.isArray(weights) ? weights : []).filter(
+    (w: any) => w && typeof w.date === 'string' && isFinite(w.weight_kg) && w.weight_kg > 0
+  ).sort((a: any, b: any) => a.date.localeCompare(b.date)) as WeighIn[];
+
+  const months = new Set([...intake, ...weighed].map((r) => r.date.slice(0, 7)));
+
+  const stats: MonthStat[] = [];
+  for (const month of [...months].sort()) {
+    const mi = intake.filter((e) => e.date.startsWith(month));
+    const mw = weighed.filter((w) => w.date.startsWith(month));
+    if (mi.length < MONTH_MIN_INTAKE || mw.length < MONTH_MIN_WEIGHTS) continue;
+
+    const avgIntake = Math.round(mi.reduce((s, e) => s + e.factor * e.target_kcal, 0) / mi.length);
+    const kgChange = Math.round((mw[mw.length - 1].weight_kg - mw[0].weight_kg) * 10) / 10;
+
+    // Same energy balance as everywhere else, over the month's own span.
+    const spanDays = Math.max(1, daysBetween(mw[0].date, mw[mw.length - 1].date));
+    const perWeek = (kgChange / spanDays) * 7;
+    const maintenance = Math.round((avgIntake - perWeek * (KCAL_PER_KG / 7)) / 10) * 10;
+
+    stats.push({ month, avgIntake, kgChange, maintenance });
+  }
+
+  if (stats.length < 2) return null;
+
+  const first = stats[0];
+  const last = stats[stats.length - 1];
+  const kgLighter =
+    Math.round((weighed[0].weight_kg - weighed[weighed.length - 1].weight_kg) * 10) / 10;
+  const drop = first.maintenance - last.maintenance;
+
+  const line = (s: MonthStat) =>
+    `${s.month}: ${s.kgChange <= 0 ? '' : '+'}${s.kgChange} kg at ${s.avgIntake} kcal a day`;
+
+  return {
+    first,
+    last,
+    maintenanceDrop: drop,
+    kgLighter,
+    note:
+      `${line(first)}. ${line(last)}. `
+      + (drop > 0
+        ? `Your maintenance is about ${drop} kcal lower than it was — ${kgLighter} kg lighter costs `
+          + `less to run, which is why the same plate goes less far.`
+        : drop < 0
+          ? `Your maintenance reads about ${Math.abs(drop)} kcal higher than it did.`
+          : 'Your maintenance has not moved between them.'),
+  };
+}
+
 // ---------------------------------------------------------------------------
 
 export type TrendRead = {
@@ -1116,6 +1200,43 @@ export function demo() {
     assert(!/cure|prevent|detox|proven|should/i.test(n), `no claim or scolding: ${n}`);
     assert(!/\bstudies\b|%/.test(n), 'no invented statistic');
   }
+
+  // --- month against month -------------------------------------------------
+
+  const monthRows = (month: string, factor: number, target: number) =>
+    Array.from({ length: 12 }, (_, i) => ({
+      date: `${month}-${String(i + 2).padStart(2, '0')}`, factor, target_kcal: target,
+    }));
+  const monthWeights = (month: string, from: number, to: number) =>
+    Array.from({ length: 5 }, (_, i) => ({
+      date: `${month}-${String(i * 6 + 2).padStart(2, '0')}`,
+      weight_kg: from + ((to - from) * i) / 4,
+    }));
+
+  const cmp = monthlyComparison(
+    [...monthRows('2026-03', 1, 2100), ...monthRows('2026-05', 1, 1950)],
+    [...monthWeights('2026-03', 100, 98), ...monthWeights('2026-05', 92, 90.6)]
+  )!;
+  assert(cmp !== null, 'two full months can be compared');
+  assert(cmp.first.month === '2026-03' && cmp.last.month === '2026-05', 'earliest against latest');
+  assert(cmp.first.avgIntake === 2100 && cmp.last.avgIntake === 1950, 'each month carries its own intake');
+  assert(cmp.first.kgChange === -2 && cmp.last.kgChange === -1.4, `and its own change: ${cmp.first.kgChange}, ${cmp.last.kgChange}`);
+  assert(cmp.maintenanceDrop > 0, `maintenance fell as the body got lighter: ${cmp.maintenanceDrop}`);
+  assert(/costs less to run/.test(cmp.note), 'and the note explains why it got harder');
+
+  // A thin month is skipped, not estimated.
+  assert(monthlyComparison(
+    [...monthRows('2026-03', 1, 2100), ...monthRows('2026-05', 1, 1950).slice(0, 3)],
+    [...monthWeights('2026-03', 100, 98), ...monthWeights('2026-05', 92, 90.6)]
+  ) === null, 'a month with three answers is not a month');
+
+  assert(monthlyComparison(monthRows('2026-03', 1, 2100), monthWeights('2026-03', 100, 98)) === null,
+    'one month alone is not a comparison');
+  assert(monthlyComparison([], []) === null, 'nothing in, nothing claimed');
+  assert(monthlyComparison(null, null) === null, 'null does not throw');
+
+  assert(!/cure|prevent|detox|proven|should/i.test(cmp.note), `no claim or scolding: ${cmp.note}`);
+  assert(!/\bstudies\b|%/.test(cmp.note), 'no invented statistic');
 
   // --- reading the trend ---------------------------------------------------
 
