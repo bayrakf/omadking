@@ -546,3 +546,43 @@ das gerenderte UI laufen, nicht nur gegen den Quelltext.
 - RN-Web fixiert `fontScale` auf 1 (Durchlauf 21).
 
 Alle fünf kamen aus dem Prüfen, nicht aus dem Planen.
+
+
+---
+
+## Nachtrag 2026-08-06 — Bestandsanalyse
+
+Eine Übernahme, die nicht mit Bauen anfing, sondern mit Nachmessen: alle vier Gates laufen lassen,
+bevor irgendeine Behauptung über den Stand geglaubt wurde. Alle grün. Danach drei Befunde, von denen
+nur einer als Aufgabe im Backlog stand.
+
+**Der Fund, nach dem niemand gesucht hat.** Die Bezahlschranke bewarb *session-aware macros*,
+*reheat instructions* und *unlimited coaching*. Alle drei sind gratis — die ersten beiden rechnet
+bzw. rendert die App bedingungslos, und der Coach hat weder im Client noch in der Edge Function ein
+Limit. Es wurde gegen eine Grenze geworben, die es nicht gibt. Gleichzeitig standen die zwei Dinge
+hinter `isPremium()` gar nicht auf der Seite. Kein Test konnte das fangen, weil die Liste als Prosa
+im Bildschirm lag: Prosa driftet vom Code, und niemand merkt es. Jetzt `offer.ts`, jede Behauptung
+an ihr Gate gebunden, mit den drei alten Zeilen als Gegenbeispiel im Selbstcheck — damit der Check
+bewiesen scheitern *kann* und nicht nur besteht.
+
+**Der Fund, der eine Karte löschte statt eine zu bauen.** Progress sollte entzerrt werden. Beim
+Lesen stellte sich heraus, dass die Plateau-Karte gar nicht erreichbar war: `weeklyDecision` stellt
+ein Plateau über alles, also sagte die Entscheidungskarte darüber es immer schon. Niemand hat je
+beide gesehen. Das ist kein Layoutproblem, das ist toter Code mit Zustand, State und Aufrufen. Weg
+damit, und das eine Detail, das ihr voraus war, in den Satz der Entscheidung.
+
+**Was die Selbstchecks diesmal fanden, wieder bevor es UI gab:**
+- Ich behauptete drei Treffer für drei falsche Paywall-Zeilen — es waren fünf, weil „meal-prep
+  instructions" auch „reheat" enthält. Die Zählung war falsch, nicht der Befund.
+- Ich schrieb für das Zielgewicht das alte `normNumber`-Verhalten fest, das bei unlesbarer Eingabe
+  Körpergewicht eingesetzt hätte. Genau das erfundene Ziel, das die Änderung verhindern soll.
+- `78,5` wurde beim Parsen zu `78`. Ein deutschsprachiger Nutzer hätte ein halbes Kilo verloren und
+  es nie gemeldet.
+- Das neue Profilfeld hätte die Gerätesynchronisierung stillschweigend nicht überlebt, wäre es
+  `normalizeProfile` unbekannt geblieben — jetzt als Merge-Check festgenagelt.
+
+**Stand:** e2e von 201 auf **215 Checks**, `npm run check` von zwölf auf **13 Module**.
+
+Die Lehre aus diesen drei Punkten ist dieselbe wie aus den ersten 35: Was nicht in einem reinen
+Modul mit Selbstcheck liegt, driftet. Die Bezahlschranke war der teuerste Beleg dafür — eine
+Behauptung über Geld, die achtundzwanzig Commits lang niemandem auffiel.
