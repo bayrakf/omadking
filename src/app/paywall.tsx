@@ -5,14 +5,17 @@ import { Space, Radius } from '@/constants/theme';
 import { Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Divider, Notice, useTheme } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { getOfferings, isBillingAvailable, purchase, restore, type Package } from '@/lib/purchases';
+import { PREMIUM_CLAIMS } from '@/lib/offer';
 import { FREE_PLANS_PER_WEEK } from '@/lib/store';
 
-const FEATURES = [
-  ['Unlimited plans', 'No weekly cap on meal plans or recipes.'],
-  ['Session-aware macros', 'Targets that follow duration and intensity.'],
-  ['Meal-prep instructions', 'Reheat guidance for skillet, air fryer and microwave.'],
-  ['Unlimited coaching', 'Ask as much as you want.'],
-] as const;
+/**
+ * The offer lives in src/lib/offer.ts, not here.
+ *
+ * The list that used to sit in this file sold three things the free plan
+ * already does. A screen cannot check itself; a pure module with a self-check
+ * can, and does — see `overpromises()`.
+ */
+const FEATURES = PREMIUM_CLAIMS;
 
 export default function PaywallScreen() {
   const c = useTheme();
@@ -73,7 +76,7 @@ export default function PaywallScreen() {
 
       <Enter index={2}>
         <Card style={{ marginTop: Space.xl, paddingVertical: Space.sm }}>
-          {FEATURES.map(([title, body], i) => (
+          {FEATURES.map(({ title, body }, i) => (
             <View key={title}>
               {i > 0 && <Divider />}
               <View style={s.feature}>

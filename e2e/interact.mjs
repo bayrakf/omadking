@@ -617,6 +617,15 @@ export default async function run() {
     check(has(t, 'Unavailable'), 'no fake purchase is offered on web');
     check(has(t, 'only available in the iOS and Android apps'), 'and it says why');
 
+    // The page must not sell what the free plan already does. offer.ts asserts
+    // this over the data; this asserts it over what a user actually reads,
+    // which is the version that would have appeared in a store listing.
+    for (const free of ['session-aware', 'reheat', 'unlimited coaching', 'meal-prep instruction']) {
+      check(!has(t, free), `the paywall does not sell "${free}", which is free`);
+    }
+    // And it does lead with the thing that is genuinely gated.
+    check(has(t, 'what your body actually costs'), 'the measured maintenance is the offer');
+
     // This once wrote user_premium=true on tap, with no payment involved.
     await page.getByText('Unavailable').click({ force: true }).catch(() => {});
     await page.waitForTimeout(1200);

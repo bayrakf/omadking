@@ -360,8 +360,8 @@ export default function ProfileScreen() {
         <Card>
           <Eyebrow style={{ marginBottom: Space.sm }}>Your data</Eyebrow>
           <Txt variant="small" color={c.textDim}>
-            Everything lives on this device. There are no accounts, so a backup is the only copy that
-            survives reinstalling.
+            Everything lives on this device. An account is optional and only ever holds an encrypted
+            copy, so a backup file is still the only copy you can read yourself.
           </Txt>
           <View style={s.dataRow}>
             <Button label="Export" variant="secondary" icon="share" onPress={doExport} style={s.dataBtn} />
