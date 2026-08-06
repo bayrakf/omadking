@@ -393,7 +393,7 @@ export function weeklyDecision(input: {
  *
  * Here rather than in the JSX so the rule can be asserted.
  */
-export type SellCard = 'measured' | 'months' | 'outlook' | 'pattern' | 'cycle';
+export type SellCard = 'measured' | 'months' | 'outlook' | 'pattern' | 'cycle' | 'ahead';
 
 export type ProgressCards = {
   outlook: boolean;
@@ -408,7 +408,7 @@ export type ProgressCards = {
  * makes people quit — why the same plate stopped working. The rest are
  * refinements, and a refinement is a poor first pitch.
  */
-const SELL_ORDER: SellCard[] = ['measured', 'months', 'outlook', 'pattern', 'cycle'];
+const SELL_ORDER: SellCard[] = ['measured', 'months', 'outlook', 'pattern', 'cycle', 'ahead'];
 
 export function progressCards(input: {
   premium: boolean;
@@ -418,14 +418,16 @@ export function progressCards(input: {
   hasMonths?: boolean;
   hasPattern?: boolean;
   hasCycle?: boolean;
+  hasAhead?: boolean;
 }): ProgressCards {
-  const { premium, hasOutlook, hasMeasured, hasMonths, hasPattern, hasCycle } = input;
+  const { premium, hasOutlook, hasMeasured, hasMonths, hasPattern, hasCycle, hasAhead } = input;
   const available: Record<SellCard, boolean> = {
     measured: !!hasMeasured,
     months: !!hasMonths,
     outlook: !!hasOutlook,
     pattern: !!hasPattern,
     cycle: !!hasCycle,
+    ahead: !!hasAhead,
   };
   return {
     outlook: !!hasOutlook,
@@ -738,7 +740,11 @@ export function demo() {
   );
   assert(
     progressCards({ premium: false, hasCycle: true }).sell === 'cycle',
-    'and the cycle is last rather than absent'
+    'and the cycle beats the planner when both are there'
+  );
+  assert(
+    progressCards({ premium: false, hasAhead: true }).sell === 'ahead',
+    'the exception-day planner sells only when nothing else can'
   );
   assert(progressCards({ premium: false }).sell === null, 'nothing available means nothing sold');
   // The ranking must cover every card, or a new one silently never sells.

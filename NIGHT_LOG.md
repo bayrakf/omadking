@@ -626,3 +626,19 @@ schon gibt.
   sich selbst übereinstimmt. Der neue Guard liest die Bildschirme.
 
 **Stand:** e2e **253 Checks**, `npm run check` mit einem vierzehnten Modul-Guard.
+
+---
+
+## Punkt 39 — zwei Wochenbegriffe, die sich widersprachen
+
+Der Fehler, der eine Karte unsichtbar machte, war ein Denkfehler über Zeit, nicht über Code:
+`intakeWeek` läuft sieben Tage **rückwärts**, die Wochenplanung läuft von Montag **vorwärts**. Ich
+habe den Streifen nach künftigen Tagen gefiltert und keine gefunden — es gibt dort per Definition
+keine. `daysAheadThisWeek` leitet sie jetzt aus dem Kalender ab, und ein Selbstcheck hält fest,
+dass jeder angebotene Tag auch einer ist, den `planAhead` annimmt. Dass zwei Funktionen dasselbe
+Wort für zwei verschiedene Zeiträume benutzen, war der eigentliche Fund.
+
+`weekBudget.daysLeft` hatte dieselbe Sorte Fehler in kleiner: es zählt offene Tage, nicht
+verbleibende. Für die Anzeige war das nie falsch aufgefallen. Für eine Umverteilung schon.
+
+**Stand:** e2e **261 Checks**.

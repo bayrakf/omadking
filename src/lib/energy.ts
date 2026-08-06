@@ -585,6 +585,137 @@ export function costOfExtra(extraKcal: number, dailyDeficitKcal: number): ExtraC
 }
 
 /**
+ * The one thing this app can do before a day rather than after it.
+ *
+ * Everything else here reads back: what you ate, what it cost, what your body
+ * turned out to need. But nobody plans a wedding retrospectively. You know
+ * Saturday will run over, and the useful answer is what the other days become
+ * if you want the week to still land — not a verdict on Sunday morning.
+ *
+ * Two answers, no recommendation. Either the week absorbs it, or it does not
+ * and the honest figure is what the evening costs. Which of those someone
+ * picks is not the app's business — the same stance `costOfExtra` already
+ * takes, and the reason it says a number instead of a warning.
+ */
+export type DayPlan = {
+  /** The exception day itself. */
+  date: string;
+  extraKcal: number;
+  /** What the other unanswered days become, or null when the week cannot take it. */
+  perDayKcal: number | null;
+  /** Days the redistribution is spread across, excluding the exception day. */
+  daysAdjusted: number;
+  /** Set only when perDayKcal is null: what the evening costs if left standing. */
+  cost: ExtraCost | null;
+  note: string;
+};
+
+/**
+ * @param bmrFloor The lowest daily figure worth naming. Same floor as
+ * `cycleWeek` uses — a plan that reads below resting expenditure is not a plan.
+ */
+export function planAhead(
+  dailyTargetKcal: number,
+  intakeLog: unknown,
+  extraKcal: number,
+  whenISO: string,
+  bmrFloor: number,
+  today: string = todayISO()
+): DayPlan | null {
+  if (!isFinite(extraKcal) || extraKcal <= 0) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(whenISO)) return null;
+
+  const budget = weekBudget(dailyTargetKcal, intakeLog, today);
+  if (!budget) return null;
+
+  // Only the days still ahead can be planned. Yesterday is a record, and a day
+  // after Sunday belongs to a week whose budget has not started.
+  const week = weekDates(today);
+  if (!week.includes(whenISO) || whenISO <= today) return null;
+
+  // Not `budget.daysLeft` — that counts every unanswered day in the week,
+  // including ones already gone. Asked on a Saturday it says seven, and only
+  // one of those can still be eaten differently. Redistribution can only touch
+  // days that are both ahead and unanswered, and never the exception day
+  // itself, which is the one absorbing.
+  const answered = new Set(
+    (Array.isArray(intakeLog) ? intakeLog : [])
+      .map((e: any) => (e && typeof e.date === 'string' ? e.date : null))
+      .filter(Boolean) as string[]
+  );
+  const adjustable = week.filter((d) => d > today && d !== whenISO && !answered.has(d));
+  const daysAdjusted = adjustable.length;
+
+  // Today and any earlier day still unanswered are eaten but not plannable, so
+  // they hold their share of the budget rather than freeing it. Assuming the
+  // target for them is the only figure that is not invented — it is what the
+  // app asked for on those days.
+  const untouchable = week.filter(
+    (d) => d <= today && !answered.has(d) && d !== whenISO
+  ).length;
+  const remaining =
+    budget.totalKcal - budget.usedKcal - Math.round(untouchable * dailyTargetKcal);
+
+  const cost = costOfExtra(extraKcal, Math.max(1, Math.round(dailyTargetKcal * 0.25)));
+
+  if (daysAdjusted <= 0) {
+    return {
+      date: whenISO, extraKcal, perDayKcal: null, daysAdjusted: 0, cost,
+      note: `${whenISO} is the last day of the week, so there is nothing left to spread it over. `
+        + (cost ? cost.note : 'It stands as it is.'),
+    };
+  }
+
+  // What the exception day itself is expected to be: the target plus the extra.
+  const exceptionKcal = Math.round(dailyTargetKcal + extraKcal);
+  const perDay = Math.round((remaining - exceptionKcal) / daysAdjusted / 10) * 10;
+
+  if (perDay < bmrFloor) {
+    return {
+      date: whenISO, extraKcal, perDayKcal: null, daysAdjusted, cost,
+      note: `Spreading that across the rest of the week would leave under ${bmrFloor} kcal a day, `
+        + `which is below what your body uses at rest. ` + (cost ? cost.note : ''),
+    };
+  }
+
+  return {
+    date: whenISO, extraKcal, perDayKcal: perDay, daysAdjusted, cost: null,
+    note: `${perDay} kcal on the other ${daysAdjusted} day${daysAdjusted === 1 ? '' : 's'} `
+      + `and the week still lands where it was going to.`,
+  };
+}
+
+/**
+ * The days left in this week that a big day could fall on.
+ *
+ * Not derived from `intakeWeek`, which looks seven days backwards — the strip
+ * and the planner disagree about which direction a week runs, and reusing one
+ * for the other produced a card that could never appear.
+ */
+export function daysAheadThisWeek(today: string = todayISO()): { date: string; label: string }[] {
+  return weekDates(today)
+    .filter((d) => d > today)
+    .map((date) => ({
+      date,
+      label: parseISO(date).toLocaleDateString(undefined, { weekday: 'narrow' }),
+    }));
+}
+
+/** The seven dates of the Monday-anchored week `today` falls in. */
+function weekDates(today: string): string[] {
+  const now = parseISO(today);
+  const start = new Date(now);
+  start.setDate(start.getDate() - ((now.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    return todayISO(d);
+  });
+}
+
+// ---------------------------------------------------------------------------
+
+/**
  * Whether the protein target was actually met, at no cost to the user.
  *
  * On one meal a day protein is the hard part — it is what falls off the plate
@@ -1140,6 +1271,80 @@ export function demo() {
   assert(costOfExtra(0, 500) === null, 'nothing extra costs nothing');
   assert(costOfExtra(500, 0) === null, 'without a deficit there is no delay to state');
   assert(costOfExtra(NaN, 500) === null, 'nonsense in, nothing out');
+
+  // --- planning an exception day -------------------------------------------
+
+  {
+    // A Monday with nothing logged yet: six days ahead of the exception.
+    const MON = '2026-08-03';
+    const SAT = '2026-08-08';
+    const empty: any[] = [];
+
+    const ok = planAhead(2000, empty, 1000, SAT, 1400, MON)!;
+    assert(ok !== null, 'a wedding on Saturday is something the week can be asked about');
+    assert(ok.perDayKcal !== null, 'and a week with room gives a figure');
+    // 14,000 budget, minus the 3,000 Saturday costs, over the five other days.
+    // Tue, Wed, Thu, Fri, Sun. Not Monday — today is being eaten, not planned —
+    // and not Saturday, which is the day absorbing.
+    assert(ok.daysAdjusted === 5, `the exception day does not also absorb: ${ok.daysAdjusted}`);
+    assert(ok.perDayKcal === 1800, `five days at 1800: ${ok.perDayKcal}`);
+    // The whole point, and the arithmetic that proves it: today at target, the
+    // exception at target plus the extra, the rest at the new figure — and the
+    // week still comes to what it was always going to come to.
+    assert(
+      Math.abs(2000 + (2000 + 1000) + ok.perDayKcal! * 5 - 14000) <= 5 * 5,
+      'and the week lands where it was going to, within rounding'
+    );
+    assert(!/should|careful|avoid|but |warning/i.test(ok.note), `stated, not preached: ${ok.note}`);
+
+    // Too big for the week: the honest answer is the cost, not a starvation figure.
+    const heavy = planAhead(2000, empty, 6000, SAT, 1400, MON)!;
+    assert(heavy.perDayKcal === null, 'a week that cannot take it says so');
+    assert(heavy.cost !== null, 'and hands over the cost instead');
+    assert(/1400/.test(heavy.note), 'naming the floor it would have broken');
+    assert(/pushed back/.test(heavy.note), 'with what the evening actually costs');
+
+    // The floor is the floor. No figure below it is ever returned.
+    for (let extra = 500; extra <= 8000; extra += 250) {
+      const r = planAhead(2000, empty, extra, SAT, 1400, MON);
+      assert(r === null || r.perDayKcal === null || r.perDayKcal >= 1400,
+        `no plan reads below resting expenditure (extra ${extra})`);
+    }
+
+    // Days that cannot be planned.
+    assert(planAhead(2000, empty, 1000, MON, 1400, MON) === null, 'today is not a plan, it is now');
+    assert(planAhead(2000, empty, 1000, '2026-08-02', 1400, MON) === null, 'yesterday is a record');
+    assert(planAhead(2000, empty, 1000, '2026-08-11', 1400, MON) === null, 'next week has its own budget');
+    assert(planAhead(2000, empty, 0, SAT, 1400, MON) === null, 'nothing extra is nothing to plan');
+    assert(planAhead(2000, empty, 1000, 'saturday', 1400, MON) === null, 'a date has to be a date');
+
+    // Days already answered are spent, not available to squeeze.
+    const logged = [
+      { date: '2026-08-03', factor: 1, target_kcal: 2000 },
+      { date: '2026-08-04', factor: 1.3, target_kcal: 2000 },
+    ];
+    const after = planAhead(2000, logged, 1000, SAT, 1400, '2026-08-05')!;
+    // Thu, Fri, Sun — Monday and Tuesday are answered, Wednesday is today.
+    assert(after.daysAdjusted === 3, `only unanswered days absorb: ${after.daysAdjusted}`);
+    assert(after.perDayKcal! < ok.perDayKcal!, 'and a week already run over leaves less, not more');
+
+    // The days offered are exactly the days planAhead will accept.
+    for (const anchor of ['2026-08-03', '2026-08-05', '2026-08-08', '2026-08-09']) {
+      const ahead = daysAheadThisWeek(anchor);
+      assert(ahead.every((d) => d.date > anchor), `nothing offered is in the past (${anchor})`);
+      for (const d of ahead) {
+        assert(planAhead(2000, empty, 1000, d.date, 1400, anchor) !== null,
+          `every offered day can actually be planned (${anchor} → ${d.date})`);
+      }
+    }
+    assert(daysAheadThisWeek('2026-08-03').length === 6, 'a Monday has six days ahead of it');
+    assert(daysAheadThisWeek('2026-08-09').length === 0, 'and a Sunday has none');
+
+    // Sunday has nothing after it.
+    const sunday = planAhead(2000, empty, 1000, '2026-08-09', 1400, '2026-08-08')!;
+    assert(sunday.perDayKcal === null, 'the last day of the week cannot be spread');
+    assert(/nothing left to spread/.test(sunday.note), 'and says why rather than returning nothing');
+  }
 
   // --- protein, for free ---------------------------------------------------
 

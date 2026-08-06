@@ -25,13 +25,15 @@ export type Gate =
   | 'progress_pattern'
   /** `isPremium()` read before the training/rest split is shown. */
   | 'progress_cycle'
+  /** `isPremium()` read before the redistributed figure for a planned big day. */
+  | 'week_ahead'
   /** `getQuota()` / `consumeQuota()` in the planner. */
   | 'plan_quota';
 
 /** Every gate the app can enforce. Kept next to the type so it can be iterated. */
 export const ALL_GATES: Gate[] = [
   'progress_measured', 'progress_forecast', 'progress_months',
-  'progress_pattern', 'progress_cycle', 'plan_quota',
+  'progress_pattern', 'progress_cycle', 'week_ahead', 'plan_quota',
 ];
 
 export type Claim = {
@@ -77,6 +79,12 @@ export const PREMIUM_CLAIMS: Claim[] = [
     body: 'The same weekly total, split so training days carry more and rest days less. Never below '
       + 'what your body needs at rest.',
     gate: 'progress_cycle',
+  },
+  {
+    title: 'Plan the big day before it happens',
+    body: 'Say roughly how far next Saturday will run over, and see what the other days become so '
+      + 'the week still lands where it was going — or that it cannot, and what the evening costs.',
+    gate: 'week_ahead',
   },
   {
     title: 'Unlimited plans',
@@ -138,6 +146,7 @@ export const SELL_GATE: Record<string, Gate> = {
   outlook: 'progress_forecast',
   pattern: 'progress_pattern',
   cycle: 'progress_cycle',
+  ahead: 'week_ahead',
 };
 
 /** The distinct gates the offer relies on — what the screens must actually read. */

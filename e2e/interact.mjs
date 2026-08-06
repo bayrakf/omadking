@@ -445,7 +445,7 @@ export default async function run() {
         // loosely — a pattern that silently stops matching would make this
         // check pass by finding nothing, which is the failure it exists for.
         n += await page.getByText(
-          /^(See what it measured|Compare the months|See which day|See the split|See where this leads)$/
+          /^(See what it measured|Compare the months|See which day|See the split|See where this leads|Plan the day)$/
         ).count();
       }
       return n;
@@ -467,6 +467,73 @@ export default async function run() {
       const n = await countBuys(page);
       check(n === 0, 'and someone who already paid is never asked again', String(n));
       await context.close();
+    }
+  }
+
+  // ---------------------------------------------------------- THE BIG DAY
+  section('A big day can be planned before it happens');
+  {
+    // Everything else on this screen reads backwards. Nobody plans a wedding
+    // retrospectively, so this is the one card that answers a question about a
+    // day that has not happened.
+    const label = (d) => d.toLocaleDateString(undefined, { weekday: 'narrow' });
+    const tomorrow = new Date(Date.now() + 86400000);
+    const tomorrowISO = tomorrow.toISOString().slice(0, 10);
+    // Sunday has nothing after it, so there is no day to plan against.
+    const skip = new Date().getDay() === 0 || new Date().getDay() === 6;
+
+    if (!skip) {
+      {
+        const { context, page } = await newPage(browser, { ...SEED, user_premium: 'true' });
+        await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1800);
+        await page.getByLabel('This week').click();
+        await page.waitForTimeout(600);
+
+        const t0 = await body(page);
+        check(has(t0, 'A big day coming up'), 'the card is there');
+        // Nothing is claimed before a day is picked.
+        check(!/kcal on the other days/.test(t0), 'and says nothing until a day is chosen');
+
+        await page.getByLabel(`Big day on ${tomorrowISO}`).click();
+        await page.waitForTimeout(600);
+        const t1 = await body(page);
+        check(/\d{3,4} kcal on the other days/.test(t1), 'picking a day produces a figure',
+          t1.match(/\d{3,4} kcal on the other days/)?.[0] ?? '');
+        const first = Number(t1.match(/(\d{3,4}) kcal on the other days/)?.[1] ?? 0);
+
+        await page.getByLabel('About 2000 kcal over').click();
+        await page.waitForTimeout(600);
+        const t2 = await body(page);
+        const second = Number(t2.match(/(\d{3,4}) kcal on the other days/)?.[1] ?? 0);
+        // The whole claim of the card: a bigger evening leaves less, and by a
+        // figure that moves rather than a sentence that is always the same.
+        check(second === 0 || second < first, 'a bigger day leaves less for the rest',
+          `${first} → ${second}`);
+        check(!/should|careful|avoid|warning/i.test(t2), 'and never tells anyone off');
+
+        // Tapping the day again puts the card back to saying nothing.
+        await page.getByLabel(`Big day on ${tomorrowISO}`).click();
+        await page.waitForTimeout(500);
+        check(!/kcal on the other days/.test(await body(page)), 'unpicking the day withdraws the claim');
+        await context.close();
+      }
+
+      {
+        const { context, page } = await newPage(browser, SEED);
+        await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1800);
+        await page.getByLabel('This week').click();
+        await page.waitForTimeout(600);
+        await page.getByLabel(`Big day on ${tomorrowISO}`).click();
+        await page.waitForTimeout(600);
+        const t = await body(page);
+        check(has(t, 'A big day coming up'), 'free users see the card exists');
+        check(!/kcal on the other days/.test(t), 'but never the redistributed figure');
+        await context.close();
+      }
+    } else {
+      check(true, 'skipped near the end of the week — there is no day left to plan');
     }
   }
 

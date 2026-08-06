@@ -998,3 +998,33 @@ Jetzt im Segment *Diese Woche*, mit `nextIntakeFactor`: Plan → weniger → meh
 Streifen nur Antworten erfinden, die niemand gegeben hat.
 
 **Erledigt** 2026-08-06 — 253 Checks.
+
+---
+
+## 39. Der Ausnahmetag — vorher statt hinterher
+
+Die App las bisher ausschließlich zurück: was du gegessen hast, was es gekostet hat, was dein
+Körper wirklich braucht. Niemand plant eine Hochzeit rückwirkend. Du weißt am Montag, dass Samstag
+drüber läuft, und die brauchbare Antwort ist, was die anderen Tage dann werden — kein Urteil am
+Sonntagmorgen.
+
+`planAhead` in `src/lib/energy.ts`, rein, mit `demo()`. Zwei Antworten, keine Empfehlung: entweder
+die Woche trägt es, oder sie trägt es nicht und die ehrliche Zahl ist, was der Abend kostet
+(`costOfExtra`, das damit endlich einen Bildschirm erreicht). **Nie unter dem Grundumsatz** —
+dieselbe Grenze wie `cycleWeek`, geprüft über die gesamte Bandbreite von +500 bis +8000 kcal.
+
+Zwei Dinge, die die Selbstchecks gefunden haben, bevor es UI gab:
+
+- `weekBudget.daysLeft` zählt **jeden** unbeantworteten Tag der Woche, auch vergangene. Am Samstag
+  gefragt sagt es sieben, und genau einer davon lässt sich noch anders essen. Umverteilt wird jetzt
+  nur auf Tage, die vor einem liegen und offen sind.
+- Heute und vergangene offene Tage werden trotzdem gegessen, halten also ihren Anteil am Budget,
+  statt ihn freizugeben. Das Ziel für sie anzunehmen ist die einzige Zahl, die nicht erfunden ist —
+  es ist, was die App an diesen Tagen verlangt hat.
+
+Grobe Beträge (+500 / +1000 / +2000), kein Zahlenfeld: die Antwort ist ohnehin eine Schätzung, und
+eine Nachkommastelle verspricht eine Genauigkeit, die es nicht gibt.
+
+**Premium.** Nachrechnen im Nachhinein bleibt kostenlos, Umplanen vorher ist die Leistung.
+
+**Erledigt** 2026-08-06 — 261 Checks.

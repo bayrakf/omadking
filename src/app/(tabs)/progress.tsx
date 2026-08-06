@@ -10,7 +10,7 @@ import { Icon } from '@/components/icons';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
-  proteinAdherence, cycleWeek, trainingDaysPerWeek, monthlyComparison,
+  proteinAdherence, cycleWeek, trainingDaysPerWeek, monthlyComparison, planAhead, daysAheadThisWeek,
   type Measurement, type Forecast, type WeekdayPattern, type WeekBudget, type ProteinAdherence,
   type WeekCycle, type MonthlyComparison,
 } from '@/lib/energy';
@@ -90,6 +90,12 @@ export default function ProgressScreen() {
   const [eaten, setEaten] = useState<IntakeDay[]>([]);
   /** The day's target, needed to record a correction against the right one. */
   const [dayKcal, setDayKcal] = useState(0);
+  /** The exception being planned: a day ahead, and roughly how much over. */
+  const [bigDay, setBigDay] = useState<string | null>(null);
+  const [bigExtra, setBigExtra] = useState(1000);
+  const [floor, setFloor] = useState(0);
+  /** Kept so the exception day can be recomputed without another read. */
+  const [intake, setIntake] = useState<unknown[]>([]);
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -150,7 +156,9 @@ export default function ProgressScreen() {
         setSteady({ ...consistency(fasts, 30), streak: currentStreak(fasts) });
         setBudget(weekBudget(est.kcal, intake));
         setEaten(intakeWeek(intake));
+        setIntake(intake);
         setDayKcal(est.kcal);
+        setFloor(bmr(p));
 
         // One instruction, chosen from everything the app now knows.
         const spell = deficitSpell(intake, log, p.goal);
@@ -260,7 +268,13 @@ export default function ProgressScreen() {
     hasMonths: !!months,
     hasPattern: !!pattern?.worst,
     hasCycle: !!cycle,
+    hasAhead: daysAheadThisWeek().length > 0,
   });
+
+  // From the calendar week, not from the intake strip — that one runs seven
+  // days backwards, so filtering it for future days finds nothing at all.
+  const aheadDays = daysAheadThisWeek();
+  const bigPlan = bigDay ? planAhead(dayKcal, intake, bigExtra, bigDay, floor) : null;
 
   return (
     <Screen>
@@ -366,6 +380,111 @@ export default function ProgressScreen() {
               color={budget.perDayLeft < 0 ? c.ember : c.accent}
             />
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{budget.note}</Txt>
+          </Card>
+        </Enter>
+      )}
+
+      {/* The only thing this screen does before a day rather than after it.
+          Everything else reads back, but nobody plans a wedding
+          retrospectively — you know Saturday will run over, and the useful
+          answer is what the other days become, not a verdict on Sunday.
+          Rough amounts, not a number field: the answer is an estimate either
+          way, and a decimal point would promise a precision it does not have. */}
+      {aheadDays.length > 0 && budget && (
+        <Enter index={2}>
+          <Card style={{ marginBottom: Space.base }}>
+            <Eyebrow>A big day coming up</Eyebrow>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+              Pick the day and roughly how far over it will run.
+            </Txt>
+
+            <View style={s.segments as any}>
+              {aheadDays.map((d) => (
+                <Tap
+                  key={d.date}
+                  onPress={() => setBigDay(bigDay === d.date ? null : d.date)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: bigDay === d.date }}
+                  accessibilityLabel={`Big day on ${d.date}`}
+                  style={s.segmentCell}
+                >
+                  <View
+                    style={[
+                      s.segment,
+                      {
+                        borderColor: bigDay === d.date ? c.accent : c.line,
+                        backgroundColor: bigDay === d.date ? c.accent : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Txt variant="small" color={bigDay === d.date ? c.onAccent : c.textDim}>{d.label}</Txt>
+                  </View>
+                </Tap>
+              ))}
+            </View>
+
+            {bigDay && (
+              <View style={s.segments as any}>
+                {[500, 1000, 2000].map((x) => (
+                  <Tap
+                    key={x}
+                    onPress={() => setBigExtra(x)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: bigExtra === x }}
+                    accessibilityLabel={`About ${x} kcal over`}
+                    style={s.segmentCell}
+                  >
+                    <View
+                      style={[
+                        s.segment,
+                        {
+                          borderColor: bigExtra === x ? c.accent : c.line,
+                          backgroundColor: bigExtra === x ? c.accent : 'transparent',
+                        },
+                      ]}
+                    >
+                      <Txt variant="small" color={bigExtra === x ? c.onAccent : c.textDim}>+{x}</Txt>
+                    </View>
+                  </Tap>
+                ))}
+              </View>
+            )}
+
+            {bigDay && (
+              premium ? (
+                bigPlan ? (
+                  <>
+                    {bigPlan.perDayKcal !== null && (
+                      <Txt variant="heading" style={{ marginTop: Space.md }}>
+                        {bigPlan.perDayKcal}
+                        <Txt variant="small" color={c.textFaint}> kcal on the other days</Txt>
+                      </Txt>
+                    )}
+                    <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                      {bigPlan.note}
+                    </Txt>
+                  </>
+                ) : (
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                    That day is outside the week this budget covers.
+                  </Txt>
+                )
+              ) : (
+                <>
+                  <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                    Premium works out what the other days become so the week still lands where it was
+                    going to — or tells you plainly that it cannot, and what the evening costs instead.
+                  </Txt>
+                  {cards.sell === 'ahead' && (
+                    <Button
+                      label="Plan the day"
+                      onPress={() => router.push('/paywall')}
+                      style={{ marginTop: Space.md }}
+                    />
+                  )}
+                </>
+              )
+            )}
           </Card>
         </Enter>
       )}
