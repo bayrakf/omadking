@@ -65,9 +65,9 @@ export const DATA_FLOWS: DataFlow[] = [
   },
   {
     id: 'coach',
-    what: 'Deine Frage an den Coach, die letzten Gesprächszüge, dazu Gewicht, Ziel, Trainingsniveau, Essfenster und Trainingszeit',
+    what: 'Deine Frage an den Coach, die letzten Gesprächszüge, dazu Gewicht, Ziel, Trainingsniveau, Essfenster und Trainingszeit — bei aktivem Premium zusätzlich die auf dem Gerät berechneten Kennzahlen: gemessener Erhaltungsbedarf, Gewichtstrend, Plateau-Dauer, Anzahl beantworteter Tage und dein Wochentagsmuster',
     where: 'Supabase (EU) → Google Gemini (USA)',
-    why: 'Damit der Coach mit deinen Zahlen antworten kann statt mit allgemeinen Bereichen. Ohne diese Angaben wäre die Antwort deutlich schlechter.',
+    why: 'Damit der Coach mit deinen Zahlen antworten kann statt mit allgemeinen Bereichen. Übermittelt werden nur die abgeleiteten Kennzahlen, nie die Protokolle, aus denen sie stammen.',
     howLong: 'Nicht vom Betreiber gespeichert. Die Aufbewahrung bei Google richtet sich nach dessen Bedingungen.',
   },
   {

@@ -7,8 +7,13 @@ import { useRouter } from 'expo-router';
 import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Tap, Markdown, useTheme, useReducedMotion } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { askCoach, conversationOf, type ChatTurn, type MealPlan } from '@/lib/ai';
-import { loadProfile, loadLastPlan, loadChat, saveChat, clearChat, todayISO } from '@/lib/store';
+import { askCoach, conversationOf, type ChatTurn, type MealPlan, type CoachState } from '@/lib/ai';
+import {
+  loadProfile, loadLastPlan, loadChat, saveChat, clearChat,
+  loadIntakeLog, loadWeightLog, isPremium, todayISO,
+} from '@/lib/store';
+import { dailyTargets } from '@/lib/nutrition';
+import { measuredMaintenance, readTrend, readPlateau, weekdayPattern } from '@/lib/energy';
 import type { UserProfile } from '@/lib/nutrition';
 
 type Message = { id: string; sender: 'user' | 'ai'; text: string; failed?: boolean };
@@ -69,11 +74,35 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [plan, setPlan] = useState<MealPlan | null>(null);
+  const [state, setState] = useState<CoachState | null>(null);
   const [restored, setRestored] = useState(false);
 
   useEffect(() => {
     loadProfile().then(setProfile);
     loadLastPlan<MealPlan>().then((p) => setPlan(p?.date === todayISO() ? p : null));
+
+    // What the app knows about this person, so the coach stops answering with
+    // ranges when it could answer with their numbers.
+    (async () => {
+      const [prof, intake, weights, prem] = await Promise.all([
+        loadProfile(), loadIntakeLog(), loadWeightLog(), isPremium(),
+      ]);
+      if (!prof || !prem) return;
+      const est = dailyTargets(prof, null);
+      const m = measuredMaintenance(intake, weights, est.maintenance_kcal);
+      const t = readTrend(weights);
+      const stall = readPlateau(intake, weights, prof.goal, 500);
+      const pat = weekdayPattern(intake);
+      setState({
+        measured_maintenance_kcal: m.kcal,
+        formula_was_off_by_kcal: m.deltaToEstimate,
+        trend_kg_per_week: t.kgPerWeek,
+        trend_state: t.state,
+        plateau_days: stall.stalled ? stall.days : null,
+        answered_days: m.intakeDays,
+        weekday_pattern: pat.worst ? pat.note : null,
+      });
+    })();
     // The greeting stays at the top; restored messages follow it.
     loadChat().then((stored) => {
       if (stored.length) setMessages([GREETING, ...stored]);
@@ -98,7 +127,7 @@ export default function ChatScreen() {
     toBottom();
 
     try {
-      const reply = await askCoach(trimmed, history, profile, plan);
+      const reply = await askCoach(trimmed, history, profile, plan, state);
       setMessages((p) => [...p, { id: `a${Date.now()}`, sender: 'ai', text: reply }]);
     } catch (err: any) {
       // Previously this swallowed the error and printed a canned tip, so a broken

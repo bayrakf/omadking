@@ -70,7 +70,7 @@ serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const { message, history, profile, plan } = await req.json().catch(() => ({}));
+    const { message, history, profile, plan, state } = await req.json().catch(() => ({}));
 
     // Validate at the trust boundary — this text goes straight into a paid API call.
     if (typeof message !== 'string' || !message.trim()) {
@@ -102,6 +102,15 @@ serve(async (req) => {
     // crafted profile value cannot rewrite the instructions above it.
     let systemText = BASE_PROMPT;
     if (profile) systemText += `\n\nThis athlete: ${JSON.stringify(profile).slice(0, 500)}`;
+    // What the app measured, so "why am I not losing" gets answered with this
+    // person's own figures instead of a general range.
+    if (state) {
+      systemText +=
+        `\n\nWhat the app has measured for them: ${JSON.stringify(state).slice(0, 400)}` +
+        `\nUse these figures when they are relevant. They are measurements from this athlete's own ` +
+        `log, so prefer them over typical values. A null means it has not been measured yet — say so ` +
+        `rather than filling the gap with an average.`;
+    }
     if (plan) {
       systemText +=
         `\n\nToday's plan (already calculated for them — treat these numbers as fixed): ` +

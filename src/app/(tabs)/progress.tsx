@@ -9,8 +9,8 @@ import {
 import { Icon } from '@/components/icons';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, type UserProfile } from '@/lib/nutrition';
 import {
-  measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend,
-  type Measurement, type Forecast,
+  measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
+  type Measurement, type Forecast, type WeekdayPattern, type WeekBudget,
 } from '@/lib/energy';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
@@ -85,6 +85,8 @@ export default function ProgressScreen() {
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
+  const [pattern, setPattern] = useState<WeekdayPattern | null>(null);
+  const [budget, setBudget] = useState<WeekBudget | null>(null);
   const [premium, setPremium] = useState(false);
   const [fasts, setFasts] = useState<string[]>([]);
 
@@ -126,6 +128,9 @@ export default function ProgressScreen() {
             ? forecast(p, p.weight_kg, targetWeight(p, start), m.kcal ?? est.maintenance_kcal, est.kcal)
             : null
         );
+
+        setPattern(weekdayPattern(intake));
+        setBudget(weekBudget(est.kcal, intake));
 
         // One instruction, chosen from everything the app now knows.
         const spell = deficitSpell(intake, log, p.goal);
@@ -243,6 +248,49 @@ export default function ProgressScreen() {
                 : 'Premium works the change out from your own numbers.'}
             </Txt>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{decision.why}</Txt>
+          </Card>
+        </Enter>
+      )}
+
+      {/* The week as a budget, not seven verdicts. Free: it is arithmetic on a
+          target the user already has, and gating it would take away something
+          they could do on paper. */}
+      {budget && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <View style={s.split}>
+              <Eyebrow>This week's budget</Eyebrow>
+              <Txt variant="data" color={budget.perDayLeft < 0 ? c.ember : c.textFaint}>
+                {budget.daysLeft > 0 ? `${budget.daysLeft} days left` : 'week done'}
+              </Txt>
+            </View>
+            <Bar
+              pct={Math.min(100, (budget.usedKcal / Math.max(1, budget.totalKcal)) * 100)}
+              color={budget.perDayLeft < 0 ? c.ember : c.accent}
+            />
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{budget.note}</Txt>
+          </Card>
+        </Enter>
+      )}
+
+      {/* What everybody half knows about themselves, turned into a number. */}
+      {pattern && (pattern.worst || pattern.note) && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <Eyebrow>Your pattern</Eyebrow>
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+              {premium || !pattern.worst
+                ? pattern.note
+                : 'Your days are not alike — one of them runs well over the rest. Premium names it and '
+                  + 'works out what it costs across a week.'}
+            </Txt>
+            {!premium && pattern.worst && (
+              <Button
+                label="See which day"
+                onPress={() => router.push('/paywall')}
+                style={{ marginTop: Space.md }}
+              />
+            )}
           </Card>
         </Enter>
       )}

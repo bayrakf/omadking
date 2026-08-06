@@ -283,11 +283,30 @@ export function conversationOf(messages: StoredMessage[], max = CHAT_KEEP): Stor
  * Throws on failure — the caller shows the error rather than a canned tip
  * dressed up as a real answer.
  */
+/**
+ * What the app has worked out about this person, in a shape a model can use.
+ *
+ * Without it the coach answered "why am I not losing" with generalities while
+ * the answer sat on the device: a measured maintenance, a trend, a stall. Same
+ * data categories that already go out — no new field, no new recipient — but
+ * the privacy page names the wider scope, because it would otherwise be wrong.
+ */
+export type CoachState = {
+  measured_maintenance_kcal?: number | null;
+  formula_was_off_by_kcal?: number | null;
+  trend_kg_per_week?: number | null;
+  trend_state?: string;
+  plateau_days?: number | null;
+  answered_days?: number;
+  weekday_pattern?: string | null;
+};
+
 export async function askCoach(
   message: string,
   history: ChatTurn[],
   profile?: UserProfile | null,
-  plan?: MealPlan | null
+  plan?: MealPlan | null,
+  state?: CoachState | null
 ): Promise<string> {
   if (!SUPABASE_URL) throw new Error('Coach is not configured.');
 
@@ -323,6 +342,9 @@ export async function askCoach(
           meal: plan.recipe.title,
         }
       : null,
+    // Only the derived figures, never the logs they came from: the coach needs
+    // to know the trend is -0.4, not every weigh-in that produced it.
+    state: state ?? null,
   }, TIMEOUT_CHAT_MS);
 
   if (!res.ok) {

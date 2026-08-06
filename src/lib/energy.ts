@@ -407,6 +407,183 @@ export function deficitSpell(
   };
 }
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
+ * Which days you hold the plan, and which you do not.
+ *
+ * Everybody knows the weekend is harder. Nobody knows what it costs. Turning a
+ * moral feeling into a weekly kilocalorie figure is the whole value here — it
+ * is the difference between "I was bad on Saturday" and "Saturdays run me
+ * 1,900 kcal a week, which is a quarter of my deficit".
+ *
+ * Refuses to narrate noise: a day has to be a real distance from this person's
+ * own average before it gets named.
+ */
+export type WeekdayPattern = {
+  worst: { day: string; pct: number } | null;
+  best: { day: string; pct: number } | null;
+  /** Weekly deviation from plan in kcal. Positive means over. */
+  weeklyExcessKcal: number | null;
+  note: string;
+  missing: string | null;
+};
+
+/** A day has to differ from your own mean by this much before it is a pattern. */
+export const PATTERN_THRESHOLD = 0.1;
+const MIN_PER_WEEKDAY = 2;
+
+export function weekdayPattern(intakeLog: unknown, today: string = todayISO()): WeekdayPattern {
+  const none: WeekdayPattern = { worst: null, best: null, weeklyExcessKcal: null, note: '', missing: null };
+
+  const rows = (Array.isArray(intakeLog) ? intakeLog : []).filter(
+    (e: any) => e && typeof e.date === 'string' && isFinite(e.factor) && e.factor > 0 && isFinite(e.target_kcal) && e.target_kcal > 0
+  ) as IntakeEntry[];
+
+  if (rows.length < MIN_INTAKE_DAYS + 6) {
+    return { ...none, missing: `${MIN_INTAKE_DAYS + 6 - rows.length} more answered days before a weekday pattern means anything` };
+  }
+
+  const byDay = new Map<number, number[]>();
+  for (const r of rows) {
+    const dow = parseISO(r.date).getDay();
+    byDay.set(dow, [...(byDay.get(dow) ?? []), r.factor]);
+  }
+
+  const overall = rows.reduce((s, r) => s + r.factor, 0) / rows.length;
+  const meanTarget = rows.reduce((s, r) => s + r.target_kcal, 0) / rows.length;
+
+  // Only weekdays with enough observations get an opinion attached.
+  const solid = [...byDay.entries()]
+    .filter(([, fs]) => fs.length >= MIN_PER_WEEKDAY)
+    .map(([dow, fs]) => ({ dow, mean: fs.reduce((s, f) => s + f, 0) / fs.length }));
+
+  if (solid.length < 3) {
+    return { ...none, missing: 'a few more weeks so each weekday has more than one answer' };
+  }
+
+  const sorted = [...solid].sort((a, b) => b.mean - a.mean);
+  const hi = sorted[0];
+  const lo = sorted[sorted.length - 1];
+
+  const pct = (m: number) => Math.round((m - 1) * 100);
+  // The weekly figure: how far a full week drifts from the plan, in kcal.
+  const weeklyExcess = Math.round(
+    solid.reduce((s, day) => s + (day.mean - 1) * meanTarget, 0) * (7 / solid.length) / 10
+  ) * 10;
+
+  const spread = hi.mean - lo.mean;
+  if (spread < PATTERN_THRESHOLD) {
+    return {
+      ...none,
+      weeklyExcessKcal: weeklyExcess,
+      note: 'Your days look alike — no weekday stands out from the rest. That is easier to plan around than most people manage.',
+    };
+  }
+
+  const worst = { day: WEEKDAYS[hi.dow], pct: pct(hi.mean) };
+  const best = { day: WEEKDAYS[lo.dow], pct: pct(lo.mean) };
+
+  const describe = (d: { day: string; pct: number }) =>
+    d.pct === 0 ? `${d.day}s land on target` : `${d.day}s run ${Math.abs(d.pct)}% ${d.pct > 0 ? 'over' : 'under'}`;
+
+  return {
+    worst,
+    best,
+    weeklyExcessKcal: weeklyExcess,
+    note:
+      `${describe(worst)}, ${describe(best).replace(/^(\w)/, (m) => m.toLowerCase())}. `
+      + (weeklyExcess > 0
+        ? `Across a week that is about ${weeklyExcess} kcal more than planned.`
+        : weeklyExcess < 0
+          ? `Across a week that is about ${Math.abs(weeklyExcess)} kcal under plan.`
+          : 'Across a week it balances out.'),
+    missing: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * The week as a budget rather than seven separate verdicts.
+ *
+ * People eat in weeks. A blown Saturday stops being a failure and becomes a
+ * number that changes what is left — which is the difference between carrying
+ * on and giving up on a Tuesday.
+ */
+export type WeekBudget = {
+  totalKcal: number;
+  usedKcal: number;
+  daysLogged: number;
+  daysLeft: number;
+  /** What is left per remaining day. Negative when the week is already spent. */
+  perDayLeft: number;
+  note: string;
+};
+
+export function weekBudget(dailyTargetKcal: number, intakeLog: unknown, today: string = todayISO()): WeekBudget | null {
+  if (!isFinite(dailyTargetKcal) || dailyTargetKcal <= 0) return null;
+
+  const now = parseISO(today);
+  // Monday-anchored, matching the quota window used elsewhere in the app.
+  const dowMon = (now.getDay() + 6) % 7;
+  const start = new Date(now);
+  start.setDate(start.getDate() - dowMon);
+  const startISO = todayISO(start);
+
+  const rows = (Array.isArray(intakeLog) ? intakeLog : []).filter(
+    (e: any) => e && typeof e.date === 'string' && e.date >= startISO && e.date <= today
+      && isFinite(e.factor) && isFinite(e.target_kcal)
+  ) as IntakeEntry[];
+
+  const total = Math.round(dailyTargetKcal * 7);
+  const used = Math.round(rows.reduce((s, r) => s + r.factor * r.target_kcal, 0));
+  const daysLogged = rows.length;
+  // Today counts as remaining until it has been answered.
+  const daysLeft = Math.max(0, 7 - daysLogged);
+  const perDayLeft = daysLeft > 0 ? Math.round((total - used) / daysLeft / 10) * 10 : total - used;
+
+  let note: string;
+  if (daysLeft === 0) {
+    note = used <= total
+      ? `The week came in ${total - used} kcal under budget.`
+      : `The week ran ${used - total} kcal over. Next week starts fresh.`;
+  } else if (perDayLeft < 0) {
+    note = `The week's budget is already spent. Nothing to make up — next week starts fresh.`;
+  } else {
+    note = `${used} of ${total} kcal used in ${daysLogged} day${daysLogged === 1 ? '' : 's'}. `
+      + `That leaves ${perDayLeft} a day for the remaining ${daysLeft}.`;
+  }
+
+  return { totalKcal: total, usedKcal: used, daysLogged, daysLeft, perDayLeft, note };
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * What one bigger evening actually costs, before deciding.
+ *
+ * Deliberately not a warning. The number sits there and the choice stays with
+ * the person — an app that tells someone off gets deleted, and the honest
+ * figure is more persuasive than any nudge.
+ */
+export type ExtraCost = { kg: number; deficitDays: number; note: string };
+
+export function costOfExtra(extraKcal: number, dailyDeficitKcal: number): ExtraCost | null {
+  if (!isFinite(extraKcal) || extraKcal <= 0) return null;
+  if (!isFinite(dailyDeficitKcal) || dailyDeficitKcal <= 0) return null;
+
+  const kg = Math.round((extraKcal / KCAL_PER_KG) * 100) / 100;
+  const days = Math.round((extraKcal / dailyDeficitKcal) * 10) / 10;
+
+  return {
+    kg,
+    deficitDays: days,
+    note: `${Math.round(extraKcal)} kcal on top is about ${days} day${days === 1 ? '' : 's'} of your deficit — `
+      + `roughly ${kg} kg of progress, pushed back by that much.`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 
 export type TrendRead = {
@@ -693,6 +870,85 @@ export function demo() {
     assert(!/cure|prevent|detox|proven|guarantee/i.test(note), 'no health claim in a forecast');
     assert(!/\bstudies\b|%/.test(note), 'no invented statistic in a forecast');
   }
+
+  // --- the weekday pattern -------------------------------------------------
+
+  // Four weeks, Saturdays 30% over, everything else on plan.
+  const withSaturdays = Array.from({ length: 28 }, (_, i) => {
+    const date = day(27 - i);
+    const isSat = parseISO(date).getDay() === 6;
+    return { date, factor: isSat ? 1.3 : 1, target_kcal: 2000 };
+  });
+  const pat = weekdayPattern(withSaturdays, TODAY);
+  assert(pat.worst?.day === 'Saturday', `the loud day is found: ${JSON.stringify(pat.worst)}`);
+  assert(pat.worst!.pct === 30, `with its size: ${pat.worst!.pct}`);
+  assert(pat.weeklyExcessKcal! > 400, `and the weekly cost is stated: ${pat.weeklyExcessKcal}`);
+  assert(/Saturdays run 30% over/.test(pat.note), `named in the note: ${pat.note}`);
+  assert(pat.missing === null, 'nothing is missing once there is enough');
+
+  // Even days must not be turned into a story.
+  const even = Array.from({ length: 28 }, (_, i) => ({ date: day(27 - i), factor: 1, target_kcal: 2000 }));
+  const flatPat = weekdayPattern(even, TODAY);
+  assert(flatPat.worst === null, 'an even week produces no villain');
+  assert(/look alike/.test(flatPat.note), `and says so plainly: ${flatPat.note}`);
+
+  // Too little, and it says what is missing rather than guessing.
+  assert(weekdayPattern(withSaturdays.slice(0, 5), TODAY).worst === null, 'five days is not a pattern');
+  assert(weekdayPattern(withSaturdays.slice(0, 5), TODAY).missing !== null, 'and it asks for more');
+  assert(weekdayPattern([], TODAY).missing !== null, 'nothing logged, nothing claimed');
+  assert(weekdayPattern(null, TODAY).worst === null, 'null does not throw');
+
+  for (const n of [pat.note, flatPat.note]) {
+    assert(!/should|must|cure|prevent|detox|proven/i.test(n), `no scolding or health claim: ${n}`);
+    assert(!/\bstudies\b/i.test(n), 'no invented research');
+  }
+
+  // --- the weekly budget ---------------------------------------------------
+
+  const monday = '2026-08-17';   // a Monday
+  const thursday = '2026-08-20';
+  const fourDays = [0, 1, 2, 3].map((i) => {
+    const dt = parseISO(monday); dt.setDate(dt.getDate() + i);
+    return { date: todayISO(dt), factor: i === 2 ? 1.6 : 1, target_kcal: 1850 };
+  });
+
+  const wb = weekBudget(1850, fourDays, thursday)!;
+  assert(wb.totalKcal === 12950, `the week is seven days of target: ${wb.totalKcal}`);
+  assert(wb.daysLogged === 4, `four days counted: ${wb.daysLogged}`);
+  assert(wb.daysLeft === 3, `three left: ${wb.daysLeft}`);
+  assert(wb.perDayLeft > 0 && wb.perDayLeft < 1850, `and the rest is tighter: ${wb.perDayLeft}`);
+  assert(/of 12950 kcal used/.test(wb.note), `the note carries the arithmetic: ${wb.note}`);
+
+  // A blown week is stated, not clamped to zero and hidden.
+  const blown = [0, 1, 2, 3].map((i) => {
+    const dt = parseISO(monday); dt.setDate(dt.getDate() + i);
+    return { date: todayISO(dt), factor: 2.5, target_kcal: 1850 };
+  });
+  const over = weekBudget(1850, blown, thursday)!;
+  assert(over.perDayLeft < 0, `an overspent week shows a negative remainder: ${over.perDayLeft}`);
+  assert(/already spent/.test(over.note), 'and says so without a lecture');
+  assert(!/should|failed|bad/i.test(over.note), `no blame: ${over.note}`);
+
+  assert(weekBudget(1850, [], monday)!.daysLeft === 7, 'an untouched week has seven days left');
+  assert(weekBudget(0, fourDays, thursday) === null, 'no target, no budget');
+  assert(weekBudget(1850, null, thursday)!.usedKcal === 0, 'a missing log means nothing used');
+  // Last week's entries must not count against this week.
+  const lastWeek = [{ date: '2026-08-10', factor: 3, target_kcal: 1850 }];
+  assert(weekBudget(1850, lastWeek, thursday)!.usedKcal === 0, 'earlier weeks are out of scope');
+
+  // --- what one evening costs ----------------------------------------------
+
+  const cost = costOfExtra(770, 500)!;
+  assert(cost.kg === 0.1, `770 kcal is a tenth of a kilo: ${cost.kg}`);
+  assert(cost.deficitDays === 1.5, `and one and a half days of deficit: ${cost.deficitDays}`);
+  assert(/pushed back/.test(cost.note), 'stated as a delay, not a verdict');
+  assert(!/should|shouldn|avoid|careful/i.test(cost.note), `and without a warning: ${cost.note}`);
+  // Consistent with the constant the rest of the module uses.
+  assert(Math.abs(costOfExtra(KCAL_PER_KG, 500)!.kg - 1) < 0.001, 'a kilogram is a kilogram');
+
+  assert(costOfExtra(0, 500) === null, 'nothing extra costs nothing');
+  assert(costOfExtra(500, 0) === null, 'without a deficit there is no delay to state');
+  assert(costOfExtra(NaN, 500) === null, 'nonsense in, nothing out');
 
   // --- reading the trend ---------------------------------------------------
 

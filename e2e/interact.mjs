@@ -265,6 +265,49 @@ export default async function run() {
     await context.close();
   }
 
+  // --------------------------------------------------- PATTERN AND BUDGET
+  section('Pattern and weekly budget');
+  {
+    const day = (back) => {
+      const dt = new Date();
+      dt.setDate(dt.getDate() - back);
+      return dt.toISOString().slice(0, 10);
+    };
+    // Four weeks where Saturdays run 30% over and nothing else does.
+    const intake = Array.from({ length: 28 }, (_, i) => {
+      const date = day(27 - i);
+      const sat = new Date(date + 'T12:00:00Z').getUTCDay() === 6;
+      return { date, factor: sat ? 1.3 : 1, target_kcal: 2000 };
+    });
+    const seed = { ...SEED, intake_log: JSON.stringify(intake) };
+
+    {
+      const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Your pattern'), 'the pattern card is there');
+      check(has(t, 'Saturdays run 30% over'), 'and names the day with its size',
+        t.match(/\w+s run \d+% over/)?.[0] ?? '');
+      check(/\d+ kcal more than planned/.test(t), 'and what it costs across a week',
+        t.match(/about \d+ kcal more than planned/)?.[0] ?? '');
+      // The budget is free arithmetic and must be visible either way.
+      check(has(t, "This week's budget"), 'the weekly budget is shown');
+      await context.close();
+    }
+
+    {
+      const { context, page } = await newPage(browser, seed);
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, "This week's budget"), 'the budget stays free');
+      check(!has(t, 'Saturdays run'), 'but the day itself is not given away');
+      check(has(t, 'Premium names it'), 'and it says what unlocks it');
+      await context.close();
+    }
+  }
+
   // ------------------------------------------------------------- TYPING
   section('Typing without losing focus');
   {
