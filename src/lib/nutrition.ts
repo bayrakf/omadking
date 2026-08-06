@@ -23,6 +23,8 @@ export type UserProfile = {
   /** length of the eating window in hours (1–12) */
   omad_window_hours: number;
   default_training_time: string;
+  /** What the user is actually aiming for. Null means "use the default". */
+  target_weight_kg: number | null;
 };
 
 export type Training = {
@@ -50,6 +52,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   omad_window_start: '18:00',
   omad_window_hours: 2,
   default_training_time: '18:00',
+  target_weight_kg: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -106,8 +109,44 @@ export function normalizeProfile(raw: any): UserProfile {
     omad_window_start: normTime(raw.omad_window_start, d.omad_window_start),
     omad_window_hours: Math.max(1, Math.round(windowHours)),
     default_training_time: normTime(raw.default_training_time, d.default_training_time),
+    // Null is a real value here, not a missing one: it means "no goal of my
+    // own", which targetWeight reads as "use the default". Junk means the same
+    // thing — inventing a target from a typo is worse than having none, since
+    // the forecast would then project confidently toward a number nobody chose.
+    target_weight_kg: parseTargetWeight(raw.target_weight_kg),
   };
 }
+
+function parseTargetWeight(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  // A comma is a decimal point to most of Europe, and the weigh-in fields
+  // already accept it. Dropping it here would silently turn 78,5 into 78.
+  const n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.'));
+  if (!isFinite(n)) return null;
+  return Math.min(300, Math.max(30, n));
+}
+
+/**
+ * The weight the progress bar and the forecast aim at.
+ *
+ * BMI 22 is a population midpoint, not a decision. At 183 cm it asks for
+ * 73.7 kg, which is low for anyone carrying muscle — and the forecast was
+ * projecting toward it as though the user had chosen it. So the user's own
+ * figure wins whenever they have set one.
+ *
+ * Lives here rather than in the screen because two screens were computing it
+ * inline, and a target that differs depending on which tab you are looking at
+ * is worse than a target that is merely too low.
+ */
+export function targetWeight(p: UserProfile, startWeight = p.weight_kg): number {
+  if (p.target_weight_kg != null) return round1(p.target_weight_kg);
+  const hM = p.height_cm / 100;
+  if (p.goal === 'weight_loss') return round1(22 * hM * hM);
+  if (p.goal === 'muscle_gain') return round1(startWeight + 5);
+  return round1(startWeight);
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /**
  * Named fasting protocols.
@@ -814,6 +853,30 @@ export function demo() {
 
   // Omitting it must change nothing — a dozen screens call this.
   assert(dailyTargets(prof, null, undefined).kcal === guessed.kcal, 'omitting the parameter is the old behaviour');
+
+  // --- target weight -------------------------------------------------------
+  // The old inline rule, now in one place: BMI 22 at 183 cm asks for 73.7 kg.
+  assert(targetWeight(prof) === 73.7, `the default loss target is BMI 22: ${targetWeight(prof)}`);
+  // And the point of the change: a chosen figure beats the population midpoint.
+  assert(targetWeight({ ...prof, target_weight_kg: 78 }) === 78, 'a chosen target wins');
+  // Including one the formula would call too high — it is the user's call.
+  assert(targetWeight({ ...prof, target_weight_kg: 90 }) === 90, 'even an unambitious one');
+  assert(
+    targetWeight(normalizeProfile({ ...prof, target_weight_kg: 9999 })) === 300,
+    'an absurd target is clamped, not obeyed'
+  );
+  assert(normalizeProfile({ ...prof, target_weight_kg: 'nonsense' }).target_weight_kg === null, 'junk is no target at all, not an invented one');
+  assert(normalizeProfile({ ...prof, target_weight_kg: '' }).target_weight_kg === null, 'a cleared field means unset');
+  assert(normalizeProfile({ ...prof, target_weight_kg: '78,5' }).target_weight_kg === 78.5, 'a comma is a decimal point, not a truncation');
+  assert(normalizeProfile(prof).target_weight_kg === null, 'unset stays unset rather than inventing a goal');
+
+  const gain = { ...prof, goal: 'muscle_gain' as const };
+  assert(targetWeight(gain, 80) === 85, 'muscle gain aims five kilos up from the start weight');
+  const hold = { ...prof, goal: 'performance' as const };
+  assert(targetWeight(hold, 80) === 80, 'performance holds the start weight');
+  // The bar divides by (target - start); equal values must not produce NaN
+  // upstream, so this pins the case the screen has to handle.
+  assert(targetWeight(hold, 80) - 80 === 0, 'a held target has zero span');
   for (const bad of [0, -100, NaN, Infinity, 'x' as any, null as any]) {
     assert(dailyTargets(prof, null, bad).kcal === guessed.kcal, `a nonsense measurement is ignored: ${bad}`);
   }

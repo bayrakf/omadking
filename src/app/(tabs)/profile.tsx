@@ -8,7 +8,7 @@ import {
 import { Icon } from '@/components/icons';
 import {
   bmr, dailyTargets, normalizeProfile, toMinutes, fromMinutes, PROTOCOLS, protocolForHours,
-  DEFAULT_PROFILE, type UserProfile,
+  targetWeight, DEFAULT_PROFILE, type UserProfile,
 } from '@/lib/nutrition';
 import {
   loadProfileOrDefault, saveProfile, resetOnboarding, eraseEverything, getQuota, isPremium,
@@ -23,7 +23,7 @@ import { syncNow, lastSyncedAt, deleteAccount } from '@/lib/sync';
 import { saveBackup, pickBackup } from '@/lib/backup-file';
 import type { MealPlan } from '@/lib/ai';
 
-type EditField = 'weight_kg' | 'height_cm' | 'age' | 'omad_window_start' | 'omad_window_hours' | 'default_training_time';
+type EditField = 'weight_kg' | 'height_cm' | 'age' | 'omad_window_start' | 'omad_window_hours' | 'default_training_time' | 'target_weight_kg';
 
 const CHOICES = {
   sex: [['male', 'Male'], ['female', 'Female'], ['other', 'Other']],
@@ -181,6 +181,10 @@ export default function ProfileScreen() {
 
   const Row = ({ label, field, unit }: { label: string; field: EditField; unit?: string }) => {
     const active = editing === field;
+    const raw = profile[field];
+    // An unset target is not "null": it is the app's default, shown as the
+    // figure it will actually aim at, so the row never reads as broken.
+    const shown = raw == null ? `${targetWeight(profile)} (default)` : String(raw);
     return (
       <View style={s.row}>
         <Txt variant="body" color={c.textDim}>{label}</Txt>
@@ -197,11 +201,11 @@ export default function ProfileScreen() {
           />
         ) : (
           <Tap
-            onPress={() => { setEditing(field); setDraft(String(profile[field])); }}
+            onPress={() => { setEditing(field); setDraft(raw == null ? '' : String(raw)); }}
             accessibilityLabel={`Edit ${label}`}
           >
             <View style={s.value}>
-              <Txt variant="data" color={c.text} style={s.valueText}>{String(profile[field])}{unit ?? ''}</Txt>
+              <Txt variant="data" color={c.text} style={s.valueText}>{shown}{raw == null ? '' : unit ?? ''}</Txt>
               <Icon name="edit" size={13} color={c.textFaint} />
             </View>
           </Tap>
@@ -256,6 +260,12 @@ export default function ProfileScreen() {
           <Row label="Height" field="height_cm" unit=" cm" />
           <Divider />
           <Row label="Age" field="age" />
+          <Divider />
+          <Row label="Target weight" field="target_weight_kg" unit=" kg" />
+          <Txt variant="small" color={c.textFaint} style={{ marginBottom: Space.md }}>
+            Left alone, the app aims at a healthy BMI. That is a population midpoint and often too
+            low for someone carrying muscle, so set your own and the forecast follows it.
+          </Txt>
           <Divider />
           <Choice label="Sex" field="sex" />
         </Card>
