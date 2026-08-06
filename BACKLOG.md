@@ -831,3 +831,86 @@ Rauschen, und Rauschen wird nicht mehr gelesen.
   `premiumOnly`, was gemessen ist und was nicht, und die Regel steht als Selbstcheck.
 
 **Erledigt** 2026-08-06 — 201 Checks.
+
+
+---
+
+## 36. [x] Die Bezahlschranke verkaufte drei Dinge, die es gratis gibt
+
+**Warum:** Die Paywall bewarb *session-aware macros*, *meal-prep reheat instructions* und
+*unlimited coaching*. Keines davon war irgendwo gesperrt:
+
+| Beworben | Tatsächlich |
+|---|---|
+| Session-aware macros | rechnet `nutrition.ts` auf dem Gerät, für jeden, seit dem Timing-Modul |
+| Reheat instructions | in jedem Rezept, `RecipeCard` rendert sie bedingungslos |
+| Unlimited coaching | der Coach hat **kein** Limit, weder im Client noch in der Edge Function |
+
+Echt gesperrt war nur das Plan-Kontingent. Umgekehrt standen die zwei Dinge, die wirklich hinter
+`isPremium()` liegen — die gemessene Erhaltung und die Prognose — **gar nicht** auf der Seite. Die
+Paywall argumentierte also mit der schwächsten Hälfte und stellte den Rest falsch dar.
+
+**Was:** Die Liste ist jetzt `src/lib/offer.ts`. Jede Behauptung nennt das Gate, das sie durchsetzt,
+und `overpromises()` weist jede zurück, die eine nachweislich freie Funktion nennt. Die drei alten
+Zeilen bleiben als Gegenbeispiel im Selbstcheck — der Check ist damit als *fähig zu scheitern*
+bewiesen. Dazu fünf e2e-Checks gegen das **gerenderte** UI, weil ein Bildschirm sich nicht selbst
+prüfen kann und ein Store-Eintrag aus genau diesem Text entsteht.
+
+**Ein Defekt, den der Check fand:** Ich behauptete drei Treffer für drei schlechte Zeilen, aber
+„meal-prep instructions" matcht auch „reheat" — es waren fünf. Gezählt wird jetzt nach Behauptung.
+
+Nebenbei: „There are no accounts" im Profil stimmte seit dem verschlüsselten Sync nicht mehr.
+
+**Erledigt** 2026-08-06 — 206 Checks.
+
+
+---
+
+## 37. [x] Das Zielgewicht gehört dem Nutzer
+
+**Warum:** Das Ziel war BMI 22, fest verdrahtet, nicht wählbar. Bei 183 cm sind das 73,7 kg — für
+jeden mit Muskeln zu niedrig. Und `forecast()` rechnete zuversichtlich darauf zu, als hätte es
+sich jemand ausgesucht. Ein Ziel, das niemand gewählt hat, ist kein Ziel.
+
+**Was:** `UserProfile` bekommt `target_weight_kg`, `targetWeight()` entscheidet: die Zahl des
+Nutzers, wenn es eine gibt, sonst die alte Regel — ein bestehendes Profil ändert sich also nicht.
+Die Funktion liegt in `nutrition.ts`, weil `progress.tsx` die Regel an **zwei** Stellen selbst
+rechnete; ein Ziel, das je nach Tab anders lautet, ist schlimmer als eines, das nur zu niedrig ist.
+
+Unsinn ergibt `null`, keinen Ersatzwert: aus einem Tippfehler ein Ziel zu erfinden ist hier der
+schlimmere Fehler, weil die Prognose dann auf eine Zahl zurechnet, die niemand eingegeben hat. Ein
+Komma ist ein Dezimaltrennzeichen — die Gewichtsfelder akzeptieren es längst, und dass 78,5
+stillschweigend zu 78 wird, meldet niemand.
+
+**Der Selbstcheck fand meinen Fehler:** Ich hatte das alte `normNumber`-Verhalten behauptet, das
+Körpergewicht für unlesbare Eingaben eingesetzt hätte — genau das erfundene Ziel.
+
+**Erledigt** 2026-08-06.
+
+
+---
+
+## 38. [x] Das Plateau einmal sagen, und einmal nach Geld fragen
+
+**Warum:** Progress hatte neun gestapelte Karten und in einer schlechten Woche **drei**
+Premium-Buttons gleichzeitig. Der Bildschirm sagt in seinem eigenen Kommentar, mehrere wahre
+Aussagen auf einmal seien Rauschen — und hielt sich nicht mehr daran.
+
+**Der Fund:** Die Plateau-Karte war nicht bloß redundant, sondern **unerreichbar**.
+`weeklyDecision` stellt ein Plateau über alles andere; immer wenn die Karte etwas zu sagen hatte,
+sagte es die Entscheidungskarte darüber bereits. Niemand hat je beide gesehen, und niemand konnte.
+Gelöscht — mit dem einen Detail, das ihr voraus war (wie viele Tage das Gewicht hält), hinein in
+den Satz der Entscheidung.
+
+**Was:** `progressCards()` in `review.ts` benennt die **eine** Karte, die nach Geld fragen darf; die
+Messung schlägt die Prognose, weil sie das stärkere Argument ist. Als Selbstcheck festgehalten,
+inklusive: wer bezahlt hat, wird nie wieder angesprochen. Dazu ein e2e-Check, der die Buttons auf
+dem Bildschirm **zählt** — sonst kehrt genau dieser Defekt still zurück.
+
+Außerdem drei doppelte Aufrufe aus dem Focus-Effect entfernt: `measuredMaintenance` und
+`readPlateau` liefen je zweimal mit identischen Argumenten — dieselbe Fehlerklasse, die schon
+einmal die falsche Trainingszeit in den Fenstervorschlag gebracht hat.
+
+600 statt 607 Zeilen, bei einer Karte weniger und einer Regel mehr.
+
+**Erledigt** 2026-08-06 — 215 Checks.
