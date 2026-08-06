@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Colors } from '@/constants/theme';
 import { isOnboarded } from '@/lib/store';
 import { resync } from '@/lib/notify';
+import { syncEntitlement } from '@/lib/purchases';
 import ErrorScreen from '@/components/ErrorScreen';
 
 // Surfaces real errors instead of a white screen.
@@ -67,10 +68,19 @@ export default function RootLayout() {
 
   // Plan-specific reminders are one-offs for today, so they are rebuilt each
   // time the app comes forward rather than needing a background task.
+  //
+  // The entitlement rides along for the same reason it has to be re-read at
+  // all: it was written once at purchase and never again, so a cancelled
+  // subscription kept working and one bought on another device never arrived.
+  // Both directions were wrong; only one of them was in the user's favour.
   useEffect(() => {
-    resync().catch(() => {});
+    const refresh = () => {
+      resync().catch(() => {});
+      syncEntitlement().catch(() => {});
+    };
+    refresh();
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') resync().catch(() => {});
+      if (s === 'active') refresh();
     });
     return () => sub.remove();
   }, []);

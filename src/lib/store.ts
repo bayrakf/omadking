@@ -232,6 +232,19 @@ export async function recordIntake(factor: number, targetKcal: number, date = to
   return next;
 }
 
+/**
+ * Removes a day's answer entirely.
+ *
+ * Without it the strip could only ever add: an accidental tap on an untouched
+ * day would invent an answer nobody gave, and the measured maintenance is built
+ * on exactly these entries. Same reason `unmarkFastComplete` exists.
+ */
+export async function clearIntake(date: string): Promise<IntakeEntry[]> {
+  const next = (await loadIntakeLog()).filter((r) => r.date !== date);
+  await writeJSON(KEYS.intakeLog, next);
+  return next;
+}
+
 export async function intakeFor(date = todayISO()): Promise<IntakeEntry | null> {
   return (await loadIntakeLog()).find((r) => r.date === date) ?? null;
 }

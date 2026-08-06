@@ -202,6 +202,31 @@ export function intakeWeek(intakeLog: unknown, today: string = todayISO()): Inta
 }
 
 /**
+ * The four states a day in the intake strip can hold, in tap order.
+ *
+ * `null` is part of the cycle rather than an absence: a tap on an untouched day
+ * has to be undoable, or correcting the strip could only ever add answers
+ * nobody gave — and the measured maintenance is built on these entries.
+ *
+ * The factors match the dashboard's three options exactly. Two lists that must
+ * agree and only agree by habit is how they drift apart.
+ */
+export const INTAKE_CYCLE: (number | null)[] = [null, 1, 0.75, 1.3];
+
+export function nextIntakeFactor(current: number | null): number | null {
+  const i = INTAKE_CYCLE.findIndex((f) => f === current);
+  // An unrecognised factor (an older log, a hand-edited backup) starts over
+  // rather than sticking, so a strange value can still be cleared.
+  return INTAKE_CYCLE[i === -1 ? 1 : (i + 1) % INTAKE_CYCLE.length];
+}
+
+/** What a factor says, in the dashboard's words. */
+export function intakeLabel(factor: number | null): string {
+  if (factor === null) return 'not answered';
+  return factor >= 1.2 ? 'ate more' : factor <= 0.9 ? 'ate less' : 'ate the plan';
+}
+
+/**
  * Where someone is in adapting to the schedule.
  *
  * Counted from days actually logged, not from a start date. Someone who logs
@@ -368,24 +393,44 @@ export function weeklyDecision(input: {
  *
  * Here rather than in the JSX so the rule can be asserted.
  */
+export type SellCard = 'measured' | 'months' | 'outlook' | 'pattern' | 'cycle';
+
 export type ProgressCards = {
   outlook: boolean;
   /** The single card allowed to show a paywall button, if any. */
-  sell: 'outlook' | 'measured' | null;
+  sell: SellCard | null;
 };
+
+/**
+ * Ranked as an argument, not by where the card happens to sit in the JSX. The
+ * measurement is the thing a formula cannot give anyone, so it wins whenever it
+ * exists. The month comparison comes next because it answers the question that
+ * makes people quit — why the same plate stopped working. The rest are
+ * refinements, and a refinement is a poor first pitch.
+ */
+const SELL_ORDER: SellCard[] = ['measured', 'months', 'outlook', 'pattern', 'cycle'];
 
 export function progressCards(input: {
   premium: boolean;
   hasOutlook?: boolean;
   /** True once a maintenance figure actually exists to sell. */
   hasMeasured?: boolean;
+  hasMonths?: boolean;
+  hasPattern?: boolean;
+  hasCycle?: boolean;
 }): ProgressCards {
-  const { premium, hasOutlook, hasMeasured } = input;
+  const { premium, hasOutlook, hasMeasured, hasMonths, hasPattern, hasCycle } = input;
+  const available: Record<SellCard, boolean> = {
+    measured: !!hasMeasured,
+    months: !!hasMonths,
+    outlook: !!hasOutlook,
+    pattern: !!hasPattern,
+    cycle: !!hasCycle,
+  };
   return {
     outlook: !!hasOutlook,
-    // Nothing to sell to someone who already paid. Otherwise the measurement
-    // is the stronger argument, so it wins when there is one to make.
-    sell: premium ? null : hasMeasured ? 'measured' : hasOutlook ? 'outlook' : null,
+    // Nothing to sell to someone who already paid.
+    sell: premium ? null : SELL_ORDER.find((k) => available[k]) ?? null,
   };
 }
 
@@ -623,7 +668,7 @@ export function demo() {
     assert(cards.sell === null || !c.premium, 'a paying user is never sold to again');
     // One `sell` value by construction; this pins that it is a single slot
     // rather than a set the screen can widen later.
-    assert(['outlook', 'measured', null].includes(cards.sell as any), 'the sell slot holds one card or none');
+    assert(cards.sell === null || SELL_ORDER.includes(cards.sell), 'the sell slot holds one card or none');
   }
 
   // A stall is stated once, by the decision card. The screen used to carry a
@@ -653,7 +698,54 @@ export function demo() {
     progressCards({ premium: false, hasMeasured: false, hasOutlook: true }).sell === 'outlook',
     'and the forecast carries it otherwise'
   );
+  // The strip has to be able to take an answer back, not only give one.
+  assert(nextIntakeFactor(null) === 1, 'an untouched day becomes the plan');
+  assert(nextIntakeFactor(1) === 0.75, 'then less');
+  assert(nextIntakeFactor(0.75) === 1.3, 'then more');
+  assert(nextIntakeFactor(1.3) === null, 'and then it is cleared again');
+  assert(nextIntakeFactor(0.42) === 1, 'an unknown factor rejoins the cycle rather than sticking');
+  {
+    // Four taps return a day to where it started, whatever it started as.
+    for (const start of INTAKE_CYCLE) {
+      let f = start;
+      for (let i = 0; i < INTAKE_CYCLE.length; i++) f = nextIntakeFactor(f);
+      assert(f === start, `four taps are a round trip from ${start}`);
+    }
+  }
+  assert(intakeLabel(null) === 'not answered', 'an empty day says so');
+  assert(intakeLabel(1) === 'ate the plan' && intakeLabel(0.75) === 'ate less' && intakeLabel(1.3) === 'ate more',
+    'and the labels match the dashboard');
+
   assert(progressCards({ premium: true, hasMeasured: true }).sell === null, 'nothing is sold twice');
+
+  // Every card that can ask for money goes through the one slot. Three cards
+  // were added to Progress that pushed to the paywall on their own, so a free
+  // user could see four buy buttons on one screen — the exact nagging this
+  // function exists to prevent.
+  const every = {
+    premium: false, hasMeasured: true, hasMonths: true,
+    hasOutlook: true, hasPattern: true, hasCycle: true,
+  };
+  assert(progressCards(every).sell === 'measured', 'with everything available the measurement still leads');
+  assert(progressCards({ ...every, premium: true }).sell === null, 'and a payer sees none of it');
+  assert(
+    progressCards({ ...every, hasMeasured: false }).sell === 'months',
+    'the month comparison is the next best argument'
+  );
+  assert(
+    progressCards({ premium: false, hasPattern: true, hasCycle: true }).sell === 'pattern',
+    'a refinement only sells when nothing stronger is there'
+  );
+  assert(
+    progressCards({ premium: false, hasCycle: true }).sell === 'cycle',
+    'and the cycle is last rather than absent'
+  );
+  assert(progressCards({ premium: false }).sell === null, 'nothing available means nothing sold');
+  // The ranking must cover every card, or a new one silently never sells.
+  assert(
+    SELL_ORDER.length === new Set(SELL_ORDER).size,
+    'each card appears in the ranking exactly once'
+  );
 
   return 'review.ts: all checks passed';
 }

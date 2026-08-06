@@ -80,6 +80,42 @@ try {
   }
   if (!failed) console.log('✅ no browser-only globals in cross-platform lib code');
 
+  // --- a paywalled card that the offer never names -------------------------
+  //
+  // Three cards were put behind isPremium() without a claim on the paywall, so
+  // people paid for functions nobody had told them about. offer.ts can check
+  // its own claims but cannot see the screens; this reads the screens and
+  // compares. The direction that matters is screen → offer: a card that sells
+  // must be a card that was offered.
+  const offer = await import(join(outDir, 'offer.js'));
+  const sold = new Set();
+  for (const dir of ['src/app', 'src/app/(tabs)']) {
+    for (const file of readdirSync(dir, { withFileTypes: true })) {
+      if (!file.isFile() || !file.name.endsWith('.tsx')) continue;
+      const source = readFileSync(join(dir, file.name), 'utf8');
+      for (const m of source.matchAll(/sell\s*===\s*'([a-z]+)'/g)) sold.add(m[1]);
+    }
+  }
+  const offered = new Set(offer.gatesUsed());
+  for (const card of sold) {
+    const gate = offer.SELL_GATE[card];
+    if (!gate) {
+      failed = true;
+      console.error('❌ offer — a screen sells', `'${card}'`,
+        'but SELL_GATE does not say what it unlocks.');
+    } else if (!offered.has(gate)) {
+      failed = true;
+      console.error('❌ offer — the paywall never mentions', gate,
+        `\n   but a screen asks money for the '${card}' card. Add a claim to PREMIUM_CLAIMS.`);
+    }
+  }
+  if (sold.size === 0) {
+    failed = true;
+    console.error('❌ offer — no screen reads cards.sell at all;',
+      'either the rule was removed or this check stopped matching.');
+  }
+  if (!failed) console.log(`✅ every paywalled card on screen is offered on the paywall (${sold.size})`);
+
   if (failed) process.exit(1);
   console.log('\nAll logic checks passed.');
 } finally {

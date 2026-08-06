@@ -409,6 +409,110 @@ export default async function run() {
     await context.close();
   }
 
+  // --------------------------------------------------------- ONE BUY BUTTON
+  section('Progress asks for money once');
+  {
+    // progressCards has said "one selling card" since it was written, but only
+    // two cards obeyed it. Three more were added that pushed to the paywall on
+    // their own, so a free user with plenty of data met four buy buttons on one
+    // screen. Counted across all three segments, because that is where they hid.
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    const rich = {
+      ...SEED,
+      intake_log: JSON.stringify(Array.from({ length: 40 }, (_, i) => {
+        const date = day(39 - i);
+        const sat = new Date(date + 'T12:00:00Z').getUTCDay() === 6;
+        return { date, factor: sat ? 1.3 : 1, target_kcal: 2000 };
+      })),
+      weight_log: JSON.stringify(Array.from({ length: 12 }, (_, i) => ({
+        id: `r${i}`, date: day(36 - i * 3), weight_kg: 90 - i * 0.4,
+      }))),
+      meal_history: JSON.stringify(Array.from({ length: 8 }, (_, i) => ({
+        date: day(20 - i * 2), training_start_time: '19:00', recipe: { ingredients: [] },
+      }))),
+    };
+
+    const countBuys = async (page) => {
+      let n = 0;
+      for (const seg of ['This week', 'Your body', 'History']) {
+        await page.getByLabel(seg).click();
+        await page.waitForTimeout(500);
+        // The five labels that lead to the paywall, listed rather than matched
+        // loosely — a pattern that silently stops matching would make this
+        // check pass by finding nothing, which is the failure it exists for.
+        n += await page.getByText(
+          /^(See what it measured|Compare the months|See which day|See the split|See where this leads)$/
+        ).count();
+      }
+      return n;
+    };
+
+    {
+      const { context, page } = await newPage(browser, rich);
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(2000);
+      const n = await countBuys(page);
+      check(n === 1, 'a free user is asked for money exactly once', String(n));
+      await context.close();
+    }
+
+    {
+      const { context, page } = await newPage(browser, { ...rich, user_premium: 'true' });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(2000);
+      const n = await countBuys(page);
+      check(n === 0, 'and someone who already paid is never asked again', String(n));
+      await context.close();
+    }
+  }
+
+  // ------------------------------------------------------ CORRECTING A WEEK
+  section('The intake week can be corrected');
+  {
+    const { context, page } = await newPage(browser, SEED);
+    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1800);
+    await page.getByLabel('This week').click();
+    await page.waitForTimeout(600);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const cell = page.getByLabel(new RegExp(`^${today}: `));
+    check(await cell.count() === 1, 'today has a cell in the intake strip', String(await cell.count()));
+    check(/not answered/.test(await cell.getAttribute('aria-label') ?? ''),
+      'and starts unanswered', await cell.getAttribute('aria-label'));
+
+    // Tomorrow cannot be claimed, the same rule the fast strip follows.
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    check(await page.getByLabel(new RegExp(`^${tomorrow}: `)).count() === 0,
+      'and nothing in the future is offered');
+
+    await cell.click();
+    await page.waitForTimeout(700);
+    let log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
+    check(log.length === 1 && log[0].factor === 1, 'one tap records the plan',
+      JSON.stringify(log));
+
+    await cell.click();
+    await page.waitForTimeout(700);
+    log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
+    check(log.length === 1 && log[0].factor === 0.75, 'a second replaces it rather than adding',
+      JSON.stringify(log));
+
+    // The reason null is part of the cycle: an accidental tap has to be
+    // undoable, or the strip could only ever invent answers.
+    await cell.click();
+    await page.waitForTimeout(700);
+    await cell.click();
+    await page.waitForTimeout(700);
+    log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
+    check(log.length === 0, 'and a fourth tap takes the answer back entirely', JSON.stringify(log));
+    await context.close();
+  }
+
   // ------------------------------------------------------- CORRECTING AN ANSWER
   section('The evening answer can be corrected');
   {

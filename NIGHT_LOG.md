@@ -607,3 +607,22 @@ zu sagen, in welchem Segment die Karte lebt (`bodyIn`). Vorher prüfte er, was d
 zufällig enthielt.
 
 **Stand:** e2e **245 Checks**, alle Gates grün, Bundle-Probe fünfmal 0.
+
+---
+
+## Punkt 38 — die Bestandsaufnahme drehte die Reihenfolge um
+
+Die Frage war „welche neuen Features". Die Antwort war: erst mal die erreichbar machen, die es
+schon gibt.
+
+- Ich habe letzte Runde selbst einen der vier Kaufknöpfe eingebaut, an `progressCards` vorbei —
+  einem Modul, das ausdrücklich existiert, um genau das zu verhindern. Eine Regel, die nur an zwei
+  von fünf Stellen durchgesetzt wird, ist keine Regel.
+- `intakeWeek` habe ich in Punkt 37 committet und den Commit-Text zu großzügig formuliert: nur die
+  Heute-Korrektur war live, der Sieben-Tage-Streifen nie gebaut. Steht jetzt.
+- `syncEntitlement` war seit dem Kaufmodul da und wurde nie gerufen. Das ist der einzige Fund in
+  dieser Runde, bei dem Geld in die falsche Richtung floss.
+- `gatesUsed()` las die Claims und nannte sich damit eine Prüfung. Es prüfte, dass das Angebot mit
+  sich selbst übereinstimmt. Der neue Guard liest die Bildschirme.
+
+**Stand:** e2e **253 Checks**, `npm run check` mit einem vierzehnten Modul-Guard.

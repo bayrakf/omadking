@@ -19,8 +19,20 @@ export type Gate =
   | 'progress_measured'
   /** `isPremium()` read before the forecast's answer is shown. */
   | 'progress_forecast'
+  /** `isPremium()` read before the month-against-month figures are shown. */
+  | 'progress_months'
+  /** `isPremium()` read before the worst weekday is named. */
+  | 'progress_pattern'
+  /** `isPremium()` read before the training/rest split is shown. */
+  | 'progress_cycle'
   /** `getQuota()` / `consumeQuota()` in the planner. */
   | 'plan_quota';
+
+/** Every gate the app can enforce. Kept next to the type so it can be iterated. */
+export const ALL_GATES: Gate[] = [
+  'progress_measured', 'progress_forecast', 'progress_months',
+  'progress_pattern', 'progress_cycle', 'plan_quota',
+];
 
 export type Claim = {
   title: string;
@@ -48,6 +60,23 @@ export const PREMIUM_CLAIMS: Claim[] = [
     title: 'Where this leads',
     body: 'How long the goal takes at your current intake, allowing for the rate easing as you get lighter.',
     gate: 'progress_forecast',
+  },
+  {
+    title: 'Why it got harder',
+    body: 'Month against month from your own log: what you ate, what you lost, and how far your '
+      + 'maintenance moved while you got lighter.',
+    gate: 'progress_months',
+  },
+  {
+    title: 'The day that costs you',
+    body: 'Which weekday runs over the rest, by how much, and what it adds up to across a week.',
+    gate: 'progress_pattern',
+  },
+  {
+    title: 'A week built around your training',
+    body: 'The same weekly total, split so training days carry more and rest days less. Never below '
+      + 'what your body needs at rest.',
+    gate: 'progress_cycle',
   },
   {
     title: 'Unlimited plans',
@@ -95,6 +124,22 @@ export function overpromises(claims: Claim[] = PREMIUM_CLAIMS): string[] {
   return bad;
 }
 
+/**
+ * Which gate each sellable Progress card sits behind.
+ *
+ * The card names and the gate names differ on purpose — `outlook` is the card,
+ * `progress_forecast` is the thing being withheld — so the link has to be
+ * written down somewhere. Here, because `npm run check` reads it back out of
+ * the screens and compares.
+ */
+export const SELL_GATE: Record<string, Gate> = {
+  measured: 'progress_measured',
+  months: 'progress_months',
+  outlook: 'progress_forecast',
+  pattern: 'progress_pattern',
+  cycle: 'progress_cycle',
+};
+
 /** The distinct gates the offer relies on — what the screens must actually read. */
 export function gatesUsed(claims: Claim[] = PREMIUM_CLAIMS): Gate[] {
   return [...new Set(claims.map((c) => c.gate))].sort();
@@ -124,9 +169,8 @@ export function demo() {
   assert(overpromises([]).length === 0, 'an empty offer promises nothing');
 
   // A claim with no gate is a claim nobody enforces.
-  const GATES: Gate[] = ['progress_measured', 'progress_forecast', 'plan_quota'];
   for (const c of PREMIUM_CLAIMS) {
-    assert(GATES.includes(c.gate), `${c.title} names a real gate`);
+    assert(ALL_GATES.includes(c.gate), `${c.title} names a real gate`);
     assert(c.title.length > 0 && c.body.length > 20, `${c.title} explains itself`);
   }
 
@@ -135,8 +179,24 @@ export function demo() {
   // And the quota is a lifted limit, not the pitch.
   assert(PREMIUM_CLAIMS[PREMIUM_CLAIMS.length - 1].gate === 'plan_quota', 'the cap comes last');
 
-  assert(gatesUsed().length === 3, `all three gates are used: ${gatesUsed()}`);
+  // The defect that made this check worth widening: three cards were put behind
+  // the paywall without ever being offered on it, so people paid for functions
+  // nobody had told them about. A gate the offer does not name is money taken
+  // for something unsold.
+  const unsold = ALL_GATES.filter((g) => !gatesUsed().includes(g));
+  assert(unsold.length === 0, `every gate the app enforces is also offered: ${unsold}`);
+  assert(gatesUsed().length === ALL_GATES.length, `all gates are used: ${gatesUsed()}`);
+  assert(
+    gatesUsed([{ title: 'x', body: 'x'.repeat(21), gate: 'plan_quota' }]).length === 1,
+    'and the check reads the claims rather than the constant'
+  );
   assert(new Set(PREMIUM_CLAIMS.map((c) => c.title)).size === PREMIUM_CLAIMS.length, 'no claim is made twice');
+
+  // Each sellable card resolves to a gate, and each of those gates is offered.
+  for (const [card, gate] of Object.entries(SELL_GATE)) {
+    assert(ALL_GATES.includes(gate), `${card} maps to a real gate`);
+    assert(gatesUsed().includes(gate), `${card} is a card someone can be sold`);
+  }
 
   // House wording rules: no percentages, no medical verbs, no disease terms.
   const forbidden = /\b(cure|cures|prevent|prevents|detox|proven|clinically)\b|%/i;

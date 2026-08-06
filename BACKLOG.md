@@ -967,3 +967,34 @@ es schwerer wird — ein leichterer Körper kostet weniger, dieselbe Portion ist
 **Premium**, weil die Aussage ohne Messung nicht ehrlich wäre.
 
 **Erledigt** 2026-08-06 — 245 Checks.
+
+---
+
+## 38. Was gebaut ist, aber niemand erreicht
+
+Vier Reparaturen, keine neue Funktion — und zusammen bewegen sie die Kaufrate direkter als jede
+weitere Karte.
+
+**Die Sell-Regel gilt jetzt für alle Karten.** `progressCards` sagt seit ihrer Entstehung: genau
+eine Karte darf einen Kaufknopf zeigen. Gehalten haben sich zwei; die Muster-, Zyklus- und
+Monatskarte drückten selbst zur Paywall, also sah ein Gratisnutzer mit genug Daten **vier**
+Kaufknöpfe auf einem Bildschirm — das Genörgel, das die Funktion verhindern sollte. Die Rangfolge
+ist ein Argument, keine Renderreihenfolge: Messung, dann Monatsvergleich, dann Prognose, Muster,
+Zyklus. Der erklärende Text bleibt in jeder Karte; nur der Knopf verschwindet.
+
+**Die Paywall verkaufte 4 von 7 bezahlten Fähigkeiten.** Musterkarte, Trainingszyklus und
+Monatsvergleich wurden bezahlt und nie angeboten. Drei neue Gates, drei neue Claims — und ein
+Guard in `npm run check`, der die Bildschirme liest und mit dem Angebot vergleicht. Ein Gate ohne
+Claim ist Geld für etwas, das niemandem angeboten wurde. Durch Sabotage bestätigt.
+
+**`syncEntitlement` wurde nirgends aufgerufen.** Das Abo wurde beim Kauf geschrieben und nie wieder
+gelesen: eine Kündigung blieb Premium, ein auf einem zweiten Gerät gekauftes Abo kam nie an. Beide
+Richtungen falsch, nur eine davon zugunsten des Nutzers. Hängt jetzt am selben Vordergrund-Ereignis
+wie `resync()`.
+
+**Der Zufuhr-Streifen.** `intakeWeek` war geschrieben, geprüft und erreichte keinen Bildschirm.
+Jetzt im Segment *Diese Woche*, mit `nextIntakeFactor`: Plan → weniger → mehr → gelöscht. Dass
+`null` Teil des Zyklus ist, ist der Punkt — ein Fehltipp muss zurücknehmbar sein, sonst kann der
+Streifen nur Antworten erfinden, die niemand gegeben hat.
+
+**Erledigt** 2026-08-06 — 253 Checks.

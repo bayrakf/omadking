@@ -18,11 +18,13 @@ import { consistency, currentStreak } from '@/lib/dates';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
-  loadIntakeLog, loadLastSession, isPremium, todayISO, type WeightEntry,
+  loadIntakeLog, loadLastSession, isPremium, todayISO, recordIntake, clearIntake,
+  type WeightEntry,
 } from '@/lib/store';
 import {
   weeklyReview, adaptationStage, fastWeek, weeklyDecision, progressCards,
-  type WeeklyReview, type AdaptationStage, type FastDay, type Decision,
+  intakeWeek, nextIntakeFactor, intakeLabel,
+  type WeeklyReview, type AdaptationStage, type FastDay, type Decision, type IntakeDay,
 } from '@/lib/review';
 
 /**
@@ -85,6 +87,9 @@ export default function ProgressScreen() {
   const [review, setReview] = useState<WeeklyReview | null>(null);
   const [adapt, setAdapt] = useState<AdaptationStage | null>(null);
   const [week, setWeek] = useState<FastDay[]>([]);
+  const [eaten, setEaten] = useState<IntakeDay[]>([]);
+  /** The day's target, needed to record a correction against the right one. */
+  const [dayKcal, setDayKcal] = useState(0);
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -144,6 +149,8 @@ export default function ProgressScreen() {
         setCycle(trainDays ? cycleWeek(est.kcal * 7, trainDays, bmr(p)) : null);
         setSteady({ ...consistency(fasts, 30), streak: currentStreak(fasts) });
         setBudget(weekBudget(est.kcal, intake));
+        setEaten(intakeWeek(intake));
+        setDayKcal(est.kcal);
 
         // One instruction, chosen from everything the app now knows.
         const spell = deficitSpell(intake, log, p.goal);
@@ -182,6 +189,20 @@ export default function ProgressScreen() {
     setAdapt(adaptationStage(next));
     const [cooks, plans] = await Promise.all([loadCookLog(), loadPlanHistory<{ date: string }>()]);
     setReview(weeklyReview(next, cooks, entries, plans));
+  };
+
+  /**
+   * Correcting an evening moves the measured maintenance, so everything derived
+   * from the intake log is rebuilt rather than left showing the old answer.
+   */
+  const cycleIntake = async (dayDate: string, current: number | null) => {
+    const next = nextIntakeFactor(current);
+    const log = next === null ? await clearIntake(dayDate) : await recordIntake(next, dayKcal, dayDate);
+    setEaten(intakeWeek(log));
+    setBudget(weekBudget(dayKcal, log));
+    setPattern(weekdayPattern(log));
+    setProtein(proteinAdherence(log));
+    setMonths(monthlyComparison(log, entries));
   };
 
   const save = async () => {
@@ -236,6 +257,9 @@ export default function ProgressScreen() {
     premium,
     hasOutlook: !!outlook && (outlook.weeks !== null || outlook.stallWeight !== null),
     hasMeasured: measured?.kcal != null,
+    hasMonths: !!months,
+    hasPattern: !!pattern?.worst,
+    hasCycle: !!cycle,
   });
 
   return (
@@ -345,6 +369,51 @@ export default function ProgressScreen() {
           </Card>
         </Enter>
       )}
+
+      {/* The same treatment as the fasts, and it matters more here: the measured
+          maintenance is built on these answers, so a mistap does not merely
+          look wrong, it moves the number the app tells you to eat. Tapping
+          cycles plan → less → more → clear, so an answer can also be taken
+          back rather than only replaced. */}
+      <Enter index={2}>
+        <Card style={{ marginBottom: Space.base }}>
+          <View style={s.split}>
+            <Eyebrow>Evenings this week</Eyebrow>
+            <Txt variant="data" color={c.textFaint}>tap to correct</Txt>
+          </View>
+          <View style={s.weekRow}>
+            {eaten.map((d) => (
+              <Tap
+                key={d.date}
+                onPress={d.future ? undefined : () => cycleIntake(d.date, d.factor)}
+                disabled={d.future}
+                accessibilityLabel={`${d.date}: ${intakeLabel(d.factor)}`}
+                style={s.weekCell}
+              >
+                <View style={s.weekCellInner}>
+                  <Txt variant="small" color={c.textFaint}>{d.label}</Txt>
+                  <View
+                    style={[
+                      s.weekDot,
+                      {
+                        backgroundColor: d.factor === null ? 'transparent' : c.accent,
+                        borderColor: d.future ? c.line : d.factor === null ? c.lineStrong : c.accent,
+                        opacity: d.future ? 0.4 : 1,
+                      },
+                    ]}
+                  >
+                    {d.factor !== null && (
+                      <Txt variant="small" color={c.onAccent}>
+                        {d.factor >= 1.2 ? '+' : d.factor <= 0.9 ? '\u2212' : '='}
+                      </Txt>
+                    )}
+                  </View>
+                </View>
+              </Tap>
+            ))}
+          </View>
+        </Card>
+      </Enter>
 
       {/* Correctable, because a streak that cannot be fixed stops being true. */}
       <Enter index={2}>
@@ -555,7 +624,7 @@ export default function ProgressScreen() {
                 : 'You have two months with enough data to compare. Premium works out what changed '
                   + 'between them and what your maintenance did while you got lighter.'}
             </Txt>
-            {!premium && (
+            {cards.sell === 'months' && (
               <Button
                 label="Compare the months"
                 onPress={() => router.push('/paywall')}
@@ -577,7 +646,7 @@ export default function ProgressScreen() {
                 : 'Your days are not alike — one of them runs well over the rest. Premium names it and '
                   + 'works out what it costs across a week.'}
             </Txt>
-            {!premium && pattern.worst && (
+            {cards.sell === 'pattern' && (
               <Button
                 label="See which day"
                 onPress={() => router.push('/paywall')}
@@ -614,11 +683,13 @@ export default function ProgressScreen() {
                   You train {cycle.trainingDays} days a week. The same weekly total eats more easily
                   when it follows the sessions — Premium works out the split.
                 </Txt>
-                <Button
-                  label="See the split"
-                  onPress={() => router.push('/paywall')}
-                  style={{ marginTop: Space.md }}
-                />
+                {cards.sell === 'cycle' && (
+                  <Button
+                    label="See the split"
+                    onPress={() => router.push('/paywall')}
+                    style={{ marginTop: Space.md }}
+                  />
+                )}
               </>
             )}
           </Card>
