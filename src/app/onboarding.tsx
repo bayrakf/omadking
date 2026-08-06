@@ -91,51 +91,13 @@ export default function OnboardingScreen() {
     return false;
   };
 
-  const NumField = ({ f, label, hint }: { f: 'weight_kg' | 'height_cm' | 'age'; label: string; hint: string }) => {
-    const err = numError(f);
-    return (
-      <View style={{ flex: 1 }}>
-        <Eyebrow style={{ marginBottom: Space.sm }}>{label}</Eyebrow>
-        <TextInput
-          value={data[f]}
-          onChangeText={(v) => set(f, v.replace(',', '.') as Draft[typeof f])}
-          keyboardType="numeric"
-          inputMode="decimal"
-          placeholder={hint}
-          placeholderTextColor={c.textFaint}
-          accessibilityLabel={label}
-          style={[Type.data, s.input, { color: c.text, backgroundColor: c.well, borderColor: err ? c.negative : c.line }]}
-        />
-        {err && <Txt variant="small" color={c.negative} style={{ marginTop: 5 }}>{err}</Txt>}
-      </View>
-    );
-  };
+  const numField = (f: NumKey, label: string, hint: string) => (
+    <NumField key={f} f={f} label={label} hint={hint} value={data[f]} error={numError(f)} onChange={set} />
+  );
 
-  const TimePicker = ({ k, presets, label }: { k: 'omad_window_start' | 'default_training_time'; presets: string[]; label: string }) => {
-    const custom = !presets.includes(data[k]);
-    return (
-      <View style={{ marginTop: Space.xl }}>
-        <Eyebrow style={{ marginBottom: Space.md }}>{label}</Eyebrow>
-        <View style={s.wrap}>
-          {presets.map((p) => (
-            <Chip key={p} label={p} selected={data[k] === p} onPress={() => set(k, p)} style={s.chip} />
-          ))}
-          <Chip label="Other" selected={custom} onPress={() => set(k, custom ? presets[0] : '')} style={s.chip} />
-        </View>
-        {custom && (
-          <TextInput
-            value={data[k]}
-            onChangeText={(v) => set(k, v)}
-            onBlur={() => set(k, normTime(data[k], presets[0]))}
-            placeholder="HH:MM"
-            placeholderTextColor={c.textFaint}
-            accessibilityLabel={label}
-            style={[Type.data, s.input, { color: c.text, backgroundColor: c.well, borderColor: c.line, marginTop: Space.md }]}
-          />
-        )}
-      </View>
-    );
-  };
+  const timePicker = (k: TimeKey, presets: string[], label: string) => (
+    <TimePicker key={k} k={k} presets={presets} label={label} value={data[k]} onChange={set} />
+  );
 
   const render = () => {
     switch (step) {
@@ -160,12 +122,12 @@ export default function OnboardingScreen() {
               Sets your energy and protein targets.
             </Txt>
             <View style={[s.row, { marginTop: Space.xl }]}>
-              <NumField f="weight_kg" label="Weight · kg" hint="82" />
+              {numField('weight_kg', 'Weight · kg', '82')}
               <View style={{ width: Space.md }} />
-              <NumField f="height_cm" label="Height · cm" hint="183" />
+              {numField('height_cm', 'Height · cm', '183')}
             </View>
             <View style={{ marginTop: Space.base }}>
-              <NumField f="age" label="Age" hint="34" />
+              {numField('age', 'Age', '34')}
             </View>
             <View style={{ marginTop: Space.xl }}>
               <Eyebrow style={{ marginBottom: Space.md }}>Sex</Eyebrow>
@@ -214,7 +176,7 @@ export default function OnboardingScreen() {
         return (
           <View style={s.centre}>
             <Txt variant="title">Your window</Txt>
-            <TimePicker k="omad_window_start" presets={EAT_PRESETS} label="Window opens at" />
+            {timePicker('omad_window_start', EAT_PRESETS, 'Window opens at')}
             <View style={{ marginTop: Space.xl }}>
               <Eyebrow style={{ marginBottom: Space.md }}>How long is it open?</Eyebrow>
               <View style={s.wrap}>
@@ -239,7 +201,7 @@ export default function OnboardingScreen() {
                 That is a {24 - data.omad_window_hours} hour fast every day.
               </Txt>
             </View>
-            <TimePicker k="default_training_time" presets={TRAIN_PRESETS} label="You usually train at" />
+            {timePicker('default_training_time', TRAIN_PRESETS, 'You usually train at')}
           </View>
         );
 
@@ -312,6 +274,68 @@ export default function OnboardingScreen() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+type NumKey = 'weight_kg' | 'height_cm' | 'age';
+type TimeKey = 'omad_window_start' | 'default_training_time';
+
+/**
+ * Both of these lived inside OnboardingScreen, which made them a new component
+ * type on every render — so React discarded the TextInput and mounted a fresh
+ * one after every keystroke, and the field lost focus on each character. On the
+ * first screen anyone ever sees, while typing their weight.
+ */
+function NumField({ f, label, hint, value, error, onChange }: {
+  f: NumKey; label: string; hint: string; value: string; error: string | null;
+  onChange: (f: NumKey, v: any) => void;
+}) {
+  const c = useTheme();
+  return (
+    <View style={{ flex: 1 }}>
+      <Eyebrow style={{ marginBottom: Space.sm }}>{label}</Eyebrow>
+      <TextInput
+        value={value}
+        onChangeText={(v) => onChange(f, v.replace(',', '.'))}
+        keyboardType="numeric"
+        inputMode="decimal"
+        placeholder={hint}
+        placeholderTextColor={c.textFaint}
+        accessibilityLabel={label}
+        style={[Type.data, s.input, { color: c.text, backgroundColor: c.well, borderColor: error ? c.negative : c.line }]}
+      />
+      {error && <Txt variant="small" color={c.negative} style={{ marginTop: 5 }}>{error}</Txt>}
+    </View>
+  );
+}
+
+function TimePicker({ k, presets, label, value, onChange }: {
+  k: TimeKey; presets: string[]; label: string; value: string;
+  onChange: (k: TimeKey, v: string) => void;
+}) {
+  const c = useTheme();
+  const custom = !presets.includes(value);
+  return (
+    <View style={{ marginTop: Space.xl }}>
+      <Eyebrow style={{ marginBottom: Space.md }}>{label}</Eyebrow>
+      <View style={s.wrap}>
+        {presets.map((p) => (
+          <Chip key={p} label={p} selected={value === p} onPress={() => onChange(k, p)} style={s.chip} />
+        ))}
+        <Chip label="Other" selected={custom} onPress={() => onChange(k, custom ? presets[0] : '')} style={s.chip} />
+      </View>
+      {custom && (
+        <TextInput
+          value={value}
+          onChangeText={(v) => onChange(k, v)}
+          onBlur={() => onChange(k, normTime(value, presets[0]))}
+          placeholder="HH:MM"
+          placeholderTextColor={c.textFaint}
+          accessibilityLabel={label}
+          style={[Type.data, s.input, { color: c.text, backgroundColor: c.well, borderColor: c.line, marginTop: Space.md }]}
+        />
+      )}
+    </View>
   );
 }
 

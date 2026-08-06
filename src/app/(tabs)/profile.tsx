@@ -179,40 +179,20 @@ export default function ProfileScreen() {
   const resting = bmr(profile);
   const windowEnd = fromMinutes(toMinutes(profile.omad_window_start) + profile.omad_window_hours * 60);
 
-  const Row = ({ label, field, unit }: { label: string; field: EditField; unit?: string }) => {
-    const active = editing === field;
-    const raw = profile[field];
-    // An unset target is not "null": it is the app's default, shown as the
-    // figure it will actually aim at, so the row never reads as broken.
-    const shown = raw == null ? `${targetWeight(profile)} (default)` : String(raw);
-    return (
-      <View style={s.row}>
-        <Txt variant="body" color={c.textDim}>{label}</Txt>
-        {active ? (
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            onBlur={() => commit(field)}
-            onSubmitEditing={() => commit(field)}
-            autoFocus
-            keyboardType={field.includes('time') || field.includes('start') ? 'default' : 'numeric'}
-            accessibilityLabel={label}
-            style={[Type.data, s.input, { color: c.accent, borderColor: c.accent }]}
-          />
-        ) : (
-          <Tap
-            onPress={() => { setEditing(field); setDraft(raw == null ? '' : String(raw)); }}
-            accessibilityLabel={`Edit ${label}`}
-          >
-            <View style={s.value}>
-              <Txt variant="data" color={c.text} style={s.valueText}>{shown}{raw == null ? '' : unit ?? ''}</Txt>
-              <Icon name="edit" size={13} color={c.textFaint} />
-            </View>
-          </Tap>
-        )}
-      </View>
-    );
-  };
+  const row = (label: string, field: EditField, unit?: string) => (
+    <ProfileRow
+      key={field}
+      label={label}
+      field={field}
+      unit={unit}
+      profile={profile}
+      editing={editing}
+      draft={draft}
+      setDraft={setDraft}
+      onEdit={(f, v) => { setEditing(f); setDraft(v); }}
+      onCommit={commit}
+    />
+  );
 
   const Choice = <K extends keyof typeof CHOICES>({ label, field }: { label: string; field: K }) => (
     <View style={{ paddingVertical: Space.md }}>
@@ -255,13 +235,13 @@ export default function ProfileScreen() {
       <Enter index={2}>
         <Card style={{ marginTop: Space.base }}>
           <Eyebrow style={{ marginBottom: Space.sm }}>Body</Eyebrow>
-          <Row label="Weight" field="weight_kg" unit=" kg" />
+          {row('Weight', 'weight_kg', ' kg')}
           <Divider />
-          <Row label="Height" field="height_cm" unit=" cm" />
+          {row('Height', 'height_cm', ' cm')}
           <Divider />
-          <Row label="Age" field="age" />
+          {row('Age', 'age')}
           <Divider />
-          <Row label="Target weight" field="target_weight_kg" unit=" kg" />
+          {row('Target weight', 'target_weight_kg', ' kg')}
           <Txt variant="small" color={c.textFaint} style={{ marginBottom: Space.md }}>
             Left alone, the app aims at a healthy BMI. That is a population midpoint and often too
             low for someone carrying muscle, so set your own and the forecast follows it.
@@ -283,9 +263,9 @@ export default function ProfileScreen() {
       <Enter index={4}>
         <Card style={{ marginTop: Space.base }}>
           <Eyebrow style={{ marginBottom: Space.sm }}>Window</Eyebrow>
-          <Row label="Opens" field="omad_window_start" />
+          {row('Opens', 'omad_window_start')}
           <Divider />
-          <Row label="Length" field="omad_window_hours" unit=" h" />
+          {row('Length', 'omad_window_hours', ' h')}
           <View style={s.wrap}>
             {PROTOCOLS.map((proto) => (
               <Chip
@@ -305,7 +285,7 @@ export default function ProfileScreen() {
             </Txt>
           )}
           <Divider />
-          <Row label="Usual training" field="default_training_time" />
+          {row('Usual training', 'default_training_time')}
           <View style={[s.summary, { backgroundColor: c.well }]}>
             <Txt variant="data" color={c.accent}>
               {profile.omad_window_start}–{windowEnd}
@@ -472,6 +452,64 @@ export default function ProfileScreen() {
         </Card>
       </Enter>
     </Screen>
+  );
+}
+
+/**
+ * Defined at module scope, and that is the whole point.
+ *
+ * This used to live inside ProfileScreen, which made it a *new component type*
+ * on every render. React cannot know the new type is the old one, so it
+ * unmounted the TextInput and mounted a fresh one — after every single
+ * keystroke, because typing sets state and re-renders. The field lost focus on
+ * each character and had to be tapped again to continue.
+ */
+function ProfileRow({
+  label, field, unit, profile, editing, draft, setDraft, onEdit, onCommit,
+}: {
+  label: string;
+  field: EditField;
+  unit?: string;
+  profile: UserProfile;
+  editing: EditField | null;
+  draft: string;
+  setDraft: (v: string) => void;
+  onEdit: (field: EditField, value: string) => void;
+  onCommit: (field: EditField) => void;
+}) {
+  const c = useTheme();
+  const active = editing === field;
+  const raw = profile[field];
+  // An unset target is not "null": it is the app's default, shown as the figure
+  // it will actually aim at, so the row never reads as broken.
+  const shown = raw == null ? `${targetWeight(profile)} (default)` : String(raw);
+
+  return (
+    <View style={s.row}>
+      <Txt variant="body" color={c.textDim}>{label}</Txt>
+      {active ? (
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          onBlur={() => onCommit(field)}
+          onSubmitEditing={() => onCommit(field)}
+          autoFocus
+          keyboardType={field.includes('time') || field.includes('start') ? 'default' : 'numeric'}
+          accessibilityLabel={label}
+          style={[Type.data, s.input, { color: c.accent, borderColor: c.accent }]}
+        />
+      ) : (
+        <Tap
+          onPress={() => onEdit(field, raw == null ? '' : String(raw))}
+          accessibilityLabel={`Edit ${label}`}
+        >
+          <View style={s.value}>
+            <Txt variant="data" color={c.text} style={s.valueText}>{shown}{raw == null ? '' : unit ?? ''}</Txt>
+            <Icon name="edit" size={13} color={c.textFaint} />
+          </View>
+        </Tap>
+      )}
+    </View>
   );
 }
 

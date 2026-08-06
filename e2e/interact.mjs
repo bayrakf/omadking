@@ -265,6 +265,53 @@ export default async function run() {
     await context.close();
   }
 
+  // ------------------------------------------------------------- TYPING
+  section('Typing without losing focus');
+  {
+    // The regression: NumField and the profile Row were declared inside their
+    // screens, so every keystroke produced a new component type and React threw
+    // the input away and mounted a fresh one. One character landed per tap.
+    const { context, page } = await newPage(browser, null);
+    await page.goto(BASE + '/onboarding', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1800);
+    // Step 0 is the welcome screen; the number fields are on step 1.
+    await page.getByText('Start', { exact: true }).click();
+    await page.waitForTimeout(700);
+
+    const weight = page.getByLabel('Weight · kg');
+    await weight.click();
+    await page.keyboard.type('82.4', { delay: 40 });
+    check(await weight.inputValue() === '82.4', 'a whole number survives typing',
+      await weight.inputValue());
+    // Focus has to still be there, or the next character would go nowhere.
+    check(
+      await page.evaluate(() => document.activeElement?.getAttribute('aria-label')) === 'Weight · kg',
+      'and the field still holds focus afterwards'
+    );
+    await context.close();
+  }
+
+  {
+    const { context, page } = await newPage(browser, SEED);
+    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1600);
+
+    // The chosen target weight: editable, and it must accept a full number.
+    await page.getByLabel('Edit Target weight').click();
+    await page.waitForTimeout(400);
+    const target = page.getByLabel('Target weight');
+    await page.keyboard.type('78.5', { delay: 40 });
+    check(await target.inputValue() === '78.5', 'the target weight takes a full number too',
+      await target.inputValue());
+
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(700);
+    const stored = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('onboarding_profile') ?? '{}').target_weight_kg);
+    check(stored === 78.5, 'and it is what gets stored', String(stored));
+    await context.close();
+  }
+
   // -------------------------------------------------------- THIS WEEK'S CHANGE
   section('One change a week');
   {
