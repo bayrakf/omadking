@@ -8,6 +8,8 @@ Given your body stats, eating window and today's session, it works out:
 - whether you eat **before**, **after**, or **split around** the workout, with actual clock times
 - calorie and macro targets that scale with session **duration and intensity** (not a flat multiplier)
 - a recipe that fits those macros, with reheat instructions for meal prep
+- what your maintenance **actually** costs, measured from your own eating and weigh-ins rather than
+  estimated from a formula, aimed at a target weight you choose yourself
 
 Expo (iOS / Android / web) + Supabase edge functions + Gemini.
 
@@ -44,7 +46,7 @@ console error, or sideways overflow; `interact` walks the real flows. Point it a
 A run ends in a single line, and every backlog item leaves its own regression check behind:
 
 ```
-=== E2E GREEN — 141 checks ===
+=== E2E GREEN — 215 checks ===
 ```
 
 ---
@@ -55,11 +57,14 @@ A run ends in a single line, and every backlog item leaves its own regression ch
 src/
   lib/
     nutrition.ts   BMR, TDEE, training burn, macro split, fasting state and bands,
-                   meal timing, protocols, breaking the fast                  ← pure, self-checked
+                   meal timing, protocols, breaking the fast, target weight   ← pure, self-checked
     dates.ts       local-date helpers, ISO week keys, streak counting         ← pure, self-checked
     grocery.ts     ingredient parsing, merging, portion scaling, shop order   ← pure, self-checked
     agenda.ts      the day as ordered moments (timeline, prep loop, reminders)← pure, self-checked
-    review.ts      the week read back, adaptation phase, correctable log      ← pure, self-checked
+    review.ts      the week read back, adaptation phase, correctable log,
+                   one decision a week, what Progress may show               ← pure, self-checked
+    energy.ts      measured maintenance, trend, plateau, forecast, diet break ← pure, self-checked
+    offer.ts       what Premium actually buys, tied to the gates that enforce it ← pure, self-checked
     markdown.ts    the small subset of markdown a chat model actually writes  ← pure, self-checked
     typography.ts  system font scale, clamped                                 ← pure, self-checked
     legal.ts       the data-flow inventory the privacy page is built from    ← pure, self-checked
