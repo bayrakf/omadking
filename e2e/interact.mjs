@@ -67,7 +67,36 @@ export default async function run() {
 
     await next.click();
     await page.waitForTimeout(600);
+
+    // The step that used to be assumed rather than asked: the goal weight was
+    // a healthy-BMI midpoint nobody agreed to, and the deficit was 500 kcal
+    // whether the body was 60 kg or 120.
+    const pace = await body(page);
+    check(has(pace, 'Where to, and how fast'), 'losing weight now asks where to and how fast');
+    check(/middle of the healthy range/.test(pace), 'and offers the default rather than imposing it');
+    // For this body 0.75 kg a week lands under resting expenditure, and the
+    // app says so instead of clamping quietly to something it is not
+    // delivering. Selecting it used to do nothing at all, which taught the
+    // person nothing.
+    await page.getByLabel('0.75 kg / week').click();
+    await page.waitForTimeout(400);
+    const refused = await body(page);
+    check(/will not set it/.test(refused), 'a rate that is too fast is refused out loud',
+      refused.match(/That would leave[^.]*\./)?.[0] ?? '');
+    check(/below the \d{3,4} your body uses at rest/.test(refused), 'naming the floor it would break');
+
+    await page.getByLabel('0.25 kg / week').click();
+    await page.waitForTimeout(400);
+    const chosen = await body(page);
+    // The part every other app leaves out: what the rate actually costs.
+    check(/\d{3} kcal a day under what your body uses/.test(chosen),
+      'and one that fits states what it costs',
+      chosen.match(/\d+ kcal a day under[^.]*/)?.[0] ?? '');
+
+    await next.click();
+    await page.waitForTimeout(600);
     const summary = await body(page);
+    check(has(summary, '0.25 kg / week'), 'and the summary repeats back what will be saved');
     check(has(summary, 'That’s everything'), 'reaches the summary');
     check(summary.includes('18:00–20:00'), 'summary shows the computed window', summary.match(/\d\d:\d\d–\d\d:\d\d/)?.[0]);
     check(has(summary, '22h'), 'summary shows the 22h fast');
@@ -82,6 +111,7 @@ export default async function run() {
     check(stored.sex === 'female', 'sex persisted canonically', stored.sex);
     check(stored.goal === 'weight_loss', 'goal persisted canonically', stored.goal);
     check(stored.fitness_level === 'advanced', 'fitness persisted canonically', stored.fitness_level);
+    check(stored.weekly_rate_kg === 0.25, 'the chosen pace persisted', String(stored.weekly_rate_kg));
 
     // The weight typed during setup is a weigh-in. It used to go to the profile
     // and nowhere else, so the log stayed empty, Progress said nothing was

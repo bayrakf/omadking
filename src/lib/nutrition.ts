@@ -25,6 +25,15 @@ export type UserProfile = {
   default_training_time: string;
   /** What the user is actually aiming for. Null means "use the default". */
   target_weight_kg: number | null;
+  /**
+   * Chosen rate of loss in kg per week, or null for the standard deficit.
+   *
+   * Null is a real value: it means "never chose one", and everybody who
+   * installed the app before this existed is in that state. Deriving a deficit
+   * for them from a default rate would silently move their daily target, which
+   * is not a change anyone asked for.
+   */
+  weekly_rate_kg: number | null;
 };
 
 export type Training = {
@@ -53,6 +62,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   omad_window_hours: 2,
   default_training_time: '18:00',
   target_weight_kg: null,
+  weekly_rate_kg: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -114,6 +124,55 @@ export function normalizeProfile(raw: any): UserProfile {
     // thing — inventing a target from a typo is worse than having none, since
     // the forecast would then project confidently toward a number nobody chose.
     target_weight_kg: parseTargetWeight(raw.target_weight_kg),
+    // Same reasoning as the target: null means "not chosen", and a typo must
+    // not become a rate. Without this line the field would not survive a sync
+    // — the mistake the target weight already made once.
+    weekly_rate_kg: parseRate(raw.weekly_rate_kg),
+  };
+}
+
+/** Rates the app will set. Beyond this it is not a diet, it is a crash. */
+export const PACE_OPTIONS = [0.25, 0.5, 0.75] as const;
+
+function parseRate(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  const n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.'));
+  if (!isFinite(n)) return null;
+  return PACE_OPTIONS.includes(n as typeof PACE_OPTIONS[number]) ? n : null;
+}
+
+/** The standard deficit, used by anyone who never chose a rate. */
+export const DEFAULT_DEFICIT_KCAL = 500;
+
+/** A kilogram of body fat, as an approximation. Same figure energy.ts uses. */
+const KCAL_PER_KG = 7700;
+
+/**
+ * What a chosen rate costs per day, and whether the app will actually set it.
+ *
+ * The honest part is the refusal. Asking "how fast?" without saying what fast
+ * means is how every other app sells an aggressive deficit — here the number
+ * sits next to the option, and an option that would put someone under their
+ * resting expenditure is reported as impossible rather than quietly clamped.
+ * Clamping would show a rate the app is not delivering.
+ */
+export type Pace = { rateKgPerWeek: number; deficitKcal: number; targetKcal: number; allowed: boolean };
+
+export function paceDeficit(
+  rateKgPerWeek: number,
+  maintenanceKcal: number,
+  bmrFloor: number
+): Pace | null {
+  if (!isFinite(rateKgPerWeek) || rateKgPerWeek <= 0) return null;
+  if (!isFinite(maintenanceKcal) || maintenanceKcal <= 0) return null;
+
+  const deficitKcal = Math.round((rateKgPerWeek * KCAL_PER_KG) / 7);
+  const targetKcal = maintenanceKcal - deficitKcal;
+  return {
+    rateKgPerWeek,
+    deficitKcal,
+    targetKcal,
+    allowed: isFinite(bmrFloor) ? targetKcal >= bmrFloor : true,
   };
 }
 
@@ -276,7 +335,13 @@ export function dailyTargets(
     : Math.round(restingKcal * neatMultiplier(p.fitness_level)) + burn;
 
   let kcal = maintenance;
-  if (p.goal === 'weight_loss') kcal -= 500;
+  if (p.goal === 'weight_loss') {
+    // A rate that was never chosen keeps the deficit the app has always used.
+    const pace = p.weekly_rate_kg != null
+      ? paceDeficit(p.weekly_rate_kg, maintenance, restingKcal)
+      : null;
+    kcal -= pace && pace.allowed ? pace.deficitKcal : DEFAULT_DEFICIT_KCAL;
+  }
   if (p.goal === 'muscle_gain') kcal += 300;
 
   // Safety floor: never prescribe below BMR — an aggressive deficit stacked on a
@@ -859,6 +924,48 @@ export function demo() {
   assert(targetWeight(prof) === 73.7, `the default loss target is BMI 22: ${targetWeight(prof)}`);
   // And the point of the change: a chosen figure beats the population midpoint.
   assert(targetWeight({ ...prof, target_weight_kg: 78 }) === 78, 'a chosen target wins');
+
+  // --- how fast, with the consequence attached ------------------------------
+
+  const fast = paceDeficit(0.75, 2600, 1700)!;
+  assert(fast.deficitKcal === 825, `0.75 kg a week is 825 kcal a day: ${fast.deficitKcal}`);
+  assert(fast.targetKcal === 1775, `leaving 1775: ${fast.targetKcal}`);
+  assert(fast.allowed, 'and that clears the resting floor here');
+
+  // The refusal is the honest part. Clamping would show a rate the app is not
+  // actually delivering, which is what makes an aggressive option feel safe.
+  const tooFast = paceDeficit(0.75, 2200, 1700)!;
+  assert(!tooFast.allowed, 'a rate that lands under resting expenditure is not allowed');
+  assert(tooFast.targetKcal === 1375, 'and the figure is reported rather than clamped');
+
+  assert(paceDeficit(0.25, 2600, 1700)!.deficitKcal === 275, 'a quarter kilo is 275');
+  assert(paceDeficit(0, 2600, 1700) === null, 'no rate is no answer');
+  assert(paceDeficit(NaN, 2600, 1700) === null, 'nonsense in, nothing out');
+  assert(paceDeficit(0.5, 0, 1700) === null, 'and a rate needs something to come off');
+
+  {
+    // Nobody's target moves who did not ask for it. This is the whole reason
+    // the field is nullable instead of defaulted.
+    const losing = normalizeProfile({ ...prof, goal: 'weight_loss' });
+    const before = dailyTargets(losing, null);
+    assert(losing.weekly_rate_kg === null, 'an existing profile has no rate');
+    const chosen = normalizeProfile({ ...losing, weekly_rate_kg: 0.5 });
+    const after = dailyTargets(chosen, null);
+    assert(before.maintenance_kcal - before.kcal === DEFAULT_DEFICIT_KCAL,
+      `no rate means the standard deficit: ${before.maintenance_kcal - before.kcal}`);
+    assert(after.kcal !== before.kcal, 'and choosing one actually changes the target');
+    assert(after.maintenance_kcal - after.kcal === 550, `0.5 kg a week is 550: ${after.maintenance_kcal - after.kcal}`);
+
+    // The field has to survive a round trip, or it quietly does not exist on a
+    // second device — the mistake the target weight already made once.
+    assert(normalizeProfile({ ...chosen }).weekly_rate_kg === 0.5, 'a chosen rate survives normalising');
+    assert(normalizeProfile({ ...losing, weekly_rate_kg: '0,5' }).weekly_rate_kg === 0.5,
+      'a European decimal comma is read, not dropped');
+    assert(normalizeProfile({ ...losing, weekly_rate_kg: 3 }).weekly_rate_kg === null,
+      'a rate the app does not offer is refused rather than honoured');
+    assert(normalizeProfile({ ...losing, weekly_rate_kg: 'soon' }).weekly_rate_kg === null,
+      'and so is a typo');
+  }
   // Including one the formula would call too high — it is the user's call.
   assert(targetWeight({ ...prof, target_weight_kg: 90 }) === 90, 'even an unambitious one');
   assert(

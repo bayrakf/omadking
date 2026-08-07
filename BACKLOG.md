@@ -1207,3 +1207,31 @@ nicht. Sonst spränge es einmal und danach zurück, was schlimmer wäre als die 
 Der e2e liest das Tagesziel vor und nach der Vorschau und verlangt, dass es dasselbe ist.
 
 **Erledigt** 2026-08-07 — 316 Checks.
+
+---
+
+## 46. Zielgewicht und Tempo, gefragt statt angenommen
+
+Onboarding hatte fünf Schritte und fragte weder wohin noch wie schnell. `targetWeight()` setzte
+still die Mitte des gesunden BMI-Bereichs, und die Prognose sagte dann „etwa 47 Wochen bis
+73,7 kg" — eine Zahl, der niemand zugestimmt hatte. Das Defizit war 500 kcal für alle, hart
+verdrahtet: bei 120 kg etwas völlig anderes als bei 60 kg.
+
+Jetzt ein sechster Schritt, **nur beim Abnehmen**, übersprungen für alle anderen. Zielgewicht mit
+dem bisherigen Vorschlag sichtbar daneben statt als unsichtbare Annahme. Tempo als 0,25 / 0,5 /
+0,75 kg pro Woche — **mit der Folge daneben**, was der Teil ist, den sonst niemand zeigt:
+
+> Das würde 1.461 kcal am Tag lassen, unter den 1.633, die dein Körper in Ruhe verbraucht.
+> Die App setzt das nicht.
+
+`paceDeficit` rechnet und **verweigert**, statt still zu klammern — geklammert würde eine Rate
+angezeigt, die die App gar nicht liefert, und genau das lässt ein aggressives Defizit sicher
+aussehen. Die Ablehnung wird gesagt und die Rate nicht gespeichert; die Zusammenfassung zeigt, was
+wirklich abgelegt wird.
+
+**Für Bestandsnutzer bewegt sich nichts.** Das Feld ist standardmäßig leer und heißt dann „die
+bisherigen 500 kcal". Nur wer ein Tempo wählt, bekommt ein abgeleitetes Defizit. `normalizeProfile`
+kennt das Feld, sonst hätte es die Gerätesynchronisierung nicht überlebt — der Fehler, den das
+Zielgewicht schon einmal gemacht hat.
+
+**Erledigt** 2026-08-07 — 323 Checks.

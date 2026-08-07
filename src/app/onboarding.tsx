@@ -9,6 +9,7 @@ import { Txt, Eyebrow, Button, Chip, Tap, Card, Divider, useTheme, useReducedMot
 import { Icon } from '@/components/icons';
 import {
   normalizeProfile, normTime, toMinutes, fromMinutes, PROTOCOLS, protocolForHours,
+  targetWeight, dailyTargets, bmr, paceDeficit, PACE_OPTIONS, DEFAULT_DEFICIT_KCAL,
   type FitnessLevel, type Goal, type Sex,
 } from '@/lib/nutrition';
 import { completeOnboarding } from '@/lib/store';
@@ -18,9 +19,16 @@ type Draft = {
   weight_kg: string; height_cm: string; age: string;
   sex: Sex | null; fitness_level: FitnessLevel | null; goal: Goal | null;
   omad_window_start: string; omad_window_hours: number; default_training_time: string;
+  target_weight_kg: string; weekly_rate_kg: number | null;
 };
 
-const STEPS = 5;
+/**
+ * Six now. The goal and the rate used to be assumed rather than asked: a
+ * healthy-BMI midpoint nobody agreed to, and a 500 kcal deficit identical for
+ * a 120 kg body and a 60 kg one. The forecast then said "about 47 weeks to
+ * 73.7 kg" about a number the person had never seen.
+ */
+const STEPS = 6;
 const EAT_PRESETS = ['12:00', '14:00', '16:00', '18:00'];
 const TRAIN_PRESETS = ['06:00', '12:00', '18:00', '19:00'];
 const LIMITS = { weight_kg: [30, 300], height_cm: [120, 250], age: [14, 100] } as const;
@@ -34,6 +42,7 @@ export default function OnboardingScreen() {
     weight_kg: '', height_cm: '', age: '',
     sex: null, fitness_level: null, goal: null,
     omad_window_start: '18:00', omad_window_hours: 2, default_training_time: '18:00',
+    target_weight_kg: '', weekly_rate_kg: null,
   });
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -59,11 +68,28 @@ export default function OnboardingScreen() {
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setData((p) => ({ ...p, [k]: v }));
 
-  const finish = async () => {
-    setSaving(true);
+  /**
+   * The profile as it will actually be stored.
+   *
+   * A rate that would put someone under their resting expenditure is shown and
+   * explained on the step, but never written — the screen tells the truth and
+   * the profile stays honest. Used by the summary too, so what is reviewed is
+   * what is saved.
+   */
+  const savedProfile = () => {
+    const draft = normalizeProfile({ ...data, weekly_rate_kg: null });
+    const chosen = data.weekly_rate_kg;
+    const pace = chosen != null && draft.goal === 'weight_loss'
+      ? paceDeficit(chosen, dailyTargets({ ...draft, goal: 'performance' }, null).maintenance_kcal, bmr(draft))
+      : null;
     // normalizeProfile clamps and canonicalises, so the store never sees
     // 'Male' or a 400kg bodyweight.
-    await completeOnboarding(normalizeProfile(data));
+    return normalizeProfile({ ...data, weekly_rate_kg: pace && pace.allowed ? chosen : null });
+  };
+
+  const finish = async () => {
+    setSaving(true);
+    await completeOnboarding(savedProfile());
     // Reminders are off until opted in; this only primes the schedule.
     await resync();
     router.replace('/');
@@ -84,6 +110,9 @@ export default function OnboardingScreen() {
     return isFinite(n) && n >= min && n <= max;
   };
 
+  /** The target and rate step means nothing to someone maintaining or gaining. */
+  const skips = (n: number) => n === 4 && data.goal !== 'weight_loss';
+
   const blocked = () => {
     if (step === 1) return !numOk('weight_kg') || !numOk('height_cm') || !numOk('age') || !data.sex;
     if (step === 2) return !data.fitness_level || !data.goal;
@@ -91,7 +120,7 @@ export default function OnboardingScreen() {
     return false;
   };
 
-  const numField = (f: NumKey, label: string, hint: string) => (
+  const numField = (f: 'weight_kg' | 'height_cm' | 'age', label: string, hint: string) => (
     <NumField key={f} f={f} label={label} hint={hint} value={data[f]} error={numError(f)} onChange={set} />
   );
 
@@ -172,6 +201,77 @@ export default function OnboardingScreen() {
           </View>
         );
 
+      case 4: {
+        // Only for weight loss: a target and a rate mean nothing to somebody
+        // maintaining or gaining.
+        const p = normalizeProfile({ ...data, target_weight_kg: null });
+        const suggestion = targetWeight(p, p.weight_kg);
+        const maintenance = dailyTargets({ ...p, goal: 'performance' }, null).maintenance_kcal;
+        const floor = bmr(p);
+        return (
+          <View style={s.centre}>
+            <Txt variant="title">Where to, and how fast</Txt>
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.sm, textAlign: 'center' }}>
+              Both are editable later, and both are only a direction.
+            </Txt>
+
+            <View style={{ marginTop: Space.xl, width: '100%' }}>
+              <NumField
+                f="target_weight_kg"
+                label="Target weight · kg"
+                hint={String(suggestion)}
+                value={data.target_weight_kg}
+                error={null}
+                onChange={set}
+              />
+              {/* Visible, not a placeholder: a placeholder vanishes the moment
+                  someone types, and this is the number they are agreeing to by
+                  leaving the field alone. */}
+              <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
+                Leave it empty to use {suggestion} kg, the middle of the healthy range for your height.
+              </Txt>
+            </View>
+
+            <View style={{ marginTop: Space.xl, width: '100%' }}>
+              <Eyebrow style={{ marginBottom: Space.md }}>How fast</Eyebrow>
+              <View style={s.wrap}>
+                {PACE_OPTIONS.map((rate) => {
+                  const pace = paceDeficit(rate, maintenance, floor)!;
+                  return (
+                    <Chip
+                      key={rate}
+                      label={`${rate} kg / week`}
+                      selected={data.weekly_rate_kg === rate}
+                      onPress={() => set('weekly_rate_kg', data.weekly_rate_kg === rate ? null : rate)}
+                      style={s.chip}
+                    />
+                  );
+                })}
+              </View>
+              {/* The consequence next to the choice, which is the part every
+                  other app leaves out. An option that would put someone under
+                  their resting expenditure says so instead of being clamped
+                  quietly to something the app is not actually delivering. */}
+              {data.weekly_rate_kg !== null && (() => {
+                const pace = paceDeficit(data.weekly_rate_kg, maintenance, floor)!;
+                return (
+                  <Txt variant="small" color={pace.allowed ? c.textDim : c.ember} style={{ marginTop: Space.md }}>
+                    {pace.allowed
+                      ? `${pace.deficitKcal} kcal a day under what your body uses — about ${pace.targetKcal} kcal to eat.`
+                      : `That would leave ${pace.targetKcal} kcal a day, below the ${floor} your body uses at rest. The app will not set it.`}
+                  </Txt>
+                );
+              })()}
+              {data.weekly_rate_kg === null && (
+                <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
+                  Skip it and the app uses its standard {DEFAULT_DEFICIT_KCAL} kcal a day.
+                </Txt>
+              )}
+            </View>
+          </View>
+        );
+      }
+
       case 3:
         return (
           <View style={s.centre}>
@@ -206,7 +306,7 @@ export default function OnboardingScreen() {
         );
 
       default: {
-        const p = normalizeProfile(data);
+        const p = savedProfile();
         const end = fromMinutes(toMinutes(p.omad_window_start) + p.omad_window_hours * 60);
         return (
           <View style={s.centre}>
@@ -218,6 +318,12 @@ export default function OnboardingScreen() {
                 ['Daily fast', `${24 - p.omad_window_hours}h`],
                 ['Usual training', p.default_training_time],
                 ['Goal', p.goal.replace('_', ' ')],
+                ...(p.goal === 'weight_loss'
+                  ? ([
+                      ['Target', `${targetWeight(p, p.weight_kg)} kg`],
+                          ['Pace', p.weekly_rate_kg ? `${p.weekly_rate_kg} kg / week` : 'standard'],
+                    ] as const)
+                  : []),
               ] as const).map(([label, value], i) => (
                 <View key={label}>
                   {i > 0 && <Divider />}
@@ -244,7 +350,7 @@ export default function OnboardingScreen() {
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
           {step > 0 ? (
-            <Tap onPress={() => go(step - 1)} accessibilityLabel="Back">
+            <Tap onPress={() => go(skips(step - 1) ? step - 2 : step - 1)} accessibilityLabel="Back">
               <View style={s.back}><Icon name="chevronLeft" size={20} color={c.textDim} /></View>
             </Tap>
           ) : (
@@ -268,7 +374,7 @@ export default function OnboardingScreen() {
         <View style={s.footer}>
           <Button
             label={label}
-            onPress={step === STEPS - 1 ? finish : () => go(step + 1)}
+            onPress={step === STEPS - 1 ? finish : () => go(skips(step + 1) ? step + 2 : step + 1)}
             disabled={blocked() || saving}
           />
         </View>
@@ -277,7 +383,7 @@ export default function OnboardingScreen() {
   );
 }
 
-type NumKey = 'weight_kg' | 'height_cm' | 'age';
+type NumKey = 'weight_kg' | 'height_cm' | 'age' | 'target_weight_kg';
 type TimeKey = 'omad_window_start' | 'default_training_time';
 
 /**

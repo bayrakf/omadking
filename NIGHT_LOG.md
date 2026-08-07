@@ -751,3 +751,24 @@ Selbstcheck schickt zwanzig Vordergrund-Ereignisse durch und verlangt genau eine
 Regel, die nur im Kommentar steht, ist eine Hoffnung.
 
 **Stand:** e2e **316 Checks**.
+
+---
+
+## Punkt 46 — der Test wählte eine Option, die die App zu Recht ablehnt
+
+Der e2e klickte 0,75 kg/Woche für einen 82-kg-Körper. Das sind 825 kcal Defizit auf einen
+Erhaltungsbedarf von rund 2.290 — also 1.461 zu essen, unter dem Grundumsatz von 1.633. Die
+Ablehnung war richtig. Falsch war, was ich daraus gemacht hatte: die Auswahl setzte einfach `null`,
+also passierte sichtbar **nichts**. Ein Knopf, der auf Tippen nichts tut und nichts sagt, lehrt
+niemanden etwas — das ist schlimmer als eine Ablehnung und schlimmer als ein stilles Klammern,
+weil man nicht einmal merkt, dass etwas passiert ist.
+
+Jetzt wählt der Tipp immer aus, die Folge steht darunter, und gespeichert wird nur, was die App
+auch liefert. Die Zusammenfassung liest aus derselben Funktion wie das Speichern, damit geprüft
+wird, was abgelegt wird.
+
+Zweiter Fund im selben Zug: der Hinweistext hing als **Placeholder** am Eingabefeld. Er
+verschwindet, sobald jemand tippt — und genau dann agiert er zu der Zahl, der er zustimmt, wenn er
+das Feld leer lässt. Jetzt sichtbarer Text.
+
+**Stand:** e2e **323 Checks**.
