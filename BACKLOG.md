@@ -1111,3 +1111,37 @@ bevor sie eine Zahl behauptet. Ein Guard hält fest, dass die Seite sie nennt �
 Sabotage bestätigt.
 
 **Erledigt** 2026-08-07 — 287 Checks.
+
+---
+
+## 43. Die Zufuhrfrage in kcal, der Waagensprung erklärt, Ausreißer ausgenommen
+
+**Die Zufuhrfrage untertrieb systematisch.** Die drei Optionen waren fest `1 / 0.75 / 1.3`, in
+Prozent beschriftet — zwei Zeilen unter dem Tagesziel in Kilokalorien. Das erzwang Kopfrechnen an
+genau der Stelle, die ein Tipp sein soll. Schwerer wog die Deckelung: wer wirklich das Doppelte
+gegessen hatte, wurde als +30 % protokolliert. `measuredMaintenance` rechnet
+`Zufuhr − Trend × 7700/7` — zu wenig Zufuhr heißt zu niedriger gemessener Bedarf heißt **zu
+niedriges Tagesziel**. Die Verzerrung ging nur in eine Richtung und traf die Zahl, für die bezahlt
+wird.
+
+Jetzt vier Optionen mit Kilokalorien, **aus dem Tagesziel gerechnet** statt geschrieben, und eine
+einzige Quelle (`INTAKE_OPTIONS`) für Dashboard, Korrekturstreifen und Zyklus. Der Kommentar dort
+sagte seit Punkt 38, dass zwei Listen „nur aus Gewohnheit übereinstimmen" — das ist jetzt eingelöst.
+
+**„Die Waage ist hoch, warum?"** Der Tag, an dem Leute die App löschen. `scaleJump` antwortet mit
+Arithmetik, bevor es Physiologie benennt: 1,5 kg Fett hätten rund 11.550 kcal über Bedarf gekostet,
+also war es das nicht. Erst danach der Wassermechanismus, gehedged wie die Fastenstadien. Kein
+Trost, keine Aufforderung — der Selbstcheck prüft gegen eine Verbotsliste und weist mit einem
+Gegenbeispiel nach, dass sie greift. Bei einem *Abfall* schweigt die Funktion: richtig wäre es
+auch, aber niemand hört wegen schnellen Verlusts auf, und eine Karte bei jeder Wiegung liest
+niemand.
+
+**Tage, die nicht mitzählen.** `withoutOutliers` nimmt markierte Tage aus `bestWeeks`,
+`monthlyComparison` und `weekdayPattern` — und **niemals** aus `measuredMaintenance`. Die
+Energiebilanz ist Physik: das Essen wurde gegessen, ob die Woche ungewöhnlich war oder nicht. Wer
+Tage aus der Messung nehmen könnte, könnte sich die Messung schönmarkieren. Der Selbstcheck hält
+fest, dass ein Weglassen die Messung **verändern würde** — genau deshalb ist es dort verboten.
+
+Alles drei **kostenlos**.
+
+**Erledigt** 2026-08-07 — 299 Checks.

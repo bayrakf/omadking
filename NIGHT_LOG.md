@@ -689,3 +689,26 @@ Und die Landing-Page war der teuerste Fall derselben Familie: sie war nicht fals
 austauschbar. Alle drei beworbenen Punkte standen wörtlich in `FREE_CAPABILITIES`.
 
 **Stand:** e2e **287 Checks**, `npm run check` mit vier Guards neben den vierzehn Modulen.
+
+---
+
+## Punkt 43 — eine Anzeigefrage, die keine war
+
+Gefragt war „kcal statt Prozent, zu schwer?". Die Anzeige war der kleinere Teil. Beim Nachrechnen
+stellte sich heraus, dass `1.3` als Obergrenze das Protokoll systematisch nach unten zieht und
+damit die gemessene Erhaltung und das ausgegebene Tagesziel gleich mit. Ein ausgelassener Tag
+verliert den Tag ehrlich; ein gedeckelter Tag lügt über ihn. Der vierte Knopf ist die eigentliche
+Änderung, die Kilokalorien sind die sichtbare.
+
+Zweiter Fund, diesmal im Test: der Fasten-Streifen-Test griff auf `[role="checkbox"]` zu, ohne zu
+sagen, welcher Streifen gemeint ist. Solange es nur einen gab, war er grün. Der neue
+Ausreißer-Streifen brachte sieben weitere Rollen — der Test zählte vierzehn und tippte auf
+irgendeine davon. Er war die ganze Zeit an die Abwesenheit eines zweiten Streifens gebunden, ohne
+das irgendwo zu sagen. Jetzt an den eigenen Labels festgenagelt.
+
+Und die Regel, auf der Punkt 3 steht, ist als Selbstcheck formuliert statt als Kommentar: derselbe
+Verlauf mit und ohne markierte Tage **muss** dieselbe gemessene Erhaltung ergeben — und der Check
+weist zusätzlich nach, dass ein Weglassen sie sehr wohl verschieben würde. Ein Verbot ist nur so
+viel wert wie der Nachweis, dass es etwas verhindert.
+
+**Stand:** e2e **299 Checks**.

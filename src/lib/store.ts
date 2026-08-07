@@ -22,6 +22,7 @@ export const KEYS = {
   premium: 'user_premium',
   planQuota: 'plan_quota',
   fastLog: 'fast_log',
+  outliers: 'outlier_days',
   cookLog: 'cook_log',
   chatLog: 'chat_log',
   lastSession: 'last_session',
@@ -201,6 +202,31 @@ export async function markFastComplete(date = todayISO()): Promise<string[]> {
 export async function unmarkFastComplete(date = todayISO()): Promise<string[]> {
   const next = (await loadFastLog()).filter((d) => d !== date);
   await writeJSON(KEYS.fastLog, next);
+  return next;
+}
+
+/**
+ * Days the user has marked as not worth comparing — ill, travelling, a holiday.
+ *
+ * These come out of the narrating comparisons and never out of the measurement.
+ * See `withoutOutliers` in energy.ts for why that line is where it is.
+ */
+export async function loadOutliers(): Promise<string[]> {
+  const log = await readJSON<string[]>(KEYS.outliers, []);
+  return Array.isArray(log) ? log.filter((d) => typeof d === 'string') : [];
+}
+
+export async function markOutlier(date: string): Promise<string[]> {
+  const log = await loadOutliers();
+  if (log.includes(date)) return log;
+  const next = [...log, date].sort().slice(-400);
+  await writeJSON(KEYS.outliers, next);
+  return next;
+}
+
+export async function unmarkOutlier(date: string): Promise<string[]> {
+  const next = (await loadOutliers()).filter((d) => d !== date);
+  await writeJSON(KEYS.outliers, next);
   return next;
 }
 

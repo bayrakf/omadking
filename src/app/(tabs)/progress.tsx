@@ -11,6 +11,7 @@ import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
   proteinAdherence, cycleWeek, trainingDaysPerWeek, monthlyComparison, planAhead, daysAheadThisWeek,
+  withoutOutliers,
   type Measurement, type Forecast, type WeekdayPattern, type WeekBudget, type ProteinAdherence,
   type WeekCycle, type MonthlyComparison,
 } from '@/lib/energy';
@@ -19,11 +20,12 @@ import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
   loadIntakeLog, loadLastSession, isPremium, todayISO, recordIntake, clearIntake,
+  loadOutliers, markOutlier, unmarkOutlier,
   type WeightEntry,
 } from '@/lib/store';
 import {
   weeklyReview, adaptationStage, fastWeek, weeklyDecision, progressCards,
-  intakeWeek, nextIntakeFactor, intakeLabel, bestWeeks,
+  intakeWeek, nextIntakeFactor, intakeLabel, intakeGlyph, bestWeeks,
   type WeeklyReview, type AdaptationStage, type FastDay, type Decision, type IntakeDay,
   type BestWeeks,
 } from '@/lib/review';
@@ -98,6 +100,7 @@ export default function ProgressScreen() {
   /** Kept so the exception day can be recomputed without another read. */
   const [intake, setIntake] = useState<unknown[]>([]);
   const [best, setBest] = useState<BestWeeks>(null);
+  const [outliers, setOutliers] = useState<string[]>([]);
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -124,6 +127,7 @@ export default function ProgressScreen() {
           loadPlanHistory<{ date: string }>(), loadIntakeLog(), isPremium(),
           loadLastSession(p.default_training_time),
         ]);
+        const skip = await loadOutliers();
         if (!active) return;
         setProfile(p);
         setEntries(log);
@@ -133,7 +137,11 @@ export default function ProgressScreen() {
         // each being called twice with identical arguments, which is a second
         // chance to pass different ones by mistake.
         const est = dailyTargets(p, null);
+        // Deliberately the unfiltered log. Excluding days here would let
+        // anyone mark their way to a flattering measurement — the rule lives
+        // in withoutOutliers and this is the call that must not use it.
         const m = measuredMaintenance(intake, log, est.maintenance_kcal);
+        const compare = withoutOutliers(intake, skip);
         // 500 is the deficit dailyTargets applies for weight loss. The read
         // feeds the decision only — the card it used to fill could never
         // appear, because a stall outranks everything weeklyDecision ranks.
@@ -150,9 +158,10 @@ export default function ProgressScreen() {
             : null
         );
 
-        setPattern(weekdayPattern(intake));
-        setMonths(monthlyComparison(intake, log));
-        setBest(bestWeeks(intake, log, plans, fasts));
+        setOutliers(skip);
+        setPattern(weekdayPattern(compare));
+        setMonths(monthlyComparison(compare, log));
+        setBest(bestWeeks(compare, log, plans, fasts));
         setProtein(proteinAdherence(intake));
         const trainDays = trainingDaysPerWeek(plans);
         setCycle(trainDays ? cycleWeek(est.kcal * 7, trainDays, bmr(p)) : null);
@@ -214,6 +223,25 @@ export default function ProgressScreen() {
     setPattern(weekdayPattern(log));
     setProtein(proteinAdherence(log));
     setMonths(monthlyComparison(log, entries));
+  };
+
+  /**
+   * Marking a day changes the comparisons and must not change the measurement.
+   * Everything recomputed here is a narrating reading; `measured` is not in the
+   * list on purpose.
+   */
+  const toggleOutlier = async (dayDate: string) => {
+    const next = outliers.includes(dayDate)
+      ? await unmarkOutlier(dayDate)
+      : await markOutlier(dayDate);
+    setOutliers(next);
+    const compare = withoutOutliers(intake, next);
+    setPattern(weekdayPattern(compare));
+    setMonths(monthlyComparison(compare, entries));
+    const [plans, fastLog] = await Promise.all([
+      loadPlanHistory<{ date: string }>(), loadFastLog(),
+    ]);
+    setBest(bestWeeks(compare, entries, plans, fastLog));
   };
 
   const save = async () => {
@@ -495,6 +523,56 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
+      {/* Ill, travelling, a wedding. Comparing a flu week against a normal one
+          answers a question nobody asked. The heading states the limit rather
+          than hiding it: this changes what the app compares, never what it
+          measured — anyone who could exclude days from the measurement could
+          mark their way to a number that flatters them. */}
+      <Enter index={2}>
+        <Card style={{ marginBottom: Space.base }}>
+          <View style={s.split}>
+            <Eyebrow>Days to leave out</Eyebrow>
+            <Txt variant="data" color={c.textFaint}>comparisons only</Txt>
+          </View>
+          <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+            Ill, away, or a day that was nothing like the rest. It comes out of the comparisons.
+            What your body measured stays exactly as it was.
+          </Txt>
+          <View style={s.weekRow}>
+            {eaten.map((d) => {
+              const off = outliers.includes(d.date);
+              return (
+                <Tap
+                  key={d.date}
+                  onPress={d.future ? undefined : () => toggleOutlier(d.date)}
+                  disabled={d.future}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: off, disabled: d.future }}
+                  accessibilityLabel={`Leave out ${d.date}`}
+                  style={s.weekCell}
+                >
+                  <View style={s.weekCellInner}>
+                    <Txt variant="small" color={c.textFaint}>{d.label}</Txt>
+                    <View
+                      style={[
+                        s.weekDot,
+                        {
+                          backgroundColor: off ? c.textFaint : 'transparent',
+                          borderColor: d.future ? c.line : off ? c.textFaint : c.lineStrong,
+                          opacity: d.future ? 0.4 : 1,
+                        },
+                      ]}
+                    >
+                      {off && <Txt variant="small" color={c.onAccent}>\u2013</Txt>}
+                    </View>
+                  </View>
+                </Tap>
+              );
+            })}
+          </View>
+        </Card>
+      </Enter>
+
       {/* The same treatment as the fasts, and it matters more here: the measured
           maintenance is built on these answers, so a mistap does not merely
           look wrong, it moves the number the app tells you to eat. Tapping
@@ -528,9 +606,7 @@ export default function ProgressScreen() {
                     ]}
                   >
                     {d.factor !== null && (
-                      <Txt variant="small" color={c.onAccent}>
-                        {d.factor >= 1.2 ? '+' : d.factor <= 0.9 ? '\u2212' : '='}
-                      </Txt>
+                      <Txt variant="small" color={c.onAccent}>{intakeGlyph(d.factor)}</Txt>
                     )}
                   </View>
                 </View>

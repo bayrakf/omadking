@@ -926,6 +926,110 @@ export const STEADY_KG_PER_WEEK = 0.15;
  * and concludes a week went wrong, when the fitted line has not moved. Saying
  * so plainly is the most useful sentence this app can produce for that person.
  */
+/**
+ * Drops the days somebody marked as not worth comparing.
+ *
+ * Where this is applied is the whole design, and the line is not negotiable:
+ *
+ * - **Yes** to the readings that narrate — `bestWeeks`, `monthlyComparison`,
+ *   `weekdayPattern`. Comparing a flu week against a normal one answers a
+ *   question nobody asked.
+ * - **Never** to `measuredMaintenance`. The energy balance is physics: the food
+ *   was eaten whether or not the week was unusual. If days could be excluded
+ *   from the measurement, anyone could mark their way to a flattering number,
+ *   and the one figure people pay for would be worth nothing.
+ *
+ * A filter rather than a parameter on five signatures, so the decision is made
+ * once at each call site and is visible there.
+ */
+export function withoutOutliers(log: unknown, outliers: unknown): unknown[] {
+  const rows = Array.isArray(log) ? log : [];
+  const skip = new Set(
+    (Array.isArray(outliers) ? outliers : []).filter((d): d is string => typeof d === 'string')
+  );
+  if (skip.size === 0) return rows;
+  return rows.filter((r: any) => !(r && typeof r.date === 'string' && skip.has(r.date)));
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Why the scale is suddenly higher, answered with arithmetic.
+ *
+ * The day someone quits is the day the scale jumps. Nobody reads a trend line
+ * in that moment, and every reassuring app says some version of "don't worry,
+ * it's water" — which is a claim about a body it has not looked at.
+ *
+ * The strong half of the answer needs no physiology at all, only the constant
+ * this module already uses everywhere: a kilogram of fat is about 7,700 kcal,
+ * so 1.5 kg of it in two days would have taken roughly 11,550 kcal on top of
+ * maintenance. That is not an opinion, and it rules out the thing people are
+ * actually afraid of. Only after that is the likely mechanism named, hedged the
+ * same way the fasting stages are.
+ *
+ * Deliberately silent on a drop. It would be just as true, but nobody quits
+ * over losing weight quickly, and a card that appears at every weigh-in is a
+ * card nobody reads.
+ */
+export const JUMP_KG = 0.8;
+export const JUMP_WINDOW_DAYS = 3;
+
+export type ScaleJump = {
+  kg: number;
+  days: number;
+  /** What that much fat would have cost, as a surplus over maintenance. */
+  impossibleKcal: number;
+  /** Whether a bigger day was actually logged in between. */
+  bigDayLogged: boolean;
+  note: string;
+};
+
+export function scaleJump(
+  weights: unknown,
+  intakeLog: unknown,
+  today: string = todayISO()
+): ScaleJump | null {
+  const weighed = (Array.isArray(weights) ? weights : [])
+    .filter((w: any) => w && typeof w.date === 'string' && isFinite(w.weight_kg) && w.weight_kg > 0
+      && w.date <= today)
+    .sort((a: any, b: any) => a.date.localeCompare(b.date)) as WeighIn[];
+
+  if (weighed.length < 2) return null;
+
+  const latest = weighed[weighed.length - 1];
+  // The one before it, and it has to be a different day — two entries for the
+  // same morning are a correction, not a jump.
+  const prev = [...weighed].reverse().find((w) => w.date < latest.date);
+  if (!prev) return null;
+
+  const days = daysBetween(prev.date, latest.date);
+  if (days > JUMP_WINDOW_DAYS) return null;
+
+  const kg = Math.round((latest.weight_kg - prev.weight_kg) * 10) / 10;
+  if (kg < JUMP_KG) return null;
+
+  const impossibleKcal = Math.round(kg * KCAL_PER_KG);
+
+  // Did they log a bigger day in the span? It changes which sentence is true,
+  // not whether the arithmetic holds.
+  const bigDayLogged = (Array.isArray(intakeLog) ? intakeLog : []).some(
+    (e: any) => e && typeof e.date === 'string' && e.date > prev.date && e.date <= latest.date
+      && isFinite(e.factor) && e.factor > 1
+  );
+
+  const span = days === 1 ? 'since yesterday' : `in ${days} days`;
+  const note =
+    `You are ${kg} kg heavier ${span}. Gaining that as fat would have taken about `
+    + `${impossibleKcal.toLocaleString('en-US')} kcal on top of what your body uses, `
+    + `${bigDayLogged ? 'and the day you logged was nowhere near that' : 'which is more than a few days holds'}. `
+    + `A larger carbohydrate and salt intake holds water, and that is the part that leaves again. `
+    + `The trend across weeks is the reading that means something.`;
+
+  return { kg, days, impossibleKcal, bigDayLogged, note };
+}
+
+// ---------------------------------------------------------------------------
+
 export function readTrend(weights: unknown, today: string = todayISO()): TrendRead {
   const weighed = withinWindow<WeighIn>(weights, today)
     .filter((w) => isFinite(w.weight_kg) && w.weight_kg > 0)
@@ -1271,6 +1375,95 @@ export function demo() {
   assert(costOfExtra(0, 500) === null, 'nothing extra costs nothing');
   assert(costOfExtra(500, 0) === null, 'without a deficit there is no delay to state');
   assert(costOfExtra(NaN, 500) === null, 'nonsense in, nothing out');
+
+  // --- days that do not count towards a comparison --------------------------
+
+  {
+    const day = (i: number) => `2026-07-${String(i + 1).padStart(2, '0')}`;
+    // Twenty ordinary days, then three where the log ran away.
+    const log = [
+      ...Array.from({ length: 20 }, (_, i) => ({ date: day(i), factor: 1, target_kcal: 2000 })),
+      ...Array.from({ length: 3 }, (_, i) => ({ date: day(20 + i), factor: 1.7, target_kcal: 2000 })),
+    ];
+    const weights = Array.from({ length: 6 }, (_, i) => ({
+      date: day(i * 4), weight_kg: 90 - i * 0.3,
+    }));
+    const holiday = [day(20), day(21), day(22)];
+
+    const kept = withoutOutliers(log, holiday) as typeof log;
+    assert(kept.length === 20, `the marked days are gone: ${kept.length}`);
+    assert(kept.every((e) => !holiday.includes(e.date)), 'and it is those days that went');
+    assert(withoutOutliers(log, []).length === log.length, 'nothing marked changes nothing');
+    assert(withoutOutliers(log, ['2026-01-01']).length === log.length,
+      'marking a day that was never logged changes nothing');
+    assert(withoutOutliers(null, holiday).length === 0, 'nonsense in, empty out');
+
+    // The rule that matters, asserted rather than written in a comment. The
+    // energy balance is physics — the food was eaten either way — so anyone
+    // who could exclude days from it could mark their way to a flattering
+    // number, and the figure people pay for would be worthless.
+    const TODAY = '2026-07-24';
+    const full = measuredMaintenance(log, weights, 2400, TODAY);
+    const trimmed = measuredMaintenance(kept, weights, 2400, TODAY);
+    assert(full.kcal !== null, 'the fixture is measurable at all');
+    assert(full.kcal !== trimmed.kcal,
+      'dropping days really would move the measurement, which is why it is not allowed');
+
+    // And that the narrating side does change, or the feature does nothing.
+    const patternAll = weekdayPattern(log, TODAY);
+    const patternKept = weekdayPattern(kept, TODAY);
+    assert(patternAll.note !== patternKept.note || patternAll.worst !== patternKept.worst,
+      'the weekday reading does move when the unusual days are taken out');
+  }
+
+  // --- why the scale jumped ------------------------------------------------
+
+  {
+    const w = (date: string, weight_kg: number) => ({ date, weight_kg });
+    const NOW = '2026-08-10';
+
+    const jump = scaleJump(
+      [w('2026-08-08', 90), w('2026-08-10', 91.5)],
+      [{ date: '2026-08-09', factor: 1.7, target_kcal: 2000 }],
+      NOW
+    )!;
+    assert(jump !== null, 'a kilo and a half in two days is a jump');
+    assert(jump.kg === 1.5, `stated as measured: ${jump.kg}`);
+    assert(jump.days === 2, `and over the span it happened in: ${jump.days}`);
+    // The half of the answer that needs no physiology at all.
+    assert(jump.impossibleKcal === 11550, `1.5 x 7700 = 11550: ${jump.impossibleKcal}`);
+    assert(/11,550 kcal/.test(jump.note), `and it is in the sentence: ${jump.note}`);
+    assert(jump.bigDayLogged, 'the bigger day is noticed');
+    assert(/water/.test(jump.note), 'the mechanism is named');
+    assert(/trend/i.test(jump.note), 'and what to read instead');
+
+    // No comfort, no instruction. The figure is the argument.
+    const SOOTHING = /\b(don'?t worry|no need to|relax|stay positive|keep going|keep it up|you'?ve got this|proud)\b/i;
+    assert(!SOOTHING.test(jump.note), `no reassurance: ${jump.note}`);
+    assert(!/should|must|try to/i.test(jump.note), 'and no instruction');
+    assert(SOOTHING.test("don't worry, it's just water"), 'the reassurance guard actually matches');
+
+    // Without a logged big day the arithmetic still holds, the sentence changes.
+    const quiet = scaleJump([w('2026-08-09', 90), w('2026-08-10', 91)], [], NOW)!;
+    assert(quiet !== null && !quiet.bigDayLogged, 'a jump with nothing logged still reads');
+    assert(/7,700 kcal/.test(quiet.note), `and still names the cost: ${quiet.note}`);
+    assert(/since yesterday/.test(quiet.note), 'one day is named as one day');
+
+    // What is not a jump.
+    assert(scaleJump([w('2026-08-09', 90), w('2026-08-10', 90.5)], [], NOW) === null,
+      'half a kilo is scatter, not a jump');
+    assert(scaleJump([w('2026-08-04', 90), w('2026-08-10', 92)], [], NOW) === null,
+      'six days apart is a trend, not a jump');
+    assert(scaleJump([w('2026-08-09', 92), w('2026-08-10', 90)], [], NOW) === null,
+      'losing weight fast gets no card — nobody quits over that');
+    assert(scaleJump([w('2026-08-10', 90)], [], NOW) === null, 'one weigh-in is not a comparison');
+    assert(scaleJump([], [], NOW) === null, 'and none at all is not either');
+    assert(scaleJump([w('2026-08-10', 90), w('2026-08-10', 91.2)], [], NOW) === null,
+      'two entries for one morning are a correction, not a jump');
+    // Nothing in the future is read, however it got into the log.
+    assert(scaleJump([w('2026-08-10', 90), w('2026-08-20', 93)], [], NOW) === null,
+      'a future weigh-in cannot make today a jump');
+  }
 
   // --- planning an exception day -------------------------------------------
 

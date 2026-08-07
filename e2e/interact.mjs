@@ -597,6 +597,119 @@ export default async function run() {
     }
   }
 
+  // ------------------------------------------------------ THE SCALE JUMPED
+  section('Why the scale is higher');
+  {
+    // The day people delete the app. Every soothing app says "it's just water",
+    // which is a claim about a body it has not looked at. The arithmetic comes
+    // first here and rules out the thing they are actually afraid of.
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED,
+        weight_log: JSON.stringify([
+          { id: 'j1', date: day(2), weight_kg: 90 },
+          { id: 'j2', date: day(0), weight_kg: 91.5 },
+        ]),
+        intake_log: JSON.stringify([{ date: day(1), factor: 1.7, target_kcal: 2000 }]),
+      });
+      await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Up 1.5 kg'), 'the jump is named as measured');
+      check(has(t, '11,550 kcal'), 'and what that much fat would have cost',
+        t.match(/[\d,]+ kcal on top/)?.[0] ?? '');
+      check(has(t, 'water'), 'the mechanism is named second');
+      check(/trend/i.test(t), 'with what to read instead');
+      check(!/don.t worry|no need to|keep going|you.ve got this/i.test(t),
+        'and nothing that reassures rather than explains');
+      await context.close();
+    }
+
+    // Scatter is not a jump, and a fast loss gets no card at all.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED,
+        weight_log: JSON.stringify([
+          { id: 'q1', date: day(1), weight_kg: 90 },
+          { id: 'q2', date: day(0), weight_kg: 90.4 },
+        ]),
+      });
+      await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      check(!/Up [\d.]+ kg/.test(await body(page)), 'four hundred grams says nothing');
+      await context.close();
+    }
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED,
+        weight_log: JSON.stringify([
+          { id: 'd1', date: day(1), weight_kg: 92 },
+          { id: 'd2', date: day(0), weight_kg: 90 },
+        ]),
+      });
+      await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      check(!/Up [\d.]+ kg/.test(await body(page)), 'and losing two kilos fast gets no card');
+      await context.close();
+    }
+  }
+
+  // ------------------------------------------------------- DAYS LEFT OUT
+  section('Days left out of comparisons only');
+  {
+    // The rule the whole feature stands on: marking days changes what the app
+    // compares and never what it measured. Anyone who could exclude days from
+    // the measurement could mark their way to a flattering number.
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    const { context, page } = await newPage(browser, {
+      ...SEED, user_premium: 'true',
+      intake_log: JSON.stringify(Array.from({ length: 20 }, (_, i) => ({
+        date: day(19 - i), factor: i > 16 ? 1.7 : 1, target_kcal: 2000,
+      }))),
+      weight_log: JSON.stringify(Array.from({ length: 8 }, (_, i) => ({
+        id: `o${i}`, date: day(18 - i * 2.5 | 0), weight_kg: 90 - i * 0.3,
+      }))),
+    });
+    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+
+    const measuredOf = async () => {
+      const t = await bodyIn(page, 'Your body');
+      return t.match(/(\d{4})\s*kcal a day/)?.[1] ?? null;
+    };
+    const before = await measuredOf();
+    check(before !== null, 'the fixture produces a measured figure', String(before));
+
+    await page.getByLabel('This week').click();
+    await page.waitForTimeout(600);
+    const cell = page.getByLabel(`Leave out ${day(1)}`);
+    check(await cell.count() === 1, 'yesterday can be left out');
+    await cell.click();
+    await page.waitForTimeout(900);
+
+    const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('outlier_days')) ?? '[]');
+    check(stored.length === 1 && stored[0] === day(1), 'and the day is recorded', JSON.stringify(stored));
+    check(await measuredOf() === before,
+      'the measurement does not move — that is the rule', `${before} → ${await measuredOf()}`);
+
+    await page.getByLabel('This week').click();
+    await page.waitForTimeout(500);
+    await page.getByLabel(`Leave out ${day(1)}`).click();
+    await page.waitForTimeout(800);
+    const after = JSON.parse(await page.evaluate(() => localStorage.getItem('outlier_days')) ?? '[]');
+    check(after.length === 0, 'and tapping again puts the day back', JSON.stringify(after));
+    await context.close();
+  }
+
   // ---------------------------------------------------------- THE BIG DAY
   section('A big day can be planned before it happens');
   {
@@ -697,13 +810,14 @@ export default async function run() {
       JSON.stringify(log));
 
     // The reason null is part of the cycle: an accidental tap has to be
-    // undoable, or the strip could only ever invent answers.
-    await cell.click();
-    await page.waitForTimeout(700);
-    await cell.click();
-    await page.waitForTimeout(700);
+    // undoable, or the strip could only ever invent answers. Four answers now,
+    // so a full lap is five taps rather than four.
+    for (let i = 0; i < 3; i++) {
+      await cell.click();
+      await page.waitForTimeout(700);
+    }
     log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
-    check(log.length === 0, 'and a fourth tap takes the answer back entirely', JSON.stringify(log));
+    check(log.length === 0, 'and a full lap takes the answer back entirely', JSON.stringify(log));
     await context.close();
   }
 
@@ -719,7 +833,7 @@ export default async function run() {
     await page.goto(BASE + '/', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1600);
 
-    await page.getByLabel('Ate the plan').click();
+    await page.getByLabel(/^Ate the plan, about \d+ kcal$/).click();
     await page.waitForTimeout(600);
     const t = await body(page);
     check(/(Today|Yesterday): ate the plan/i.test(t), 'the answer stays on screen',
@@ -730,7 +844,7 @@ export default async function run() {
     await page.waitForTimeout(600);
     check(has(await body(page), 'Ate less'), 'tapping it puts the options back');
 
-    await page.getByLabel('Ate less').click();
+    await page.getByLabel(/^Ate less, about \d+ kcal$/).click();
     await page.waitForTimeout(800);
     const log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
     check(log.length === 1, 'the correction replaces a day rather than adding one', String(log.length));
@@ -1222,7 +1336,10 @@ export default async function run() {
     check(!/cure|prevent|detox|proven|guarantee/i.test(t), 'progress makes no health claim');
 
     // A streak you cannot correct stops being true — that is the whole point.
-    const cells = page.locator('[role="checkbox"]');
+    // Anchored to the fast strip's own labels: a bare [role="checkbox"] also
+    // matched the days-to-leave-out strip once that existed, so the count was
+    // fourteen and the taps landed on whichever came first.
+    const cells = page.getByLabel(/^Fast on /);
     const before = await cells.count();
     check(before === 7, 'seven days are offered', String(before));
 
@@ -1230,13 +1347,15 @@ export default async function run() {
       Number((document.body.innerText.match(/(\d+) days? logged/) ?? [])[1] ?? -1));
     const startDays = await dayCount();
     // Tick an unlogged day, then untick it again.
-    const unticked = page.locator('[role="checkbox"][aria-checked="false"]').first();
-    await unticked.click();
+    await page.locator('[role="checkbox"][aria-checked="false"]')
+      .filter({ has: page.locator('xpath=.') })
+      .and(page.getByLabel(/^Fast on /)).first().click();
     await page.waitForTimeout(900);
     check(await dayCount() === startDays + 1, 'adding a missed fast counts it',
       `${startDays} -> ${await dayCount()}`);
 
-    await page.locator('[role="checkbox"][aria-checked="true"]').last().click();
+    await page.getByLabel(/^Fast on /)
+      .and(page.locator('[aria-checked="true"]')).last().click();
     await page.waitForTimeout(900);
     check(await dayCount() === startDays, 'and a mistap can be taken back',
       `back to ${await dayCount()}`);

@@ -17,7 +17,11 @@ import {
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
   saveProfile, recordIntake, intakeFor, loadIntakeLog, isPremium, todayISO, type Hydration,
 } from '@/lib/store';
-import { readTrend, effectiveMaintenance, intakeQuestionFor, type IntakeQuestion } from '@/lib/energy';
+import {
+  readTrend, effectiveMaintenance, intakeQuestionFor, scaleJump,
+  type IntakeQuestion, type ScaleJump,
+} from '@/lib/energy';
+import { INTAKE_OPTIONS, intakeKcal, intakeLabel } from '@/lib/review';
 import type { MealPlan } from '@/lib/ai';
 import { resync } from '@/lib/notify';
 
@@ -45,6 +49,7 @@ export default function DashboardScreen() {
   const [plan, setPlan] = useState<MealPlan | null>(null);
   const [weighedToday, setWeighedToday] = useState(true);
   const [weightInput, setWeightInput] = useState('');
+  const [jump, setJump] = useState<ScaleJump | null>(null);
   const [dateLabel, setDateLabel] = useState('');
   const [question, setQuestion] = useState<IntakeQuestion | null>(null);
   const [answered, setAnswered] = useState<{ date: string; factor: number } | null>(null);
@@ -70,6 +75,7 @@ export default function DashboardScreen() {
     const latest = [...(intake ?? [])].sort((a, b) => a.date.localeCompare(b.date)).pop();
     setAnswered(latest ? { date: latest.date, factor: latest.factor } : null);
     setTrend(readTrend(weights));
+    setJump(scaleJump(weights, intake));
     setMeasured(effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem));
     setProfile(p);
     setHydration(h);
@@ -174,6 +180,9 @@ export default function DashboardScreen() {
     setProfile(nextProfile);
     setWeightInput('');
     setWeighedToday(true);
+    // The jump is about the entry that was just made, so it has to be read
+    // from the log that now includes it.
+    setJump(scaleJump(updated, await loadIntakeLog()));
   };
 
   // Hours into the current fast, for the physiology band.
@@ -243,16 +252,26 @@ export default function DashboardScreen() {
               Roughly, against the {kcal} kcal target. This is what lets the app measure what your
               body actually costs.
             </Txt>
-            <View style={s.intakeRow}>
-              {([
-                ['Ate the plan', 1, ''],
-                ['Ate less', 0.75, '≈ 25% under'],
-                ['Ate more', 1.3, '≈ 30% over'],
-              ] as const).map(([label, factor, hint]) => (
-                <Tap key={label} onPress={() => answerIntake(factor)} accessibilityLabel={label} style={s.intakeCell}>
+            {/* Kilocalories, not percent. The target is two lines above in
+                kcal, so a percentage meant doing arithmetic at the one moment
+                that is supposed to be a single tap. Four options rather than
+                three, because the scale used to stop at "ate more" and a day
+                that really ran away was recorded as thirty percent over —
+                which pulls the measured maintenance, and the target with it,
+                downwards. The figures come from lib, not from here. */}
+            <View style={s.intakeGrid}>
+              {INTAKE_OPTIONS.map((o) => (
+                <Tap
+                  key={o.label}
+                  onPress={() => answerIntake(o.factor)}
+                  accessibilityLabel={`${o.label}, about ${intakeKcal(o.factor, kcal)} kcal`}
+                  style={s.intakeCell}
+                >
                   <View style={[s.intakeBtn, { borderColor: c.line, backgroundColor: c.well }]}>
-                    <Txt variant="small" style={{ textAlign: 'center' }}>{label}</Txt>
-                    {hint ? <Eyebrow style={{ marginTop: 2 }}>{hint}</Eyebrow> : null}
+                    <Txt variant="small" style={{ textAlign: 'center' }}>{o.label}</Txt>
+                    <Eyebrow style={{ marginTop: 2 }}>
+                      {o.factor === 1 ? '' : '≈ '}{intakeKcal(o.factor, kcal)} kcal
+                    </Eyebrow>
                   </View>
                 </Tap>
               ))}
@@ -274,7 +293,7 @@ export default function DashboardScreen() {
             <View style={[s.answered, { borderColor: c.line }]}>
               <Txt variant="small" color={c.textDim}>
                 {answered.date === todayISO() ? 'Today' : 'Yesterday'}:{' '}
-                {answered.factor >= 1.2 ? 'ate more' : answered.factor <= 0.9 ? 'ate less' : 'ate the plan'}
+                {intakeLabel(answered.factor)}
               </Txt>
               <Txt variant="small" color={c.accent}>change</Txt>
             </View>
@@ -458,6 +477,21 @@ export default function DashboardScreen() {
             </>
           )}
 
+          {/* The day someone deletes the app is the day the scale jumps. Every
+              soothing app says "it's just water", which is a claim about a body
+              it has not looked at. This says what that much fat would have
+              cost first — arithmetic, not comfort — and names the mechanism
+              second, hedged like the fasting bands. */}
+          {jump && (
+            <>
+              <Divider style={{ marginVertical: Space.base }} />
+              <Eyebrow color={c.ember}>Up {jump.kg} kg</Eyebrow>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                {jump.note}
+              </Txt>
+            </>
+          )}
+
           {/* The sentence a scale cannot produce. Someone weighing daily sees a
               jump and concludes the week went wrong; the fitted line usually
               has not moved at all. */}
@@ -491,8 +525,12 @@ const s = StyleSheet.create({
     borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Space.base,
     paddingVertical: Space.md, marginTop: Space.xl,
   },
-  intakeRow: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm },
-  intakeCell: { flex: 1, marginRight: Space.sm },
+  // Two by two. Four across left no room for a label and a figure under it.
+  intakeGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    marginTop: Space.base, marginRight: -Space.sm,
+  },
+  intakeCell: { width: '50%', paddingRight: Space.sm, marginBottom: Space.sm },
   intakeBtn: {
     minHeight: 56, borderRadius: Radius.md, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 8,
