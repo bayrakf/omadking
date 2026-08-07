@@ -176,6 +176,9 @@ export async function generateMealPlan(
         target_carbs_g: targets.carbs_g,
         target_fat_g: targets.fat_g,
         timing_pattern: timing.pattern,
+        // The one personal field that has to go: a recipe nobody can eat is
+        // worse than no recipe, and rejecting one used to cost a weekly plan.
+        avoid: profile.avoid || undefined,
       }, TIMEOUT_PLAN_MS);
 
       if (res.status === 402) {

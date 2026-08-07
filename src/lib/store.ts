@@ -418,7 +418,15 @@ async function rememberRecipe(plan: any, date: string): Promise<void> {
     ? rows.map((r) => (r.title === title ? { ...r, count: r.count + 1, lastCooked: date } : r))
     : [...rows, { title, count: 1, lastCooked: date, recipe: plan.recipe }];
 
-  await writeJSON(KEYS.cookedRecipes, next.slice(-60));
+  // Trimmed by when it was last cooked, not by where it sits in the list.
+  // `loadCookedRecipes` returns rows already sorted count-descending, so
+  // `slice(-60)` cut from the front — it threw away the most-cooked recipes
+  // and kept the ones cooked once. The rotation exists to hold favourites.
+  const trimmed = next.length <= 60
+    ? next
+    : [...next].sort((a, b) => b.lastCooked.localeCompare(a.lastCooked)).slice(0, 60);
+
+  await writeJSON(KEYS.cookedRecipes, trimmed);
 }
 
 export async function markCooked(date = todayISO(), plan?: unknown): Promise<string[]> {

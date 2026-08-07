@@ -641,6 +641,75 @@ export default async function run() {
     }
   }
 
+  // --------------------------------------------- WHAT YOU WILL NOT EAT
+  section('The recipe knows what you cannot eat');
+  {
+    // Until this existed the prompt carried targets, goal and training time and
+    // nothing else, so a vegetarian got chicken — and rejecting the plate cost
+    // one of three weekly plans.
+    //
+    // Two contexts on purpose: the harness re-seeds localStorage on every
+    // document load, so anything saved through the UI is wiped by the next
+    // navigation. Saving and sending have to be checked apart.
+    {
+      const { context, page } = await newPage(browser, SEED);
+      await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1500);
+
+      const field = page.getByLabel('Never put in a recipe');
+      check(await field.count() === 1, 'the profile has a place to say it');
+      await field.fill('no fish, no dairy');
+      // Saved on blur, like the numeric rows.
+      await page.keyboard.press('Tab');
+      await page.waitForTimeout(900);
+      const saved = JSON.parse(await page.evaluate(() => localStorage.getItem('onboarding_profile')) ?? '{}');
+      check(saved.avoid === 'no fish, no dairy', 'and it is stored', String(saved.avoid));
+      await context.close();
+    }
+
+    {
+      const profile = JSON.parse(SEED.onboarding_profile);
+      const { context, page } = await newPage(browser, {
+        ...SEED,
+        onboarding_profile: JSON.stringify({ ...profile, avoid: 'no fish, no dairy' }),
+      });
+
+      const sent = [];
+      await context.route('**/functions/v1/generate_meal_plan', (route) => {
+        try { sent.push(JSON.parse(route.request().postData() ?? '{}')); } catch { sent.push({}); }
+        return route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify({ recipe: {
+            title: 'Test plate', ingredients: ['200g tofu'], instructions: '1. Cook.',
+            reheat_instructions: '1. Skillet.', prep_time_min: 20, is_meal_prep: true,
+          } }),
+        });
+      });
+
+      await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1500);
+      await page.getByText('Build the plan').click();
+      await page.waitForTimeout(3000);
+      check(sent[0]?.avoid === 'no fish, no dairy', 'and rides along with the recipe request',
+        String(sent[0]?.avoid));
+
+      const afterBuild = JSON.parse(await page.evaluate(() => localStorage.getItem('plan_quota')) ?? '{}');
+      check(afterBuild.used === 1, 'a built plan costs one of the three', String(afterBuild.used));
+
+      // The rejection that used to cost a third of the week.
+      const reject = page.getByText('Not this one');
+      check(await reject.count() === 1, 'a plate you cannot eat can be rejected');
+      await reject.click();
+      await page.waitForTimeout(3000);
+      const afterReject = JSON.parse(await page.evaluate(() => localStorage.getItem('plan_quota')) ?? '{}');
+      check(afterReject.used === 1, 'and the rejection is free', String(afterReject.used));
+      check(sent.length === 2, 'while still asking for a different plate', String(sent.length));
+      check(await page.getByText('Not this one').count() === 0,
+        'one rejection per build, not an endless supply');
+      await context.close();
+    }
+  }
+
   // ------------------------------------------------- ASKING FOR WHAT IT NEEDS
   section('The app asks for what the measurement needs');
   {

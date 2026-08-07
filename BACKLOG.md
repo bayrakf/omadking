@@ -1235,3 +1235,34 @@ kennt das Feld, sonst hätte es die Gerätesynchronisierung nicht überlebt — 
 Zielgewicht schon einmal gemacht hat.
 
 **Erledigt** 2026-08-07 — 323 Checks.
+
+---
+
+## 48. Der Planer weiß, was du nicht isst — und ein Fehlgriff ist frei
+
+Der Rezept-Prompt bekam Zielwerte, Ziel und Trainingszeitpunkt und **keine Ernährungseinschränkung**.
+Vegetarier bekamen Hähnchen, jemand mit Meeresfrüchte-Allergie bekam Garnelen. Und „nochmal" kostete
+eine Quota: nach zwei Fehlgriffen blieb einer von drei Wochenplänen.
+
+`avoid` als Freitext im Profil — kein Auswahlmenü aus Diäten, weil „kein Fisch, keine Milch, keine
+Pilze" mehr echte Menschen abdeckt als jede Liste, die ich mir ausdenke. Auf 120 Zeichen gekürzt und
+auf eine Zeile geglättet, **client- und serverseitig**: der Text wird in einen Prompt interpoliert,
+und ein Zeilenumbruch darin ist eine kostenlose Anweisung an das Modell. Der Client ist keine
+Vertrauensgrenze.
+
+„Nicht dieses" baut einmal pro bezahltem Plan neu, ohne Quota. Ohne das Feld wäre das ein Pflaster
+gewesen.
+
+**Zwei Fehler mitgenommen:**
+
+- `planner.tsx` — ein „Cooked before"-Tipp ohne aktuellen Plan erzeugte einen `MealPlan` ohne Makros
+  und Zeiten; `Timing` und `RecipeCard` rendern dann `undefined`. Die Zahlen kommen jetzt aus
+  denselben Zielwerten, die der Bildschirm ohnehin darüber anzeigt.
+- `store.ts` — `slice(-60)` lief auf eine Liste, die `recipeRotation` bereits **absteigend nach
+  Häufigkeit** sortiert hatte. Es schnitt also vorne ab und **warf die meistgekochten Rezepte weg**,
+  während es die einmal gekochten behielt. Genau umgekehrt zu dem, wofür die Rotation existiert.
+  Jetzt nach Datum begrenzt.
+
+**Kostenlos.**
+
+**Erledigt** 2026-08-07 — 331 Checks.

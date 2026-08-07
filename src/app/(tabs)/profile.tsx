@@ -40,6 +40,16 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [quota, setQuota] = useState<Quota | null>(null);
   const [premium, setPremiumState] = useState(false);
+  const [avoid, setAvoid] = useState('');
+
+  /** Saved on blur like the numeric rows, so there is no extra button. */
+  const commitAvoid = async () => {
+    if (avoid === profile.avoid) return;
+    const next = normalizeProfile({ ...profile, avoid });
+    setProfile(next);
+    setAvoid(next.avoid);
+    await saveProfile(next);
+  };
   const [editing, setEditing] = useState<EditField | null>(null);
   const [draft, setDraft] = useState('');
   const [remindOn, setRemindOn] = useState(false);
@@ -56,7 +66,7 @@ export default function ProfileScreen() {
           loadProfileOrDefault(), getQuota(), isPremium(), remindersOn(), scheduledCount(),
         ]);
         if (!active) return;
-        setProfile(p); setQuota(q); setPremiumState(prem);
+        setProfile(p); setQuota(q); setPremiumState(prem); setAvoid(p.avoid);
         setRemindOn(rOn); setQueued(n); setMounted(true);
       })();
       return () => { active = false; };
@@ -274,6 +284,27 @@ export default function ProfileScreen() {
             Left alone, the app aims at a healthy BMI. That is a population midpoint and often too
             low for someone carrying muscle, so set your own and the forecast follows it.
           </Txt>
+          <Divider />
+          {/* Free text, not a menu of diets: "no fish, no dairy, no mushrooms"
+              covers more real people than any list, and the model reads prose
+              better than a taxonomy. Its own row rather than a ProfileRow —
+              that component treats null as "use the default target". */}
+          <View style={{ paddingVertical: Space.md }}>
+            <Txt variant="body" color={c.textDim}>Never put in a recipe</Txt>
+            <TextInput
+              value={avoid}
+              onChangeText={setAvoid}
+              onBlur={commitAvoid}
+              placeholder="no fish, no dairy…"
+              placeholderTextColor={c.textFaint}
+              maxLength={120}
+              accessibilityLabel="Never put in a recipe"
+              style={[Type.data, s.avoidInput, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
+            />
+            <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
+              Goes to the recipe as a hard constraint. Your numbers are unaffected.
+            </Txt>
+          </View>
           <Divider />
           <Choice label="Sex" field="sex" />
         </Card>
@@ -556,6 +587,10 @@ const s = StyleSheet.create({
   value: { flexDirection: 'row', alignItems: 'center' },
   valueText: { marginRight: Space.sm },
   input: { minWidth: 90, textAlign: 'right', borderBottomWidth: 1.5, paddingVertical: 2, fontSize: 13 },
+  avoidInput: {
+    marginTop: Space.sm, borderRadius: Radius.md, borderWidth: 1,
+    paddingHorizontal: Space.md, paddingVertical: Space.md, fontSize: 13,
+  },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', marginRight: -Space.sm },
   chip: { marginRight: Space.sm, marginBottom: Space.sm },
   plan: {

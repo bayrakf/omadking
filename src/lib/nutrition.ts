@@ -34,6 +34,16 @@ export type UserProfile = {
    * is not a change anyone asked for.
    */
   weekly_rate_kg: number | null;
+  /**
+   * What the recipe must not contain, in the user's own words.
+   *
+   * Free text rather than a menu of diets: "no fish, no dairy, no mushrooms"
+   * covers more real people than any list I could write, and the model reads
+   * prose better than it reads a taxonomy. Until this existed every generated
+   * plan was uncookable for anyone with a restriction, and rejecting one cost
+   * a weekly plan.
+   */
+  avoid: string;
 };
 
 export type Training = {
@@ -63,6 +73,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   default_training_time: '18:00',
   target_weight_kg: null,
   weekly_rate_kg: null,
+  avoid: '',
 };
 
 // ---------------------------------------------------------------------------
@@ -128,6 +139,10 @@ export function normalizeProfile(raw: any): UserProfile {
     // not become a rate. Without this line the field would not survive a sync
     // — the mistake the target weight already made once.
     weekly_rate_kg: parseRate(raw.weekly_rate_kg),
+    // Capped and flattened: it goes into a prompt, and a newline there is a
+    // free instruction. Unknown to normalizeProfile would mean unknown to the
+    // sync — the mistake the target weight already made once.
+    avoid: typeof raw.avoid === 'string' ? raw.avoid.replace(/\s+/g, ' ').trim().slice(0, 120) : '',
   };
 }
 
@@ -924,6 +939,14 @@ export function demo() {
   assert(targetWeight(prof) === 73.7, `the default loss target is BMI 22: ${targetWeight(prof)}`);
   // And the point of the change: a chosen figure beats the population midpoint.
   assert(targetWeight({ ...prof, target_weight_kg: 78 }) === 78, 'a chosen target wins');
+
+  // A restriction has to survive normalising, or it exists on one device only.
+  assert(normalizeProfile({ ...prof, avoid: 'no fish' }).avoid === 'no fish', 'a restriction survives');
+  assert(normalizeProfile({ ...prof, avoid: '  no  dairy \n no nuts ' }).avoid === 'no dairy no nuts',
+    'and is flattened — a newline in a prompt is a free instruction');
+  assert(normalizeProfile({ ...prof, avoid: 'x'.repeat(400) }).avoid.length === 120, 'and capped');
+  assert(normalizeProfile(prof).avoid === '', 'nothing said is nothing sent');
+  assert(normalizeProfile({ ...prof, avoid: 42 as any }).avoid === '', 'and nonsense is nothing too');
 
   // --- how fast, with the consequence attached ------------------------------
 

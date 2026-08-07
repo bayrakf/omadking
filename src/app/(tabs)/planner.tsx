@@ -8,14 +8,14 @@ import {
 import { Icon } from '@/components/icons';
 import RecipeCard from '@/components/RecipeCard';
 import {
-  dailyTargets, breakFastSteps, DEFAULT_PROFILE,
+  dailyTargets, breakFastSteps, mealTiming, DEFAULT_PROFILE,
   type Intensity, type Training, type UserProfile,
 } from '@/lib/nutrition';
 import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
 import {
   loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
   loadLastSession, saveLastSession, loadPortions, savePortions,
-  loadIntakeLog, loadWeightLog, isPremium, loadCookedRecipes, type Quota,
+  loadIntakeLog, loadWeightLog, isPremium, loadCookedRecipes, todayISO, type Quota,
 } from '@/lib/store';
 import type { CookedRecipe } from '@/lib/grocery';
 import { effectiveMaintenance } from '@/lib/energy';
@@ -45,6 +45,8 @@ export default function PlannerScreen() {
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [quota, setQuota] = useState<Quota | null>(null);
+  /** One rejection per paid build. See the comment on `generate`. */
+  const [retryFree, setRetryFree] = useState(false);
 
   const [isRestDay, setIsRestDay] = useState(false);
   const [sport, setSport] = useState('weights');
@@ -110,7 +112,43 @@ export default function PlannerScreen() {
   // Follows the measured maintenance once there is one; otherwise the formula.
   const preview = dailyTargets(profile, training, measured);
 
-  const generate = async () => {
+  /**
+   * The numbers a re-cooked recipe hangs on when nothing is on screen yet.
+   *
+   * Tapping "Cooked before" used to spread the recipe onto `{}`, so the timing
+   * row and the macro row rendered `undefined`. Everything here is already
+   * computed above for the live preview.
+   */
+  const planShell = (): MealPlan => {
+    const t = mealTiming(profile, training);
+    return {
+      date: todayISO(),
+      eating_window_start: t.eating_window_start,
+      eating_window_end: t.eating_window_end,
+      total_kcal: preview.kcal,
+      protein_g: preview.protein_g,
+      carbs_g: preview.carbs_g,
+      fat_g: preview.fat_g,
+      pre_training_snack_time: t.pre_training_snack_time,
+      main_meal_time: t.main_meal_time,
+      ai_reasoning: '',
+      timing_warning: t.warning,
+      training_burn_kcal: preview.burn_kcal,
+      recipe_source: 'offline',
+      recipe_note: null,
+      timing_pattern: t.pattern,
+      training_start_time: training?.start_time ?? null,
+      training_duration_min: training?.duration_min ?? 0,
+      recipe: { title: '', ingredients: [], instructions: '', reheat_instructions: '', prep_time_min: 0, is_meal_prep: true },
+    };
+  };
+
+  /**
+   * ponytail: the free-rejection flag lives in screen state, not storage, so
+   * navigating away loses it. Persist it if anyone complains — a rejection is
+   * something you do within seconds of seeing the plate.
+   */
+  const generate = async (free = false) => {
     if (quota && !quota.premium && quota.remaining <= 0) return router.push('/paywall');
     setLoading(true);
     setError(null);
@@ -128,8 +166,12 @@ export default function PlannerScreen() {
       setPlan(next);
       setHistory(await savePlan(next));
       // Only a real generated recipe costs one of the three weekly plans.
-      // Charging for the built-in fallback would bill the user for an outage.
-      if (next.recipe_source === 'ai') await consumeQuota();
+      // Charging for the built-in fallback would bill the user for an outage —
+      // and neither should the one free rejection, or a recipe someone cannot
+      // eat would cost them a third of their week.
+      if (next.recipe_source === 'ai' && !free) await consumeQuota();
+      // A paid build earns a rejection; a rejection does not earn another.
+      setRetryFree(!free);
       // Cook and meal times just moved, so the schedule has to follow.
       await resync();
       setQuota(await getQuota());
@@ -272,7 +314,7 @@ export default function PlannerScreen() {
               </Txt>
             </View>
           ) : (
-            <Button label="Build the plan" icon="plate" onPress={generate} />
+            <Button label="Build the plan" icon="plate" onPress={() => generate()} />
           )}
           {error && <Notice tone="error">{error}</Notice>}
           {copied && <Notice tone="ok">Copied to clipboard.</Notice>}
@@ -287,6 +329,15 @@ export default function PlannerScreen() {
             portions={portions}
             onPortions={(n) => { setPortions(n); savePortions(n); }}
           />
+          {/* A plate you cannot eat used to cost a third of your week. */}
+          {retryFree && (
+            <Button
+              label="Not this one"
+              variant="secondary"
+              onPress={() => generate(true)}
+              style={{ marginTop: Space.md }}
+            />
+          )}
           <Button
             label={Platform.OS === 'web' ? 'Copy plan' : 'Share plan'}
             icon="share"
@@ -319,7 +370,11 @@ export default function PlannerScreen() {
           {rotation.slice(0, 6).map((r) => (
             <Tap
               key={r.title}
-              onPress={() => r.recipe && setPlan({ ...(plan ?? {}), recipe: r.recipe } as MealPlan)}
+              // Without a plan on screen this used to produce a MealPlan with
+              // no macros and no times, and Timing and RecipeCard rendered
+              // `undefined`. The numbers come from the same targets the screen
+              // is already showing above.
+              onPress={() => r.recipe && setPlan({ ...(plan ?? planShell()), recipe: r.recipe } as MealPlan)}
               accessibilityLabel={`Cook ${r.title} again`}
             >
               <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>

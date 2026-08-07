@@ -27,6 +27,13 @@ const json = (body: unknown, status = 200) =>
 /** The client computes macros and timing locally and sends them here. This
  *  function only writes the recipe prose, so the two can never disagree. */
 function buildPrompt(p: Record<string, any>): string {
+  // Capped and flattened here as well as on the client. The client is not a
+  // trust boundary — this string is interpolated into a prompt, and a newline
+  // in it is a free instruction to the model.
+  const avoid = typeof p.avoid === 'string'
+    ? p.avoid.replace(/\s+/g, ' ').trim().slice(0, 120)
+    : '';
+
   const timingNote =
     p.timing_pattern === 'pre'
       ? 'The athlete eats BEFORE training, so keep fat moderate and avoid very high volume or heavy cream — it must sit comfortably during the session.'
@@ -43,6 +50,7 @@ Design ONE meal that hits these exact targets (do not change them):
 
 ${timingNote}
 
+${avoid ? `HARD CONSTRAINT — the athlete cannot or will not eat: ${avoid}\nNo ingredient may contain any of it, including as a garnish or a sauce. If a target is impossible without it, get as close as you can and choose something they can eat.\n` : ''}
 Rules:
 - Every ingredient needs an exact gram or millilitre amount, and the amounts must plausibly add up to the macro targets above.
 - Instructions: numbered culinary steps ("1. ", "2. ", ...), specific temperatures and times.

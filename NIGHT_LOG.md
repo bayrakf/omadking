@@ -772,3 +772,24 @@ verschwindet, sobald jemand tippt — und genau dann agiert er zu der Zahl, der 
 das Feld leer lässt. Jetzt sichtbarer Text.
 
 **Stand:** e2e **323 Checks**.
+
+---
+
+## Punkt 48 — mein Test kämpfte gegen den Harness, nicht gegen den Code
+
+`avoid` kam nicht im Anfrage-Body an, obwohl der Speichern-Check grün war. Ursache war keine der
+Stellen, an denen ich gesucht habe: `newPage` setzt den Seed über `addInitScript`
+(`harness.mjs:140`), und der läuft bei **jedem** Dokumentenladen. Mein Test hat das Feld über die
+Oberfläche gespeichert und ist dann zum Planer navigiert — die Navigation hat `onboarding_profile`
+auf den Seed zurückgesetzt und die Eingabe verworfen.
+
+Die Lehre gilt für jeden künftigen Test: **was über die UI gespeichert und danach wegnavigiert
+wird, ist weg.** Speichern und Senden müssen in getrennten Kontexten geprüft werden, sonst prüft man
+den Harness.
+
+Der zweite Fund der Runde ist der ärgerlichere, weil er still Daten zerstört hat: `slice(-60)` auf
+einer nach Häufigkeit sortierten Liste schneidet die **Lieblingsrezepte** ab. Wer sechzig Gerichte
+gekocht hatte, verlor beim einundsechzigsten genau das, was er am häufigsten macht. Eine
+Speichergrenze, die das Gegenteil von dem tut, wofür die Sammlung da ist.
+
+**Stand:** e2e **331 Checks**.

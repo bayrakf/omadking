@@ -577,6 +577,16 @@ export function demo() {
   ]);
   assert(tie[0].title === 'Newer', `a tie goes to the recent one: ${tie[0].title}`);
 
+  // The trim in `rememberRecipe` used to run on this sorted output, so it cut
+  // from the front and dropped exactly the recipes someone cooks most. Pinned
+  // here because this ordering is what made that a bug.
+  const ranked = recipeRotation([
+    { title: 'Favourite', count: 40, lastCooked: '2026-01-01' },
+    { title: 'Once', count: 1, lastCooked: '2026-08-01' },
+  ]);
+  assert(ranked[0].title === 'Favourite', 'the most-cooked recipe comes first');
+  assert(ranked[ranked.length - 1].title === 'Once', 'and a one-off comes last');
+
   assert(recipeRotation([]).length === 0, 'nothing cooked, nothing to show');
   assert(recipeRotation(null).length === 0, 'null does not throw');
   assert(recipeRotation([{ count: 3 }, null, 'x', { title: '   ' }] as any).length === 0,
