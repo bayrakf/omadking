@@ -38,6 +38,10 @@ export async function resync(): Promise<void> {
   // No scheduler on web.
 }
 
+export async function announceMeasurement(): Promise<void> {
+  // No scheduler on web.
+}
+
 export async function scheduledCount(): Promise<number> {
   return 0;
 }

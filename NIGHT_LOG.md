@@ -736,3 +736,18 @@ Und die Zähler konnten ihre eigene Schwelle überschreiten: „10 of 8 evenings
 Fehler und verkauft den fertigen Teil unter Wert.
 
 **Stand:** e2e **308 Checks**.
+
+---
+
+## Punkte 45 und 47 — ein Test, der von einer Abwesenheit lebte
+
+Der ältere Test „but the figure itself is not given away" wurde rot, und zwar richtig: er prüft die
+Bezahlschranke und hat dafür die Abwesenheit einer Vorschau vorausgesetzt, ohne das zu sagen. Er
+sät jetzt ausdrücklich, dass die Vorschau verbraucht ist. Dieselbe Klasse wie der Fasten-Streifen
+in Punkt 43, der an der Abwesenheit eines zweiten Streifens hing.
+
+Die Einmal-Regel liegt bewusst in `shouldAnnounceMeasurement` statt im Bildschirm, und der
+Selbstcheck schickt zwanzig Vordergrund-Ereignisse durch und verlangt genau eine Auslösung. Eine
+Regel, die nur im Kommentar steht, ist eine Hoffnung.
+
+**Stand:** e2e **316 Checks**.

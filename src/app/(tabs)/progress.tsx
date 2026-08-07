@@ -20,7 +20,7 @@ import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
   loadIntakeLog, loadLastSession, isPremium, todayISO, recordIntake, clearIntake,
-  loadOutliers, markOutlier, unmarkOutlier,
+  loadOutliers, markOutlier, unmarkOutlier, measurementPreviewed, markMeasurementPreviewed,
   type WeightEntry,
 } from '@/lib/store';
 import {
@@ -102,6 +102,8 @@ export default function ProgressScreen() {
   const [best, setBest] = useState<BestWeeks>(null);
   const [outliers, setOutliers] = useState<string[]>([]);
   const [need, setNeed] = useState<Readiness | null>(null);
+  /** The one-off showing of the first measured figure. Display only. */
+  const [preview, setPreview] = useState(false);
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -165,6 +167,13 @@ export default function ProgressScreen() {
 
         setOutliers(skip);
         setNeed(ready);
+        // Shown once, the day it first exists. Deliberately does not touch
+        // effectiveMaintenance: the daily target must not jump for a day and
+        // then jump back, which would be worse than never showing it.
+        if (!prem && m.kcal !== null && !(await measurementPreviewed())) {
+          setPreview(true);
+          await markMeasurementPreviewed();
+        }
         setPattern(weekdayPattern(compare));
         setMonths(monthlyComparison(compare, log));
         setBest(bestWeeks(compare, log, plans, fasts));
@@ -793,12 +802,27 @@ export default function ProgressScreen() {
                 Not enough to measure yet — {measured.missing}. Until then the target comes from a
                 formula, which is right for a population and often wrong for a person.
               </Txt>
-            ) : premium ? (
+            ) : premium || preview ? (
               <>
                 <Txt variant="heading" style={{ marginTop: Space.md }}>
                   {measured.kcal}
                   <Txt variant="small" color={c.textFaint}> kcal a day</Txt>
                 </Txt>
+                {!premium && (
+                  <>
+                    <Txt variant="small" color={c.accent} style={{ marginTop: Space.sm }}>
+                      This is the figure you spent two weeks earning. It moves as you get lighter —
+                      Premium keeps measuring it and pulls your daily target along with it.
+                    </Txt>
+                    {cards.sell === 'measured' && (
+                      <Button
+                        label="Keep it moving"
+                        onPress={() => router.push('/paywall')}
+                        style={{ marginTop: Space.md }}
+                      />
+                    )}
+                  </>
+                )}
                 <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
                   {measured.deltaToEstimate === null || measured.deltaToEstimate === 0
                     ? 'Which is what the formula estimated.'

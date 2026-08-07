@@ -7,7 +7,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { Colors } from '@/constants/theme';
 import { isOnboarded } from '@/lib/store';
-import { resync } from '@/lib/notify';
+import { resync, announceMeasurement } from '@/lib/notify';
 import { syncEntitlement } from '@/lib/purchases';
 import ErrorScreen from '@/components/ErrorScreen';
 
@@ -77,6 +77,8 @@ export default function RootLayout() {
     const refresh = () => {
       resync().catch(() => {});
       syncEntitlement().catch(() => {});
+      // The moment the whole product works towards used to happen in silence.
+      announceMeasurement().catch(() => {});
     };
     refresh();
     const sub = AppState.addEventListener('change', (s) => {

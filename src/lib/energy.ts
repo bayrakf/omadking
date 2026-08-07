@@ -223,6 +223,26 @@ export function readiness(
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Whether the app should say, once, that the measurement has arrived.
+ *
+ * Two weeks of answering evenings and stepping on a scale end with a number
+ * appearing on a tab nobody was told to open. The moment the whole product
+ * works towards happened in silence.
+ *
+ * True exactly once: there has to be a figure, and it must not have been
+ * announced before. A flag with no measurement is not a reason to interrupt
+ * anyone, and a measurement that was already announced is not news.
+ */
+export function shouldAnnounceMeasurement(
+  measured: Measurement | null | undefined,
+  alreadyAnnounced: boolean
+): boolean {
+  return !alreadyAnnounced && !!measured && measured.kcal !== null;
+}
+
+// ---------------------------------------------------------------------------
+
 export function effectiveMaintenance(
   intakeLog: unknown,
   weights: unknown,
@@ -1454,6 +1474,27 @@ export function demo() {
   assert(costOfExtra(0, 500) === null, 'nothing extra costs nothing');
   assert(costOfExtra(500, 0) === null, 'without a deficit there is no delay to state');
   assert(costOfExtra(NaN, 500) === null, 'nonsense in, nothing out');
+
+  // --- announcing the measurement once -------------------------------------
+
+  {
+    const withFigure = { kcal: 2480 } as Measurement;
+    const without = { kcal: null } as Measurement;
+
+    assert(shouldAnnounceMeasurement(withFigure, false), 'a first figure is worth saying once');
+    assert(!shouldAnnounceMeasurement(withFigure, true), 'and never a second time');
+    assert(!shouldAnnounceMeasurement(without, false), 'nothing measured is nothing to announce');
+    assert(!shouldAnnounceMeasurement(null, false), 'and neither is nothing at all');
+    assert(!shouldAnnounceMeasurement(undefined, false), 'including the premium-withheld shape');
+    // Repeated calls with the flag now set stay quiet, which is the property
+    // that stops a foreground event from firing this every time.
+    let announced = false;
+    let fired = 0;
+    for (let i = 0; i < 20; i++) {
+      if (shouldAnnounceMeasurement(withFigure, announced)) { fired++; announced = true; }
+    }
+    assert(fired === 1, `twenty foreground events, one notification: ${fired}`);
+  }
 
   // --- how far off the measurement is --------------------------------------
 

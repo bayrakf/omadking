@@ -24,6 +24,8 @@ export const KEYS = {
   fastLog: 'fast_log',
   outliers: 'outlier_days',
   remindersOffered: 'reminders_offered',
+  measurementAnnounced: 'measurement_announced',
+  measurementPreviewed: 'measurement_previewed',
   cookLog: 'cook_log',
   chatLog: 'chat_log',
   lastSession: 'last_session',
@@ -232,6 +234,31 @@ export async function remindersOffered(): Promise<boolean> {
 
 export async function markRemindersOffered(): Promise<void> {
   await AsyncStorage.setItem(KEYS.remindersOffered, 'true');
+}
+
+/** Whether the arrival of the first measured figure has been announced. */
+export async function measurementAnnounced(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.measurementAnnounced)) === 'true';
+}
+
+export async function markMeasurementAnnounced(): Promise<void> {
+  await AsyncStorage.setItem(KEYS.measurementAnnounced, 'true');
+}
+
+/**
+ * Whether the first measured figure has already been shown without premium.
+ *
+ * Shown once, on the day it first exists. Two weeks of answering evenings and
+ * standing on a scale earn seeing what came of it — and it is a better argument
+ * for paying than any description of it could be, because what premium sells is
+ * not the number but the number continuing to move.
+ */
+export async function measurementPreviewed(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.measurementPreviewed)) === 'true';
+}
+
+export async function markMeasurementPreviewed(): Promise<void> {
+  await AsyncStorage.setItem(KEYS.measurementPreviewed, 'true');
 }
 
 /**

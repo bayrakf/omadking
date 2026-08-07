@@ -459,7 +459,7 @@ export default async function run() {
         // loosely — a pattern that silently stops matching would make this
         // check pass by finding nothing, which is the failure it exists for.
         n += await page.getByText(
-          /^(See what it measured|Compare the months|See which day|See the split|See where this leads|Plan the day|Count the difference)$/
+          /^(See what it measured|Compare the months|See which day|See the split|See where this leads|Plan the day|Count the difference|Keep it moving)$/
         ).count();
       }
       return n;
@@ -661,6 +661,66 @@ export default async function run() {
         t.match(/\d+ of 4 weigh-ins/)?.[0] ?? '');
       await context.close();
     }
+  }
+
+  // ------------------------------------------------- THE FIRST FIGURE, ONCE
+  section('The first measured figure is shown once');
+  {
+    // Two weeks of answering evenings and standing on a scale used to end with
+    // a number the person could not see. Showing it once is a better argument
+    // for paying than any description of it, because what premium sells is not
+    // the number — it is the number continuing to move.
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    const seed = {
+      ...SEED,
+      intake_log: JSON.stringify(Array.from({ length: 14 }, (_, i) => ({
+        date: day(13 - i), factor: 1, target_kcal: 1800,
+      }))),
+      weight_log: JSON.stringify(Array.from({ length: 7 }, (_, i) => ({
+        id: `p${i}`, date: day(12 - i * 2), weight_kg: Math.round((85 - i * 0.14) * 10) / 10,
+      }))),
+    };
+
+    const { context, page } = await newPage(browser, seed);
+
+    // The daily target before the preview, so the rule can be checked after.
+    await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1800);
+    const targetBefore = (await body(page)).match(/(\d{4})\s*kcal/)?.[1] ?? null;
+    check(targetBefore !== null, 'the dashboard shows a daily target', String(targetBefore));
+
+    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    const first = await bodyIn(page, 'Your body');
+    check(/\d{4}\s*kcal a day/.test(first), 'a free user sees the measured figure once',
+      first.match(/\d{4}\s*kcal a day/)?.[0] ?? '');
+    check(has(first, 'two weeks earning'), 'and is told what it is');
+    check(has(first, 'Premium keeps measuring it'), 'and what premium actually sells');
+
+    const stored = await page.evaluate(() => localStorage.getItem('measurement_previewed'));
+    check(stored === 'true', 'the showing is recorded', String(stored));
+
+    // The rule that must not slip: the preview is display only. If it moved
+    // the daily target, the target would jump once and jump back, which is
+    // worse than never showing the figure.
+    await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1800);
+    const targetAfter = (await body(page)).match(/(\d{4})\s*kcal/)?.[1] ?? null;
+    check(targetAfter === targetBefore, 'and the daily target did not move',
+      `${targetBefore} → ${targetAfter}`);
+
+    // Second visit: gated again.
+    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    const second = await bodyIn(page, 'Your body');
+    check(!/\d{4}\s*kcal a day/.test(second), 'a second visit no longer shows the figure',
+      second.match(/\d{4}\s*kcal a day/)?.[0] ?? '');
+    check(has(second, "The formula's estimate is off"), 'and the usual pitch is back');
+    await context.close();
   }
 
   // ------------------------------------------------------ THE SCALE JUMPED
@@ -1063,10 +1123,13 @@ export default async function run() {
       id: `w${i}`, date: day(12 - i * 2), weight_kg: 85 - i * (0.5 * 2 / 7),
     }));
 
-    // Without premium: the app says it measured something, not what.
+    // Without premium: the app says it measured something, not what. Seeded as
+    // already previewed, because the first sight of the figure is free by
+    // design now — this block is about the gate that follows it.
     {
       const { context, page } = await newPage(browser, {
         ...SEED, intake_log: JSON.stringify(intake), weight_log: JSON.stringify(weights),
+        measurement_previewed: 'true',
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);

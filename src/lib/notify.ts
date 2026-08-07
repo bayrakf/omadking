@@ -223,6 +223,47 @@ export async function resync(): Promise<void> {
   });
 }
 
+/**
+ * Says once, out loud, that the measurement has arrived.
+ *
+ * Two weeks of work ended with a figure appearing on a tab nobody was told to
+ * open. Called from the same foreground event as `resync`; the once-only rule
+ * lives in `shouldAnnounceMeasurement` so it can be asserted rather than
+ * trusted.
+ *
+ * No number in the text. A lock screen is not a place for someone's metabolic
+ * rate — anyone who picks up the phone can read it.
+ */
+export async function announceMeasurement(): Promise<void> {
+  if (!isSupported()) return;
+  const store = await import('./store');
+  if (await store.measurementAnnounced()) return;
+
+  const energy = await import('./energy');
+  const nutrition = await import('./nutrition');
+  const [profile, intake, weights] = await Promise.all([
+    store.loadProfileOrDefault(), store.loadIntakeLog(), store.loadWeightLog(),
+  ]);
+  const est = nutrition.dailyTargets(profile, null);
+  const measured = energy.measuredMaintenance(intake, weights, est.maintenance_kcal);
+  if (!energy.shouldAnnounceMeasurement(measured, false)) return;
+
+  // Marked before sending: a failed notification is better than one that
+  // repeats every time the app comes forward.
+  await store.markMeasurementAnnounced();
+  if (!(await isEnabled())) return;
+  if (!(await Notifications.getPermissionsAsync()).granted) return;
+  await ensureChannel();
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Your maintenance is measurable',
+      body: 'Two weeks of answers is enough. The figure is under Progress.',
+      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
+    },
+    trigger: null,
+  });
+}
+
 /** Diagnostic for the settings screen — how many reminders are actually queued. */
 export async function scheduledCount(): Promise<number> {
   if (!isSupported()) return 0;

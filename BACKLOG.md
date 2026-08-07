@@ -1183,3 +1183,27 @@ viele es waren), und der doppelte „Last bite" im Erinnerungstext.
 **Kostenlos.**
 
 **Erledigt** 2026-08-07 — 308 Checks.
+
+---
+
+## 45/47. Der Moment der Messung, und die erste Zahl
+
+Zwei Wochen Abende beantworten und auf die Waage steigen endeten damit, dass eine Zahl auf einem
+Reiter erschien, den niemandem zu öffnen gesagt wurde. Der Moment, auf den das ganze Produkt
+hinarbeitet, fand lautlos statt.
+
+**Eine Ankündigung, genau einmal.** `shouldAnnounceMeasurement` hält die Einmal-Regel als prüfbare
+Funktion statt als Vertrauenssache — zwanzig Vordergrund-Ereignisse ergeben eine Benachrichtigung.
+**Keine Zahl im Text:** ein Sperrbildschirm ist kein Ort für einen Stoffwechselwert, den jeder
+lesen kann, der das Telefon aufhebt.
+
+**Die erste gemessene Zahl wird einmal gezeigt**, auch ohne Premium. Das ist das ehrlichere Angebot
+als ein Trial: es zeigt genau das, wofür bezahlt wird, statt alles für sieben Tage aufzumachen und
+wieder zuzuziehen. Und es verkauft das Richtige — nicht die Zahl, sondern dass sie weiterläuft.
+
+**Die Grenze, die dabei nicht verrutschen durfte:** die Vorschau betrifft nur die Anzeige.
+`effectiveMaintenance` gibt ohne Premium weiter `undefined` zurück, das Tagesziel bewegt sich also
+nicht. Sonst spränge es einmal und danach zurück, was schlimmer wäre als die Zahl nie zu zeigen.
+Der e2e liest das Tagesziel vor und nach der Vorschau und verlangt, dass es dasselbe ist.
+
+**Erledigt** 2026-08-07 — 316 Checks.
