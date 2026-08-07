@@ -13,7 +13,22 @@ import { FREE_PLANS_PER_WEEK } from '@/lib/store';
  * 22-hour fast. Leading with the product's own instrument says what the app is
  * faster than a headline about "AI-powered nutrition" ever could.
  */
+/**
+ * The three of these that shipped first sold timing, session-aware macros and
+ * reheat instructions. All three are real, all three are free, and all three
+ * are things a dozen other apps also do — so the page described a commodity
+ * and never said the one thing no competitor can say.
+ *
+ * The measurement leads now. It is the reason the app exists and the only
+ * reason to pay for it; the checks in `demo()` below refuse a list that is once
+ * again nothing but free features.
+ */
 const VALUE = [
+  {
+    icon: 'flame' as const,
+    title: 'It measures what you burn',
+    body: 'Most apps hand you a formula on day one and never revisit it. This one reads your own eating and weigh-ins back and works out what your body actually costs — and says how many days it still needs before it will claim a figure.',
+  },
   {
     icon: 'clock' as const,
     title: 'Timing, not guesswork',
@@ -23,11 +38,6 @@ const VALUE = [
     icon: 'dumbbell' as const,
     title: 'Macros that follow the work',
     body: 'Two hours all-out and a rest day are not the same target. Duration and intensity feed straight into the numbers.',
-  },
-  {
-    icon: 'flame' as const,
-    title: 'Built for meal prep',
-    body: 'Every recipe carries reheat instructions for skillet, air fryer and microwave, because you cooked it yesterday.',
   },
 ];
 
@@ -56,8 +66,9 @@ export default function LandingPage() {
               Eat once.{'\n'}Time it right.
             </Txt>
             <Txt variant="body" color={c.textDim} style={s.heroBody}>
-              An OMAD planner for people who train hard in the evening. It works out when to eat around your
-              session, and what to put on the plate.
+              For people who train hard in the evening on one meal a day. It works out when to eat
+              around your session — and, once it has watched you long enough, what your body actually
+              costs instead of what a formula assumes.
             </Txt>
           </View>
         </Enter>

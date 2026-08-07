@@ -109,6 +109,47 @@ try {
         `\n   but a screen asks money for the '${card}' card. Add a claim to PREMIUM_CLAIMS.`);
     }
   }
+  // Gates that never sell still have to be enforced somewhere. chat_context is
+  // the reason this exists: the chat withholds the user's own figures without
+  // premium and says nothing about it, so nothing in the sell path could see
+  // it. A gate whose enforcement site has lost its entitlement read is either
+  // a feature given away or a claim being made for nothing.
+  for (const [gate, site] of Object.entries(offer.GATE_SITES)) {
+    let source;
+    try {
+      source = readFileSync(site, 'utf8');
+    } catch {
+      failed = true;
+      console.error('❌ offer —', gate, 'names', site, 'as its enforcement site, but that file is gone.');
+      continue;
+    }
+    if (!/isPremium|premium/.test(source)) {
+      failed = true;
+      console.error('❌ offer —', site, 'no longer reads the entitlement,',
+        `\n   but ${gate} is still claimed on the paywall.`);
+    }
+  }
+
+  // --- the marketing page sells only what is free --------------------------
+  //
+  // The landing page shipped for months advertising timing, session-aware
+  // macros and reheat instructions. Every word of it true, every one of them
+  // free, and every one of them something a dozen other apps do — so the page
+  // described a commodity and never mentioned the measurement, which is the
+  // only thing no competitor can offer and the only reason to pay.
+  {
+    const landing = readFileSync('src/app/landing.tsx', 'utf8');
+    const value = landing.slice(landing.indexOf('const VALUE'), landing.indexOf('export default'));
+    const freeHits = offer.FREE_CAPABILITIES.filter((f) => value.toLowerCase().includes(f.toLowerCase()));
+    if (!/measur/i.test(value)) {
+      failed = true;
+      console.error('❌ landing — the page names', freeHits.length, 'free capabilities and never the',
+        'measurement.\n   That is the differentiator and the reason to pay; a page without it sells a commodity.');
+    } else {
+      console.log('✅ the landing page names the measurement, not only the free tier');
+    }
+  }
+
   if (sold.size === 0) {
     failed = true;
     console.error('❌ offer — no screen reads cards.sell at all;',

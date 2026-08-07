@@ -1080,3 +1080,34 @@ einzelne Wiegung bekommt keinen Trend.
 **Kostenlos**, und nicht als Zugeständnis: das ist Datenübertragbarkeit (Art. 20 DSGVO).
 
 **Erledigt** 2026-08-06 — 278 Checks.
+
+---
+
+## 42. Zwei Gates, die niemand nennen konnte
+
+Beim Zusammenstellen der Free/Premium-Aufstellung fielen zwei Widersprüche auf, die vorher niemandem
+auffallen konnten.
+
+**Der Coach rechnete mit deinen Zahlen — aber nur mit Premium, und nirgends stand das.**
+`chat.tsx` bricht ohne `isPremium()` ab und schickt gemessene Erhaltung, Trend, Plateau und
+Wochentagsmuster nicht mit. Ein echtes Gate ohne Eintrag in `Gate`, ohne Claim, und für den Guard
+aus Punkt 38 unsichtbar: der sucht nach `cards.sell === '…'`, und der Chat **verkauft** nichts, er
+schweigt nur. Dieselbe Fehlerklasse wie zuvor, nur andersherum — nicht „zahlt für Ungesagtes",
+sondern „weiß nicht, dass es das gäbe".
+
+Neu: Gate `chat_context` mit Claim, ein sichtbarer Hinweis im Chat statt stillschweigend
+schlechterer Antworten, und `GATE_SITES` — jedes Gate nennt die Datei, in der es durchgesetzt wird.
+`npm run check` liest sie und schlägt fehl, wenn die Datei fehlt oder die Berechtigung dort nicht
+mehr gelesen wird. Damit fällt auch ein Gate auf, das sperrt ohne zu verkaufen.
+
+**Die Landing-Page bewarb drei kostenlose Funktionen.** Timing, sitzungsabhängige Makros,
+Aufwärmhinweise — jedes Wort wahr, jedes gratis, jedes etwas, das ein Dutzend anderer Apps auch
+kann. Die Seite beschrieb eine Ware. Dass die App den Erhaltungsbedarf **misst**, statt ihn zu
+schätzen, stand nirgends: der einzige Satz, den kein Wettbewerber sagen kann, und der einzige Grund
+für Premium.
+
+Die Messung führt jetzt, samt der Aussage, dass die App sagt, wie viele Tage sie noch braucht,
+bevor sie eine Zahl behauptet. Ein Guard hält fest, dass die Seite sie nennt — beide Guards durch
+Sabotage bestätigt.
+
+**Erledigt** 2026-08-07 — 287 Checks.

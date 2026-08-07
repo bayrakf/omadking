@@ -76,6 +76,7 @@ export default function ChatScreen() {
   const [plan, setPlan] = useState<MealPlan | null>(null);
   const [state, setState] = useState<CoachState | null>(null);
   const [restored, setRestored] = useState(false);
+  const [premium, setPremium] = useState(false);
 
   useEffect(() => {
     loadProfile().then(setProfile);
@@ -87,6 +88,10 @@ export default function ChatScreen() {
       const [prof, intake, weights, prem] = await Promise.all([
         loadProfile(), loadIntakeLog(), loadWeightLog(), isPremium(),
       ]);
+      setPremium(prem);
+      // Without premium the coach still answers, unlimited — it just answers
+      // with ranges instead of this person's own figures. Saying so beats
+      // silently being worse, which is what it did before.
       if (!prof || !prem) return;
       const est = dailyTargets(prof, null);
       const m = measuredMaintenance(intake, weights, est.maintenance_kcal);
@@ -210,6 +215,19 @@ export default function ChatScreen() {
               <Thinking color={c.textDim} />
             </View>
           )}
+          {/* The gate that used to be invisible. The chat is unlimited either
+              way; what premium buys is what it reasons with. Withholding that
+              quietly meant nobody could ask for it. */}
+          {restored && !premium && (
+            <Tap onPress={() => router.push('/paywall')} accessibilityLabel="What the coach could know">
+              <View style={[s.hint, { borderColor: c.line }]}>
+                <Txt variant="small" color={c.textDim}>
+                  Answers use general ranges. With Premium the coach reasons with your measured
+                  maintenance, your trend and your weekday pattern instead.
+                </Txt>
+              </View>
+            </Tap>
+          )}
         </ScrollView>
 
         <ScrollView
@@ -268,6 +286,10 @@ const s = StyleSheet.create({
   bubble: {
     maxWidth: '88%', paddingHorizontal: Space.base, paddingVertical: Space.md,
     borderRadius: Radius.md, borderWidth: 1, marginBottom: Space.md,
+  },
+  hint: {
+    borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed',
+    paddingHorizontal: Space.base, paddingVertical: Space.md, marginBottom: Space.md,
   },
   dots: { flexDirection: 'row', alignItems: 'center', height: 20 },
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },

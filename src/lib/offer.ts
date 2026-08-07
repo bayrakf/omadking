@@ -29,14 +29,42 @@ export type Gate =
   | 'progress_best'
   /** `isPremium()` read before the redistributed figure for a planned big day. */
   | 'week_ahead'
+  /** `isPremium()` read before the coach is handed the user's own figures. */
+  | 'chat_context'
   /** `getQuota()` / `consumeQuota()` in the planner. */
   | 'plan_quota';
 
 /** Every gate the app can enforce. Kept next to the type so it can be iterated. */
 export const ALL_GATES: Gate[] = [
   'progress_measured', 'progress_forecast', 'progress_months',
-  'progress_pattern', 'progress_cycle', 'progress_best', 'week_ahead', 'plan_quota',
+  'progress_pattern', 'progress_cycle', 'progress_best', 'week_ahead',
+  'chat_context', 'plan_quota',
 ];
+
+/**
+ * Where each gate is actually enforced.
+ *
+ * `SELL_GATE` covers the cards that ask for money, and `npm run check` reads
+ * the screens for those. It could not see `chat_context`, because the chat does
+ * not sell anything — it quietly answers with ranges instead of your numbers.
+ * A gate that withholds without offering is the same defect as a claim nobody
+ * enforces, only harder to notice: nobody complains about a feature they were
+ * never told existed.
+ *
+ * The check below asserts every gate names a file, that the file is there, and
+ * that it still reads the entitlement at all.
+ */
+export const GATE_SITES: Record<Gate, string> = {
+  progress_measured: 'src/app/(tabs)/progress.tsx',
+  progress_forecast: 'src/app/(tabs)/progress.tsx',
+  progress_months: 'src/app/(tabs)/progress.tsx',
+  progress_pattern: 'src/app/(tabs)/progress.tsx',
+  progress_cycle: 'src/app/(tabs)/progress.tsx',
+  progress_best: 'src/app/(tabs)/progress.tsx',
+  week_ahead: 'src/app/(tabs)/progress.tsx',
+  chat_context: 'src/app/chat.tsx',
+  plan_quota: 'src/app/(tabs)/planner.tsx',
+};
 
 export type Claim = {
   title: string;
@@ -93,6 +121,12 @@ export const PREMIUM_CLAIMS: Claim[] = [
     body: 'Say roughly how far next Saturday will run over, and see what the other days become so '
       + 'the week still lands where it was going — or that it cannot, and what the evening costs.',
     gate: 'week_ahead',
+  },
+  {
+    title: 'A coach that knows your numbers',
+    body: 'Your measured maintenance, your trend, how long the scale has held and which weekday runs '
+      + 'over go into the answer, so it stops replying with the ranges that fit anybody.',
+    gate: 'chat_context',
   },
   {
     title: 'Unlimited plans',
@@ -209,6 +243,16 @@ export function demo() {
     'and the check reads the claims rather than the constant'
   );
   assert(new Set(PREMIUM_CLAIMS.map((c) => c.title)).size === PREMIUM_CLAIMS.length, 'no claim is made twice');
+
+  // Every gate says where it is enforced, including the ones that never sell.
+  for (const g of ALL_GATES) {
+    assert(typeof GATE_SITES[g] === 'string' && GATE_SITES[g].length > 0,
+      `${g} names the file that enforces it`);
+  }
+  assert(
+    Object.keys(GATE_SITES).length === ALL_GATES.length,
+    'and no site is listed for a gate that no longer exists'
+  );
 
   // Each sellable card resolves to a gate, and each of those gates is offered.
   for (const [card, gate] of Object.entries(SELL_GATE)) {

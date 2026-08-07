@@ -670,3 +670,22 @@ mitbewegt, samt der Prüfung, dass die alte Zahl **verschwindet**. Das ist der U
 „die Ausgabe sieht plausibel aus" und „die Ausgabe hängt an der Eingabe".
 
 **Stand:** e2e **278 Checks**, `npm run check` über vierzehn Module plus zwei Guards.
+
+---
+
+## Punkt 42 — der Guard sah nur eine Richtung
+
+Der Guard aus Punkt 38 prüft, dass jede Karte, die Geld verlangt, auch auf der Paywall steht. Er
+findet Karten daran, dass sie verkaufen. Ein Gate, das sperrt **ohne** zu verkaufen, war für ihn
+per Konstruktion unsichtbar — und genau eines gab es: der Chat antwortete ohne Premium mit
+allgemeinen Bereichen und sagte kein Wort darüber.
+
+Die Lehre ist dieselbe wie beim Browser-Globals-Guard: eine Prüfung, die nur eine Richtung kennt,
+bestätigt vor allem sich selbst. `GATE_SITES` dreht sie um — nicht mehr „findet sich zu jeder
+Verkaufsstelle ein Angebot", sondern „findet sich zu jedem Gate eine Stelle, an der es überhaupt
+noch durchgesetzt wird".
+
+Und die Landing-Page war der teuerste Fall derselben Familie: sie war nicht falsch, sie war
+austauschbar. Alle drei beworbenen Punkte standen wörtlich in `FREE_CAPABILITIES`.
+
+**Stand:** e2e **287 Checks**, `npm run check` mit vier Guards neben den vierzehn Modulen.

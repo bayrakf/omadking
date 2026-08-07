@@ -1347,6 +1347,87 @@ export default async function run() {
   }
 
   // ------------------------------------------------------------------- CHAT
+  // ---------------------------------------------------- WHAT THE COACH KNOWS
+  section('The coach says what it is not being told');
+  {
+    // The gate nobody could see. The chat is unlimited on both tiers; what
+    // premium buys is what it reasons with. Withholding that silently meant a
+    // free user got worse answers and no way to know why — and the paywall
+    // never mentioned it either.
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    const measurable = {
+      ...SEED,
+      intake_log: JSON.stringify(Array.from({ length: 16 }, (_, i) => ({
+        date: day(15 - i), factor: 1, target_kcal: 2000,
+      }))),
+      weight_log: JSON.stringify(Array.from({ length: 8 }, (_, i) => ({
+        id: `c${i}`, date: day(14 - i * 2), weight_kg: 90 - i * 0.25,
+      }))),
+    };
+
+    const bodiesFor = async (seed) => {
+      const { context, page } = await newPage(browser, seed);
+      const sent = [];
+      await context.route('**/functions/v1/chat', (route) => {
+        try { sent.push(JSON.parse(route.request().postData() ?? '{}')); } catch { sent.push({}); }
+        return route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify({ response: 'Noted.' }),
+        });
+      });
+      await page.goto(BASE + '/chat', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const shown = await body(page);
+      await page.getByLabel('Message').fill('What should I eat tonight?');
+      await page.getByLabel('Send').click();
+      await page.waitForTimeout(2500);
+      await context.close();
+      return { shown, sent };
+    };
+
+    {
+      const { shown, sent } = await bodiesFor(measurable);
+      check(has(shown, 'general ranges'), 'a free user is told the answers are generic');
+      check(has(shown, 'Premium'), 'and what would change that');
+      // The claim behind the notice: the figures really are withheld.
+      const payload = JSON.stringify(sent[0] ?? {});
+      check(!/measured_maintenance_kcal["\s:]+\d/.test(payload),
+        'and the measured figure is genuinely not sent',
+        payload.slice(0, 120));
+    }
+
+    {
+      const { shown, sent } = await bodiesFor({ ...measurable, user_premium: 'true' });
+      check(!has(shown, 'general ranges'), 'a paying user is not told what they already have');
+      const payload = JSON.stringify(sent[0] ?? {});
+      check(/measured_maintenance_kcal["\s:]+\d/.test(payload),
+        'and their own figures do go with the question',
+        payload.match(/measured_maintenance_kcal[^,]*/)?.[0] ?? payload.slice(0, 120));
+    }
+  }
+
+  // ------------------------------------------------------------- LANDING SELLS
+  section('The landing page names the differentiator');
+  {
+    const { context, page } = await newPage(browser, null);
+    await page.goto(BASE + '/landing', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1200);
+    const t = await body(page);
+    // It sold timing, session macros and reheat instructions for months. All
+    // true, all free, all things a dozen other apps do.
+    check(/measures what you burn/i.test(t), 'the measurement leads the page');
+    check(/what your body actually costs/i.test(t), 'and says what that means');
+    check(/how many days it still needs/i.test(t),
+      'including that it refuses to claim a figure early');
+    check(!/\d+\s*%|\d[\d,]{2,}\s*(users|people|members)/i.test(t),
+      'and still invents no numbers', t.match(/\d+\s*%/)?.[0] ?? '');
+    await context.close();
+  }
+
   section('Coach conversation');
   {
     const { context, page } = await newPage(browser, SEED);
