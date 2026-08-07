@@ -793,3 +793,22 @@ gekocht hatte, verlor beim einundsechzigsten genau das, was er am häufigsten ma
 Speichergrenze, die das Gegenteil von dem tut, wofür die Sammlung da ist.
 
 **Stand:** e2e **331 Checks**.
+
+---
+
+## Punkte 49 und 50 — die teuerste Art von Fehler
+
+Alle drei Funde dieser Runde sind derselbe Typ: die App **hatte die Antwort und sagte nichts**. Kein
+Absturz, kein falscher Wert, nichts, was ein Test gefunden hätte, weil es nichts zu prüfen gab. Das
+Schweigen war der Fehler.
+
+Am teuersten: `bestWeeks`. Es hat einen Trainingsunterschied gemeldet, der aus der Speichergrenze
+kam und nicht aus dem Verhalten — eine bezahlte Aussage über den eigenen Körper, die von
+`savePlan(keep = 10)` erzeugt wurde. Der Selbstcheck prüft jetzt beide Richtungen: mit
+abgeschnittener Historie wird nichts genannt, mit vollständiger schon. Nur die erste Hälfte zu
+prüfen hätte auch bestanden, wenn die Funktion gar nichts mehr täte.
+
+Und ein Testfehler von mir: ich habe den Wortlaut aus `readPlateau` geprüft, während der Bildschirm
+den Wortlaut aus `weeklyDecision` rendert. Die Notiz der Lib erreicht dort gar keine Oberfläche.
+
+**Stand:** e2e **340 Checks**.

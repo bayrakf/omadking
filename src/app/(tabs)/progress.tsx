@@ -21,6 +21,7 @@ import {
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
   loadIntakeLog, loadLastSession, isPremium, todayISO, recordIntake, clearIntake,
   loadOutliers, markOutlier, unmarkOutlier, measurementPreviewed, markMeasurementPreviewed,
+  measurementAnnounced,
   type WeightEntry,
 } from '@/lib/store';
 import {
@@ -104,6 +105,8 @@ export default function ProgressScreen() {
   const [need, setNeed] = useState<Readiness | null>(null);
   /** The one-off showing of the first measured figure. Display only. */
   const [preview, setPreview] = useState(false);
+  /** True once the measurement existed. Lets an expiry read as an expiry. */
+  const [everMeasured, setEverMeasured] = useState(false);
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -170,6 +173,7 @@ export default function ProgressScreen() {
         // Shown once, the day it first exists. Deliberately does not touch
         // effectiveMaintenance: the daily target must not jump for a day and
         // then jump back, which would be worse than never showing it.
+        setEverMeasured(await measurementAnnounced());
         if (!prem && m.kcal !== null && !(await measurementPreviewed())) {
           setPreview(true);
           await markMeasurementPreviewed();
@@ -193,6 +197,7 @@ export default function ProgressScreen() {
         setDecision(
           weeklyDecision({
             stalled: stall.stalled,
+            direction: stall.direction,
             stalledDays: stall.days,
             newTarget: stall.newTarget,
             breakDue: spell.breakDue,
@@ -798,9 +803,16 @@ export default function ProgressScreen() {
             </View>
 
             {measured.kcal === null ? (
+              // Every reading looks at 21 days. Three weeks away and the
+              // measurement is gone, dailyTargets quietly falls back to the
+              // formula, and nothing used to say so — for a paying user the
+              // thing they pay for vanished without a word.
               <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                Not enough to measure yet — {measured.missing}. Until then the target comes from a
-                formula, which is right for a population and often wrong for a person.
+                {everMeasured
+                  ? `Your measurement has lapsed — it reads the last 21 days, and ${measured.missing} `
+                    + 'is what is short. Until it is back, the target comes from the formula again.'
+                  : `Not enough to measure yet — ${measured.missing}. Until then the target comes from a `
+                    + 'formula, which is right for a population and often wrong for a person.'}
               </Txt>
             ) : premium || preview ? (
               <>

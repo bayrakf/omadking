@@ -362,8 +362,13 @@ export type Decision = {
 /** The stall decision's headline, named once so progressCards can match it. */
 const STALL_HEADLINE = 'Your maintenance has moved';
 
+/** The rise headline, named for the same reason as the stall's. */
+const RISE_HEADLINE = 'The line has turned';
+
 export function weeklyDecision(input: {
   stalled?: boolean;
+  /** Whether the weight held or climbed. A rise gets its own headline. */
+  direction?: 'held' | 'rising';
   /** How long the weight has held, so the decision can say it. */
   stalledDays?: number;
   newTarget?: number | null;
@@ -384,18 +389,23 @@ export function weeklyDecision(input: {
   trendNote?: string;
 }): Decision {
   const {
-    stalled, stalledDays = 0, newTarget, breakDue, deficitWeeks = 0, maintenanceKcal,
+    stalled, direction = 'held', stalledDays = 0, newTarget, breakDue, deficitWeeks = 0, maintenanceKcal,
     windowStart, ready, trendNote = '',
   } = input;
 
-  // A stall outranks everything: it is the thing that makes people quit.
+  // A stall outranks everything: it is the thing that makes people quit. A
+  // rise outranks it for the same reason and used to be ranked nowhere at all —
+  // the screen said "Carry on" with a rising trend line printed underneath.
   if (stalled) {
+    const rising = direction === 'rising';
     return {
-      headline: STALL_HEADLINE,
+      headline: rising ? RISE_HEADLINE : STALL_HEADLINE,
       action: newTarget ? `Eat ${newTarget} kcal this week.` : 'Answer a few more days so the new figure can be worked out.',
       why: stalledDays > 0
-        ? `${stalledDays} days holding at this intake means the deficit has closed. The number changed, not your effort.`
-        : 'Holding weight at this intake means the deficit has closed. The number changed, not your effort.',
+        ? `${stalledDays} days ${rising ? 'climbing' : 'holding'} at this intake means the deficit has `
+          + `${rising ? 'gone the other way' : 'closed'}. The number changed, not your effort.`
+        : `${rising ? 'Gaining' : 'Holding'} weight at this intake means the deficit has `
+          + `${rising ? 'gone the other way' : 'closed'}. The number changed, not your effort.`,
       // Only the figure is measured; a stall without one is just a request.
       premiumOnly: newTarget !== null && newTarget !== undefined,
     };
@@ -589,6 +599,23 @@ export function bestWeeks(
     xs.reduce((s, x) => s + (x[key] as number), 0) / xs.length;
   const one = (n: number) => Math.round(n * 10) / 10;
 
+  /**
+   * Whether the plan history reaches back far enough to count sessions at all.
+   *
+   * `savePlan` keeps ten plans. At three a week that is barely three weeks, so
+   * across a twelve-week comparison every older week has zero sessions by
+   * storage rather than by behaviour — and the difference this function
+   * reported was an artefact of the cap. The fast and intake logs hold 400
+   * days and have no such problem.
+   *
+   * Not saying it beats saying something untrue, and it is the smaller change
+   * than raising the cap, which would not give anyone back history already
+   * dropped.
+   */
+  const oldestWeek = ranked.reduce((m, w) => (w.monday < m ? w.monday : m), ranked[0].monday);
+  const oldestPlan = plans.length > 0 ? plans.reduce((m, d) => (d < m ? d : m)) : null;
+  const plansCoverSpan = oldestPlan !== null && oldestPlan <= oldestWeek;
+
   const candidates: { gap: number; text: string }[] = [];
   const fields: [keyof typeof BEST_THRESHOLDS, keyof WeekStat, string][] = [
     ['trainings', 'trainings', 'sessions'],
@@ -596,6 +623,7 @@ export function bestWeeks(
     ['fasts', 'fasts', 'fasts logged'],
   ];
   for (const [threshold, key, word] of fields) {
+    if (key === 'trainings' && !plansCoverSpan) continue;
     const a = mean(best, key);
     const b = mean(rest, key);
     const gap = Math.abs(a - b);
@@ -1189,6 +1217,23 @@ export function demo() {
     assert(!/should|must|try to|recommend/i.test(r.note), 'and no instruction either');
     // Proof the guard can fail, so a future rewording cannot slip past it.
     assert(CAUSAL.test('training four times causes faster loss'), 'the causal guard actually matches');
+
+    // The defect the guard exists for. savePlan keeps ten plans, so on a real
+    // device the oldest weeks have no sessions recorded whatever happened in
+    // them — the reported difference would be a storage artefact.
+    const capped = plans.slice(-10);
+    const truncated = bestWeeks(intake, weights, capped, [], NOW)!;
+    assert(truncated !== null, 'a truncated plan history still produces a comparison');
+    assert(
+      !truncated.differences.some((d) => /sessions/.test(d)),
+      `sessions are not counted when the history cannot see them: ${truncated.differences}`
+    );
+    // And the counter-example, so the guard cannot pass by finding nothing.
+    assert(
+      r.differences.some((d) => /sessions/.test(d)),
+      'while a history that does cover the span still names them'
+    );
+    assert(capped.length < plans.length, 'the fixture really is truncated');
 
     // Not enough weeks: it says how many are missing rather than comparing two.
     const thin = bestWeeks(intake.slice(0, 21), weights.slice(0, 6), plans, [], NOW)!;

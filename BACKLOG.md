@@ -1266,3 +1266,32 @@ gewesen.
 **Kostenlos.**
 
 **Erledigt** 2026-08-07 — 331 Checks.
+
+---
+
+## 49/50. Wo die App schwieg, obwohl sie die Antwort hatte
+
+**Wer zunahm, bekam „Carry on".** `readPlateau` stieg bei `trend.state !== 'steady'` sofort aus,
+`deficitSpell` ebenso, und `weeklyDecision` hatte vier Zweige — keinen für steigendes Gewicht. Vier
+Wochen +0,3 kg/Woche ergaben die Überschrift **„Carry on · Nichts zu ändern diese Woche"** mit der
+Trendzeile „0.3 kg a week up" direkt darunter. Die Karte widersprach sich selbst.
+
+Die Arithmetik war bereits da: `measuredMaintenance` behandelt Zunahme seit jeher korrekt (der
+Selbstcheck hält es fest — *„gaining means maintenance is under intake"*). Es fehlte nur die
+Wortwahl. `readPlateau` nimmt jetzt `'gaining'` mit an und trägt ein `direction`-Feld; die
+Entscheidung wählt die Überschrift. Kein Tadel, dieselbe Regel wie beim Stillstand und aus
+demselben Grund.
+
+**Die Messung lief still ab.** Alle Kennzahlen lesen 21 Tage. Drei Wochen Pause und die Zahl ist
+weg, `dailyTargets` fällt auf die Formel zurück, und kein Satz sagte das. Bei einem Zahlenden
+verschwand damit genau das, wofür er zahlt. Weil `measurement_announced` seit Punkt 45 existiert,
+weiß die App, dass es die Zahl **schon einmal gab**, und sagt „abgelaufen" statt „noch nicht genug".
+
+**`bestWeeks` zählte, was es nicht sehen konnte.** `savePlan` behält zehn Pläne; bei drei pro Woche
+sind das gut drei Wochen. Über zwölf verglichene Wochen haben ältere Wochen zwangsläufig null
+Trainings — der gemeldete Unterschied war ein Artefakt der Speichergrenze. Der Trainingsunterschied
+wird jetzt nur genannt, wenn die Historie den Zeitraum wirklich abdeckt; Planeinhaltung und
+Fastentage kommen aus 400-Tage-Protokollen und bleiben. Nicht sagen, was man nicht weiß — und der
+kleinere Eingriff als eine höhere Grenze, die schon verlorene Historie ohnehin nicht zurückgibt.
+
+**Erledigt** 2026-08-07 — 340 Checks.

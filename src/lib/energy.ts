@@ -306,6 +306,13 @@ export function intakeQuestionFor(
  */
 export type PlateauRead = {
   stalled: boolean;
+  /**
+   * Whether the weight held or climbed. Both mean the same arithmetic — intake
+   * has met or passed maintenance — and the app was silent on the second one:
+   * `weeklyDecision` fell through to "Carry on. Nothing to change this week."
+   * while the trend line under it read "0.3 kg a week up".
+   */
+  direction: 'held' | 'rising';
   days: number;
   /** What to eat now, given the stall. Null when there is not enough to say. */
   newTarget: number | null;
@@ -322,11 +329,17 @@ export function readPlateau(
   deficitKcal: number,
   today: string = todayISO()
 ): PlateauRead {
-  const none: PlateauRead = { stalled: false, days: 0, newTarget: null, note: '' };
+  const none: PlateauRead = { stalled: false, direction: 'held', days: 0, newTarget: null, note: '' };
   if (goal !== 'weight_loss') return none;
 
   const trend = readTrend(weights, today);
-  if (trend.state !== 'steady') return none;
+  // Losing is the plan working. Holding and climbing are the same finding told
+  // with different words, and only one of them used to be told at all.
+  if (trend.state !== 'steady' && trend.state !== 'gaining') return none;
+  const direction: PlateauRead['direction'] = trend.state === 'gaining' ? 'rising' : 'held';
+  const what = direction === 'rising'
+    ? `Weight has risen for ${'{days}'} days`
+    : `Weight has held for ${'{days}'} days`;
 
   const weighed = withinWindow<WeighIn>(weights, today).sort((a, b) => a.date.localeCompare(b.date));
   const days = weighed.length >= 2 ? daysBetween(weighed[0].date, weighed[weighed.length - 1].date) : 0;
@@ -335,24 +348,27 @@ export function readPlateau(
   // A flat trend means intake and maintenance have met, so the measurement is
   // at its most trustworthy here — no estimate needed to bound it.
   const measured = measuredMaintenance(intakeLog, weights, 0, today);
+  const opening = what.replace('{days}', String(days));
+
   if (measured.kcal === null) {
     return {
       stalled: true,
+      direction,
       days,
       newTarget: null,
-      note: `Weight has held for ${days} days. That usually means maintenance has moved rather `
-        + `than that anything went wrong — ${measured.missing} would let the app say by how much.`,
+      note: `${opening}. That usually means maintenance has moved rather than that anything went `
+        + `wrong — ${measured.missing} would let the app say by how much.`,
     };
   }
 
   const newTarget = Math.round((measured.kcal - Math.abs(deficitKcal)) / 10) * 10;
   return {
     stalled: true,
+    direction,
     days,
     newTarget,
-    note: `Weight has held for ${days} days while you ate about ${measured.kcal} kcal. That is what `
-      + `maintenance costs now — the number moved, not your discipline. Eating ${newTarget} puts the `
-      + `deficit back.`,
+    note: `${opening} while you ate about ${measured.kcal} kcal. That is what maintenance costs `
+      + `now — the number moved, not your discipline. Eating ${newTarget} puts the deficit back.`,
   };
 }
 
@@ -1474,6 +1490,50 @@ export function demo() {
   assert(costOfExtra(0, 500) === null, 'nothing extra costs nothing');
   assert(costOfExtra(500, 0) === null, 'without a deficit there is no delay to state');
   assert(costOfExtra(NaN, 500) === null, 'nonsense in, nothing out');
+
+  // --- a line that turned upward -------------------------------------------
+
+  {
+    const d = (i: number) => `2026-04-${String(i + 1).padStart(2, '0')}`;
+    const NOW = d(27);
+    const eating = Array.from({ length: 14 }, (_, i) => ({
+      date: d(13 + i), factor: 1, target_kcal: 2600,
+    }));
+    // Four weeks climbing steadily. The app used to answer this with
+    // "Carry on. Nothing to change this week."
+    const rising = Array.from({ length: 8 }, (_, i) => ({
+      date: d(i * 3), weight_kg: Math.round((88 + i * 0.13) * 10) / 10,
+    }));
+
+    const up = readPlateau(eating, rising, 'weight_loss', 500, NOW);
+    assert(up.stalled, 'a rising line is a finding, not silence');
+    assert(up.direction === 'rising', `and it is named as rising: ${up.direction}`);
+    assert(/risen/.test(up.note), `the sentence says so: ${up.note}`);
+    assert(!/held/.test(up.note), 'and does not call a climb a hold');
+    if (up.newTarget !== null) {
+      assert(up.newTarget < 2600, `the new target is under what was eaten: ${up.newTarget}`);
+    }
+    // Same rules as everywhere else: state it, do not scold.
+    assert(!/should|must|too much|slipped|failed|discipline problem/i.test(up.note),
+      `no telling anyone off: ${up.note}`);
+
+    // Losing is the plan working, and still produces nothing.
+    const falling = Array.from({ length: 8 }, (_, i) => ({
+      date: d(i * 3), weight_kg: Math.round((88 - i * 0.2) * 10) / 10,
+    }));
+    assert(!readPlateau(eating, falling, 'weight_loss', 500, NOW).stalled,
+      'losing weight is not a problem to report');
+
+    // A flat line still reads as a hold, unchanged.
+    const flat = Array.from({ length: 8 }, (_, i) => ({ date: d(i * 3), weight_kg: 88 }));
+    const held = readPlateau(eating, flat, 'weight_loss', 500, NOW);
+    assert(held.stalled && held.direction === 'held', 'a flat line is still a hold');
+    assert(/held/.test(held.note), `with the old wording intact: ${held.note}`);
+
+    // Not for someone who is not trying to lose.
+    assert(!readPlateau(eating, rising, 'muscle_gain', 500, NOW).stalled,
+      'gaining on a muscle-gain goal is the plan, not a finding');
+  }
 
   // --- announcing the measurement once -------------------------------------
 

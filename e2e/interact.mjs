@@ -710,6 +710,68 @@ export default async function run() {
     }
   }
 
+  // ------------------------------------------------------ THE LINE TURNED
+  section('Gaining gets an answer');
+  {
+    // The worst response the app could give: four weeks of the weight climbing
+    // and a headline saying "Carry on. Nothing to change this week." with the
+    // rising trend printed underneath it.
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    const { context, page } = await newPage(browser, {
+      ...SEED, user_premium: 'true',
+      onboarding_profile: JSON.stringify({
+        weight_kg: 88, height_cm: 183, age: 34, sex: 'male',
+        fitness_level: 'advanced', goal: 'weight_loss',
+        omad_window_start: '20:30', omad_window_hours: 2, default_training_time: '19:00',
+      }),
+      intake_log: JSON.stringify(Array.from({ length: 14 }, (_, i) => ({
+        date: day(13 - i), factor: 1, target_kcal: 2600,
+      }))),
+      weight_log: JSON.stringify(Array.from({ length: 8 }, (_, i) => ({
+        id: `u${i}`, date: day(21 - i * 3), weight_kg: Math.round((88 + i * 0.13) * 10) / 10,
+      }))),
+    });
+    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    const t = await body(page);
+    check(!has(t, 'Carry on'), 'a rising line is not "nothing to change"');
+    check(has(t, 'The line has turned'), 'it says what happened', t.match(/The line[^.]*/)?.[0] ?? '');
+    // The screen renders the decision's own wording, not readPlateau's note.
+    check(/\d+ days climbing at this intake/.test(t), 'and for how long',
+      t.match(/\d+ days climbing[^.]*\./)?.[0] ?? '');
+    check(has(t, 'gone the other way'), 'naming what the deficit did');
+    check(/Eat \d{4} kcal this week/.test(t), 'with a figure to act on',
+      t.match(/Eat \d{4} kcal this week/)?.[0] ?? '');
+    // Same rule as everywhere: state it, do not scold.
+    check(!/should|too much|slipped|failed|discipline/i.test(t), 'and nobody is told off');
+    await context.close();
+  }
+
+  // ----------------------------------------------------- A LAPSED MEASUREMENT
+  section('A measurement that lapsed says so');
+  {
+    // Every reading looks at 21 days. Three weeks away and the figure is gone,
+    // the target silently reverts to the formula, and nothing used to mention it.
+    const { context, page } = await newPage(browser, {
+      ...SEED, user_premium: 'true',
+      measurement_announced: 'true',
+      intake_log: '[]',
+      weight_log: JSON.stringify([{ id: 'l1', date: '2026-01-05', weight_kg: 88 }]),
+    });
+    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    const t = await bodyIn(page, 'Your body');
+    check(has(t, 'has lapsed'), 'the card says the measurement expired',
+      t.match(/Your measurement[^.]*\./)?.[0] ?? '');
+    check(has(t, '21 days'), 'and why — it reads a window');
+    check(!has(t, 'Not enough to measure yet'), 'rather than the first-run wording');
+    await context.close();
+  }
+
   // ------------------------------------------------- ASKING FOR WHAT IT NEEDS
   section('The app asks for what the measurement needs');
   {
