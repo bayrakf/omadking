@@ -712,3 +712,27 @@ weist zusätzlich nach, dass ein Weglassen sie sehr wohl verschieben würde. Ein
 viel wert wie der Nachweis, dass es etwas verhindert.
 
 **Stand:** e2e **299 Checks**.
+
+---
+
+## Punkt 44 — die Frage war, was mir als Nutzer fehlen würde
+
+Die Antwort war nicht „ein Feature". Die App verlangte nicht, was sie braucht: die Messung, das
+ganze Verkaufsargument, hängt an vier Wiegungen über zehn Tage, und nichts in der App hat je um
+eine Wiegung gebeten. Die eine wöchentliche Anweisung zählte nur die Abende und meldete danach
+Vollzug. Jemand konnte alles richtig machen, „Nichts zu ändern diese Woche" lesen und die Messung
+nie bekommen.
+
+Zwei Dinge, die ich beim Verifizieren gelernt habe:
+
+- `SEED` bringt drei Wiegungen mit **festen Datumsangaben** (2026-07-28 bis 08-04). Mein Test traf
+  deshalb den Span-Zweig statt des Wiegungs-Zweigs. Das ist auch eine Zeitbombe: sobald das echte
+  Datum 21 Tage darüber hinaus ist, fallen sie aus dem Fenster und mehrere Checks ändern still ihr
+  Verhalten. Notiert, nicht in dieser Runde behoben.
+- Der Span-Zweig sagte „Four weigh-ins in N days" — starr „Four", egal wie viele es waren. Ein
+  fest verdrahtetes Zahlwort in einem Satz, dessen einziger Zweck das Zählen ist.
+
+Und die Zähler konnten ihre eigene Schwelle überschreiten: „10 of 8 evenings". Liest sich wie ein
+Fehler und verkauft den fertigen Teil unter Wert.
+
+**Stand:** e2e **308 Checks**.

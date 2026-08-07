@@ -11,7 +11,7 @@ import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
   proteinAdherence, cycleWeek, trainingDaysPerWeek, monthlyComparison, planAhead, daysAheadThisWeek,
-  withoutOutliers,
+  withoutOutliers, readiness, type Readiness,
   type Measurement, type Forecast, type WeekdayPattern, type WeekBudget, type ProteinAdherence,
   type WeekCycle, type MonthlyComparison,
 } from '@/lib/energy';
@@ -101,6 +101,7 @@ export default function ProgressScreen() {
   const [intake, setIntake] = useState<unknown[]>([]);
   const [best, setBest] = useState<BestWeeks>(null);
   const [outliers, setOutliers] = useState<string[]>([]);
+  const [need, setNeed] = useState<Readiness | null>(null);
   const [measured, setMeasured] = useState<Measurement | null>(null);
   const [outlook, setOutlook] = useState<Forecast | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -142,6 +143,10 @@ export default function ProgressScreen() {
         // in withoutOutliers and this is the call that must not use it.
         const m = measuredMaintenance(intake, log, est.maintenance_kcal);
         const compare = withoutOutliers(intake, skip);
+        // All three conditions, not just the intake days — the decision used to
+        // say "carry on" after eight evenings while the measurement was still
+        // impossible for want of weigh-ins.
+        const ready = readiness(intake, log);
         // 500 is the deficit dailyTargets applies for weight loss. The read
         // feeds the decision only — the card it used to fill could never
         // appear, because a stall outranks everything weeklyDecision ranks.
@@ -159,6 +164,7 @@ export default function ProgressScreen() {
         );
 
         setOutliers(skip);
+        setNeed(ready);
         setPattern(weekdayPattern(compare));
         setMonths(monthlyComparison(compare, log));
         setBest(bestWeeks(compare, log, plans, fasts));
@@ -184,7 +190,7 @@ export default function ProgressScreen() {
             deficitWeeks: spell.weeks,
             maintenanceKcal: spell.maintenanceKcal,
             windowStart: winFix?.start ?? null,
-            intakeDays: intake.length,
+            ready,
             trendNote: readTrend(log).note,
           })
         );
@@ -748,6 +754,19 @@ export default function ProgressScreen() {
       )}
       {tab === 'body' && (
         <>
+      {/* One line above the cards that each say what they cannot do yet.
+          Counted across the three segments there were six or seven of those,
+          and every segment opened on one — which reads as an app that cannot
+          do anything rather than one that is still counting. */}
+      {need && !need.ready && (
+        <Enter index={1}>
+          <Card style={{ marginBottom: Space.base }}>
+            <Eyebrow>Still counting</Eyebrow>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{need.note}</Txt>
+          </Card>
+        </Enter>
+      )}
+
       {/* The moment people quit — a flat line reads as failure and is not one.
           It used to have a card of its own here, which could never appear:
           weeklyDecision ranks a stall above everything, so the decision card
@@ -864,17 +883,22 @@ export default function ProgressScreen() {
       )}
 
       {/* What everybody half knows about themselves, turned into a number. */}
-      {pattern && (pattern.worst || pattern.note) && (
+      {pattern && (pattern.worst || pattern.note || pattern.missing) && (
         <Enter index={1}>
           <Card style={{ marginBottom: Space.base }}>
             <Eyebrow>Your pattern</Eyebrow>
             <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-              {premium || !pattern.worst
+              {pattern.missing
+                // Written, checked, and never rendered until now: the guard
+                // demanded worst or note, and when `missing` is set both are
+                // empty. Same class as intakeWeek in point 38.
+                ? `Not enough to read a pattern yet — ${pattern.missing}.`
+                : premium || !pattern.worst
                 ? pattern.note
                 : 'Your days are not alike — one of them runs well over the rest. Premium names it and '
                   + 'works out what it costs across a week.'}
             </Txt>
-            {cards.sell === 'pattern' && (
+            {!pattern.missing && cards.sell === 'pattern' && (
               <Button
                 label="See which day"
                 onPress={() => router.push('/paywall')}

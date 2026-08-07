@@ -23,6 +23,7 @@ export const KEYS = {
   planQuota: 'plan_quota',
   fastLog: 'fast_log',
   outliers: 'outlier_days',
+  remindersOffered: 'reminders_offered',
   cookLog: 'cook_log',
   chatLog: 'chat_log',
   lastSession: 'last_session',
@@ -77,6 +78,17 @@ export async function isOnboarded(): Promise<boolean> {
 export async function completeOnboarding(p: UserProfile): Promise<void> {
   await saveProfile(p);
   await AsyncStorage.setItem(KEYS.onboardingComplete, 'true');
+
+  // The weight typed during onboarding is a weigh-in and was being thrown
+  // away: the log stayed empty, Progress said "nothing logged yet", and the
+  // ten-day span the measurement needs started whenever somebody happened to
+  // find the weigh-in field. It starts on day one now.
+  const log = await loadWeightLog();
+  if (log.length === 0 && isFinite(p.weight_kg) && p.weight_kg > 0) {
+    await saveWeightLog([
+      { id: `${todayISO()}-onboarding`, date: todayISO(), weight_kg: p.weight_kg },
+    ]);
+  }
 }
 
 export async function resetOnboarding(): Promise<void> {
@@ -203,6 +215,23 @@ export async function unmarkFastComplete(date = todayISO()): Promise<string[]> {
   const next = (await loadFastLog()).filter((d) => d !== date);
   await writeJSON(KEYS.fastLog, next);
   return next;
+}
+
+/**
+ * Whether the app has offered reminders once.
+ *
+ * Reminders are off until someone turns them on, and nothing ever raised the
+ * subject — so the six scheduled moments, and the weigh-in reminder the
+ * measurement depends on, reached nobody. Asking at launch is the fastest route
+ * to a permanent refusal, so the offer waits until the app has delivered
+ * something. Asked once, then never again whatever the answer was.
+ */
+export async function remindersOffered(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.remindersOffered)) === 'true';
+}
+
+export async function markRemindersOffered(): Promise<void> {
+  await AsyncStorage.setItem(KEYS.remindersOffered, 'true');
 }
 
 /**

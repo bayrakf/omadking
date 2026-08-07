@@ -82,6 +82,20 @@ export default async function run() {
     check(stored.sex === 'female', 'sex persisted canonically', stored.sex);
     check(stored.goal === 'weight_loss', 'goal persisted canonically', stored.goal);
     check(stored.fitness_level === 'advanced', 'fitness persisted canonically', stored.fitness_level);
+
+    // The weight typed during setup is a weigh-in. It used to go to the profile
+    // and nowhere else, so the log stayed empty, Progress said nothing was
+    // logged, and the ten-day span the measurement needs started whenever
+    // somebody happened to find the weigh-in field.
+    const firstWeights = JSON.parse(
+      await page.evaluate(() => localStorage.getItem('weight_log')) ?? '[]'
+    );
+    check(firstWeights.length === 1, 'the typed weight became a weigh-in',
+      JSON.stringify(firstWeights));
+    check(firstWeights[0]?.weight_kg === 82, 'with the number that was given',
+      String(firstWeights[0]?.weight_kg));
+    check(firstWeights[0]?.date === new Date().toISOString().slice(0, 10),
+      'dated today, so the span starts on day one', firstWeights[0]?.date);
     check(/Fasting|Window open/.test(await body(page)), 'lands on the dashboard afterwards');
     check(errors.length === 0, 'no console errors', errors[0] ?? '');
     await context.close();
@@ -593,6 +607,58 @@ export default async function run() {
       check(/\d+ more weeks?/.test(t), 'thin data asks for weeks rather than comparing',
         t.match(/\d+ more weeks?[^.]*/)?.[0] ?? '');
       check(!/sessions a week, against/.test(t), 'and names no difference');
+      await context.close();
+    }
+  }
+
+  // ------------------------------------------------- ASKING FOR WHAT IT NEEDS
+  section('The app asks for what the measurement needs');
+  {
+    // The defect: weeklyDecision counted intake days only. After eight
+    // evenings it said "carry on" while the measurement was still impossible
+    // for want of weigh-ins — and nothing in the app had ever asked for one.
+    const day = (back) => {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      return d.toISOString().slice(0, 10);
+    };
+    const evenings = Array.from({ length: 10 }, (_, i) => ({
+      date: day(9 - i), factor: 1, target_kcal: 2000,
+    }));
+
+    {
+      const { context, page } = await newPage(browser, {
+        // SEED carries three weigh-ins; this block is about having none.
+        ...SEED, intake_log: JSON.stringify(evenings), weight_log: '[]',
+        onboarding_profile: JSON.stringify({
+          weight_kg: 90, height_cm: 183, age: 34, sex: 'male',
+          fitness_level: 'advanced', goal: 'weight_loss',
+          omad_window_start: '20:30', omad_window_hours: 2, default_training_time: '19:00',
+        }),
+      });
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(!has(t, 'Carry on'), 'ten evenings and no scale is not "nothing to change"');
+      check(/weigh-in/i.test(t), 'it asks for the scale instead',
+        t.match(/\d+ more weigh-ins?/i)?.[0] ?? '');
+      check(has(t, 'of 8 evenings'), 'while crediting what is already done');
+      await context.close();
+    }
+
+    // The progress line on the screen people actually land on.
+    {
+      const { context, page } = await newPage(browser, {
+        ...SEED, intake_log: JSON.stringify(evenings.slice(0, 5)), weight_log: '[]',
+      });
+      await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1800);
+      const t = await body(page);
+      check(has(t, 'Until your maintenance can be measured'), 'the dashboard carries the countdown');
+      check(/5 of 8 evenings/.test(t), 'and counts the evenings',
+        t.match(/\d+ of 8 evenings/)?.[0] ?? '');
+      check(/0 of 4 weigh-ins/.test(t), 'and the weigh-ins, which nothing used to mention',
+        t.match(/\d+ of 4 weigh-ins/)?.[0] ?? '');
       await context.close();
     }
   }

@@ -371,12 +371,21 @@ export function weeklyDecision(input: {
   deficitWeeks?: number;
   maintenanceKcal?: number | null;
   windowStart?: string | null;
-  intakeDays?: number;
+  /**
+   * How far off the measurement is, across all three of its conditions. The
+   * decision used to take `intakeDays` alone, so after the eighth evening it
+   * said "carry on" while the measurement was still impossible for want of
+   * weigh-ins — and nothing in the app had ever asked for one.
+   */
+  ready?: {
+    ready: boolean; intakeDays: number; weighIns: number; spanDays: number;
+    need: 'intake' | 'weighins' | 'span' | null;
+  };
   trendNote?: string;
 }): Decision {
   const {
     stalled, stalledDays = 0, newTarget, breakDue, deficitWeeks = 0, maintenanceKcal,
-    windowStart, intakeDays = 0, trendNote = '',
+    windowStart, ready, trendNote = '',
   } = input;
 
   // A stall outranks everything: it is the thing that makes people quit.
@@ -413,12 +422,38 @@ export function weeklyDecision(input: {
     };
   }
 
-  // Then the thing that unlocks everything else.
-  if (intakeDays < 8) {
+  // Then the thing that unlocks everything else — whichever part of it is
+  // actually missing, rather than the one part the old version knew about.
+  if (ready && !ready.ready) {
+    const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+    if (ready.need === 'weighins') {
+      const short = 4 - ready.weighIns;
+      return {
+        headline: `${short} more ${plural(short, 'weigh-in', 'weigh-ins')}`,
+        action: 'Step on the scale at the same time of day, before your first drink.',
+        why: `You have ${Math.min(ready.intakeDays, 8)} of 8 evenings. The measurement also needs `
+          + `4 weigh-ins across 10 days — you have ${ready.weighIns} across ${ready.spanDays}.`,
+        premiumOnly: false,
+      };
+    }
+
+    if (ready.need === 'span') {
+      const short = 10 - ready.spanDays;
+      return {
+        headline: 'Keep weighing for another week',
+        action: `${short} more ${plural(short, 'day', 'days')} between your first weigh-in and your last.`,
+        why: `${ready.weighIns} weigh-ins in ${ready.spanDays} days is ${ready.weighIns} readings `
+          + 'of roughly the same day. A body needs time to show a direction.',
+        premiumOnly: false,
+      };
+    }
+
+    const short = 8 - ready.intakeDays;
     return {
       headline: 'Answer the evening question',
-      action: `${8 - intakeDays} more day${8 - intakeDays === 1 ? '' : 's'} and the app can measure what your body costs.`,
-      why: 'Three taps a day is the whole signal. Without it the target stays a formula.',
+      action: `${short} more ${plural(short, 'day', 'days')} and the app can measure what your body costs.`,
+      why: 'One tap a day is the whole signal. Without it the target stays a formula.',
       premiumOnly: false,
     };
   }
@@ -908,30 +943,64 @@ export function demo() {
 
   // --- one change, in the right order --------------------------------------
 
+  /** Shorthand for the readiness shape the decision reads. */
+  const notReady = (
+    need: 'intake' | 'weighins' | 'span',
+    intakeDays: number, weighIns = 0, spanDays = 0
+  ) => ({ ready: false, intakeDays, weighIns, spanDays, need });
+
   // Everything true at once: the stall must win.
   const all = weeklyDecision({
     stalled: true, newTarget: 1600, breakDue: true, deficitWeeks: 9,
-    maintenanceKcal: 2300, windowStart: '20:15', intakeDays: 2,
+    maintenanceKcal: 2300, windowStart: '20:15', ready: notReady('intake', 2),
   });
   assert(/maintenance has moved/.test(all.headline), `a stall outranks everything: ${all.headline}`);
   assert(/1600/.test(all.action), 'and carries the new number');
 
-  const brk = weeklyDecision({ breakDue: true, deficitWeeks: 9, maintenanceKcal: 2300, windowStart: '20:15', intakeDays: 2 });
+  const brk = weeklyDecision({
+    breakDue: true, deficitWeeks: 9, maintenanceKcal: 2300,
+    windowStart: '20:15', ready: notReady('intake', 2),
+  });
   assert(/week at maintenance/.test(brk.headline), 'then the break');
   assert(/2300/.test(brk.action), 'with what to eat during it');
 
-  const win = weeklyDecision({ windowStart: '20:15', intakeDays: 2 });
+  const win = weeklyDecision({ windowStart: '20:15', ready: notReady('intake', 2) });
   assert(/eating window/.test(win.headline), 'then the window');
   assert(/20:15/.test(win.action), 'with the time to move it to');
 
-  const needData = weeklyDecision({ intakeDays: 3 });
+  const needData = weeklyDecision({ ready: notReady('intake', 3) });
   assert(/evening question/.test(needData.headline), 'then the missing data');
   assert(/5 more days/.test(needData.action), `counted exactly: ${needData.action}`);
-  assert(/1 more day\b/.test(weeklyDecision({ intakeDays: 7 }).action), 'and singular at one');
+  assert(/1 more day\b/.test(weeklyDecision({ ready: notReady('intake', 7) }).action),
+    'and singular at one');
 
-  const fine = weeklyDecision({ intakeDays: 14, trendNote: 'Down 0.4 kg a week.' });
+  // The defect this branch was rewritten for. Eight evenings answered, never
+  // once weighed: the old version said "carry on" and the measurement stayed
+  // impossible, with nothing anywhere asking for a weigh-in.
+  const noScale = weeklyDecision({ ready: notReady('weighins', 8, 1, 2) });
+  assert(/weigh-in/.test(noScale.headline), `it asks for the scale: ${noScale.headline}`);
+  assert(!/Carry on/.test(noScale.headline), 'and does not call the job done');
+  assert(/3 more weigh-ins/.test(noScale.headline), `counted: ${noScale.headline}`);
+  assert(/8 of 8 evenings/.test(noScale.why), `while crediting what is done: ${noScale.why}`);
+  assert(/8 of 8 evenings/.test(weeklyDecision({ ready: notReady('weighins', 12, 1, 2) }).why),
+    'and twelve evenings is still eight of eight, not twelve of eight');
+  assert(/1 more weigh-in\b/.test(weeklyDecision({ ready: notReady('weighins', 8, 3, 9) }).headline),
+    'singular at one there too');
+
+  const noSpan = weeklyDecision({ ready: notReady('span', 8, 4, 3) });
+  assert(/another week/.test(noSpan.headline), `a span shortfall asks for time: ${noSpan.headline}`);
+  assert(/7 more days/.test(noSpan.action), `counted: ${noSpan.action}`);
+  assert(/4 weigh-ins in 3 days/.test(noSpan.why), `it counts what is actually there: ${noSpan.why}`);
+  assert(!/^Four/.test(noSpan.why), 'rather than saying "four" whatever the number is');
+
+  const fine = weeklyDecision({
+    ready: { ready: true, intakeDays: 14, weighIns: 5, spanDays: 14, need: null },
+    trendNote: 'Down 0.4 kg a week.',
+  });
   assert(/Carry on/.test(fine.headline), 'and nothing to change is a valid answer');
   assert(/0.4/.test(fine.why), 'backed by the trend rather than a platitude');
+  // The copy drift the fourth intake option introduced.
+  assert(!/three taps/i.test(needData.why), 'the signal is not described as three taps any more');
 
   assert(weeklyDecision({}).headline.length > 0, 'empty input still produces something sayable');
 
@@ -978,7 +1047,8 @@ export function demo() {
   // on, so restoring the card would be a visible decision rather than an
   // accident.
   assert(
-    weeklyDecision({ stalled: true, newTarget: 2200, breakDue: true, windowStart: '17:00', intakeDays: 0 })
+    weeklyDecision({ stalled: true, newTarget: 2200, breakDue: true, windowStart: '17:00',
+      ready: notReady('intake', 0) })
       .headline === STALL_HEADLINE,
     'a stall outranks every other decision, so no second card is needed'
   );

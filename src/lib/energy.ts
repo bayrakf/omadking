@@ -144,6 +144,85 @@ export function measuredMaintenance(
  * Returns undefined rather than a number when the measurement should not be
  * used, which is exactly what `dailyTargets` expects for "carry on as before".
  */
+/**
+ * How far off the measurement is, counted across all three of its conditions.
+ *
+ * `measuredMaintenance` refuses until intake days, weigh-ins and the span
+ * between weigh-ins are all satisfied, and it names whichever it hits first.
+ * That is right for a refusal and wrong for an instruction: `weeklyDecision`
+ * asked only for intake days, so after the eighth evening it moved on to
+ * "carry on" while the measurement was still impossible for want of weigh-ins.
+ * Somebody could follow the app exactly and never get the thing they were
+ * promised — and nothing anywhere asked them to weigh.
+ *
+ * `need` names the condition that is furthest from done, not the first one in
+ * the list. Asking for an eighth evening while two weigh-ins are missing sends
+ * someone at the wrong task.
+ */
+export type Readiness = {
+  ready: boolean;
+  intakeDays: number;
+  weighIns: number;
+  /** Days between the first and last weigh-in in the window. */
+  spanDays: number;
+  need: 'intake' | 'weighins' | 'span' | null;
+  /** Everything that is still short, as one countable sentence. */
+  note: string;
+};
+
+export function readiness(
+  intakeLog: unknown,
+  weights: unknown,
+  today: string = todayISO()
+): Readiness {
+  const intake = withinWindow<IntakeEntry>(intakeLog, today).filter(
+    (e) => isFinite(e.factor) && e.factor > 0 && isFinite(e.target_kcal) && e.target_kcal > 0
+  );
+  const weighed = withinWindow<WeighIn>(weights, today)
+    .filter((w) => isFinite(w.weight_kg) && w.weight_kg > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const intakeDays = intake.length;
+  const weighIns = weighed.length;
+  const spanDays = weighIns >= 2 ? daysBetween(weighed[0].date, weighed[weighIns - 1].date) : 0;
+
+  const short = {
+    intake: Math.max(0, MIN_INTAKE_DAYS - intakeDays),
+    weighins: Math.max(0, MIN_WEIGH_INS - weighIns),
+    span: Math.max(0, MIN_SPAN_DAYS - spanDays),
+  };
+
+  if (short.intake === 0 && short.weighins === 0 && short.span === 0) {
+    return {
+      ready: true, intakeDays, weighIns, spanDays, need: null,
+      note: `${intakeDays} evenings and ${weighIns} weigh-ins across ${spanDays} days.`,
+    };
+  }
+
+  // Furthest from done wins. The span is measured in days rather than entries,
+  // so it is scaled against its own threshold to be comparable at all.
+  const distance = {
+    intake: short.intake / MIN_INTAKE_DAYS,
+    weighins: short.weighins / MIN_WEIGH_INS,
+    span: short.span / MIN_SPAN_DAYS,
+  };
+  const need = (Object.keys(distance) as (keyof typeof distance)[])
+    .sort((a, b) => distance[b] - distance[a])[0] as Readiness['need'];
+
+  // Capped at the threshold: someone with ten evenings and one weigh-in was
+  // being told "10 of 8 evenings", which reads as a mistake and undersells the
+  // part they have finished.
+  const of = (have: number, want: number) => `${Math.min(have, want)} of ${want}`;
+
+  return {
+    ready: false, intakeDays, weighIns, spanDays, need,
+    note: `${of(intakeDays, MIN_INTAKE_DAYS)} evenings · ${of(weighIns, MIN_WEIGH_INS)} weigh-ins `
+      + `across ${of(spanDays, MIN_SPAN_DAYS)} days`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+
 export function effectiveMaintenance(
   intakeLog: unknown,
   weights: unknown,
@@ -1375,6 +1454,64 @@ export function demo() {
   assert(costOfExtra(0, 500) === null, 'nothing extra costs nothing');
   assert(costOfExtra(500, 0) === null, 'without a deficit there is no delay to state');
   assert(costOfExtra(NaN, 500) === null, 'nonsense in, nothing out');
+
+  // --- how far off the measurement is --------------------------------------
+
+  {
+    const d = (i: number) => `2026-06-${String(i + 1).padStart(2, '0')}`;
+    const NOW = d(20);
+    const evenings = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ date: d(i), factor: 1, target_kcal: 2000 }));
+
+    // The case that made this necessary: every evening answered, nobody ever
+    // asked to weigh, and weeklyDecision was saying "carry on".
+    const noScale = readiness(evenings(8), [], NOW);
+    assert(!noScale.ready, 'eight evenings alone do not make a measurement');
+    assert(noScale.need === 'weighins', `it asks for the scale, not more evenings: ${noScale.need}`);
+    assert(noScale.intakeDays === 8 && noScale.weighIns === 0, 'and counts both sides');
+    assert(/8 of 8 evenings/.test(noScale.note), `the note says where each stands: ${noScale.note}`);
+    assert(/10 of 8/.test(readiness(evenings(10), [], NOW).note) === false,
+      'and never reports more than the threshold');
+
+    // Four weigh-ins crammed into three days is four points and no span.
+    const crammed = readiness(evenings(8), [
+      { date: d(0), weight_kg: 90 }, { date: d(1), weight_kg: 89.8 },
+      { date: d(2), weight_kg: 89.9 }, { date: d(3), weight_kg: 89.7 },
+    ], NOW);
+    assert(!crammed.ready, 'four weigh-ins in three days is not ten days of span');
+    assert(crammed.need === 'span', `and it says so: ${crammed.need}`);
+    assert(crammed.spanDays === 3, `with the span it actually has: ${crammed.spanDays}`);
+
+    assert(/8 of 8 evenings/.test(noScale.note),
+      `a finished condition is not reported as overshot: ${noScale.note}`);
+
+    // Nothing at all: the evenings are the furthest away and the biggest ask.
+    const blank = readiness([], [], NOW);
+    assert(blank.need === 'intake', `an empty log starts with the evenings: ${blank.need}`);
+    assert(blank.intakeDays === 0 && blank.weighIns === 0 && blank.spanDays === 0, 'all zero');
+
+    // Everything satisfied.
+    const done = readiness(evenings(8), [
+      { date: d(0), weight_kg: 90 }, { date: d(4), weight_kg: 89.6 },
+      { date: d(8), weight_kg: 89.2 }, { date: d(12), weight_kg: 88.9 },
+    ], NOW);
+    assert(done.ready && done.need === null, 'all three conditions met is ready');
+
+    // The claim that ties this to the thing it guards: whenever readiness says
+    // ready, measuredMaintenance must actually produce a figure. Two lists of
+    // thresholds that drift apart is exactly what this function exists to stop.
+    assert(
+      measuredMaintenance(evenings(8), [
+        { date: d(0), weight_kg: 90 }, { date: d(4), weight_kg: 89.6 },
+        { date: d(8), weight_kg: 89.2 }, { date: d(12), weight_kg: 88.9 },
+      ], 2400, NOW).kcal !== null,
+      'ready means the measurement really is available'
+    );
+    assert(
+      measuredMaintenance(evenings(8), [], 2400, NOW).kcal === null,
+      'and not ready means it really is not'
+    );
+  }
 
   // --- days that do not count towards a comparison --------------------------
 

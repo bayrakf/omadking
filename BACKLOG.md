@@ -1145,3 +1145,41 @@ fest, dass ein Weglassen die Messung **verändern würde** — genau deshalb ist
 Alles drei **kostenlos**.
 
 **Erledigt** 2026-08-07 — 299 Checks.
+
+---
+
+## 44. Die App bittet um das, was sie braucht
+
+Beim Durchgehen der Nutzerreise vom Onboarding bis Monat drei: die App verlangt nicht, was sie
+braucht.
+
+`measuredMaintenance` verweigert, bis drei Bedingungen erfüllt sind — 8 Zufuhrtage, 4 Wiegungen,
+10 Tage Spanne. `weeklyDecision` prüfte davon **eine** und sagte danach „Carry on". Acht Abende
+perfekt beantwortet, null Mal gewogen: die Anweisung war erfüllt, die Messung unmöglich, und die
+App sagte „Nichts zu ändern diese Woche". Dazu plante `REMINDERS` sechs Momente — kochen, Fenster
+auf, Snack, Mahlzeit, Fenster zu, Fasten — und **keinen fürs Wiegen**. Die einzige bezahlte
+Funktion hing an einer Eingabe, um die nie gebeten wurde.
+
+`readiness` kennt jetzt alle drei Schwellen an einer Stelle und nennt die, die am **weitesten**
+entfernt ist — nach dem achten Abend nach einem neunten zu fragen, während zwei Wiegungen fehlen,
+schickt jemanden an die falsche Aufgabe. Ein Selbstcheck bindet das an das, was es bewacht: sagt
+`readiness` bereit, muss `measuredMaintenance` wirklich eine Zahl liefern.
+
+**Drei weitere Funde aus demselben Durchgang:**
+
+- **Das im Onboarding eingetippte Gewicht wurde nie protokolliert.** Es ging ins Profil und
+  nirgendwo sonst — der Verlauf blieb leer, Progress sagte „nothing logged yet", und die
+  Zehn-Tage-Spanne startete, wann immer jemand zufällig das Wiegefeld fand. Sie startet jetzt an
+  Tag eins.
+- **Erinnerungen waren aus und nichts fragte je danach.** Beim Start zu fragen ist der schnellste
+  Weg zu einem dauerhaften Nein — richtig. Nur wurde nie gefragt. Jetzt einmal, nach dem ersten
+  protokollierten Fastentag, und danach nie wieder, egal wie die Antwort ausfiel.
+- **Eine Antwort über gestern wurde gegen das Ziel von heute gerechnet.** Für einen vergangenen Tag
+  ist der Ruhetag-Grundwert die einzige Zahl, die nicht erfunden ist.
+
+Nebenbei: „Three taps a day" (seit Punkt 43 vier), „Four weigh-ins in N days" (starr, egal wie
+viele es waren), und der doppelte „Last bite" im Erinnerungstext.
+
+**Kostenlos.**
+
+**Erledigt** 2026-08-07 — 308 Checks.

@@ -12,7 +12,7 @@
 import type { PlanLike } from './agenda';
 import type { UserProfile } from './nutrition';
 
-type State = { cooked: boolean; fastLogged: boolean };
+type State = { cooked: boolean; fastLogged: boolean; weighedRecently?: boolean };
 
 export function isSupported(): boolean {
   return false;

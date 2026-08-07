@@ -65,6 +65,9 @@ export async function ensurePermission(): Promise<boolean> {
   return asked.granted;
 }
 
+/** Morning, before the day moves the number around. */
+const WEIGH_IN_HOUR = 7;
+
 /** Which agenda moments are worth interrupting someone for. */
 const REMINDERS: Partial<Record<AgendaItem['kind'], { lead: number }>> = {
   cook: { lead: 0 },
@@ -76,7 +79,9 @@ const REMINDERS: Partial<Record<AgendaItem['kind'], { lead: number }>> = {
 };
 
 function bodyFor(item: AgendaItem, lead: number): string {
-  if (item.kind === 'window_close') return `Last bite at ${item.at}. ${item.body}`;
+  // item.body for this one already opens with "Last bite" — prefixing it said
+  // the words twice.
+  if (item.kind === 'window_close') return `${item.at} — ${item.body}`;
   if (lead > 0) return `${item.at} — ${item.body}`;
   return item.body;
 }
@@ -93,7 +98,7 @@ function bodyFor(item: AgendaItem, lead: number): string {
 export async function syncSchedule(
   profile: UserProfile,
   plan: PlanLike | null,
-  state: { cooked: boolean; fastLogged: boolean }
+  state: { cooked: boolean; fastLogged: boolean; weighedRecently?: boolean }
 ): Promise<void> {
   if (!isSupported()) return;
   await Notifications.cancelAllScheduledNotificationsAsync();
@@ -105,6 +110,27 @@ export async function syncSchedule(
   const now = new Date();
   const { items } = dayAgenda(profile, plan, state, now);
   const windowStart = toMinutes(profile.omad_window_start);
+
+  // The measurement needs four weigh-ins across ten days and nothing in the app
+  // had ever asked for one, so the single paid feature depended on an input
+  // nobody was prompted for. Not an agenda item: weighing does not hang off the
+  // eating window, and widening dayAgenda for it would be the wrong shape.
+  // Skipped entirely for someone who already weighs — the app does not nag.
+  if (state.weighedRecently === false) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Step on the scale',
+        body: 'Same time of day, before your first drink. Four across ten days is what the '
+          + 'measurement needs.',
+        ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: WEIGH_IN_HOUR,
+        minute: 0,
+      },
+    });
+  }
 
   for (const item of items) {
     const rule = REMINDERS[item.kind];
@@ -155,7 +181,7 @@ export async function setEnabled(
   on: boolean,
   profile: UserProfile,
   plan: PlanLike | null,
-  state: { cooked: boolean; fastLogged: boolean }
+  state: { cooked: boolean; fastLogged: boolean; weighedRecently?: boolean }
 ): Promise<boolean> {
   if (!isSupported()) return false;
   if (on) {
@@ -177,16 +203,23 @@ export async function setEnabled(
 export async function resync(): Promise<void> {
   if (!isSupported()) return;
   const store = await import('./store');
-  const [profile, plan, fastLog, cookLog] = await Promise.all([
+  const [profile, plan, fastLog, cookLog, weights] = await Promise.all([
     store.loadProfileOrDefault(),
     store.loadLastPlan<PlanLike & { date: string }>(),
     store.loadFastLog(),
     store.loadCookLog(),
+    store.loadWeightLog(),
   ]);
   const today = store.todayISO();
+  // Two days, not one: a reminder that fires the morning after every weigh-in
+  // is a reminder to do what you just did.
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 2);
+  const recent = store.todayISO(cutoff);
   await syncSchedule(profile, plan?.date === today ? plan : null, {
     cooked: cookLog.includes(today),
     fastLogged: fastLog.includes(today),
+    weighedRecently: weights.some((w) => w.date >= recent),
   });
 }
 

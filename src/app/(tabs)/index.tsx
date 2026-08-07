@@ -15,15 +15,16 @@ import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
 import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
+  remindersOffered, markRemindersOffered,
   saveProfile, recordIntake, intakeFor, loadIntakeLog, isPremium, todayISO, type Hydration,
 } from '@/lib/store';
 import {
-  readTrend, effectiveMaintenance, intakeQuestionFor, scaleJump,
-  type IntakeQuestion, type ScaleJump,
+  readTrend, effectiveMaintenance, intakeQuestionFor, scaleJump, readiness,
+  type IntakeQuestion, type ScaleJump, type Readiness,
 } from '@/lib/energy';
 import { INTAKE_OPTIONS, intakeKcal, intakeLabel } from '@/lib/review';
 import type { MealPlan } from '@/lib/ai';
-import { resync } from '@/lib/notify';
+import { resync, setEnabled as setRemindersEnabled } from '@/lib/notify';
 
 const ICONS: Record<AgendaItem['kind'], IconName> = {
   cook: 'flame',
@@ -50,6 +51,9 @@ export default function DashboardScreen() {
   const [weighedToday, setWeighedToday] = useState(true);
   const [weightInput, setWeightInput] = useState('');
   const [jump, setJump] = useState<ScaleJump | null>(null);
+  const [need, setNeed] = useState<Readiness | null>(null);
+  /** Shown once, after the app has delivered something. Never twice. */
+  const [offerReminders, setOfferReminders] = useState(false);
   const [dateLabel, setDateLabel] = useState('');
   const [question, setQuestion] = useState<IntakeQuestion | null>(null);
   const [answered, setAnswered] = useState<{ date: string; factor: number } | null>(null);
@@ -76,6 +80,7 @@ export default function DashboardScreen() {
     setAnswered(latest ? { date: latest.date, factor: latest.factor } : null);
     setTrend(readTrend(weights));
     setJump(scaleJump(weights, intake));
+    setNeed(readiness(intake, weights));
     setMeasured(effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem));
     setProfile(p);
     setHydration(h);
@@ -111,6 +116,16 @@ export default function DashboardScreen() {
 
   const baseline = dailyTargets(profile, null, measured);
   const kcal = plan ? plan.total_kcal : baseline.kcal;
+  /**
+   * The target the evening question is actually about.
+   *
+   * The question can be about yesterday — the window has to close before it
+   * appears, so answering the morning after is normal — and the answer was
+   * being recorded against today's plan, which yesterday may not have had.
+   * Nothing stores past targets, so the rest-day baseline is the only figure
+   * for a past day that is not made up.
+   */
+  const questionKcal = !question || question.date === todayISO() ? kcal : baseline.kcal;
   const protein = plan ? plan.protein_g : baseline.protein_g;
   const waterTarget = hydrationTargetMl(profile, plan?.training_start_time
     ? { sport: 'session', duration_min: plan.training_duration_min, intensity: 'medium', start_time: plan.training_start_time }
@@ -131,6 +146,11 @@ export default function DashboardScreen() {
     if (kind === 'log_fast') {
       setStreak(currentStreak(await markFastComplete()));
       setFastLogged(true);
+      // The moment to raise reminders: the app has delivered a day and the
+      // person came back to log it. Asking at launch, before anything has been
+      // shown, is the fastest route to a permanent refusal — which is why
+      // nothing asked at all, and why nobody had reminders on.
+      if (!(await remindersOffered())) setOfferReminders(true);
     } else if (kind === 'cook') {
       // Pass the plan so the recipe joins the rotation, not just the date.
       await markCooked(todayISO(), plan);
@@ -150,7 +170,7 @@ export default function DashboardScreen() {
     // Recorded against the day the window belonged to, not against now — the
     // answer is just as valid the morning after.
     if (factor !== null) {
-      await recordIntake(factor, kcal, question.date);
+      await recordIntake(factor, questionKcal, question.date);
       setAnswered({ date: question.date, factor });
     }
     setQuestion(null);
@@ -182,7 +202,9 @@ export default function DashboardScreen() {
     setWeighedToday(true);
     // The jump is about the entry that was just made, so it has to be read
     // from the log that now includes it.
-    setJump(scaleJump(updated, await loadIntakeLog()));
+    const freshIntake = await loadIntakeLog();
+    setJump(scaleJump(updated, freshIntake));
+    setNeed(readiness(freshIntake, updated));
   };
 
   // Hours into the current fast, for the physiology band.
@@ -249,7 +271,7 @@ export default function DashboardScreen() {
               {question.date === todayISO() ? 'How did today go?' : 'How did yesterday go?'}
             </Eyebrow>
             <Txt variant="body" style={{ marginTop: Space.sm }}>
-              Roughly, against the {kcal} kcal target. This is what lets the app measure what your
+              Roughly, against the {questionKcal} kcal target. This is what lets the app measure what your
               body actually costs.
             </Txt>
             {/* Kilocalories, not percent. The target is two lines above in
@@ -264,13 +286,13 @@ export default function DashboardScreen() {
                 <Tap
                   key={o.label}
                   onPress={() => answerIntake(o.factor)}
-                  accessibilityLabel={`${o.label}, about ${intakeKcal(o.factor, kcal)} kcal`}
+                  accessibilityLabel={`${o.label}, about ${intakeKcal(o.factor, questionKcal)} kcal`}
                   style={s.intakeCell}
                 >
                   <View style={[s.intakeBtn, { borderColor: c.line, backgroundColor: c.well }]}>
                     <Txt variant="small" style={{ textAlign: 'center' }}>{o.label}</Txt>
                     <Eyebrow style={{ marginTop: 2 }}>
-                      {o.factor === 1 ? '' : '≈ '}{intakeKcal(o.factor, kcal)} kcal
+                      {o.factor === 1 ? '' : '≈ '}{intakeKcal(o.factor, questionKcal)} kcal
                     </Eyebrow>
                   </View>
                 </Tap>
@@ -282,6 +304,60 @@ export default function DashboardScreen() {
               </Txt>
             </Tap>
           </Card>
+        </Enter>
+      )}
+
+      {/* Asked once, whatever the answer. */}
+      {offerReminders && (
+        <Enter index={2}>
+          <Card style={{ marginTop: Space.xl }}>
+            <Eyebrow>Want the app to tell you when?</Eyebrow>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+              Window opening and closing, when to start cooking, and a nudge to weigh in — the
+              measurement needs four weigh-ins across ten days.
+            </Txt>
+            <View style={s.offerRow}>
+              <Button
+                label="Turn them on"
+                onPress={async () => {
+                  await markRemindersOffered();
+                  setOfferReminders(false);
+                  const [fasts, cooks] = await Promise.all([loadFastLog(), loadCookLog()]);
+                  const weights = await loadWeightLog();
+                  const cutoff = new Date();
+                  cutoff.setDate(cutoff.getDate() - 2);
+                  await setRemindersEnabled(true, profile, plan, {
+                    cooked: cooks.includes(todayISO()),
+                    fastLogged: fasts.includes(todayISO()),
+                    weighedRecently: weights.some((w) => w.date >= todayISO(cutoff)),
+                  });
+                }}
+                style={s.offerBtn}
+              />
+              <Button
+                label="No thanks"
+                variant="ghost"
+                onPress={async () => {
+                  await markRemindersOffered();
+                  setOfferReminders(false);
+                }}
+                style={s.offerBtn}
+              />
+            </View>
+          </Card>
+        </Enter>
+      )}
+
+      {/* One progress line, on the screen people actually land on. The
+          countdown existed only on Progress, spread across half a dozen cards
+          that each said what they could not do yet — which reads as an app
+          that cannot do anything rather than one that is still counting. */}
+      {need && !need.ready && (
+        <Enter index={2}>
+          <View style={[s.readiness, { borderColor: c.line }]}>
+            <Eyebrow>Until your maintenance can be measured</Eyebrow>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: 4 }}>{need.note}</Txt>
+          </View>
         </Enter>
       )}
 
@@ -526,6 +602,12 @@ const s = StyleSheet.create({
     paddingVertical: Space.md, marginTop: Space.xl,
   },
   // Two by two. Four across left no room for a label and a figure under it.
+  offerRow: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm },
+  offerBtn: { flex: 1, marginRight: Space.sm },
+  readiness: {
+    borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed',
+    paddingHorizontal: Space.base, paddingVertical: Space.md, marginTop: Space.base,
+  },
   intakeGrid: {
     flexDirection: 'row', flexWrap: 'wrap',
     marginTop: Space.base, marginRight: -Space.sm,
