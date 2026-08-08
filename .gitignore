@@ -43,3 +43,14 @@ example
 /android
 .vercel
 .env*
+
+# graphify: the graph and its report are worth sharing, the rest is local build
+# state. manifest.json records absolute paths and mtimes from whoever ran it
+# last, graph.html regenerates from graph.json, and cache/ is 1.4M of parsed AST.
+graphify-out/cache/
+graphify-out/graph.html
+graphify-out/manifest.json
+graphify-out/cost.json
+# Holds the absolute scan root of whoever built it — a home directory, not a fact
+# about this project.
+graphify-out/.graphify_root
