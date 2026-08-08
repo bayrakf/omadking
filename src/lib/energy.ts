@@ -34,8 +34,42 @@ export const MIN_SPAN_DAYS = 10;
 export const MIN_INTAKE_DAYS = 8;
 export const MIN_WEIGH_INS = 4;
 
-/** Most the target may move in one correction. A bad fortnight is not a new metabolism. */
+/**
+ * How far the measurement may move the formula, as a fraction of it.
+ *
+ * `MAX_STEP` is what the thinnest acceptable evidence earns — eight answered
+ * days and four weigh-ins, the minimum this module will answer on at all. A bad
+ * fortnight is still not a new metabolism.
+ *
+ * `MAX_STEP_FULL` is what a full window earns: twenty-one days of answers and
+ * ten weigh-ins. This is the part that was missing. The rail used to sit at 15%
+ * of the formula permanently, so someone whose maintenance genuinely runs a
+ * quarter below Mifflin-St Jeor — ordinary after a long diet — could log
+ * honestly for a year and never be told. The one number people pay for was
+ * capped at "the formula, give or take a bit".
+ *
+ * Scaling the allowance by evidence rather than by elapsed time keeps this
+ * stateless: nothing to persist, nothing for two devices to disagree about, and
+ * the same log always produces the same answer no matter how often it is read.
+ */
 export const MAX_STEP = 0.15;
+export const MAX_STEP_FULL = 0.4;
+
+/** Weigh-ins at which the allowance is fully earned. Days come from WINDOW_DAYS. */
+export const FULL_WEIGH_INS = 10;
+
+/**
+ * What the evidence has earned, between MAX_STEP and MAX_STEP_FULL.
+ *
+ * Both conditions have to be met, so they multiply rather than average: twenty
+ * days of answers with the four weigh-ins that barely qualify is not a full
+ * window, and averaging would have called it three-quarters of one.
+ */
+export function allowedStep(intakeDays: number, weighIns: number): number {
+  const days = Math.min(1, Math.max(0, (intakeDays - MIN_INTAKE_DAYS) / (WINDOW_DAYS - MIN_INTAKE_DAYS)));
+  const scale = Math.min(1, Math.max(0, (weighIns - MIN_WEIGH_INS) / (FULL_WEIGH_INS - MIN_WEIGH_INS)));
+  return MAX_STEP + (MAX_STEP_FULL - MAX_STEP) * days * scale;
+}
 
 /** A day's eating, as the three-tap question records it. */
 export type IntakeEntry = { date: string; factor: number; target_kcal: number };
@@ -60,6 +94,15 @@ export type Measurement = {
    * it, and the wording that shows it should not imply otherwise.
    */
   plusMinus: number | null;
+  /**
+   * Whether the answer is the log's or the rail's.
+   *
+   * The screen used to say "measured from 14 days of eating and 6 weigh-ins, so
+   * your target follows it" whether the figure came from the data or from the
+   * bound it hit on the way out. A clamped measurement and a genuine one were
+   * indistinguishable, which is the one thing the paid number cannot afford.
+   */
+  clamped: 'none' | 'low' | 'high';
   confidence: 'none' | 'low' | 'good';
   /** What is still missing, phrased for a person. Null once there is a number. */
   missing: string | null;
@@ -104,6 +147,7 @@ export function measuredMaintenance(
     weighIns: weighed.length,
     spanDays,
     plusMinus: null,
+    clamped: 'none',
     confidence: 'none',
     missing: null,
   };
@@ -136,12 +180,18 @@ export function measuredMaintenance(
   // Losing weight means the body cost more than the plate provided.
   const raw = avgIntake - trend * (KCAL_PER_KG / 7);
 
-  // A single strange fortnight must not rewrite the target. Bounded against the
-  // formula, which is wrong but not wild.
-  const bounded =
-    estimateKcal > 0
-      ? Math.min(estimateKcal * (1 + MAX_STEP), Math.max(estimateKcal * (1 - MAX_STEP), raw))
-      : raw;
+  // A single strange fortnight must not rewrite the target, so the answer is
+  // bounded against the formula — which is wrong but not wild. How far it may
+  // stray is what the evidence has earned rather than a fixed rail, or a log
+  // that disagrees with the formula by more than the rail could never say so
+  // however long it ran.
+  const step = allowedStep(intake.length, weighed.length);
+  const hi = estimateKcal * (1 + step);
+  const lo = estimateKcal * (1 - step);
+  const bounded = estimateKcal > 0 ? Math.min(hi, Math.max(lo, raw)) : raw;
+
+  const clamped: Measurement['clamped'] =
+    estimateKcal <= 0 || (raw <= hi && raw >= lo) ? 'none' : raw > hi ? 'high' : 'low';
 
   const kcal = Math.round(bounded / 10) * 10;
 
@@ -150,6 +200,7 @@ export function measuredMaintenance(
     kcal,
     deltaToEstimate: estimateKcal > 0 ? kcal - Math.round(estimateKcal) : null,
     plusMinus,
+    clamped,
     confidence: intake.length >= 12 && weighed.length >= 6 ? 'good' : 'low',
     missing: null,
   };
@@ -1276,17 +1327,65 @@ export function demo() {
 
   // --- the guards ----------------------------------------------------------
 
-  // A wild fortnight cannot move the target more than the step allows.
+  // A wild fortnight cannot move the target more than the evidence allows.
   const crash = Array.from({ length: 7 }, (_, i) => ({
     date: day(12 - i * 2), weight_kg: 85 - i * 0.6,
   }));
   const bounded = measuredMaintenance(intake14, crash, 2400, TODAY);
-  assert(bounded.kcal! <= 2400 * (1 + MAX_STEP) + 5, `bounded above: ${bounded.kcal}`);
-  assert(bounded.kcal! >= 2400 * (1 - MAX_STEP) - 5, `bounded below: ${bounded.kcal}`);
+  const crashStep = allowedStep(bounded.intakeDays, bounded.weighIns);
+  assert(bounded.kcal! <= 2400 * (1 + crashStep) + 5, `bounded above: ${bounded.kcal}`);
+  assert(bounded.kcal! >= 2400 * (1 - crashStep) - 5, `bounded below: ${bounded.kcal}`);
+  assert(bounded.clamped === 'high', `and it says the rail is what answered: ${bounded.clamped}`);
 
   // Without an estimate the bound is off and the raw figure comes through.
   assert(measuredMaintenance(intake14, crash, 0, TODAY).kcal! > 2400 * (1 + MAX_STEP),
     'passing no estimate disables the bound');
+  assert(measuredMaintenance(intake14, crash, 0, TODAY).clamped === 'none',
+    'an unbounded answer is never a clamped one');
+
+  // --- what the evidence buys ----------------------------------------------
+  //
+  // The rail used to sit at 15% of the formula for ever, so a log that
+  // disagreed with the formula by a quarter could never say so however long it
+  // ran. The allowance now grows with the evidence, and only with both halves
+  // of it: days of answers and weigh-ins have to arrive together.
+  {
+    assert(allowedStep(MIN_INTAKE_DAYS, MIN_WEIGH_INS) === MAX_STEP,
+      'the thinnest answer the module gives at all earns the old rail and no more');
+    assert(allowedStep(WINDOW_DAYS, FULL_WEIGH_INS) === MAX_STEP_FULL,
+      'a full window earns the whole allowance');
+    assert(allowedStep(WINDOW_DAYS, MIN_WEIGH_INS) === MAX_STEP,
+      'three weeks of answers without the weigh-ins earns nothing extra');
+    assert(allowedStep(MIN_INTAKE_DAYS, FULL_WEIGH_INS) === MAX_STEP,
+      'and neither does the reverse');
+    assert(allowedStep(100, 100) === MAX_STEP_FULL, 'more than a full window is still a full window');
+    assert(allowedStep(0, 0) === MAX_STEP, 'nothing at all cannot earn less than the floor');
+
+    const mid = allowedStep(WINDOW_DAYS, 7);
+    assert(mid > MAX_STEP && mid < MAX_STEP_FULL, `partway is partway: ${mid}`);
+
+    // The point of the whole change: a body that genuinely costs a quarter less
+    // than the formula says can now be told so, once the log has earned it.
+    // Eating 1,800 and holding weight means 1,800 *is* maintenance — a quarter
+    // under what the formula claims, and the old rail stopped at 2,040.
+    const wide = Array.from({ length: 12 }, (_, i) => ({ date: day(20 - i), weight_kg: 85 }));
+    const wideIntake = Array.from({ length: 21 }, (_, i) => ({
+      date: day(20 - i), factor: 1, target_kcal: 1800,
+    }));
+    const far = measuredMaintenance(wideIntake, wide, 2400, TODAY);
+    assert(far.kcal! < 2400 * (1 - MAX_STEP), `a full window reaches past the old rail: ${far.kcal}`);
+    assert(far.clamped === 'none', 'and it is the log answering, not the rail');
+
+    // The same log on the thinnest evidence still hits the old rail, so the
+    // allowance is what changed and not the arithmetic under it.
+    // Four weigh-ins, still spread across the span the module insists on —
+    // fewer readings, not a shorter window, or this would fail for the wrong
+    // reason.
+    const thinWeights = [wide[0], wide[4], wide[8], wide[11]];
+    const thinSame = measuredMaintenance(wideIntake.slice(0, MIN_INTAKE_DAYS), thinWeights, 2400, TODAY);
+    assert(thinSame.clamped === 'low', 'thin evidence is still held at the rail');
+    assert(thinSame.kcal! > far.kcal!, 'and the rail is the more conservative answer of the two');
+  }
 
   assert(measuredMaintenance(intake14, losing, 2400, TODAY).deltaToEstimate !== null, 'the gap is reported');
   assert(measuredMaintenance(intake14, losing, 0, TODAY).deltaToEstimate === null, 'and omitted without an estimate');

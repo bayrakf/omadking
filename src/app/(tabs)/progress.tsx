@@ -856,10 +856,17 @@ export default function ProgressScreen() {
                     )}
                   </>
                 )}
+                {/* "So your target follows it" was said whether the figure came
+                    from the log or from the bound it hit on the way out. A
+                    clamped answer read exactly like a measured one, which is
+                    the one thing the number people pay for cannot afford. */}
                 <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
                   {measured.deltaToEstimate === null || measured.deltaToEstimate === 0
                     ? 'Which is what the formula estimated.'
-                    : `That is ${Math.abs(measured.deltaToEstimate)} kcal ${measured.deltaToEstimate < 0 ? 'below' : 'above'} the formula's estimate. Measured from ${measured.intakeDays} days of eating and ${measured.weighIns} weigh-ins, so your target follows it.`}
+                    : measured.clamped !== 'none'
+                      ? `That is ${Math.abs(measured.deltaToEstimate)} kcal ${measured.deltaToEstimate < 0 ? 'below' : 'above'} the formula's estimate, and your log points further still. `
+                        + `The target moves as far as ${measured.intakeDays} days of eating and ${measured.weighIns} weigh-ins have earned — more of both let it move the rest of the way.`
+                      : `That is ${Math.abs(measured.deltaToEstimate)} kcal ${measured.deltaToEstimate < 0 ? 'below' : 'above'} the formula's estimate. Measured from ${measured.intakeDays} days of eating and ${measured.weighIns} weigh-ins, so your target follows it.`}
                 </Txt>
                 <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
                   Based on the standard approximation of 7,700 kcal per kilogram. It moves as you do.
