@@ -11,9 +11,9 @@ import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
   proteinAdherence, cycleWeek, trainingDaysPerWeek, monthlyComparison, planAhead, daysAheadThisWeek,
-  withoutOutliers, readiness, type Readiness,
+  withoutOutliers, readiness, rateGap, effectiveMaintenance, type Readiness,
   type Measurement, type Forecast, type WeekdayPattern, type WeekBudget, type ProteinAdherence,
-  type WeekCycle, type MonthlyComparison,
+  type WeekCycle, type MonthlyComparison, type RateGap,
 } from '@/lib/energy';
 import { consistency, currentStreak } from '@/lib/dates';
 import {
@@ -118,6 +118,8 @@ export default function ProgressScreen() {
   const [tab, setTab] = useState<'week' | 'body' | 'history'>('week');
   const [steady, setSteady] = useState<{ hit: number; days: number; streak: number } | null>(null);
   const [premium, setPremium] = useState(false);
+  /** The plan against the scale, when the two have drifted apart. */
+  const [gap, setGap] = useState<RateGap | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -195,6 +197,12 @@ export default function ProgressScreen() {
         setCycle(trainDays ? cycleWeek(est.kcal * 7, trainDays, bmr(p)) : null);
         setSteady({ ...consistency(fasts, 30), streak: currentStreak(fasts) });
         setBudget(weekBudget(est.kcal, intake));
+        // Against the target actually in force, not the formula's: for someone
+        // whose target already follows their measured maintenance the plan has
+        // accounted for a cheaper body, and comparing against the formula would
+        // invent a gap they already closed.
+        const plan = dailyTargets(p, null, effectiveMaintenance(intake, log, est.maintenance_kcal, prem));
+        setGap(rateGap(log, plan.maintenance_kcal, plan.kcal, p.goal));
         setEaten(intakeWeek(intake));
         setIntake(intake);
         setDayKcal(est.kcal);
@@ -445,6 +453,24 @@ export default function ProgressScreen() {
               color={budget.perDayLeft < 0 ? c.ember : c.accent}
             />
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{budget.note}</Txt>
+          </Card>
+        </Enter>
+      )}
+
+      {/* Losing, but not at the rate the target was built for. readPlateau
+          covers held and rising and has a better sentence for both; this is the
+          case it returns early on, which is most people most of the time.
+          Free, and deliberately: gating "your plan is not landing" would be
+          charging someone to be told the thing they are already paying for is
+          not working. */}
+      {gap && (
+        <Enter index={2}>
+          <Card style={{ marginBottom: Space.base }}>
+            <View style={s.split}>
+              <Eyebrow>Plan against scale</Eyebrow>
+              <Txt variant="data" color={c.textFaint}>{gap.gapKcal} kcal a day</Txt>
+            </View>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{gap.note}</Txt>
           </Card>
         </Enter>
       )}

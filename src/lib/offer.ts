@@ -155,6 +155,11 @@ export const FREE_CAPABILITIES: string[] = [
   // weeklyDecision marks this premiumOnly: false on purpose.
   'eating window suggestion',
   'move your eating window',
+  // rateGap, shown to everyone. Charging to be told the plan is not landing is
+  // charging someone to learn that what they already pay for is not working,
+  // and it is an obvious candidate for the paywall, which is what this list is
+  // for.
+  'plan against scale',
   // The dial, the fasting stages and the timeline are the free core.
   'fasting stage',
   'countdown',

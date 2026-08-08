@@ -753,6 +753,82 @@ export function weekBudget(dailyTargetKcal: number, intakeLog: unknown, today: s
  * the person — an app that tells someone off gets deleted, and the honest
  * figure is more persuasive than any nudge.
  */
+/**
+ * The gap between the rate the plan was built for and the rate the scale shows.
+ *
+ * `readPlateau` covers weight that held or climbed, and says the honest thing
+ * when it fires. It returns early for anyone still losing — which is most
+ * people most of the time, and where the useful sentence is missing. The target
+ * was built for half a kilo a week, the scale says a sixth of one, and nothing
+ * anywhere names the difference. People notice that gap on their own and read
+ * it as the app being wrong or themselves failing; both are worse than the
+ * number.
+ *
+ * It takes no position on the cause, because it cannot have one. Days answered
+ * more generously than they went and a body that costs less than the formula
+ * says produce identical arithmetic, and this module cannot tell them apart.
+ * Naming a culprit would be a guess wearing a measurement's clothes. Naming the
+ * size is a measurement — the same stance `costOfExtra` takes, and the reason
+ * it prints a figure instead of a warning.
+ */
+export type RateGap = {
+  /** Deficit the target was built for, kcal a day. */
+  intendedKcal: number;
+  /** Deficit the scale implies over the window, kcal a day. */
+  observedKcal: number;
+  /** Intended minus observed. Positive means the plan is not landing. */
+  gapKcal: number;
+  intendedKgPerWeek: number;
+  observedKgPerWeek: number;
+  note: string;
+};
+
+/** Below this the gap is inside the noise of a bathroom scale. */
+export const RATE_GAP_KCAL = 150;
+
+export function rateGap(
+  weights: unknown,
+  maintenanceKcal: number,
+  targetKcal: number,
+  goal: string,
+  today: string = todayISO()
+): RateGap | null {
+  if (goal !== 'weight_loss') return null;
+  if (!isFinite(maintenanceKcal) || !isFinite(targetKcal)) return null;
+
+  const intendedKcal = Math.round(maintenanceKcal - targetKcal);
+  // Eating at or above maintenance is not a plan that failed to land, it is no
+  // deficit to compare against.
+  if (intendedKcal <= 0) return null;
+
+  const trend = readTrend(weights, today);
+  // Held and rising belong to readPlateau, which has a better sentence for them
+  // and a new target to go with it. Two cards saying the same thing differently
+  // is how a screen stops being read.
+  if (trend.state !== 'losing' || trend.kgPerWeek === null) return null;
+
+  const observedKcal = Math.round(-trend.kgPerWeek * (KCAL_PER_KG / 7));
+  const gapKcal = intendedKcal - observedKcal;
+  if (gapKcal < RATE_GAP_KCAL) return null;
+
+  const intendedKgPerWeek = Math.round((intendedKcal * 7 / KCAL_PER_KG) * 100) / 100;
+
+  return {
+    intendedKcal,
+    observedKcal,
+    gapKcal,
+    intendedKgPerWeek,
+    observedKgPerWeek: trend.kgPerWeek,
+    note:
+      `Your target is built for ${intendedKgPerWeek} kg a week. The scale is moving at `
+      + `${Math.abs(trend.kgPerWeek)}. The difference is about ${gapKcal} kcal a day — either the days are `
+      + `going better than they are answered, or your body costs less than the formula thinks. `
+      + `Answering the evenings and standing on the scale is what tells the two apart.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+
 export type ExtraCost = { kg: number; deficitDays: number; note: string };
 
 export function costOfExtra(extraKcal: number, dailyDeficitKcal: number): ExtraCost | null {
@@ -1385,6 +1461,39 @@ export function demo() {
     const thinSame = measuredMaintenance(wideIntake.slice(0, MIN_INTAKE_DAYS), thinWeights, 2400, TODAY);
     assert(thinSame.clamped === 'low', 'thin evidence is still held at the rail');
     assert(thinSame.kcal! > far.kcal!, 'and the rail is the more conservative answer of the two');
+  }
+
+  // --- the plan against the scale ------------------------------------------
+  {
+    // 2,400 maintenance, 1,900 target: a 500 kcal deficit, about 0.45 kg a week.
+    const onPlan = Array.from({ length: 8 }, (_, i) => ({ date: day(21 - i * 3), weight_kg: 85 - i * 0.19 }));
+    assert(rateGap(onPlan, 2400, 1900, 'weight_loss', TODAY) === null,
+      'a plan that is landing has no gap worth a card');
+
+    // Same plan, under half the movement — and still clearly losing, so this
+    // is the case readPlateau leaves alone rather than a stall in disguise.
+    const slow = Array.from({ length: 8 }, (_, i) => ({ date: day(21 - i * 3), weight_kg: 85 - i * 0.0857 }));
+    const gap = rateGap(slow, 2400, 1900, 'weight_loss', TODAY);
+    assert(gap !== null, 'losing slower than the target was built for is a finding');
+    assert(gap!.intendedKcal === 500, `the intended deficit is the target's own: ${gap!.intendedKcal}`);
+    assert(gap!.observedKcal < gap!.intendedKcal, 'the scale implies less than the plate promised');
+    assert(gap!.gapKcal === gap!.intendedKcal - gap!.observedKcal, 'and the gap is the difference');
+    assert(gap!.note.includes(String(gap!.gapKcal)), 'the note names the figure');
+
+    // It refuses everywhere another reading owns the answer, or where there is
+    // nothing to compare.
+    assert(rateGap(slow, 2400, 1900, 'performance', TODAY) === null, 'no deficit goal, no gap');
+    assert(rateGap(slow, 2400, 2400, 'weight_loss', TODAY) === null, 'no deficit, nothing to miss');
+    assert(rateGap(slow, 2400, 2600, 'weight_loss', TODAY) === null, 'eating over maintenance is not a shortfall');
+    assert(rateGap([], 2400, 1900, 'weight_loss', TODAY) === null, 'no weigh-ins, no reading');
+
+    const flat = Array.from({ length: 8 }, (_, i) => ({ date: day(21 - i * 3), weight_kg: 85 }));
+    assert(rateGap(flat, 2400, 1900, 'weight_loss', TODAY) === null,
+      'a stall belongs to readPlateau, which has a better sentence and a new target');
+
+    // Same wording rules as everything else here: no verdict, no praise, no
+    // invented figure.
+    assert(!/%|fail|lazy|cheat|should have|discipline/i.test(gap!.note), 'it names a size, not a culprit');
   }
 
   assert(measuredMaintenance(intake14, losing, 2400, TODAY).deltaToEstimate !== null, 'the gap is reported');
