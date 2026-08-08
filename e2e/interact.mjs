@@ -7,7 +7,7 @@
 
 import {
   BASE, SEED, SEED_WITH_PLAN, closedWindowProfile,
-  createReporter, launch, newPage, body, bodyIn, has,
+  createReporter, launch, newPage, body, bodyIn, has, localISO,
 } from './harness.mjs';
 
 export default async function run() {
@@ -124,7 +124,7 @@ export default async function run() {
       JSON.stringify(firstWeights));
     check(firstWeights[0]?.weight_kg === 82, 'with the number that was given',
       String(firstWeights[0]?.weight_kg));
-    check(firstWeights[0]?.date === new Date().toISOString().slice(0, 10),
+    check(firstWeights[0]?.date === localISO(),
       'dated today, so the span starts on day one', firstWeights[0]?.date);
     check(/Fasting|Window open/.test(await body(page)), 'lands on the dashboard afterwards');
     check(errors.length === 0, 'no console errors', errors[0] ?? '');
@@ -322,7 +322,7 @@ export default async function run() {
     const day = (back) => {
       const dt = new Date();
       dt.setDate(dt.getDate() - back);
-      return dt.toISOString().slice(0, 10);
+      return localISO(dt);
     };
 
     // A rotation outlives the ten-plan window, so it is stored separately.
@@ -369,7 +369,7 @@ export default async function run() {
     const day = (back) => {
       const dt = new Date();
       dt.setDate(dt.getDate() - back);
-      return dt.toISOString().slice(0, 10);
+      return localISO(dt);
     };
     // Four weeks where Saturdays run 30% over and nothing else does.
     const intake = Array.from({ length: 28 }, (_, i) => {
@@ -463,7 +463,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const rich = {
       ...SEED,
@@ -566,12 +566,12 @@ export default async function run() {
     const mon = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - back * 7);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const plus = (iso, n) => {
       const d = new Date(iso + 'T12:00:00Z');
       d.setUTCDate(d.getUTCDate() + n);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const weights = [];
     const plans = [];
@@ -719,7 +719,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const { context, page } = await newPage(browser, {
       ...SEED, user_premium: 'true',
@@ -781,7 +781,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const evenings = Array.from({ length: 10 }, (_, i) => ({
       date: day(9 - i), factor: 1, target_kcal: 2000,
@@ -834,7 +834,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const seed = {
       ...SEED,
@@ -893,7 +893,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     {
       const { context, page } = await newPage(browser, {
@@ -955,7 +955,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const { context, page } = await newPage(browser, {
       ...SEED, user_premium: 'true',
@@ -1005,7 +1005,7 @@ export default async function run() {
     // day that has not happened.
     const label = (d) => d.toLocaleDateString(undefined, { weekday: 'narrow' });
     const tomorrow = new Date(Date.now() + 86400000);
-    const tomorrowISO = tomorrow.toISOString().slice(0, 10);
+    const tomorrowISO = localISO(tomorrow);
     // Sunday has nothing after it, so there is no day to plan against.
     const skip = new Date().getDay() === 0 || new Date().getDay() === 6;
 
@@ -1073,14 +1073,14 @@ export default async function run() {
     await page.getByLabel('This week').click();
     await page.waitForTimeout(600);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localISO();
     const cell = page.getByLabel(new RegExp(`^${today}: `));
     check(await cell.count() === 1, 'today has a cell in the intake strip', String(await cell.count()));
     check(/not answered/.test(await cell.getAttribute('aria-label') ?? ''),
       'and starts unanswered', await cell.getAttribute('aria-label'));
 
     // Tomorrow cannot be claimed, the same rule the fast strip follows.
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const tomorrow = localISO(new Date(Date.now() + 86400000));
     check(await page.getByLabel(new RegExp(`^${tomorrow}: `)).count() === 0,
       'and nothing in the future is offered');
 
@@ -1145,7 +1145,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     // Explicit profile: SEED trains at 19:00 inside an 18:00 window and is set
     // to muscle gain, so it exercises different branches than these blocks want.
@@ -1219,7 +1219,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     // Sixteen days of held weight while eating ~2100.
     const flat = Array.from({ length: 8 }, (_, i) => ({ id: `f${i}`, date: day(16 - i * 2), weight_kg: 85 }));
@@ -1275,7 +1275,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date('2026-08-20T12:00:00Z');
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const intake = Array.from({ length: 14 }, (_, i) => ({
       date: day(13 - i), factor: 1, target_kcal: 1800,
@@ -1599,7 +1599,7 @@ export default async function run() {
     const iso = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const { context, page } = await newPage(browser, {
       ...SEED,
@@ -1766,7 +1766,7 @@ export default async function run() {
     const day = (back) => {
       const d = new Date();
       d.setDate(d.getDate() - back);
-      return d.toISOString().slice(0, 10);
+      return localISO(d);
     };
     const measurable = {
       ...SEED,

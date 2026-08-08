@@ -68,8 +68,20 @@ export const SEED = {
   ]),
 };
 
+/**
+ * Today as the app sees it.
+ *
+ * Everything the app stores is dated with `todayISO`, which is local. The suite
+ * was dating its seeds and its expectations with `toISOString`, which is UTC.
+ * The two agree for most of the day and disagree between local midnight and UTC
+ * midnight — so the suite passed until it was run in that window, and then
+ * failed on assertions that had nothing to do with what was being tested.
+ */
+export const localISO = (d = new Date()) =>
+  new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
 const PLAN = {
-  date: new Date().toISOString().slice(0, 10),
+  date: localISO(),
   eating_window_start: '18:00',
   eating_window_end: '20:00',
   total_kcal: 3310, protein_g: 164, carbs_g: 452, fat_g: 92,
