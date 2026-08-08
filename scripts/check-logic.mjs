@@ -150,6 +150,36 @@ try {
     }
   }
 
+  // --- an edge function nobody was told to deploy ---------------------------
+  //
+  // The functions are deployed by hand, and the README's command was the only
+  // record of which ones. `delete_account` was added later and never made it
+  // into that line, so anyone following the README shipped an app whose
+  // account-deletion path — the one Art. 17 GDPR requires — was not running.
+  // Prose drifting from the code, caught the same way as everywhere else here.
+  {
+    const readme = readFileSync('README.md', 'utf8');
+    const line = readme.match(/supabase functions deploy[^\n]*/);
+    if (!line) {
+      failed = true;
+      console.error('❌ deploy — the README no longer contains a functions deploy command,',
+        '\n   so nothing says which functions have to be uploaded.');
+    } else {
+      const missing = readdirSync('supabase/functions', { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name)
+        .filter((name) => !line[0].includes(name));
+      if (missing.length > 0) {
+        failed = true;
+        console.error('❌ deploy — these edge functions exist but the README never says to deploy them:',
+          missing.join(', '),
+          '\n   They run on the server; nothing in the web build ships them.');
+      } else {
+        console.log('✅ every edge function is named in the deploy command');
+      }
+    }
+  }
+
   // --- deleting everything must not leave the way back in ------------------
   //
   // `eraseEverything` enumerates KEYS, and neither the encryption key nor the

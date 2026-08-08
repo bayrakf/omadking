@@ -123,7 +123,7 @@ every user and is readable in devtools.
 | `SERVICE_ROLE_KEY` | **server** | `supabase secrets set SERVICE_ROLE_KEY=…` |
 
 ```bash
-supabase functions deploy chat generate_meal_plan
+supabase functions deploy chat generate_meal_plan delete_account
 supabase secrets set GEMINI_API_KEY=...
 ```
 
