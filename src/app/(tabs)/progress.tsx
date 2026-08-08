@@ -234,6 +234,10 @@ export default function ProgressScreen() {
     const next = logged ? await unmarkFastComplete(dayDate) : await markFastComplete(dayDate);
     setWeek(fastWeek(next));
     setAdapt(adaptationStage(next));
+    // The streak card is derived from the same log and was the one thing the
+    // correction left standing, so a day taken back showed the old number until
+    // the screen was left and reopened.
+    setSteady({ ...consistency(next, 30), streak: currentStreak(next) });
     const [cooks, plans] = await Promise.all([loadCookLog(), loadPlanHistory<{ date: string }>()]);
     setReview(weeklyReview(next, cooks, entries, plans));
   };
