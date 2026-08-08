@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Colors, Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
+import { Colors, Space, Radius, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Enter, Button, Divider } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import DayDial from '@/components/DayDial';

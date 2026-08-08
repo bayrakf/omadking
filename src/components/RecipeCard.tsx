@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
 import { Card, Txt, Eyebrow, Tap, Divider, useTheme } from './ui';

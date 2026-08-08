@@ -1,7 +1,6 @@
-import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Space, Radius } from '@/constants/theme';
+import { Space } from '@/constants/theme';
 import { Screen, Card, Txt, Eyebrow, Enter, Tap, Divider, useTheme } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { PROTOCOLS } from '@/lib/nutrition';

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, TextInput, StyleSheet, Animated, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
@@ -236,7 +236,6 @@ export default function OnboardingScreen() {
               <Eyebrow style={{ marginBottom: Space.md }}>How fast</Eyebrow>
               <View style={s.wrap}>
                 {PACE_OPTIONS.map((rate) => {
-                  const pace = paceDeficit(rate, maintenance, floor)!;
                   return (
                     <Chip
                       key={rate}

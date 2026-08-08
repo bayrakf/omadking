@@ -565,7 +565,6 @@ export function weekdayPattern(intakeLog: unknown, today: string = todayISO()): 
     byDay.set(dow, [...(byDay.get(dow) ?? []), r.factor]);
   }
 
-  const overall = rows.reduce((s, r) => s + r.factor, 0) / rows.length;
   const meanTarget = rows.reduce((s, r) => s + r.target_kcal, 0) / rows.length;
 
   // Only weekdays with enough observations get an opinion attached.

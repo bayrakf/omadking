@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
-import { Type, Space, Font } from '@/constants/theme';
+import { Type, Font } from '@/constants/theme';
 import { useTheme, useReducedMotion } from './ui';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);

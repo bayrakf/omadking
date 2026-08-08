@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -118,7 +118,6 @@ export default function ProgressScreen() {
   const [tab, setTab] = useState<'week' | 'body' | 'history'>('week');
   const [steady, setSteady] = useState<{ hit: number; days: number; streak: number } | null>(null);
   const [premium, setPremium] = useState(false);
-  const [fasts, setFasts] = useState<string[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -220,7 +219,6 @@ export default function ProgressScreen() {
         );
         setReview(weeklyReview(fasts, cooks, log, plans));
         setAdapt(adaptationStage(fasts));
-        setFasts(fasts);
         setWeek(fastWeek(fasts));
         setDateInput(todayISO());
         setMounted(true);
@@ -234,7 +232,6 @@ export default function ProgressScreen() {
   /** Correcting a day rewrites the streak, so everything derived is rebuilt. */
   const toggleDay = async (dayDate: string, logged: boolean) => {
     const next = logged ? await unmarkFastComplete(dayDate) : await markFastComplete(dayDate);
-    setFasts(next);
     setWeek(fastWeek(next));
     setAdapt(adaptationStage(next));
     const [cooks, plans] = await Promise.all([loadCookLog(), loadPlanHistory<{ date: string }>()]);

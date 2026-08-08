@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, StyleSheet, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Divider, Notice, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Notice, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { recoveryPhrase, useRecoveryPhrase } from '@/lib/account';

@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, StyleSheet, Switch, Share, Platform, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Space, Radius, Type } from '@/constants/theme';
+import { Space, Radius } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Chip, Tap, Divider, Notice, PageHeader, useTheme,
 } from '@/components/ui';

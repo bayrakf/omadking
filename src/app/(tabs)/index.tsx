@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
@@ -16,7 +16,7 @@ import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
   remindersOffered, markRemindersOffered,
-  saveProfile, recordIntake, intakeFor, loadIntakeLog, isPremium, todayISO, type Hydration,
+  saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, type Hydration,
 } from '@/lib/store';
 import {
   readTrend, effectiveMaintenance, intakeQuestionFor, scaleJump, readiness,
