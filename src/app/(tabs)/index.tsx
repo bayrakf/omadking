@@ -276,11 +276,12 @@ export default function DashboardScreen() {
             </Txt>
             {/* Kilocalories, not percent. The target is two lines above in
                 kcal, so a percentage meant doing arithmetic at the one moment
-                that is supposed to be a single tap. Four options rather than
-                three, because the scale used to stop at "ate more" and a day
-                that really ran away was recorded as thirty percent over —
-                which pulls the measured maintenance, and the target with it,
-                downwards. The figures come from lib, not from here. */}
+                that is supposed to be a single tap. Both ends of the scale are
+                open, because every closed end biases the measurement in one
+                direction: a capped top records a runaway day as less than it
+                was and pulls the measured maintenance down, a capped bottom
+                records a day barely eaten as more and pulls it up. The options
+                and the figures come from lib, not from here. */}
             <View style={s.intakeGrid}>
               {INTAKE_OPTIONS.map((o) => (
                 <Tap

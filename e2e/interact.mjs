@@ -1097,13 +1097,19 @@ export default async function run() {
       JSON.stringify(log));
 
     // The reason null is part of the cycle: an accidental tap has to be
-    // undoable, or the strip could only ever invent answers. Four answers now,
-    // so a full lap is five taps rather than four.
-    for (let i = 0; i < 3; i++) {
+    // undoable, or the strip could only ever invent answers. The lap is as long
+    // as the option list, and hardcoding its length has now been wrong twice —
+    // once when the fourth answer arrived and once when the scale opened at
+    // both ends. Tap until it comes back instead, bounded so a strip that never
+    // clears fails rather than hangs.
+    let taps = 0;
+    while (taps < 12) {
+      log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
+      if (log.length === 0) break;
       await cell.click();
       await page.waitForTimeout(700);
+      taps++;
     }
-    log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
     check(log.length === 0, 'and a full lap takes the answer back entirely', JSON.stringify(log));
     await context.close();
   }
@@ -1136,6 +1142,20 @@ export default async function run() {
     const log = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
     check(log.length === 1, 'the correction replaces a day rather than adding one', String(log.length));
     check(log[0]?.factor === 0.75, 'and the new answer is what survives', String(log[0]?.factor));
+
+    // The ends of the scale, which is where the measurement was being lied to.
+    // A day at three times the target used to land on the highest option there
+    // was, and the mean it feeds is what the paid figure is built from.
+    await page.getByLabel("Change today's answer").click();
+    await page.waitForTimeout(600);
+    const opts = await body(page);
+    check(has(opts, 'Well over double'), 'the scale has an answer for a runaway day');
+    check(has(opts, 'Barely ate'), 'and one for a day that barely happened');
+
+    await page.getByLabel(/^Well over double, about \d+ kcal$/).click();
+    await page.waitForTimeout(800);
+    const wide = JSON.parse(await page.evaluate(() => localStorage.getItem('intake_log')) ?? '[]');
+    check(wide[0]?.factor === 2.4, 'and the wider answer is what gets recorded', String(wide[0]?.factor));
     await context.close();
   }
 

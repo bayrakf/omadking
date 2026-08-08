@@ -221,13 +221,32 @@ export function intakeWeek(intakeLog: unknown, today: string = todayISO()): Inta
  * `INTAKE_CYCLE` and the dashboard used to be two lists that had to agree and
  * only agreed by habit. Now there is one.
  */
-export type IntakeOption = { factor: number; label: string };
+export type IntakeOption = { factor: number; label: string; glyph: string };
 
+/**
+ * The plan comes first because it is the common answer and the strip should
+ * reach it in one tap. After that the list runs under, then over, so the
+ * dashboard reads as a scale rather than as four unrelated buttons.
+ *
+ * Both ends are open on purpose. 1.7 was itself an attempt to fix a cap at 1.3,
+ * and it repeated the mistake one notch higher: a day at three times the target
+ * still landed on the highest option, which pulls the measured maintenance down
+ * and the target with it. 0.4 is the same defect mirrored — a day barely eaten
+ * and a day at three quarters both recorded 0.75, biasing the measurement up.
+ * Neither end can be closed honestly, so each end now holds an answer far
+ * enough out that hitting it is rare rather than routine.
+ *
+ * The glyph belongs to the option rather than to a parallel array indexed by
+ * position, which is what it was: adding an option there silently shifted every
+ * mark after it.
+ */
 export const INTAKE_OPTIONS: IntakeOption[] = [
-  { factor: 1, label: 'Ate the plan' },
-  { factor: 0.75, label: 'Ate less' },
-  { factor: 1.3, label: 'Ate more' },
-  { factor: 1.7, label: 'A lot more' },
+  { factor: 1, label: 'Ate the plan', glyph: '=' },
+  { factor: 0.75, label: 'Ate less', glyph: '−' },
+  { factor: 0.4, label: 'Barely ate', glyph: '⁻⁻' },
+  { factor: 1.3, label: 'Ate more', glyph: '+' },
+  { factor: 1.7, label: 'A lot more', glyph: '⁺⁺' },
+  { factor: 2.4, label: 'Well over double', glyph: '⁺⁺⁺' },
 ];
 
 /**
@@ -272,8 +291,7 @@ export function intakeLabel(factor: number | null): string {
 /** The strip has one cell per day, so each answer needs one character. */
 export function intakeGlyph(factor: number | null): string {
   if (factor === null) return '';
-  const i = INTAKE_OPTIONS.findIndex((o) => o.label.toLowerCase() === intakeLabel(factor));
-  return ['=', '\u2212', '+', '\u207A\u207A'][i] ?? '?';
+  return INTAKE_OPTIONS.find((o) => o.label.toLowerCase() === intakeLabel(factor))?.glyph ?? '?';
 }
 
 /**
@@ -1277,9 +1295,11 @@ export function demo() {
   // The strip has to be able to take an answer back, not only give one.
   assert(nextIntakeFactor(null) === 1, 'an untouched day becomes the plan');
   assert(nextIntakeFactor(1) === 0.75, 'then less');
-  assert(nextIntakeFactor(0.75) === 1.3, 'then more');
+  assert(nextIntakeFactor(0.75) === 0.4, 'then the day that was barely eaten at all');
+  assert(nextIntakeFactor(0.4) === 1.3, 'then over');
   assert(nextIntakeFactor(1.3) === 1.7, 'then the answer the scale used to have no room for');
-  assert(nextIntakeFactor(1.7) === null, 'and then it is cleared again');
+  assert(nextIntakeFactor(1.7) === 2.4, 'then the one it still had no room for');
+  assert(nextIntakeFactor(2.4) === null, 'and then it is cleared again');
   assert(nextIntakeFactor(0.42) === 1, 'an unknown factor rejoins the cycle rather than sticking');
   {
     // A full lap returns a day to where it started, whatever it started as.
@@ -1296,24 +1316,45 @@ export function demo() {
   }
   assert(
     new Set(INTAKE_OPTIONS.map((o) => intakeGlyph(o.factor))).size === INTAKE_OPTIONS.length,
-    'and the four marks are told apart'
+    'and every mark is told apart'
   );
   assert(intakeGlyph(null) === '', 'an unanswered day has no mark');
-  // The cap that made the log lie. Logging double as "ate more" pushed the
-  // measured maintenance down, and with it the target the app hands back.
+  // The cap that made the log lie, at both ends. Recording a day at three times
+  // the target as "a lot more" pushes the measured maintenance down and the
+  // target with it; recording a day barely eaten as "ate less" pushes it up.
   assert(
-    Math.max(...INTAKE_OPTIONS.map((o) => o.factor)) >= 1.7,
+    Math.max(...INTAKE_OPTIONS.map((o) => o.factor)) >= 2.4,
     'there is an answer for a day that really ran away'
   );
+  assert(
+    Math.min(...INTAKE_OPTIONS.map((o) => o.factor)) <= 0.4,
+    'and one for a day that barely happened'
+  );
+  // The bias itself, as arithmetic rather than as a comment. Three days at
+  // three times a 2,000 target: capped at 1.7 the log reports 3,400 a day,
+  // 1,400 short of what was eaten — and the measurement is built on that mean.
+  {
+    const real = 3 * 2000;
+    const capped = 1.7 * 2000;
+    const now = 2.4 * 2000;
+    assert(capped < now && now < real, 'the wider option is closer to the day without reaching it');
+    assert(real - now < (real - capped) / 2, 'and it closes more than half the gap the old cap left');
+  }
 
   // The labels are computed from the target, not written down for one target.
   assert(intakeKcal(1, 2000) === 2000, 'the plan is the target');
   assert(intakeKcal(0.75, 2000) === 1500, 'a quarter under is a quarter under');
   assert(intakeKcal(1.7, 2000) === 3400, 'and a lot more is a lot more');
   assert(intakeKcal(1.7, 2500) === 4250, 'a different target gives a different number');
+  assert(intakeKcal(2.4, 2000) === 4800, 'and well over double is well over double');
+  assert(intakeKcal(0.4, 2000) === 800, 'a day barely eaten is a small number, not a quarter under');
   assert(intakeKcal(1, 0) === 0 && intakeKcal(NaN, 2000) === 0, 'nonsense in, zero out');
-  // An older log still reads: 1.3 was an option before and still is.
+  // Older logs still read. Every factor the app has ever written stays a valid
+  // answer, because intakeLabel snaps to the nearest option rather than to a
+  // list of thresholds that would have to be migrated.
   assert(intakeLabel(1.3) === 'ate more', 'entries written before the fourth option still read back');
+  assert(intakeLabel(1.7) === 'a lot more', 'and entries written before the sixth');
+  assert(intakeLabel(0.75) === 'ate less', 'a three-quarter day is not swallowed by the new floor');
 
   assert(progressCards({ premium: true, hasMeasured: true }).sell === null, 'nothing is sold twice');
 
