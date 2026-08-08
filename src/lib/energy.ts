@@ -20,7 +20,7 @@
  * number derived from it.
  */
 
-import { weeklyTrend, fastingState, toMinutes, bmr, type UserProfile } from './nutrition';
+import { weeklyTrend, weeklyTrendFit, fastingState, toMinutes, bmr, type UserProfile } from './nutrition';
 import { parseISO, todayISO } from './dates';
 
 /** Standard approximation for a kilogram of body mass. */
@@ -49,6 +49,17 @@ export type Measurement = {
   intakeDays: number;
   weighIns: number;
   spanDays: number;
+  /**
+   * How wide the answer really is, in kcal a day, from the scatter in the
+   * weigh-ins. Null below three of them, where the line fits perfectly because
+   * it has nothing to disagree with.
+   *
+   * Only the scale's contribution: the evening question is a six-point scale,
+   * so the intake mean carries a quantisation error this does not attempt to
+   * model. The band is therefore a floor on the uncertainty, not the whole of
+   * it, and the wording that shows it should not imply otherwise.
+   */
+  plusMinus: number | null;
   confidence: 'none' | 'low' | 'good';
   /** What is still missing, phrased for a person. Null once there is a number. */
   missing: string | null;
@@ -92,6 +103,7 @@ export function measuredMaintenance(
     intakeDays: intake.length,
     weighIns: weighed.length,
     spanDays,
+    plusMinus: null,
     confidence: 'none',
     missing: null,
   };
@@ -107,10 +119,18 @@ export function measuredMaintenance(
     return { ...base, missing: `weigh-ins spread over ${MIN_SPAN_DAYS} days — yours cover ${spanDays}` };
   }
 
-  const trend = weeklyTrend(weighed);
-  if (trend === null) {
+  const fit = weeklyTrendFit(weighed);
+  if (fit === null) {
     return { ...base, missing: 'weigh-ins on more than one day' };
   }
+  const trend = fit.slope;
+  // The same conversion the maintenance itself uses, applied to the scatter:
+  // a kg/week of uncertainty in the trend is 1,100 kcal/day of uncertainty in
+  // the answer. Rounded to ten so it reads as a band and not as a measurement
+  // of its own.
+  const plusMinus = fit.stdErr === null
+    ? null
+    : Math.max(10, Math.round((fit.stdErr * (KCAL_PER_KG / 7)) / 10) * 10);
 
   const avgIntake = intake.reduce((s, e) => s + e.factor * e.target_kcal, 0) / intake.length;
   // Losing weight means the body cost more than the plate provided.
@@ -129,6 +149,7 @@ export function measuredMaintenance(
     ...base,
     kcal,
     deltaToEstimate: estimateKcal > 0 ? kcal - Math.round(estimateKcal) : null,
+    plusMinus,
     confidence: intake.length >= 12 && weighed.length >= 6 ? 'good' : 'low',
     missing: null,
   };
@@ -1269,6 +1290,28 @@ export function demo() {
 
   assert(measuredMaintenance(intake14, losing, 2400, TODAY).deltaToEstimate !== null, 'the gap is reported');
   assert(measuredMaintenance(intake14, losing, 0, TODAY).deltaToEstimate === null, 'and omitted without an estimate');
+
+  // --- how wide the answer is ----------------------------------------------
+  //
+  // The figure was being shown to the kilocalorie whether it rested on four
+  // weigh-ins or twenty. It is an estimate off a fitted line, and the line's
+  // own scatter says how much of one.
+  {
+    const band = measuredMaintenance(intake14, losing, 2400, TODAY);
+    assert(band.plusMinus !== null && band.plusMinus > 0, `a measured figure carries a band: ${band.plusMinus}`);
+
+    // Scattered weigh-ins on the same underlying trend must widen it. Same
+    // start, same finish, same span — only the readings in between disagree.
+    const scattered = losing.map((w, i) => ({ ...w, weight_kg: w.weight_kg + (i % 2 ? 0.7 : -0.7) }));
+    const wide = measuredMaintenance(intake14, scattered, 2400, TODAY);
+    assert(
+      wide.plusMinus! > band.plusMinus!,
+      `a noisier scale gives a wider answer: ${wide.plusMinus} vs ${band.plusMinus}`
+    );
+
+    // Nothing measured, nothing to be uncertain about.
+    assert(measuredMaintenance([], [], 2400, TODAY).plusMinus === null, 'a refusal carries no band');
+  }
 
   // Junk must not throw or leak into the average.
   const junk = measuredMaintenance(

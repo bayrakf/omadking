@@ -831,6 +831,16 @@ export default function ProgressScreen() {
                   {measured.kcal}
                   <Txt variant="small" color={c.textFaint}> kcal a day</Txt>
                 </Txt>
+                {/* A single figure implied a precision four weigh-ins cannot
+                    support. The band is the scatter in the weigh-ins carried
+                    through the same conversion as the figure itself, so it
+                    tightens as someone keeps standing on the scale — which is
+                    the argument for doing it, made in a number. */}
+                {measured.plusMinus !== null && (
+                  <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
+                    give or take {measured.plusMinus}, from how much your weigh-ins scatter
+                  </Txt>
+                )}
                 {!premium && (
                   <>
                     <Txt variant="small" color={c.accent} style={{ marginTop: Space.sm }}>

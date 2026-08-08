@@ -723,11 +723,22 @@ export function suggestWindow(
 // ---------------------------------------------------------------------------
 
 /**
- * Least-squares slope in kg/week. A single day-to-day delta is mostly water,
- * so the trend line is what the progress screen should report.
- * Returns null when there aren't enough distinct points to fit a line.
+ * The fitted line and how well the points actually support it.
+ *
+ * The slope alone was being reported as though it were exact. It is an
+ * estimate, and how good an estimate depends entirely on how scattered the
+ * weigh-ins are: four readings a week apart on a noisy scale support a very
+ * different claim than twenty do. Everything downstream that turns kg/week into
+ * kcal/day inherits that scatter, so the standard error has to travel with the
+ * slope rather than be recomputed by whoever remembers to.
+ *
+ * `stdErr` is null below three points on purpose. Two points fit perfectly —
+ * the residuals are zero — and reporting that as certainty would be exactly
+ * backwards: an unfalsifiable fit, not a precise one.
  */
-export function weeklyTrend(entries: { date: string; weight_kg: number }[]): number | null {
+export type TrendFit = { slope: number; stdErr: number | null };
+
+export function weeklyTrendFit(entries: { date: string; weight_kg: number }[]): TrendFit | null {
   const points = (entries ?? [])
     .map((e) => ({ x: Date.parse(e.date + 'T12:00:00') / (7 * 86400000), y: e.weight_kg }))
     .filter((p) => isFinite(p.x) && isFinite(p.y));
@@ -740,7 +751,27 @@ export function weeklyTrend(entries: { date: string; weight_kg: number }[]): num
   if (denom === 0) return null; // all entries on the same day
 
   const slope = points.reduce((s, p) => s + (p.x - meanX) * (p.y - meanY), 0) / denom;
-  return Math.round(slope * 100) / 100;
+
+  let stdErr: number | null = null;
+  if (n > 2) {
+    const intercept = meanY - slope * meanX;
+    const sse = points.reduce((s, p) => s + (p.y - (intercept + slope * p.x)) ** 2, 0);
+    stdErr = Math.sqrt(sse / (n - 2) / denom);
+  }
+
+  // The slope keeps the rounding every caller already expects; the error does
+  // not, because rounding it to 0.01 kg/week would floor a genuinely tight band
+  // at a value that looks like noise.
+  return { slope: Math.round(slope * 100) / 100, stdErr };
+}
+
+/**
+ * Least-squares slope in kg/week. A single day-to-day delta is mostly water,
+ * so the trend line is what the progress screen should report.
+ * Returns null when there aren't enough distinct points to fit a line.
+ */
+export function weeklyTrend(entries: { date: string; weight_kg: number }[]): number | null {
+  return weeklyTrendFit(entries)?.slope ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1067,6 +1098,36 @@ export function demo() {
     { date: '2026-01-08', weight_kg: 80.0 },
   ]);
   assert(flat !== null && Math.abs(flat) < 0.5, `daily noise stays near zero, got ${flat}`);
+
+  // How well the line is supported, which is what the measurement inherits.
+  {
+    const clean = weeklyTrendFit(losing)!;
+    assert(clean.slope === -1, 'the fit reports the same slope the old function did');
+    assert(clean.stdErr !== null && clean.stdErr < 0.001, 'points on a line support it almost exactly');
+
+    const two = weeklyTrendFit([
+      { date: '2026-01-01', weight_kg: 80 },
+      { date: '2026-01-08', weight_kg: 79 },
+    ])!;
+    assert(two.slope === -1, 'two points still give a slope');
+    assert(two.stdErr === null, 'but a perfect fit through two points is not evidence of precision');
+
+    // The claim the band exists to support: more weigh-ins on the same
+    // underlying trend narrow it. Same slope, same noise, twice the readings.
+    const noisy = (weeks: number) => {
+      const rows: { date: string; weight_kg: number }[] = [];
+      for (let i = 0; i < weeks; i++) {
+        const d = new Date(Date.parse('2026-01-01T12:00:00') + i * 3.5 * 86400000);
+        // Deterministic alternating scatter, so the check cannot flake.
+        rows.push({ date: d.toISOString().slice(0, 10), weight_kg: 80 - i * 0.25 + (i % 2 ? 0.4 : -0.4) });
+      }
+      return weeklyTrendFit(rows)!;
+    };
+    const few = noisy(4);
+    const many = noisy(12);
+    assert(few.stdErr !== null && many.stdErr !== null, 'both fits report an error');
+    assert(many.stdErr! < few.stdErr!, `more weigh-ins narrow the band: ${many.stdErr} vs ${few.stdErr}`);
+  }
 
   return 'nutrition.ts: all checks passed';
 }
