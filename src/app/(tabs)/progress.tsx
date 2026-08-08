@@ -21,7 +21,7 @@ import {
   loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
   loadIntakeLog, loadLastSession, isPremium, todayISO, recordIntake, clearIntake,
   loadOutliers, markOutlier, unmarkOutlier, measurementPreviewed, markMeasurementPreviewed,
-  measurementAnnounced,
+  measurementAnnounced, markMeasurementAnnounced,
   type WeightEntry,
 } from '@/lib/store';
 import {
@@ -173,7 +173,17 @@ export default function ProgressScreen() {
         // Shown once, the day it first exists. Deliberately does not touch
         // effectiveMaintenance: the daily target must not jump for a day and
         // then jump back, which would be worse than never showing it.
-        setEverMeasured(await measurementAnnounced());
+        // The flag doubles as "a measurement has existed here before", which is
+        // the only thing that tells a lapse apart from never having had one.
+        // Only the reminder used to set it, and reminders do not exist on web —
+        // so a lapsed web user was told they had never measured anything. The
+        // screen that can see the figure records it too.
+        let ever = await measurementAnnounced();
+        if (!ever && m.kcal !== null) {
+          await markMeasurementAnnounced();
+          ever = true;
+        }
+        setEverMeasured(ever);
         if (!prem && m.kcal !== null && !(await measurementPreviewed())) {
           setPreview(true);
           await markMeasurementPreviewed();

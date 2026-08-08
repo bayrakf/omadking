@@ -21,6 +21,7 @@ import {
 import { exportBackup, importBackup } from '@/lib/backup';
 import { healthSummary } from '@/lib/review';
 import { syncNow, lastSyncedAt, deleteAccount } from '@/lib/sync';
+import { currentUserId } from '@/lib/account';
 import { saveBackup, pickBackup } from '@/lib/backup-file';
 import type { MealPlan } from '@/lib/ai';
 
@@ -62,12 +63,18 @@ export default function ProfileScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const [p, q, prem, rOn, n] = await Promise.all([
+        // `lastSyncedAt` was imported and never called, so this screen opened
+        // believing nobody had ever synced. It reads "Not synced yet" to a daily
+        // syncer, and — because the delete-account row hangs off the same state
+        // — it hid the way to delete the server copy behind pressing "Sync now"
+        // first. Asking to be forgotten should not begin with an upload.
+        const [p, q, prem, rOn, n, sy] = await Promise.all([
           loadProfileOrDefault(), getQuota(), isPremium(), remindersOn(), scheduledCount(),
+          lastSyncedAt(),
         ]);
         if (!active) return;
         setProfile(p); setQuota(q); setPremiumState(prem); setAvoid(p.avoid);
-        setRemindOn(rOn); setQueued(n); setMounted(true);
+        setRemindOn(rOn); setQueued(n); setSyncedAt(sy); setMounted(true);
       })();
       return () => { active = false; };
     }, [])
@@ -103,10 +110,30 @@ export default function ProfileScreen() {
 
   /** Deletion, not reset. Everything, including the logs a reset leaves alone. */
   const eraseAll = () => {
-    const run = async () => { await eraseEverything(); router.replace('/onboarding'); };
+    const run = async () => {
+      // The account goes first. `eraseEverything` enumerates KEYS, and neither
+      // the encryption key nor the Supabase session lives there — so erasing
+      // alone left a device that could still open the server copy, and the next
+      // "Sync now" unioned all of it back over the empty state. Clearing the key
+      // instead of deleting the account would strand a blob nobody can read or
+      // remove, which is the one outcome worse than the resurrection.
+      if (await currentUserId()) {
+        if (!(await deleteAccount())) {
+          setNotice({
+            text: 'Could not reach the server, so nothing was deleted. Your data is untouched — try again online.',
+            ok: false,
+          });
+          return;
+        }
+        setSyncedAt(null);
+      }
+      await eraseEverything();
+      router.replace('/onboarding');
+    };
     const msg =
       'This deletes everything on this device: profile, weight log, fast log, plans, shopping list '
-      + 'and chat history. It cannot be undone. Export first if you want a copy.';
+      + 'and chat history — and, if you have one, your account and the encrypted copy on the server. '
+      + 'It cannot be undone. Export first if you want a copy.';
     if (Platform.OS === 'web') { if (window.confirm(msg)) run(); return; }
     Alert.alert('Delete all data', msg, [
       { text: 'Cancel', style: 'cancel' },

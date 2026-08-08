@@ -150,6 +150,66 @@ try {
     }
   }
 
+  // --- deleting everything must not leave the way back in ------------------
+  //
+  // `eraseEverything` enumerates KEYS, and neither the encryption key nor the
+  // Supabase session lives there. Erasing without deleting the account left a
+  // device that could still open the server copy, so the next "Sync now"
+  // unioned the whole deleted history back over the empty state. The order is
+  // the fix and the order is what can silently come undone in a refactor.
+  {
+    const profile = readFileSync('src/app/(tabs)/profile.tsx', 'utf8');
+    const eraseAll = profile.slice(profile.indexOf('const eraseAll'), profile.indexOf('const runSync'));
+    // The call sites, not the names: the comment above them explains the order
+    // and mentions both, which is exactly the trap a looser match falls into.
+    const account = eraseAll.indexOf('deleteAccount(');
+    const erase = eraseAll.indexOf('eraseEverything(');
+    if (account === -1 || erase === -1 || account > erase) {
+      failed = true;
+      console.error('❌ erase — "Delete all data" must delete the account before erasing the device.',
+        '\n   The key and the session are not in KEYS, so a later sync restores everything it just deleted.');
+    } else {
+      console.log('✅ deleting everything deletes the account first');
+    }
+  }
+
+  // --- an announcement that cannot be sent must not be marked as sent -------
+  //
+  // Reminders are off until someone turns them on, so marking first consumed
+  // the measurement announcement for every user in the default configuration:
+  // the flag said "told them", nothing was sent, and the early return made sure
+  // nothing ever would be.
+  {
+    const notify = readFileSync('src/lib/notify.ts', 'utf8');
+    const fn = notify.slice(notify.indexOf('export async function announceMeasurement'));
+    const enabled = fn.indexOf('isEnabled()');
+    const mark = fn.indexOf('markMeasurementAnnounced');
+    if (enabled === -1 || mark === -1 || enabled > mark) {
+      failed = true;
+      console.error('❌ announce — announceMeasurement marks the flag before checking it can send.',
+        '\n   Reminders default to off, so that burns the announcement for everyone who has not opted in.');
+    } else {
+      console.log('✅ the measurement announcement checks it can send before marking it sent');
+    }
+  }
+
+  // --- the lapse message needs a setter on every platform ------------------
+  //
+  // measurementAnnounced doubles as "a measurement existed here before", which
+  // is the only thing that tells a lapse apart from never having had one. Only
+  // the reminder set it, and reminders do not exist on web, so a lapsed web
+  // user was told they had never measured anything.
+  {
+    const progress = readFileSync('src/app/(tabs)/progress.tsx', 'utf8');
+    if (!progress.includes('markMeasurementAnnounced')) {
+      failed = true;
+      console.error('❌ announce — Progress no longer marks the measurement as having existed.',
+        '\n   Only notify.ts would set it, and notify.ts does nothing on web: a lapse there reads as "never measured".');
+    } else {
+      console.log('✅ the measurement is recorded as having existed on every platform');
+    }
+  }
+
   if (sold.size === 0) {
     failed = true;
     console.error('❌ offer — no screen reads cards.sell at all;',

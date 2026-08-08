@@ -248,11 +248,16 @@ export async function announceMeasurement(): Promise<void> {
   const measured = energy.measuredMaintenance(intake, weights, est.maintenance_kcal);
   if (!energy.shouldAnnounceMeasurement(measured, false)) return;
 
-  // Marked before sending: a failed notification is better than one that
-  // repeats every time the app comes forward.
-  await store.markMeasurementAnnounced();
+  // Whether we *can* send is decided before the flag is set. Reminders are off
+  // until someone turns them on, so marking first burned the announcement for
+  // every user in the default configuration: the flag said "told them", nothing
+  // was sent, and the early return above made sure nothing ever would be.
   if (!(await isEnabled())) return;
   if (!(await Notifications.getPermissionsAsync()).granted) return;
+
+  // Marked before sending, though: a failed notification is better than one
+  // that repeats every time the app comes forward.
+  await store.markMeasurementAnnounced();
   await ensureChannel();
   await Notifications.scheduleNotificationAsync({
     content: {
