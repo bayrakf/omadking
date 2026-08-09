@@ -282,13 +282,17 @@ export default function DashboardScreen() {
                 was and pulls the measured maintenance down, a capped bottom
                 records a day barely eaten as more and pulls it up. The options
                 and the figures come from lib, not from here. */}
+            {/* The cell owns the width, not the Tap. `Tap` puts its style on
+                the view *inside* the Pressable, so a percentage width measured
+                against a Pressable that had already collapsed to its text —
+                every option came out as wide as its own label. Four options hid
+                it well enough; six did not. */}
             <View style={s.intakeGrid}>
               {INTAKE_OPTIONS.map((o) => (
+                <View key={o.label} style={s.intakeCell}>
                 <Tap
-                  key={o.label}
                   onPress={() => answerIntake(o.factor)}
                   accessibilityLabel={`${o.label}, about ${intakeKcal(o.factor, questionKcal)} kcal`}
-                  style={s.intakeCell}
                 >
                   <View style={[s.intakeBtn, { borderColor: c.line, backgroundColor: c.well }]}>
                     <Txt variant="small" style={{ textAlign: 'center' }}>{o.label}</Txt>
@@ -297,6 +301,7 @@ export default function DashboardScreen() {
                     </Eyebrow>
                   </View>
                 </Tap>
+                </View>
               ))}
             </View>
             <Tap onPress={() => answerIntake(null)} accessibilityLabel="Completely different">
