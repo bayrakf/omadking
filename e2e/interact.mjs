@@ -434,7 +434,7 @@ export default async function run() {
 
   {
     const { context, page } = await newPage(browser, SEED);
-    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/you/body', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1600);
 
     // The chosen target weight: editable, and it must accept a full number.
@@ -532,7 +532,7 @@ export default async function run() {
       fast_log: JSON.stringify(['2026-05-02', '2026-05-03']),
     });
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/you/data', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
 
     const btn = page.getByText('Summary for an appointment');
@@ -653,7 +653,7 @@ export default async function run() {
     // navigation. Saving and sending have to be checked apart.
     {
       const { context, page } = await newPage(browser, SEED);
-      await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+      await page.goto(BASE + '/you/body', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
 
       const field = page.getByLabel('Never put in a recipe');
@@ -1452,7 +1452,7 @@ export default async function run() {
       });
     });
 
-    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/you/sync', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
     await page.getByText('Sync now').click();
     await page.waitForTimeout(3000);
@@ -1546,7 +1546,7 @@ export default async function run() {
   {
     const { context, page } = await newPage(browser, SEED_WITH_PLAN);
     page.on('dialog', (dlg) => dlg.accept());
-    await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/you/data', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
 
     check(has(await body(page), 'Delete all data'), 'deletion is offered, not just reset');
@@ -2040,7 +2040,7 @@ export default async function run() {
     // Settable from the profile screen, or it is not really the user's choice.
     {
       const { context, page } = await newPage(browser, { ...SEED, onboarding_profile: profileOf({}) });
-      await page.goto(BASE + '/profile', { waitUntil: 'networkidle' });
+      await page.goto(BASE + '/you/body', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
       check(has(await body(page), 'target weight'), 'the profile offers a target weight');
       await page.getByLabel('Edit Target weight').click();

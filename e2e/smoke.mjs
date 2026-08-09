@@ -20,6 +20,14 @@ const ROUTES = [
   ['about', '/about', SEED_WITH_PLAN],
   ['legal', '/legal', SEED_WITH_PLAN],
   ['recovery', '/recovery', SEED_WITH_PLAN],
+  // "You" is an index now; each page it points at is a route, and listing them
+  // here is how each one gets its renders-without-a-console-error guard.
+  ['you/body', '/you/body', SEED_WITH_PLAN],
+  ['you/day', '/you/day', SEED_WITH_PLAN],
+  ['you/targets', '/you/targets', SEED_WITH_PLAN],
+  ['you/reminders', '/you/reminders', SEED_WITH_PLAN],
+  ['you/sync', '/you/sync', SEED_WITH_PLAN],
+  ['you/data', '/you/data', SEED_WITH_PLAN],
 ];
 
 export default async function run() {

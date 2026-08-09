@@ -188,18 +188,37 @@ try {
   // unioned the whole deleted history back over the empty state. The order is
   // the fix and the order is what can silently come undone in a refactor.
   {
-    const profile = readFileSync('src/app/(tabs)/profile.tsx', 'utf8');
-    const eraseAll = profile.slice(profile.indexOf('const eraseAll'), profile.indexOf('const runSync'));
-    // The call sites, not the names: the comment above them explains the order
-    // and mentions both, which is exactly the trap a looser match falls into.
-    const account = eraseAll.indexOf('deleteAccount(');
-    const erase = eraseAll.indexOf('eraseEverything(');
-    if (account === -1 || erase === -1 || account > erase) {
+    // Found rather than named. Pinning the filename meant that moving the
+    // handler to its own screen did not break the rule, it broke the check —
+    // which then reported a missing `eraseAll` as an ordering failure and said
+    // nothing about the file it could not find it in.
+    const screens = ['src/app/you/data.tsx', 'src/app/(tabs)/profile.tsx'];
+    const home = screens.find((f) => {
+      try {
+        return readFileSync(f, 'utf8').includes('const eraseAll');
+      } catch {
+        return false;
+      }
+    });
+    if (!home) {
       failed = true;
-      console.error('❌ erase — "Delete all data" must delete the account before erasing the device.',
-        '\n   The key and the session are not in KEYS, so a later sync restores everything it just deleted.');
+      console.error('❌ erase — no screen defines `eraseAll`; looked in:', screens.join(', '),
+        '\n   Either deletion was removed, or it moved somewhere this check does not know about.');
     } else {
-      console.log('✅ deleting everything deletes the account first');
+      const src = readFileSync(home, 'utf8');
+      const eraseAll = src.slice(src.indexOf('const eraseAll'));
+      // The call sites, not the names: the comment above them explains the order
+      // and mentions both, which is exactly the trap a looser match falls into.
+      const account = eraseAll.indexOf('deleteAccount(');
+      const erase = eraseAll.indexOf('eraseEverything(');
+      if (account === -1 || erase === -1 || account > erase) {
+        failed = true;
+        console.error('❌ erase — "Delete all data" must delete the account before erasing the device.',
+          `\n   In ${home}. The key and the session are not in KEYS, so a later sync restores`,
+          '\n   everything it just deleted.');
+      } else {
+        console.log('✅ deleting everything deletes the account first');
+      }
     }
   }
 

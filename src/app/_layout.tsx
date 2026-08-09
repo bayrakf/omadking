@@ -110,6 +110,14 @@ export default function RootLayout() {
         <Stack.Screen name="about" />
         <Stack.Screen name="legal" />
         <Stack.Screen name="recovery" />
+        {/* The "You" tab is an index; these are its pages. Pushed onto the
+            tab stack rather than presented, so back lands on the index. */}
+        <Stack.Screen name="you/body" />
+        <Stack.Screen name="you/day" />
+        <Stack.Screen name="you/targets" />
+        <Stack.Screen name="you/reminders" />
+        <Stack.Screen name="you/sync" />
+        <Stack.Screen name="you/data" />
       </Stack>
     </SafeAreaProvider>
   );
