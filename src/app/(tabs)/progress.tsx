@@ -1,13 +1,12 @@
 import { useCallback, useState } from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { Space, Radius, Type } from '@/constants/theme';
+import { Space, Radius } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, Tap,
-  PairedBars, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Divider, PageHeader, Bar, Empty, Tap,
+  PairedBars, NavRow, useTheme,
 } from '@/components/ui';
-import { Icon } from '@/components/icons';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
@@ -18,17 +17,17 @@ import {
 } from '@/lib/energy';
 import { consistency, currentStreak } from '@/lib/dates';
 import {
-  loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
-  loadFastLog, loadCookLog, loadPlanHistory, markFastComplete, unmarkFastComplete,
-  loadIntakeLog, loadLastSession, isPremium, todayISO, recordIntake, clearIntake,
-  loadOutliers, markOutlier, unmarkOutlier, measurementPreviewed, markMeasurementPreviewed,
+  loadProfileOrDefault, loadWeightLog,
+  loadFastLog, loadCookLog, loadPlanHistory,
+  loadIntakeLog, loadLastSession, isPremium,
+  loadOutliers, measurementPreviewed, markMeasurementPreviewed,
   measurementAnnounced, markMeasurementAnnounced,
   type WeightEntry,
 } from '@/lib/store';
 import {
-  weeklyReview, adaptationStage, fastWeek, weeklyDecision, progressCards,
-  intakeWeek, nextIntakeFactor, intakeLabel, intakeGlyph, bestWeeks,
-  type WeeklyReview, type AdaptationStage, type FastDay, type Decision, type IntakeDay,
+  weeklyReview, adaptationStage, weeklyDecision, progressCards,
+  intakeWeek, bestWeeks,
+  type WeeklyReview, type AdaptationStage, type Decision, type IntakeDay,
   type BestWeeks,
 } from '@/lib/review';
 
@@ -86,12 +85,8 @@ export default function ProgressScreen() {
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [entries, setEntries] = useState<WeightEntry[]>([]);
-  const [weightInput, setWeightInput] = useState('');
-  const [dateInput, setDateInput] = useState(todayISO());
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [review, setReview] = useState<WeeklyReview | null>(null);
   const [adapt, setAdapt] = useState<AdaptationStage | null>(null);
-  const [week, setWeek] = useState<FastDay[]>([]);
   const [eaten, setEaten] = useState<IntakeDay[]>([]);
   /** The day's target, needed to record a correction against the right one. */
   const [dayKcal, setDayKcal] = useState(0);
@@ -102,7 +97,6 @@ export default function ProgressScreen() {
   /** Kept so the exception day can be recomputed without another read. */
   const [intake, setIntake] = useState<unknown[]>([]);
   const [best, setBest] = useState<BestWeeks>(null);
-  const [outliers, setOutliers] = useState<string[]>([]);
   const [need, setNeed] = useState<Readiness | null>(null);
   /** The one-off showing of the first measured figure. Display only. */
   const [preview, setPreview] = useState(false);
@@ -170,7 +164,6 @@ export default function ProgressScreen() {
             : null
         );
 
-        setOutliers(skip);
         setNeed(ready);
         // Shown once, the day it first exists. Deliberately does not touch
         // effectiveMaintenance: the daily target must not jump for a day and
@@ -228,8 +221,6 @@ export default function ProgressScreen() {
         );
         setReview(weeklyReview(fasts, cooks, log, plans));
         setAdapt(adaptationStage(fasts));
-        setWeek(fastWeek(fasts));
-        setDateInput(todayISO());
         setMounted(true);
       })();
       return () => { active = false; };
@@ -237,78 +228,6 @@ export default function ProgressScreen() {
   );
 
   if (!mounted) return null;
-
-  /** Correcting a day rewrites the streak, so everything derived is rebuilt. */
-  const toggleDay = async (dayDate: string, logged: boolean) => {
-    const next = logged ? await unmarkFastComplete(dayDate) : await markFastComplete(dayDate);
-    setWeek(fastWeek(next));
-    setAdapt(adaptationStage(next));
-    // The streak card is derived from the same log and was the one thing the
-    // correction left standing, so a day taken back showed the old number until
-    // the screen was left and reopened.
-    setSteady({ ...consistency(next, 30), streak: currentStreak(next) });
-    const [cooks, plans] = await Promise.all([loadCookLog(), loadPlanHistory<{ date: string }>()]);
-    setReview(weeklyReview(next, cooks, entries, plans));
-  };
-
-  /**
-   * Correcting an evening moves the measured maintenance, so everything derived
-   * from the intake log is rebuilt rather than left showing the old answer.
-   */
-  const cycleIntake = async (dayDate: string, current: number | null) => {
-    const next = nextIntakeFactor(current);
-    const log = next === null ? await clearIntake(dayDate) : await recordIntake(next, dayKcal, dayDate);
-    setEaten(intakeWeek(log));
-    setBudget(weekBudget(dayKcal, log));
-    setPattern(weekdayPattern(log));
-    setProtein(proteinAdherence(log));
-    setMonths(monthlyComparison(log, entries));
-  };
-
-  /**
-   * Marking a day changes the comparisons and must not change the measurement.
-   * Everything recomputed here is a narrating reading; `measured` is not in the
-   * list on purpose.
-   */
-  const toggleOutlier = async (dayDate: string) => {
-    const next = outliers.includes(dayDate)
-      ? await unmarkOutlier(dayDate)
-      : await markOutlier(dayDate);
-    setOutliers(next);
-    const compare = withoutOutliers(intake, next);
-    setPattern(weekdayPattern(compare));
-    setMonths(monthlyComparison(compare, entries));
-    const [plans, fastLog] = await Promise.all([
-      loadPlanHistory<{ date: string }>(), loadFastLog(),
-    ]);
-    setBest(bestWeeks(compare, entries, plans, fastLog));
-  };
-
-  const save = async () => {
-    const w = parseFloat(weightInput.replace(',', '.'));
-    if (!isFinite(w) || w < 30 || w > 300) return setMsg({ text: 'Enter a weight between 30 and 300 kg.', ok: false });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput) || isNaN(new Date(dateInput).getTime()))
-      return setMsg({ text: 'Dates use the format YYYY-MM-DD.', ok: false });
-    if (dateInput > todayISO()) return setMsg({ text: 'That date is in the future.', ok: false });
-
-    const updated = [
-      { id: `${dateInput}-${Date.now()}`, date: dateInput, weight_kg: w },
-      ...entries.filter((e) => e.date !== dateInput),
-    ].sort((a, b) => b.date.localeCompare(a.date));
-
-    setEntries(updated);
-    await saveWeightLog(updated);
-
-    // Keep targets following real bodyweight — but only when logging today, so
-    // back-filling an old entry never rewrites the current profile.
-    if (dateInput === todayISO()) {
-      const next = { ...profile, weight_kg: w };
-      await saveProfile(next);
-      setProfile(next);
-    }
-    setWeightInput('');
-    setMsg({ text: 'Logged.', ok: true });
-  };
 
   const current = entries.length ? entries[0].weight_kg : profile.weight_kg;
   const start = entries.length ? entries[entries.length - 1].weight_kg : profile.weight_kg;
@@ -581,178 +500,33 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
-      {/* Ill, travelling, a wedding. Comparing a flu week against a normal one
-          answers a question nobody asked. The heading states the limit rather
-          than hiding it: this changes what the app compares, never what it
-          measured — anyone who could exclude days from the measurement could
-          mark their way to a number that flatters them. */}
-      <Enter index={2}>
-        <Card style={{ marginBottom: Space.base }}>
-          <View style={s.split}>
-            <Eyebrow>Days to leave out</Eyebrow>
-            <Txt variant="data" color={c.textFaint}>comparisons only</Txt>
-          </View>
-          <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-            Ill, away, or a day that was nothing like the rest. It comes out of the comparisons.
-            What your body measured stays exactly as it was.
-          </Txt>
-          <View style={s.weekRow}>
-            {eaten.map((d) => {
-              const off = outliers.includes(d.date);
-              return (
-                <Tap
-                  key={d.date}
-                  onPress={d.future ? undefined : () => toggleOutlier(d.date)}
-                  disabled={d.future}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: off, disabled: d.future }}
-                  accessibilityLabel={`Leave out ${d.date}`}
-                  style={s.weekCell}
-                >
-                  <View style={s.weekCellInner}>
-                    <Txt variant="small" color={c.textFaint}>{d.label}</Txt>
-                    <View
-                      style={[
-                        s.weekDot,
-                        {
-                          backgroundColor: off ? c.textFaint : 'transparent',
-                          borderColor: d.future ? c.line : off ? c.textFaint : c.lineStrong,
-                          opacity: d.future ? 0.4 : 1,
-                        },
-                      ]}
-                    >
-                      {off && <Txt variant="small" color={c.onAccent}>\u2013</Txt>}
-                    </View>
-                  </View>
-                </Tap>
-              );
-            })}
-          </View>
-        </Card>
-      </Enter>
-
-      {/* The same treatment as the fasts, and it matters more here: the measured
-          maintenance is built on these answers, so a mistap does not merely
-          look wrong, it moves the number the app tells you to eat. Tapping
-          cycles plan → less → more → clear, so an answer can also be taken
-          back rather than only replaced. */}
+      {/* The magnitudes stayed here when the corrections left: a glyph says a
+          day was "ate more", the bars say by how much, and two days that both
+          read "ate more" can be six hundred kilocalories apart. Each day is
+          drawn against its own target, since the target moves as someone gets
+          lighter. */}
       <Enter index={2}>
         <Card style={{ marginBottom: Space.base }}>
           <View style={s.split}>
             <Eyebrow>Evenings this week</Eyebrow>
-            <Txt variant="data" color={c.textFaint}>tap to correct</Txt>
+            <Txt variant="data" color={c.textFaint}>plan · eaten</Txt>
           </View>
-          {/* The dots below say whether a day was answered and roughly how. The
-              bars say by how much, which is the part a glyph cannot carry: two
-              days can both read "ate more" and be six hundred kilocalories
-              apart. Each day is drawn against its own target, since the target
-              moves as someone gets lighter. Labels are off here because the row
-              beneath already names the days. */}
-          <PairedBars days={eaten} height={64} labels={false} />
-          <View style={s.weekRow}>
-            {eaten.map((d) => (
-              <Tap
-                key={d.date}
-                onPress={d.future ? undefined : () => cycleIntake(d.date, d.factor)}
-                disabled={d.future}
-                accessibilityLabel={`${d.date}: ${intakeLabel(d.factor)}`}
-                style={s.weekCell}
-              >
-                <View style={s.weekCellInner}>
-                  <Txt variant="small" color={c.textFaint}>{d.label}</Txt>
-                  <View
-                    style={[
-                      s.weekDot,
-                      {
-                        backgroundColor: d.factor === null ? 'transparent' : c.accent,
-                        borderColor: d.future ? c.line : d.factor === null ? c.lineStrong : c.accent,
-                        opacity: d.future ? 0.4 : 1,
-                      },
-                    ]}
-                  >
-                    {d.factor !== null && (
-                      <Txt variant="small" color={c.onAccent}>{intakeGlyph(d.factor)}</Txt>
-                    )}
-                  </View>
-                </View>
-              </Tap>
-            ))}
-          </View>
+          <PairedBars days={eaten} height={72} />
         </Card>
       </Enter>
 
-      {/* Correctable, because a streak that cannot be fixed stops being true. */}
+      {/* The four places you go to fix something used to sit in the middle of
+          the readings, which made the week tab twice as long and neither half
+          easy to find. They all have a primary path elsewhere — the evening
+          question and the weigh-in prompt are both on Today — so one tap away
+          costs nothing and gives the readings room to be read. */}
       <Enter index={2}>
-        <Card style={{ marginBottom: Space.base }}>
-          <View style={s.split}>
-            <Eyebrow>Fasts this week</Eyebrow>
-            <Txt variant="data" color={c.textFaint}>tap to correct</Txt>
-          </View>
-          <View style={s.weekRow}>
-            {week.map((d) => (
-              <Tap
-                key={d.date}
-                onPress={d.future ? undefined : () => toggleDay(d.date, d.logged)}
-                disabled={d.future}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: d.logged, disabled: d.future }}
-                accessibilityLabel={`Fast on ${d.date}`}
-                style={s.weekCell}
-              >
-                <View style={s.weekCellInner}>
-                  <Txt variant="small" color={c.textFaint}>{d.label}</Txt>
-                  <View
-                    style={[
-                      s.weekDot,
-                      {
-                        backgroundColor: d.logged ? c.ember : 'transparent',
-                        borderColor: d.future ? c.line : d.logged ? c.ember : c.lineStrong,
-                        opacity: d.future ? 0.4 : 1,
-                      },
-                    ]}
-                  >
-                    {d.logged && <Icon name="check" size={13} color={c.onAccent} strokeWidth={2.4} />}
-                  </View>
-                </View>
-              </Tap>
-            ))}
-          </View>
-        </Card>
-      </Enter>
-
-      <Enter index={5}>
-        <Card style={{ marginTop: Space.base }}>
-          <Eyebrow style={{ marginBottom: Space.base }}>Log a weigh-in</Eyebrow>
-          <View style={s.inputs}>
-            <View style={s.inputCol}>
-              <Txt variant="small" color={c.textDim} style={{ marginBottom: 6 }}>Date</Txt>
-              <TextInput
-                value={dateInput}
-                onChangeText={setDateInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={c.textFaint}
-                accessibilityLabel="Date"
-                style={[s.input, Type.data, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
-              />
-            </View>
-            <View style={s.inputCol}>
-              <Txt variant="small" color={c.textDim} style={{ marginBottom: 6 }}>Weight (kg)</Txt>
-              <TextInput
-                value={weightInput}
-                onChangeText={setWeightInput}
-                onSubmitEditing={save}
-                placeholder="82.4"
-                placeholderTextColor={c.textFaint}
-                keyboardType="numeric"
-                inputMode="decimal"
-                accessibilityLabel="Weight in kilograms"
-                style={[s.input, Type.data, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
-              />
-            </View>
-          </View>
-          <Button label="Save entry" onPress={save} style={{ marginTop: Space.base }} />
-          {msg && <Notice tone={msg.ok ? 'ok' : 'error'}>{msg.text}</Notice>}
-        </Card>
+        <NavRow
+          icon="edit"
+          title="Corrections"
+          sub="Weigh-in, evenings, fasts, days to leave out"
+          onPress={() => router.push('/week/corrections')}
+        />
       </Enter>
 
       {review && (

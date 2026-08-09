@@ -118,6 +118,7 @@ export default function RootLayout() {
         <Stack.Screen name="you/reminders" />
         <Stack.Screen name="you/sync" />
         <Stack.Screen name="you/data" />
+        <Stack.Screen name="week/corrections" />
       </Stack>
     </SafeAreaProvider>
   );

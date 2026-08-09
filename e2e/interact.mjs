@@ -966,18 +966,25 @@ export default async function run() {
         id: `o${i}`, date: day(18 - i * 2.5 | 0), weight_kg: 90 - i * 0.3,
       }))),
     });
-    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(2000);
-
+    // The reading and the correction now live on two pages, so this walks the
+    // path a person walks: read the figure, go and mark the day, come back.
     const measuredOf = async () => {
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1600);
+      await page.getByLabel('Your body').click();
+      await page.waitForTimeout(700);
       const t = await bodyIn(page, 'Your body');
       return t.match(/(\d{4})\s*kcal a day/)?.[1] ?? null;
     };
     const before = await measuredOf();
     check(before !== null, 'the fixture produces a measured figure', String(before));
 
-    await page.getByLabel('This week').click();
-    await page.waitForTimeout(600);
+    const openCorrections = async () => {
+      await page.goto(BASE + '/week/corrections', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1400);
+    };
+
+    await openCorrections();
     const cell = page.getByLabel(`Leave out ${day(1)}`);
     check(await cell.count() === 1, 'yesterday can be left out');
     await cell.click();
@@ -985,11 +992,11 @@ export default async function run() {
 
     const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('outlier_days')) ?? '[]');
     check(stored.length === 1 && stored[0] === day(1), 'and the day is recorded', JSON.stringify(stored));
-    check(await measuredOf() === before,
-      'the measurement does not move — that is the rule', `${before} → ${await measuredOf()}`);
+    const afterMark = await measuredOf();
+    check(afterMark === before,
+      'the measurement does not move — that is the rule', `${before} → ${afterMark}`);
 
-    await page.getByLabel('This week').click();
-    await page.waitForTimeout(500);
+    await openCorrections();
     await page.getByLabel(`Leave out ${day(1)}`).click();
     await page.waitForTimeout(800);
     const after = JSON.parse(await page.evaluate(() => localStorage.getItem('outlier_days')) ?? '[]');
@@ -1068,10 +1075,10 @@ export default async function run() {
   section('The intake week can be corrected');
   {
     const { context, page } = await newPage(browser, SEED);
-    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/week/corrections', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1800);
-    await page.getByLabel('This week').click();
-    await page.waitForTimeout(600);
+    // The strip is the page; there is no tab to select.
+
 
     const today = localISO();
     const cell = page.getByLabel(new RegExp(`^${today}: `));
@@ -1640,7 +1647,6 @@ export default async function run() {
     check(has(t, 'four weeks'), 'the consequence extrapolates the trend');
 
     // Adaptation phase, counted from logged days rather than a calendar.
-    check(has(t, 'Fasts this week'), 'the week strip renders');
     check(has(t, 'First week'), 'the adaptation phase is named', t.match(/First (days|week)|Settling|Settled/)?.[0]);
     check(has(t, '4 days logged'), 'and counts the days actually logged');
     check(!/cure|prevent|detox|proven|guarantee/i.test(t), 'progress makes no health claim');
@@ -1649,26 +1655,49 @@ export default async function run() {
     // Anchored to the fast strip's own labels: a bare [role="checkbox"] also
     // matched the days-to-leave-out strip once that existed, so the count was
     // fourteen and the taps landed on whichever came first.
+    // The count is read on Progress and the correction is made on its own
+    // page, so this walks between them the way a person does.
+    const dayCount = async () => {
+      await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+      // Wait for the card rather than for a guess at how long it takes.
+      await page.waitForFunction(
+        () => /\d+ days? logged/.test(document.body.innerText),
+        null,
+        { timeout: 12000 }
+      );
+      return page.evaluate(() =>
+        Number((document.body.innerText.match(/(\d+) days? logged/) ?? [])[1] ?? -1));
+    };
+    const openCorrections = async () => {
+      await page.goto(BASE + '/week/corrections', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(1400);
+    };
+
+    const startDays = await dayCount();
+    await openCorrections();
+
     const cells = page.getByLabel(/^Fast on /);
     const before = await cells.count();
     check(before === 7, 'seven days are offered', String(before));
 
-    const dayCount = () => page.evaluate(() =>
-      Number((document.body.innerText.match(/(\d+) days? logged/) ?? [])[1] ?? -1));
-    const startDays = await dayCount();
     // Tick an unlogged day, then untick it again.
     await page.locator('[role="checkbox"][aria-checked="false"]')
-      .filter({ has: page.locator('xpath=.') })
       .and(page.getByLabel(/^Fast on /)).first().click();
     await page.waitForTimeout(900);
-    check(await dayCount() === startDays + 1, 'adding a missed fast counts it',
-      `${startDays} -> ${await dayCount()}`);
+    const ticked = JSON.parse(await page.evaluate(() => localStorage.getItem('fast_log')) ?? '[]');
+    check(ticked.length === 5, 'the tap reaches storage', JSON.stringify(ticked));
+    // Once, not twice: dayCount navigates, so calling it again just to build
+    // the message doubled a page load for a string.
+    const afterTick = await dayCount();
+    check(afterTick === startDays + 1, 'adding a missed fast counts it',
+      `${startDays} -> ${afterTick}`);
 
+    await openCorrections();
     await page.getByLabel(/^Fast on /)
       .and(page.locator('[aria-checked="true"]')).last().click();
     await page.waitForTimeout(900);
-    check(await dayCount() === startDays, 'and a mistap can be taken back',
-      `back to ${await dayCount()}`);
+    const afterUntick = await dayCount();
+    check(afterUntick === startDays, 'and a mistap can be taken back', `back to ${afterUntick}`);
     // The wording rule: counted facts only.
     check(!t.includes('%'), 'no invented percentage appears');
     check(!/great job|well done|keep it up/i.test(t), 'no praise is offered');
@@ -1986,7 +2015,9 @@ export default async function run() {
   section('Progress');
   {
     const { context, page, errors } = await newPage(browser, SEED);
-    await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
+    // Logging and correcting live on their own page now; the week tab keeps
+    // the readings.
+    await page.goto(BASE + '/week/corrections', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
 
     await page.getByLabel('Weight in kilograms').fill('999');

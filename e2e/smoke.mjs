@@ -28,6 +28,7 @@ const ROUTES = [
   ['you/reminders', '/you/reminders', SEED_WITH_PLAN],
   ['you/sync', '/you/sync', SEED_WITH_PLAN],
   ['you/data', '/you/data', SEED_WITH_PLAN],
+  ['week/corrections', '/week/corrections', SEED_WITH_PLAN],
 ];
 
 export default async function run() {
