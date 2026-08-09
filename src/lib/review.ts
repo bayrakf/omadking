@@ -172,7 +172,23 @@ export function fastWeek(fastLog: string[], today: string = todayISO()): FastDay
     }));
 }
 
-export type IntakeDay = { date: string; factor: number | null; future: boolean; label: string };
+export type IntakeDay = {
+  date: string;
+  factor: number | null;
+  future: boolean;
+  label: string;
+  /**
+   * The target that was in force on the day, and what the answer says was
+   * actually eaten against it. Both null for a day nobody answered.
+   *
+   * Taken from the entry rather than from today's target: the target moves as
+   * someone gets lighter, so charting last Tuesday against this Friday's number
+   * would draw a gap that never existed. The same reason `measuredMaintenance`
+   * multiplies each day by its own `target_kcal` instead of by a single figure.
+   */
+  target: number | null;
+  kcal: number | null;
+};
 
 /**
  * The last seven evenings as a strip you can correct.
@@ -183,22 +199,32 @@ export type IntakeDay = { date: string; factor: number | null; future: boolean; 
  * wrong, it moves the number the app tells you to eat.
  */
 export function intakeWeek(intakeLog: unknown, today: string = todayISO()): IntakeDay[] {
-  const byDate = new Map<string, number>();
+  const byDate = new Map<string, { factor: number; target: number | null }>();
   for (const row of Array.isArray(intakeLog) ? intakeLog : []) {
     const r = row as any;
-    if (r && typeof r.date === 'string' && isFinite(r.factor)) byDate.set(r.date, r.factor);
+    if (r && typeof r.date === 'string' && isFinite(r.factor)) {
+      // An older entry may predate target_kcal being stored, so the target is
+      // allowed to be missing while the answer still counts.
+      const target = isFinite(r.target_kcal) && r.target_kcal > 0 ? Number(r.target_kcal) : null;
+      byDate.set(r.date, { factor: Number(r.factor), target });
+    }
   }
   const todayDate = parseISO(today);
 
   return windowDays(today)
     .slice()
     .reverse()
-    .map((date) => ({
-      date,
-      factor: byDate.has(date) ? byDate.get(date)! : null,
-      future: parseISO(date).getTime() > todayDate.getTime(),
-      label: parseISO(date).toLocaleDateString(undefined, { weekday: 'narrow' }),
-    }));
+    .map((date) => {
+      const hit = byDate.get(date) ?? null;
+      return {
+        date,
+        factor: hit ? hit.factor : null,
+        future: parseISO(date).getTime() > todayDate.getTime(),
+        label: parseISO(date).toLocaleDateString(undefined, { weekday: 'narrow' }),
+        target: hit?.target ?? null,
+        kcal: hit && hit.target !== null ? Math.round(hit.factor * hit.target) : null,
+      };
+    });
 }
 
 /**
@@ -949,6 +975,27 @@ export function demo() {
   assert(intakeWeek([], TODAY).every((x) => x.factor === null), 'nothing answered, nothing marked');
   assert(intakeWeek(null, TODAY).length === 7, 'a missing log still yields a week');
   assert(intakeWeek([{ date: TODAY, factor: 'x' }] as any, TODAY)[6].factor === null, 'junk is not a factor');
+
+  // What the day was aiming at and what it came to, for charting the two
+  // against each other. Each day keeps its own target: the target moves as
+  // someone gets lighter, so one figure applied to a whole week would draw a
+  // gap that never happened.
+  assert(iw[6].target === 2000 && iw[6].kcal === 2000, 'the plan eaten is the target itself');
+  assert(iw[4].target === 2000 && iw[4].kcal === 1500, 'and a lighter day is less than it');
+  assert(iw[5].target === null && iw[5].kcal === null, 'an unanswered day aimed at nothing');
+  {
+    const moved = intakeWeek([
+      { date: TODAY, factor: 1, target_kcal: 1800 },
+      { date: day(2), factor: 1, target_kcal: 2200 },
+    ], TODAY);
+    assert(moved[6].kcal === 1800 && moved[4].kcal === 2200,
+      'two days on plan against different targets are different numbers');
+    // An entry written before target_kcal was stored still counts as an answer;
+    // it simply has nothing to chart.
+    const old = intakeWeek([{ date: TODAY, factor: 1.3 }] as any, TODAY);
+    assert(old[6].factor === 1.3, 'an entry without a target keeps its answer');
+    assert(old[6].target === null && old[6].kcal === null, 'and reports no figure rather than a wrong one');
+  }
 
   // --- adaptation ----------------------------------------------------------
 

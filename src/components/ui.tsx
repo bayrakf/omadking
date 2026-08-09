@@ -472,6 +472,88 @@ export function Bar({ pct, color, height = 6 }: { pct: number; color: string; he
   );
 }
 
+/**
+ * What each day aimed at, next to what it came to.
+ *
+ * The week already exists on Progress as a row of glyphs, which says whether a
+ * day was answered and roughly how, but not by how much. Two bars per day say
+ * it in the one way that needs no reading: the pair matches, or one is taller.
+ *
+ * Days without an answer are drawn as an empty slot rather than skipped, so the
+ * gaps in a week stay visible — a chart of only the answered days would flatter
+ * anyone who stops answering when it goes badly.
+ */
+export function PairedBars({
+  days,
+  height = 96,
+  labels = true,
+}: {
+  days: { label: string; target: number | null; kcal: number | null }[];
+  height?: number;
+  /** Off when the row beneath already names the days — see Progress. */
+  labels?: boolean;
+}) {
+  const c = useTheme();
+  // One scale across the week, from the tallest thing in it — per-day scaling
+  // would make every day look the same height and the comparison would be lost.
+  const peak = Math.max(
+    1,
+    ...days.flatMap((d) => [d.target ?? 0, d.kcal ?? 0])
+  );
+
+  return (
+    <View>
+      <View style={[styles.pairRow, { height }]}>
+        {days.map((d, i) => {
+          const over = d.kcal !== null && d.target !== null && d.kcal > d.target;
+          return (
+            <View key={i} style={styles.pairCol}>
+              <View style={[styles.pairBars, { height }]}>
+                {/* The plan is grey and inert; what you did carries the
+                    colour. Both drawn in the accent family read as one
+                    two-toned bar, and on a day that landed exactly on target
+                    the pair became two identical teal sticks with nothing to
+                    say which was which. */}
+                <View
+                  style={[
+                    styles.pairBar,
+                    {
+                      backgroundColor: d.target === null ? c.well : c.lineStrong,
+                      height: Math.max(2, ((d.target ?? 0) / peak) * height),
+                    },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.pairBar,
+                    styles.pairBarLast,
+                    {
+                      backgroundColor: d.kcal === null ? c.well : over ? c.ember : c.accent,
+                      height: Math.max(2, ((d.kcal ?? 0) / peak) * height),
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+      <View style={[styles.pairRow, !labels && styles.hidden]}>
+        {days.map((d, i) => (
+          <View key={i} style={styles.pairCol}>
+            <Text
+              style={[Type.eyebrow, { color: c.textFaint, textAlign: 'center', marginTop: Space.sm }]}
+              numberOfLines={1}
+            >
+              {d.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 /** Screen title block. Eyebrow carries real data, not a decorative kicker. */
 export function PageHeader({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) {
   const c = useTheme();
@@ -600,6 +682,14 @@ const styles = StyleSheet.create({
   },
   statRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: Space.xs },
   track: { width: '100%', overflow: 'hidden' },
+  pairRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  pairCol: { flex: 1 },
+  // The pair sits on the baseline and the two bars touch, so each day reads as
+  // one object with a step in it rather than as two separate columns.
+  pairBars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
+  pairBar: { width: 7, borderTopLeftRadius: 3, borderTopRightRadius: 3, marginRight: 2 },
+  pairBarLast: { marginRight: 0 },
+  hidden: { display: 'none' },
   pageHeader: { paddingTop: Space.base, paddingBottom: Space.xl },
   navRow: {
     flexDirection: 'row',

@@ -4,7 +4,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, Tap, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Divider, Notice, PageHeader, Bar, Empty, Tap,
+  PairedBars, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
@@ -641,6 +642,13 @@ export default function ProgressScreen() {
             <Eyebrow>Evenings this week</Eyebrow>
             <Txt variant="data" color={c.textFaint}>tap to correct</Txt>
           </View>
+          {/* The dots below say whether a day was answered and roughly how. The
+              bars say by how much, which is the part a glyph cannot carry: two
+              days can both read "ate more" and be six hundred kilocalories
+              apart. Each day is drawn against its own target, since the target
+              moves as someone gets lighter. Labels are off here because the row
+              beneath already names the days. */}
+          <PairedBars days={eaten} height={64} labels={false} />
           <View style={s.weekRow}>
             {eaten.map((d) => (
               <Tap
