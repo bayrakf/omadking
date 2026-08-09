@@ -6,7 +6,7 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, useTheme,
 } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
-import DayDial from '@/components/DayDial';
+import { DayBand } from '@/components/DayBand';
 import {
   dailyTargets, fastingState, fastingStage, formatCountdown, hydrationTargetMl, toMinutes, DEFAULT_PROFILE,
   type UserProfile, type FastingState,
@@ -231,17 +231,29 @@ export default function DashboardScreen() {
         </View>
       </Enter>
 
+      {/* The strip rather than the ring, for one reason: the ring had nowhere
+          to put the moments. Cooking, the meal and the log were listed as rows
+          below it, so the timeline and the instrument were two things saying
+          one thing. Here the moments are marks on the day itself, and the
+          countdown — which used to sit inside the ring, where it was the
+          smallest large number on the screen — leads instead. */}
       <Enter index={1}>
-        <DayDial
-          nowMin={now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60}
-          windowStartMin={toMinutes(profile.omad_window_start)}
-          windowLengthMin={profile.omad_window_hours * 60}
-          trainingStartMin={plan?.training_start_time ? toMinutes(plan.training_start_time) : null}
-          trainingDurationMin={plan?.training_duration_min ?? 0}
-          isEating={fast.isEating}
-          headline={formatCountdown(fast.remainingMs)}
-          caption={fast.isEating ? `left · closes ${fast.windowEnd}` : `until ${fast.windowStart}`}
-        />
+        <Card>
+          <View style={s.countRow}>
+            <Txt variant="display">{formatCountdown(fast.remainingMs)}</Txt>
+            <Txt variant="small" color={c.textDim} style={s.countCaption}>
+              {fast.isEating ? `left · closes ${fast.windowEnd}` : `until ${fast.windowStart}`}
+            </Txt>
+          </View>
+          <DayBand
+            style={{ marginTop: Space.lg }}
+            nowMin={now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60}
+            windowStartMin={toMinutes(profile.omad_window_start)}
+            windowLengthMin={profile.omad_window_hours * 60}
+            items={items}
+            isEating={fast.isEating}
+          />
+        </Card>
         <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
 
         {/* What is roughly happening right now. Bands are approximate and the
@@ -635,6 +647,8 @@ const s = StyleSheet.create({
   time: { width: 54 },
   struck: { textDecorationLine: 'line-through' },
 
+  countRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
+  countCaption: { marginLeft: Space.sm },
   statRow: { flexDirection: 'row', alignItems: 'center' },
   figure: { fontSize: 24, marginTop: 5 },
   vline: { width: 1, height: 34, marginHorizontal: Space.base },

@@ -26,6 +26,42 @@ const mod = (n: number) => ((n % DAY) + DAY) % DAY;
  */
 const LOG_TAIL_MIN = 30;
 
+/**
+ * The day as one 24-hour strip, for drawing rather than for listing.
+ *
+ * Everything else here is ordered by offset from the window opening, which is
+ * the only ordering that survives a window crossing midnight. A strip has the
+ * opposite requirement: it is read against the clock, so it needs positions on
+ * a midnight-to-midnight axis — and that is exactly where a 23:00 window has to
+ * become two pieces, one at each end.
+ *
+ * Fractions rather than minutes, so the renderer multiplies by its own width
+ * and no layout arithmetic leaks into a component.
+ */
+export type BandSegment = { from: number; to: number };
+
+export function windowSegments(startMin: number, lengthMin: number): BandSegment[] {
+  const len = Math.max(0, Math.min(DAY, lengthMin));
+  if (len === 0) return [];
+  if (len >= DAY) return [{ from: 0, to: 1 }];
+
+  const start = mod(startMin);
+  const end = start + len;
+  if (end <= DAY) return [{ from: start / DAY, to: end / DAY }];
+
+  // Wraps midnight: the tail of today and the head of tomorrow are the same
+  // window, drawn as two pieces at opposite ends of the same strip.
+  return [
+    { from: start / DAY, to: 1 },
+    { from: 0, to: (end - DAY) / DAY },
+  ];
+}
+
+/** Where a moment sits on that strip. `offset` is relative to the opening. */
+export function bandPosition(startMin: number, offsetMin: number): number {
+  return mod(startMin + offsetMin) / DAY;
+}
+
 export type AgendaKind = 'cook' | 'window_open' | 'snack' | 'meal' | 'window_close' | 'log_fast';
 
 export type AgendaItem = {
@@ -186,6 +222,37 @@ export function demo() {
   const assert = (cond: boolean, msg: string) => {
     if (!cond) throw new Error('FAIL: ' + msg);
   };
+
+  // --- the strip ------------------------------------------------------------
+  //
+  // The band is read against the clock, so a window that crosses midnight has
+  // to come back as two pieces. Getting this wrong draws a bar that runs
+  // backwards across the whole day, which is the failure this exists to catch.
+  {
+    const noon = windowSegments(12 * 60, 120);
+    assert(noon.length === 1, 'a window inside one day is one piece');
+    assert(Math.abs(noon[0].from - 0.5) < 1e-9, 'starting at noon starts at half way');
+    assert(Math.abs(noon[0].to - 0.5 - 120 / 1440) < 1e-9, 'and runs its own length');
+
+    const late = windowSegments(23 * 60, 120);
+    assert(late.length === 2, 'a window over midnight is two pieces');
+    assert(late[0].to === 1 && late[1].from === 0, 'meeting at the ends of the strip');
+    const drawn = (late[0].to - late[0].from) + (late[1].to - late[1].from);
+    assert(Math.abs(drawn - 120 / 1440) < 1e-9, `and together they are its length: ${drawn}`);
+
+    assert(windowSegments(0, 0).length === 0, 'a window of no length is not drawn');
+    assert(windowSegments(60, 5000)[0].to === 1, 'a window longer than a day fills it');
+    assert(windowSegments(-60, 60)[0].from === 23 / 24, 'a negative start wraps rather than escapes');
+
+    for (const s of [...noon, ...late]) {
+      assert(s.from >= 0 && s.to <= 1 && s.from < s.to, `every piece stays on the strip: ${JSON.stringify(s)}`);
+    }
+
+    // Moments land where the clock says, including the ones before the opening.
+    assert(bandPosition(18 * 60, 0) === 0.75, 'the opening sits at its own clock time');
+    assert(bandPosition(18 * 60, 60) === 19 / 24, 'an hour later is an hour along');
+    assert(bandPosition(0, -60) === 23 / 24, 'and an hour before midnight is the far end');
+  }
 
   const profile = {
     weight_kg: 82, height_cm: 183, age: 34,
