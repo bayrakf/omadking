@@ -149,8 +149,17 @@ export async function newPage(browser, seed = SEED) {
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text().slice(0, 200)));
   if (seed) {
+    // Once per context, not once per navigation. addInitScript runs on every
+    // document load, so seeding unconditionally put the fixture back after
+    // every goto — a test that changed something and then navigated silently
+    // got its change reverted and asserted against the seed. That was
+    // invisible while blocks stayed on one page; it is not once a flow spans
+    // two. The sentinel is not one of the app's KEYS, so `eraseEverything`
+    // leaves it alone and an erased device stays erased.
     await page.addInitScript((d) => {
+      if (window.localStorage.getItem('__e2e_seeded') === '1') return;
       for (const [k, v] of Object.entries(d)) window.localStorage.setItem(k, v);
+      window.localStorage.setItem('__e2e_seeded', '1');
     }, seed);
   }
   return { context, page, errors };
