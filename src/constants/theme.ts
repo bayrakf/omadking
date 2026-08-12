@@ -6,9 +6,15 @@
  * The product's single fact is that the day is one enormous fast and one small
  * window. So the interface encodes physiological state in temperature rather
  * than decorating with it: the resting identity is cold (graphite, ice), and
- * `ember` appears only when the eating window is open, when a meal is due, and
- * on the meal itself. Because ember is rationed, it means something when it
- * shows up. Nothing else in the palette is allowed to be warm.
+ * `ember` is reserved for eating and its excess — the window being open, a meal
+ * being due, the meal itself, and a day or a week that ran past its line.
+ * Because ember is rationed, it means something when it shows up.
+ *
+ * Nothing else may be warm, and "nothing else" has teeth: a crown on the
+ * paywall and a "best value" badge were both ember once, which spent the one
+ * colour that means *eat now* on a sales badge. Decoration is exactly the use
+ * this rule exists to refuse. If something warm is wanted and it is not about
+ * eating, the answer is no.
  *
  * Three type roles, deliberately distinct:
  *   display (Archivo)        — numerals and titles; this app is mostly numbers

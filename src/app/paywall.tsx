@@ -15,7 +15,18 @@ import { FREE_PLANS_PER_WEEK } from '@/lib/store';
  * already does. A screen cannot check itself; a pure module with a self-check
  * can, and does — see `overpromises()`.
  */
-const FEATURES = PREMIUM_CLAIMS;
+/**
+ * offer.ts orders the claims as an argument: the measurement first, the lifted
+ * cap last, "because it is a limit being lifted, not a capability being gained".
+ * Rendering all ten at equal weight threw that ordering away — a person deciding
+ * whether to pay reads two or three, and the two that matter were sitting in a
+ * list of ten identical rows.
+ *
+ * Split here rather than in offer.ts: the argument and the inventory are the
+ * same data, and the module's self-check still sees every claim.
+ */
+const LEAD = PREMIUM_CLAIMS.slice(0, 2);
+const REST = PREMIUM_CLAIMS.slice(2);
 
 export default function PaywallScreen() {
   const c = useTheme();
@@ -66,9 +77,15 @@ export default function PaywallScreen() {
 
       <Enter index={1}>
         <View style={s.hero}>
-          <Icon name="crown" size={30} color={c.ember} />
+          <Icon name="crown" size={30} color={c.accent} />
           <Txt variant="display" style={{ marginTop: Space.lg, fontSize: 34 }}>Premium</Txt>
           <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+            Your maintenance, measured from your own eating and weigh-ins instead of assumed from a
+            formula — and a daily target that follows it as it moves.
+          </Txt>
+          {/* Still said, just not first. What free gives you is a fact a buyer
+              needs; it is not the reason anyone pays. */}
+          <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
             The free plan gives you {FREE_PLANS_PER_WEEK} meal plans a week. Premium removes the cap.
           </Txt>
         </View>
@@ -76,11 +93,31 @@ export default function PaywallScreen() {
 
       <Enter index={2}>
         <Card style={{ marginTop: Space.xl, paddingVertical: Space.sm }}>
-          {FEATURES.map(({ title, body }, i) => (
+          {LEAD.map(({ title, body }, i) => (
             <View key={title}>
               {i > 0 && <Divider />}
               <View style={s.feature}>
                 <Icon name="check" size={16} color={c.accent} strokeWidth={2.2} />
+                <View style={{ flex: 1, marginLeft: Space.md }}>
+                  <Txt variant="subheading">{title}</Txt>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>{body}</Txt>
+                </View>
+              </View>
+            </View>
+          ))}
+        </Card>
+      </Enter>
+
+      <Enter index={3}>
+        <Eyebrow style={{ marginTop: Space.xl, marginBottom: Space.md, marginLeft: Space.xs }}>
+          Also included
+        </Eyebrow>
+        <Card style={{ paddingVertical: Space.sm }}>
+          {REST.map(({ title, body }, i) => (
+            <View key={title}>
+              {i > 0 && <Divider />}
+              <View style={s.feature}>
+                <Icon name="check" size={16} color={c.textFaint} strokeWidth={2.2} />
                 <View style={{ flex: 1, marginLeft: Space.md }}>
                   <Txt variant="bodyMedium">{title}</Txt>
                   <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>{body}</Txt>
@@ -91,7 +128,7 @@ export default function PaywallScreen() {
         </Card>
       </Enter>
 
-      <Enter index={3}>
+      <Enter index={4}>
         {packages.length > 0 ? (
           <View style={s.prices}>
             {packages.map((pkg) => {
@@ -106,7 +143,7 @@ export default function PaywallScreen() {
                   style={s.priceWrap}
                 >
                   <View style={[s.price, { borderColor: on ? c.accent : c.line, backgroundColor: on ? c.accentWash : c.surface }]}>
-                    {pkg.period === 'annual' && <Eyebrow color={c.ember}>Best value</Eyebrow>}
+                    {pkg.period === 'annual' && <Eyebrow color={c.accent}>Best value</Eyebrow>}
                     <Txt variant="bodyMedium" color={c.textDim} style={{ marginTop: 4 }}>
                       {pkg.period === 'annual' ? 'Annual' : pkg.period === 'monthly' ? 'Monthly' : pkg.identifier}
                     </Txt>
