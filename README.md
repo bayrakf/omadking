@@ -133,6 +133,28 @@ supabase secrets set GEMINI_API_KEY=...
   (the app is a single-page build; without that rewrite every deep link 404s).
 - **Native:** `npx eas build --platform all --profile preview`.
 
+**A native build does not see `.env.local`.** That file is gitignored, and EAS uploads the git
+context, so every `EXPO_PUBLIC_*` variable arrives empty in the binary. The app still runs — it is
+built to degrade — but `isBillingAvailable()` returns false and the coach reports it is not
+configured, which looks exactly like a code bug and is not one. Set them on EAS instead, once:
+
+```bash
+# `env:set` is the current form; `env:create` still works but is deprecated.
+eas env:set --environment preview --name EXPO_PUBLIC_SUPABASE_URL       --value "https://…"
+eas env:set --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY  --value "…"
+eas env:set --environment preview --name EXPO_PUBLIC_REVENUECAT_IOS_KEY --value "…"
+eas env:set --environment preview --name EXPO_PUBLIC_REVENUECAT_ANDROID_KEY --value "…"
+```
+
+All four are publishable by design — the anon key is guarded by row-level security and the
+RevenueCat keys are client SDK keys — so they are safe on EAS and in the shipped bundle. The
+secrets that are not (`GEMINI_API_KEY`, `SERVICE_ROLE_KEY`) live on Supabase and never come near
+the client.
+
+Then add `"environment": "preview"` to the matching profile in `eas.json` so the build picks them
+up, and confirm before shipping: install the build, open **You → Sync**, and check it does not say
+"Sync is not configured in this build."
+
 ---
 
 ## Current state
