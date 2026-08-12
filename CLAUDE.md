@@ -18,6 +18,31 @@ npm run e2e        # builds the web bundle, serves it, drives real Chrome (357 c
 lines, so `| tail -2` shows two ✅ and hides a ❌. Run it plain, or `grep ❌`.
 This has already produced one false "green" report.
 
+## Loops
+
+`/loop` re-runs a prompt until told to stop — with an interval, or self-paced when
+the interval is omitted. It needs no setup. Three that earn their keep here:
+
+```
+/loop run npm run check, npx tsc --noEmit and npm run e2e. Report only what failed
+       and the exact output. Change nothing. Stop when a full pass is green.
+
+/loop screenshot one screen at a time in both colour schemes, critique what you see,
+       and report. Change nothing. Stop when every route has been looked at.
+
+/loop /ponytail-audit one module in src/lib, smallest first. One per iteration.
+```
+
+**All three report; none of them fix.** That is deliberate, and it is the framework's
+own L1 → L2 → L3 staging: prove the loop sees correctly before letting it write. On
+this codebase an unattended fixing loop is premature — moving code between screens
+silently dropped an input field, two accessibility labels and a checkbox role in one
+session, and every one of those passed type-checking. Graduate a loop to fixing only
+after its reports have been right for a while.
+
+The green-keeping loop is the one to reach for first: `npm run e2e` takes about eight
+minutes, which is exactly the length where a self-paced loop beats waiting.
+
 ## Constraints that break things
 
 - **`gap`, `rowGap`, `columnGap` crash this react-native-web.** Space with margins,
