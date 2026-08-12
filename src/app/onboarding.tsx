@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Button, Chip, Tap, Card, Divider, useTheme, useReducedMotion } from '@/components/ui';
 import { Icon } from '@/components/icons';
+import { STEPS, skipsStep, stepPosition } from '@/lib/onboarding';
 import {
   normalizeProfile, normTime, toMinutes, fromMinutes, PROTOCOLS, protocolForHours,
   targetWeight, dailyTargets, bmr, paceDeficit, PACE_OPTIONS, DEFAULT_DEFICIT_KCAL,
@@ -28,7 +29,6 @@ type Draft = {
  * a 120 kg body and a 60 kg one. The forecast then said "about 47 weeks to
  * 73.7 kg" about a number the person had never seen.
  */
-const STEPS = 6;
 const EAT_PRESETS = ['12:00', '14:00', '16:00', '18:00'];
 const TRAIN_PRESETS = ['06:00', '12:00', '18:00', '19:00'];
 const LIMITS = { weight_kg: [30, 300], height_cm: [120, 250], age: [14, 100] } as const;
@@ -110,8 +110,10 @@ export default function OnboardingScreen() {
     return isFinite(n) && n >= min && n <= max;
   };
 
-  /** The target and rate step means nothing to someone maintaining or gaining. */
-  const skips = (n: number) => n === 4 && data.goal !== 'weight_loss';
+  /** The target and rate step means nothing to someone maintaining or gaining.
+   *  Shared with the counter via lib/onboarding, so the flow and the number
+   *  describing it cannot drift apart. */
+  const skips = (n: number) => skipsStep(n, data.goal);
 
   const blocked = () => {
     if (step === 1) return !numOk('weight_kg') || !numOk('height_cm') || !numOk('age') || !data.sex;
@@ -342,6 +344,7 @@ export default function OnboardingScreen() {
     }
   };
 
+  const here = stepPosition(step, data.goal);
   const label = step === 0 ? 'Start' : step === STEPS - 1 ? 'Open the app' : 'Continue';
 
   return (
@@ -355,8 +358,12 @@ export default function OnboardingScreen() {
           ) : (
             <View style={s.back} />
           )}
-          {/* Real sequence, so a step counter genuinely carries information. */}
-          <Eyebrow>{String(step + 1).padStart(2, '0')} / {String(STEPS).padStart(2, '0')}</Eyebrow>
+          {/* Counted over the screens this person actually walks. Computed
+              from the fixed total it skipped a number and promised a screen
+              that would never be shown. */}
+          <Eyebrow>
+            {String(here.position).padStart(2, '0')} / {String(here.total).padStart(2, '0')}
+          </Eyebrow>
           <View style={s.back} />
         </View>
 
