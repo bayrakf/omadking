@@ -165,6 +165,32 @@ const EN = {
   // Shared chrome
   'nav.back': 'Back',
 
+  // Plan tabs & gallery
+  'plan.tabToday': "Today's plan",
+  'plan.tabSaved': 'Saved & history',
+  'plan.cookAgain': 'Cook again',
+  'plan.noHistory': 'No saved plans yet. Build a plan to save it here.',
+
+  // Shop filters
+  'shop.filterAll': 'All',
+  'shop.filterOpen': 'To buy',
+  'shop.filterDone': 'Done',
+  'shop.clearDone': 'Clear checked',
+
+  // Progress segments
+  'progress.tabWeek': 'Week & trend',
+  'progress.tabBody': 'Body & rate',
+  'progress.tabHistory': 'History',
+
+  // Profile Groups
+  'you.groupBody': 'Body & goals',
+  'you.groupRhythm': 'Fasting & rhythm',
+  'you.groupNotifications': 'Notifications',
+  'you.groupData': 'Data & cloud',
+  'you.groupAbout': 'About & legal',
+  'you.premiumActive': 'Premium Active',
+  'you.getPremium': 'Get Premium',
+
   // Body
   'body.avoid': 'Never put in a recipe',
 
@@ -373,6 +399,32 @@ const DE: Record<Key, string> = {
   'coach.p6': 'Kann ich eine Zutat tauschen?',
 
   'nav.back': 'Zurück',
+
+  // Plan tabs & gallery
+  'plan.tabToday': 'Heutiger Plan',
+  'plan.tabSaved': 'Rezepte & Verlauf',
+  'plan.cookAgain': 'Erneut kochen',
+  'plan.noHistory': 'Noch keine Pläne gespeichert. Erstelle einen Plan, um ihn hier zu sichern.',
+
+  // Shop filters
+  'shop.filterAll': 'Alle',
+  'shop.filterOpen': 'Offen',
+  'shop.filterDone': 'Erledigt',
+  'shop.clearDone': 'Erledigte leeren',
+
+  // Progress segments
+  'progress.tabWeek': 'Woche & Trend',
+  'progress.tabBody': 'Körper & Messung',
+  'progress.tabHistory': 'Historie',
+
+  // Profile Groups
+  'you.groupBody': 'Mein Körper & Ziele',
+  'you.groupRhythm': 'Fasten-Rhythmus & Zeiten',
+  'you.groupNotifications': 'Benachrichtigungen',
+  'you.groupData': 'Daten & Synchronisation',
+  'you.groupAbout': 'Über uns & Rechtliches',
+  'you.premiumActive': 'Premium Aktiv',
+  'you.getPremium': 'Premium holen',
 
   'body.avoid': 'Kommt nie ins Rezept',
 

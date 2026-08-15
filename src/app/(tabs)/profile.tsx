@@ -78,24 +78,40 @@ export default function ProfileScreen() {
 
       <Enter index={1}>
         <Tap onPress={() => !premium && router.push('/paywall')} disabled={premium} accessibilityLabel="Subscription">
-          <View style={[s.plan, { backgroundColor: premium ? c.accent : c.surface, borderColor: premium ? c.accent : c.line }]}>
-            <Icon name="crown" size={20} color={premium ? c.onAccent : c.textFaint} />
+          <View style={[s.plan, {
+            backgroundColor: premium ? c.surfaceElevated ?? c.surface : c.surface,
+            borderColor: premium ? c.gold : c.line,
+          }]}>
+            <View style={[s.crownBox, { backgroundColor: premium ? c.goldWash : c.well }]}>
+              <Icon name="crown" size={22} color={premium ? c.gold : c.textFaint} />
+            </View>
             <View style={{ flex: 1, marginLeft: Space.md }}>
-              <Txt variant="subheading" color={premium ? c.onAccent : c.text}>
-                {premium ? 'Premium' : 'Free plan'}
-              </Txt>
-              <Txt variant="small" color={premium ? c.onAccent : c.textDim} style={{ marginTop: 2, opacity: premium ? 0.8 : 1 }}>
-                {premium ? 'Unlimited plans' : quota ? `${quota.remaining} of ${quota.limit} plans left this week` : ''}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Txt variant="subheading" color={premium ? c.gold : c.text} style={{ fontWeight: '700' }}>
+                  {premium ? t('you.premiumActive') : 'Free Plan'}
+                </Txt>
+                {premium && (
+                  <View style={[s.vipBadge, { backgroundColor: c.goldWash }]}>
+                    <Txt variant="data" color={c.gold} style={{ fontSize: 10, fontWeight: '700' }}>VIP</Txt>
+                  </View>
+                )}
+              </View>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                {premium ? 'Unbegrenzte AI-Pläne & dynamischer Stoffwechsel' : quota ? `${quota.remaining} von ${quota.limit} Plänen diese Woche frei` : ''}
               </Txt>
             </View>
-            {!premium && <Icon name="chevronRight" size={18} color={c.textFaint} />}
+            {!premium && (
+              <View style={[s.upgradeBtn, { backgroundColor: c.accent }]}>
+                <Txt variant="small" color={c.onAccent} style={{ fontWeight: '700' }}>{t('you.getPremium')}</Txt>
+              </View>
+            )}
           </View>
         </Tap>
       </Enter>
 
-      {/* What the app knows about you and what it does with it. */}
+      {/* Körper & Fasten-Ziele */}
       <Enter index={2} style={{ marginTop: Space.xl }}>
-        <Eyebrow style={{ marginBottom: Space.md }}>{t('you.setup')}</Eyebrow>
+        <Eyebrow color={c.body} style={{ marginBottom: Space.md }}>{t('you.groupBody')}</Eyebrow>
         <NavRow
           icon="user"
           tone="body"
@@ -117,8 +133,14 @@ export default function ProfileScreen() {
           sub={`${targets.kcal} kcal · ${targets.protein_g} g protein`}
           onPress={() => router.push('/you/targets')}
         />
+      </Enter>
+
+      {/* Erinnerungen */}
+      <Enter index={3} style={{ marginTop: Space.xl }}>
+        <Eyebrow color={c.accent} style={{ marginBottom: Space.md }}>{t('you.groupNotifications')}</Eyebrow>
         <NavRow
           icon="bell"
+          tone="accent"
           title={t('you.reminders')}
           sub={
             !remindersSupported()
@@ -131,33 +153,35 @@ export default function ProfileScreen() {
         />
       </Enter>
 
-      {/* Everything above is about the person; everything below is about where
-          the data lives. Ten cards in a row read as a junk drawer without this
-          break. */}
-      <Enter index={3} style={{ marginTop: Space.xl }}>
-        <Eyebrow style={{ marginBottom: Space.md }}>{t('you.data')}</Eyebrow>
+      {/* Daten & Cloud */}
+      <Enter index={4} style={{ marginTop: Space.xl }}>
+        <Eyebrow color={c.hydro} style={{ marginBottom: Space.md }}>{t('you.groupData')}</Eyebrow>
         <NavRow
           icon="sync"
+          tone="hydro"
           title={t('you.sync')}
           sub={syncedAt ? `Last synced ${ago(syncedAt)}` : 'Not set up'}
           onPress={() => router.push('/you/sync')}
         />
         <NavRow
           icon="share"
+          tone="hydro"
           title={t('you.export')}
           sub={t('you.exportSub')}
           onPress={() => router.push('/you/data')}
         />
         <NavRow
           icon="coach"
+          tone="accent"
           title={t('you.language')}
           sub={chosen === null ? t('you.languageFollows') : (LANGS.find((l) => l.id === chosen)?.endonym ?? '')}
           onPress={() => router.push('/you/language')}
         />
       </Enter>
 
-      <Enter index={4} style={{ marginTop: Space.xl }}>
-        <Eyebrow style={{ marginBottom: Space.md }}>About</Eyebrow>
+      {/* Über die App & Rechtliches */}
+      <Enter index={5} style={{ marginTop: Space.xl }}>
+        <Eyebrow style={{ marginBottom: Space.md }}>{t('you.groupAbout')}</Eyebrow>
         <Card>
           <Tap onPress={() => router.push('/about')} accessibilityLabel="About OMAD">
             <View style={s.row}>
@@ -180,7 +204,6 @@ export default function ProfileScreen() {
               <Icon name="chevronRight" size={16} color={c.textFaint} />
             </View>
           </Tap>
-          {/* The landing page was fully designed and reachable only by URL. */}
           <Tap onPress={() => router.push('/landing')} accessibilityLabel="What this app is for">
             <View style={s.row}>
               <Txt variant="body" color={c.textDim}>What this app is for</Txt>
@@ -202,6 +225,24 @@ const s = StyleSheet.create({
   value: { flexDirection: 'row', alignItems: 'center' },
   plan: {
     flexDirection: 'row', alignItems: 'center', padding: Space.base,
-    borderRadius: Radius.md, borderWidth: 1,
+    borderRadius: Radius.lg, borderWidth: 1,
+  },
+  crownBox: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vipBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    marginLeft: Space.xs,
+  },
+  upgradeBtn: {
+    paddingHorizontal: Space.md,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
   },
 });

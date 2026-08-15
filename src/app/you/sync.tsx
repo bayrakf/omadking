@@ -69,7 +69,7 @@ export default function SyncScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader eyebrow={t('you.title')} title={t('sync.title')} sub={t('sync.sub')} />
+        <PageHeader back={true} eyebrow={t('you.title')} title={t('sync.title')} sub={t('sync.sub')} />
       </Enter>
 
       <Enter index={1}>

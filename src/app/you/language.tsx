@@ -20,7 +20,7 @@ export default function LanguageScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="accent" eyebrow={t('you.title')} title={t('lang.title')} sub={t('lang.sub')} />
+        <PageHeader tone="accent" back={true} eyebrow={t('you.title')} title={t('lang.title')} sub={t('lang.sub')} />
       </Enter>
 
       <Enter index={1}>

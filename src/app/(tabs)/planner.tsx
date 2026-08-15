@@ -3,7 +3,8 @@ import { View, StyleSheet, Switch, Share, Platform, ActivityIndicator } from 're
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Chip, Tap, Divider, Notice, PageHeader, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Chip, Tap, Divider, Notice, PageHeader,
+  SegmentedControl, useTheme,
 } from '@/components/ui';
 import { useLang } from '@/components/lang';
 import { Icon } from '@/components/icons';
@@ -208,6 +209,8 @@ export default function PlannerScreen() {
     }
   };
 
+  const [plannerTab, setPlannerTab] = useState<'today' | 'saved'>('today');
+
   return (
     <Screen>
       <Enter index={0}>
@@ -217,199 +220,229 @@ export default function PlannerScreen() {
           title={t('plan.title')}
           sub={t('plan.sub')}
         />
+        <SegmentedControl
+          values={[
+            { id: 'today', label: t('plan.tabToday'), icon: 'plate' },
+            { id: 'saved', label: t('plan.tabSaved'), icon: 'clock' },
+          ]}
+          selected={plannerTab}
+          onSelect={setPlannerTab}
+          tone="plan"
+          style={{ marginBottom: Space.base }}
+        />
       </Enter>
 
-      {quota && !quota.premium && (
-        <Enter index={1}>
-          <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade">
-            <View style={[s.quota, { borderColor: c.line, backgroundColor: c.surface }]}>
-              <Eyebrow color={quota.remaining > 0 ? c.textDim : c.ember}>
-                {quota.remaining > 0 ? `${quota.remaining} of ${quota.limit} plans left this week` : 'Weekly plans used'}
-              </Eyebrow>
-              <Txt variant="small" color={c.accent}>Upgrade</Txt>
-            </View>
-          </Tap>
-        </Enter>
-      )}
+      {plannerTab === 'today' ? (
+        <>
+          {quota && !quota.premium && (
+            <Enter index={1}>
+              <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade">
+                <View style={[s.quota, { borderColor: c.line, backgroundColor: c.surface }]}>
+                  <Eyebrow color={quota.remaining > 0 ? c.textDim : c.ember}>
+                    {quota.remaining > 0 ? `${quota.remaining} of ${quota.limit} plans left this week` : 'Weekly plans used'}
+                  </Eyebrow>
+                  <Txt variant="small" color={c.accent}>Upgrade</Txt>
+                </View>
+              </Tap>
+            </Enter>
+          )}
 
-      {/* Live targets */}
-      <Enter index={2}>
-        <Card style={{ marginTop: Space.base }} tone="plan">
-          <View style={s.macroRow}>
-            {[
-              { label: 'Energy', value: String(preview.kcal), unit: 'kcal', color: c.gold, bg: c.goldWash },
-              { label: 'Protein', value: String(preview.protein_g), unit: 'g', color: c.body, bg: c.bodyWash },
-              { label: 'Carbs', value: String(preview.carbs_g), unit: 'g', color: c.plan, bg: c.planWash },
-              { label: 'Fat', value: String(preview.fat_g), unit: 'g', color: c.hydro, bg: c.hydroWash },
-            ].map((m) => (
-              <View key={m.label} style={[s.macroBox, { backgroundColor: m.bg, borderColor: m.color }]}>
-                <Eyebrow color={m.color}>{m.label}</Eyebrow>
-                <Txt variant="heading" style={{ fontSize: 18, marginTop: 4, color: m.color, fontWeight: '700' }}>
-                  {m.value}
-                </Txt>
-                <Txt variant="small" color={m.color} style={{ opacity: 0.8, fontSize: 11 }}>
-                  {m.unit}
-                </Txt>
+          {/* Live targets */}
+          <Enter index={2}>
+            <Card style={{ marginTop: Space.base }} tone="plan">
+              <View style={s.macroRow}>
+                {[
+                  { label: 'Energy', value: String(preview.kcal), unit: 'kcal', color: c.gold, bg: c.goldWash },
+                  { label: 'Protein', value: String(preview.protein_g), unit: 'g', color: c.body, bg: c.bodyWash },
+                  { label: 'Carbs', value: String(preview.carbs_g), unit: 'g', color: c.plan, bg: c.planWash },
+                  { label: 'Fat', value: String(preview.fat_g), unit: 'g', color: c.hydro, bg: c.hydroWash },
+                ].map((m) => (
+                  <View key={m.label} style={[s.macroBox, { backgroundColor: m.bg, borderColor: m.color }]}>
+                    <Eyebrow color={m.color}>{m.label}</Eyebrow>
+                    <Txt variant="heading" style={{ fontSize: 18, marginTop: 4, color: m.color, fontWeight: '700' }}>
+                      {m.value}
+                    </Txt>
+                    <Txt variant="small" color={m.color} style={{ opacity: 0.8, fontSize: 11 }}>
+                      {m.unit}
+                    </Txt>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-          {preview.burn_kcal > 0 && (
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
-              Includes about {preview.burn_kcal} kcal for the session.
-            </Txt>
-          )}
-        </Card>
-      </Enter>
+              {preview.burn_kcal > 0 && (
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
+                  Includes about {preview.burn_kcal} kcal for the session.
+                </Txt>
+              )}
+            </Card>
+          </Enter>
 
-      {/* Session */}
-      <Enter index={3}>
-        <Card style={{ marginTop: Space.base }}>
-          <View style={s.restRow}>
-            <View style={s.rowCentre}>
-              <Icon name="moon" size={18} color={isRestDay ? c.accent : c.textFaint} />
-              <Txt variant="subheading" style={{ marginLeft: Space.sm }}>{t('plan.restDay')}</Txt>
-            </View>
-            <Switch
-              value={isRestDay}
-              onValueChange={setIsRestDay}
-              trackColor={{ false: c.well, true: c.accentDim }}
-              thumbColor={isRestDay ? c.accent : '#FFFFFF'}
-            />
-          </View>
+          {/* Session */}
+          <Enter index={3}>
+            <Card style={{ marginTop: Space.base }}>
+              <View style={s.restRow}>
+                <View style={s.rowCentre}>
+                  <Icon name="moon" size={18} color={isRestDay ? c.accent : c.textFaint} />
+                  <Txt variant="subheading" style={{ marginLeft: Space.sm }}>{t('plan.restDay')}</Txt>
+                </View>
+                <Switch
+                  value={isRestDay}
+                  onValueChange={setIsRestDay}
+                  trackColor={{ false: c.well, true: c.accentDim }}
+                  thumbColor={isRestDay ? c.accent : '#FFFFFF'}
+                />
+              </View>
 
-          {!isRestDay && (
-            <View style={{ marginTop: Space.lg }}>
-              <Field label={t('plan.sport')}>
-                {SPORTS.map((x) => (
-                  <Chip key={x.id} label={x.label} selected={sport === x.id} onPress={() => setSport(x.id)} tone="plan" style={s.chip} />
-                ))}
-              </Field>
-              <Field label={t('plan.duration')}>
-                {DURATIONS.map((d) => (
-                  <Chip key={d} label={`${d} min`} selected={duration === d} onPress={() => setDuration(d)} tone="plan" style={s.chip} />
-                ))}
-              </Field>
-              <Field label={t('plan.effort')}>
-                {INTENSITIES.map((x) => (
-                  <Chip key={x.id} label={x.label} selected={intensity === x.id} onPress={() => setIntensity(x.id)} tone="plan" style={s.chip} />
-                ))}
-              </Field>
-              <Field label={t('plan.startsAt')} last>
-                {TIMES.map((t) => (
-                  <Chip key={t} label={t} selected={trainingTime === t} onPress={() => setTrainingTime(t)} tone="plan" style={s.chip} />
-                ))}
-              </Field>
-            </View>
-          )}
-        </Card>
-      </Enter>
+              {!isRestDay && (
+                <View style={{ marginTop: Space.lg }}>
+                  <Field label={t('plan.sport')}>
+                    {SPORTS.map((x) => (
+                      <Chip key={x.id} label={x.label} selected={sport === x.id} onPress={() => setSport(x.id)} tone="plan" style={s.chip} />
+                    ))}
+                  </Field>
+                  <Field label={t('plan.duration')}>
+                    {DURATIONS.map((d) => (
+                      <Chip key={d} label={`${d} min`} selected={duration === d} onPress={() => setDuration(d)} tone="plan" style={s.chip} />
+                    ))}
+                  </Field>
+                  <Field label={t('plan.effort')}>
+                    {INTENSITIES.map((x) => (
+                      <Chip key={x.id} label={x.label} selected={intensity === x.id} onPress={() => setIntensity(x.id)} tone="plan" style={s.chip} />
+                    ))}
+                  </Field>
+                  <Field label={t('plan.startsAt')} last>
+                    {TIMES.map((t) => (
+                      <Chip key={t} label={t} selected={trainingTime === t} onPress={() => setTrainingTime(t)} tone="plan" style={s.chip} />
+                    ))}
+                  </Field>
+                </View>
+              )}
+            </Card>
+          </Enter>
 
-      <Enter index={4}>
-        <View style={{ marginTop: Space.base }}>
-          {loading ? (
-            <View style={[s.loading, { backgroundColor: c.well }]}>
-              <ActivityIndicator color={c.accent} />
-              <Txt variant="small" color={c.textDim} style={{ marginLeft: Space.md }}>
-                {t('plan.building')}
-              </Txt>
+          <Enter index={4}>
+            <View style={{ marginTop: Space.base }}>
+              {loading ? (
+                <View style={[s.loading, { backgroundColor: c.well }]}>
+                  <ActivityIndicator color={c.accent} />
+                  <Txt variant="small" color={c.textDim} style={{ marginLeft: Space.md }}>
+                    {t('plan.building')}
+                  </Txt>
+                </View>
+              ) : (
+                <Button label={t('plan.build')} icon="plate" tone="plan" onPress={() => generate()} />
+              )}
+              {error && <Notice tone="error">{error}</Notice>}
+              {copied && <Notice tone="ok">Copied to clipboard.</Notice>}
             </View>
+          </Enter>
+
+          {plan ? (
+            <Enter index={5}>
+              <Timing plan={plan} />
+              <RecipeCard
+                plan={plan}
+                portions={portions}
+                onPortions={(n) => { setPortions(n); savePortions(n); }}
+              />
+              {/* A plate you cannot eat used to cost a third of your week. */}
+              {retryFree && (
+                <Button
+                  label="Not this one"
+                  variant="secondary"
+                  onPress={() => generate(true)}
+                  style={{ marginTop: Space.md }}
+                />
+              )}
+              <Button
+                label={Platform.OS === 'web' ? 'Copy plan' : 'Share plan'}
+                icon="share"
+                variant="ghost"
+                onPress={() => share(plan)}
+                style={{ marginTop: Space.md }}
+              />
+            </Enter>
           ) : (
-            <Button label={t('plan.build')} icon="plate" tone="plan" onPress={() => generate()} />
+            <Enter index={5}>
+              <Card style={{ marginTop: Space.base, alignItems: 'center', paddingVertical: Space.xxl }}>
+                <Icon name="clock" size={24} color={c.textFaint} />
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md, textAlign: 'center' }}>
+                  {t('plan.empty')}
+                </Txt>
+              </Card>
+            </Enter>
           )}
-          {error && <Notice tone="error">{error}</Notice>}
-          {copied && <Notice tone="ok">Copied to clipboard.</Notice>}
-        </View>
-      </Enter>
-
-      {plan ? (
-        <Enter index={5}>
-          <Timing plan={plan} />
-          <RecipeCard
-            plan={plan}
-            portions={portions}
-            onPortions={(n) => { setPortions(n); savePortions(n); }}
-          />
-          {/* A plate you cannot eat used to cost a third of your week. */}
-          {retryFree && (
-            <Button
-              label="Not this one"
-              variant="secondary"
-              onPress={() => generate(true)}
-              style={{ marginTop: Space.md }}
-            />
-          )}
-          <Button
-            label={Platform.OS === 'web' ? 'Copy plan' : 'Share plan'}
-            icon="share"
-            variant="ghost"
-            onPress={() => share(plan)}
-            style={{ marginTop: Space.md }}
-          />
-        </Enter>
+        </>
       ) : (
-        <Enter index={5}>
-          <Card style={{ marginTop: Space.base, alignItems: 'center', paddingVertical: Space.xxl }}>
-            <Icon name="clock" size={24} color={c.textFaint} />
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md, textAlign: 'center' }}>
-              {t('plan.empty')}
-            </Txt>
-          </Card>
-        </Enter>
-      )}
-
-      {/* The meals actually cooked, which outlive the ten-plan window. Tapping
-          one costs no quota: nothing is generated, it is the user's own recipe
-          coming back. Three weeks in, this is what people want — their
-          rotation, not another stranger. */}
-      {rotation.length > 0 && (
-        <Enter index={6} style={{ marginTop: Space.xxl }}>
-          <View style={s.rotationHead}>
-            <Eyebrow>Cooked before</Eyebrow>
-            <Txt variant="data" color={c.textFaint}>no plan used</Txt>
-          </View>
-          {rotation.slice(0, 6).map((r) => (
-            <Tap
-              key={r.title}
-              // Without a plan on screen this used to produce a MealPlan with
-              // no macros and no times, and Timing and RecipeCard rendered
-              // `undefined`. The numbers come from the same targets the screen
-              // is already showing above.
-              onPress={() => r.recipe && setPlan({ ...(plan ?? planShell()), recipe: r.recipe } as MealPlan)}
-              accessibilityLabel={`Cook ${r.title} again`}
-            >
-              <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>
-                <View style={{ flex: 1 }}>
-                  <Txt variant="bodyMedium" numberOfLines={2}>{r.title}</Txt>
-                  <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
-                    cooked {r.count}×{r.lastCooked ? ` · last ${r.lastCooked}` : ''}
-                  </Txt>
-                </View>
-                <Icon name="chevronRight" size={16} color={c.textFaint} />
+        <>
+          {/* Saved & History Tab */}
+          {rotation.length > 0 && (
+            <Enter index={1}>
+              <View style={[s.rotationHead, { marginTop: Space.base }]}>
+                <Eyebrow color={c.plan}>Cooked before</Eyebrow>
+                <Txt variant="data" color={c.textFaint}>no quota used</Txt>
               </View>
-            </Tap>
-          ))}
-        </Enter>
-      )}
+              {rotation.slice(0, 6).map((r) => (
+                <Tap
+                  key={r.title}
+                  onPress={() => {
+                    if (r.recipe) {
+                      setPlan({ ...(plan ?? planShell()), recipe: r.recipe } as MealPlan);
+                      setPlannerTab('today');
+                    }
+                  }}
+                  accessibilityLabel={`Cook ${r.title} again`}
+                >
+                  <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>
+                    <View style={{ flex: 1 }}>
+                      <Txt variant="bodyMedium" numberOfLines={2}>{r.title}</Txt>
+                      <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
+                        cooked {r.count}×{r.lastCooked ? ` · last ${r.lastCooked}` : ''}
+                      </Txt>
+                    </View>
+                    <Icon name="chevronRight" size={16} color={c.textFaint} />
+                  </View>
+                </Tap>
+              ))}
+            </Enter>
+          )}
 
-      {history.length > 0 && (
-        <Enter index={6} style={{ marginTop: Space.xxl }}>
-          <Eyebrow style={{ marginBottom: Space.md }}>{t('plan.recent')}</Eyebrow>
-          {history.map((h, i) => (
-            <Tap key={`${h.date}-${i}`} onPress={() => setPlan(h)} accessibilityLabel={h.recipe.title}>
-              <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>
-                <View style={{ flex: 1 }}>
-                  {/* Two lines: at one, "Seared Honey-Sesame Chicken Breast with Jasm…" is a
-                      riddle rather than a title. */}
-                  <Txt variant="bodyMedium" numberOfLines={2}>{h.recipe.title}</Txt>
-                  <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
-                    {h.date} · {h.total_kcal} kcal · {h.protein_g}g P
-                  </Txt>
-                </View>
-                <Icon name="chevronRight" size={16} color={c.textFaint} />
-              </View>
-            </Tap>
-          ))}
-        </Enter>
+          {history.length > 0 && (
+            <Enter index={2} style={{ marginTop: rotation.length > 0 ? Space.xl : Space.base }}>
+              <Eyebrow color={c.plan} style={{ marginBottom: Space.md }}>{t('plan.recent')}</Eyebrow>
+              {history.map((h, i) => (
+                <Tap
+                  key={`${h.date}-${i}`}
+                  onPress={() => {
+                    setPlan(h);
+                    setPlannerTab('today');
+                  }}
+                  accessibilityLabel={h.recipe.title}
+                >
+                  <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>
+                    <View style={{ flex: 1 }}>
+                      <Txt variant="bodyMedium" numberOfLines={2}>{h.recipe.title}</Txt>
+                      <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
+                        {h.date} · {h.total_kcal} kcal · {h.protein_g}g P
+                      </Txt>
+                    </View>
+                    <Icon name="chevronRight" size={16} color={c.textFaint} />
+                  </View>
+                </Tap>
+              ))}
+            </Enter>
+          )}
+
+          {rotation.length === 0 && history.length === 0 && (
+            <Enter index={1}>
+              <Card style={{ marginTop: Space.base, alignItems: 'center', paddingVertical: Space.xxl }}>
+                <Icon name="plate" size={28} color={c.textFaint} />
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md, textAlign: 'center' }}>
+                  {t('plan.noHistory')}
+                </Txt>
+              </Card>
+            </Enter>
+          )}
+        </>
       )}
     </Screen>
   );

@@ -4,7 +4,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Space, Radius } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Columns, Tap, Divider, Empty, PageHeader, Bar, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Chip, Tap, Divider, PageHeader, Bar, Empty,
+  Columns, useTheme,
 } from '@/components/ui';
 import { useT } from '@/components/lang';
 import { Icon } from '@/components/icons';
@@ -87,6 +88,8 @@ export default function GroceryScreen() {
     }
   };
 
+  const [filter, setFilter] = useState<'all' | 'open' | 'done'>('all');
+
   if (!mounted) return null;
 
   const total = categories.reduce((n, cat) => n + cat.items.length, 0);
@@ -109,6 +112,15 @@ export default function GroceryScreen() {
     );
   }
 
+  const filteredCategories = categories.map((cat) => {
+    const items = cat.items.filter((item) => {
+      if (filter === 'open') return !item.checked;
+      if (filter === 'done') return item.checked;
+      return true;
+    });
+    return { ...cat, items, totalInCat: cat.items.length, doneInCat: cat.items.filter((i) => i.checked).length };
+  }).filter((cat) => cat.items.length > 0);
+
   return (
     <Screen wide>
       <Enter index={0}>
@@ -123,38 +135,52 @@ export default function GroceryScreen() {
       </Enter>
 
       <Enter index={1}>
-        <View style={s.tools}>
-          <Tap onPress={shareList} accessibilityLabel="Share list">
-            <View style={[s.tool, { borderColor: c.line }]}>
-              <Icon name={copied ? 'check' : 'share'} size={14} color={copied ? c.positive : c.textDim} />
-              <Txt variant="small" color={copied ? c.positive : c.textDim} style={{ marginLeft: 6 }}>
-                {copied ? 'Copied' : Platform.OS === 'web' ? 'Copy' : 'Share'}
-              </Txt>
-            </View>
-          </Tap>
-          <Tap onPress={clear} accessibilityLabel="Clear ticks">
-            <View style={[s.tool, { borderColor: c.line }]}>
-              <Icon name="close" size={14} color={c.textDim} />
-              <Txt variant="small" color={c.textDim} style={{ marginLeft: 6 }}>Clear</Txt>
-            </View>
-          </Tap>
+        <View style={s.toolsRow}>
+          <View style={s.filterRow}>
+            {(['all', 'open', 'done'] as const).map((f) => (
+              <Chip
+                key={f}
+                label={f === 'all' ? t('shop.filterAll') : f === 'open' ? t('shop.filterOpen') : t('shop.filterDone')}
+                selected={filter === f}
+                onPress={() => setFilter(f)}
+                tone="plan"
+                style={{ marginRight: Space.xs }}
+              />
+            ))}
+          </View>
+          <View style={s.actionsRow}>
+            <Tap onPress={shareList} accessibilityLabel="Share list">
+              <View style={[s.tool, { borderColor: c.line }]}>
+                <Icon name={copied ? 'check' : 'share'} size={14} color={copied ? c.positive : c.textDim} />
+                <Txt variant="small" color={copied ? c.positive : c.textDim} style={{ marginLeft: 4 }}>
+                  {copied ? 'Copied' : Platform.OS === 'web' ? 'Copy' : 'Share'}
+                </Txt>
+              </View>
+            </Tap>
+            <Tap onPress={clear} accessibilityLabel="Clear ticks">
+              <View style={[s.tool, { borderColor: c.line }]}>
+                <Icon name="close" size={14} color={c.textDim} />
+                <Txt variant="small" color={c.textDim} style={{ marginLeft: 4 }}>{t('shop.clear')}</Txt>
+              </View>
+            </Tap>
+          </View>
         </View>
       </Enter>
 
-      {/* Category cards are parallel and similarly sized, which is the case
-          two columns suit best — a shopping list on a laptop was four short
-          cards down the middle of an empty screen. */}
       <Columns>
-      {categories.map((cat, catIdx) => (
+      {filteredCategories.map((cat, catIdx) => (
         <Enter key={cat.name} index={2 + catIdx}>
           <Card style={{ marginBottom: Space.md, paddingVertical: Space.sm }}>
-            {/* The emoji has been on the category since `grocery.ts` was
-                written and was never rendered. A shopping list is scanned in a
-                shop, at arm's length, and a shape found before a word is read
-                is worth more here than anywhere else in the app. */}
             <View style={s.catHead}>
-              <Txt variant="body" style={s.catEmoji}>{cat.emoji}</Txt>
-              <Eyebrow color={c.plan}>{cat.name}</Eyebrow>
+              <View style={s.catTitleRow}>
+                <Txt variant="body" style={s.catEmoji}>{cat.emoji}</Txt>
+                <Eyebrow color={c.plan}>{cat.name}</Eyebrow>
+              </View>
+              <View style={[s.catBadge, { backgroundColor: cat.doneInCat === cat.totalInCat ? c.planWash : c.well }]}>
+                <Txt variant="data" color={cat.doneInCat === cat.totalInCat ? c.plan : c.textDim} style={{ fontSize: 11 }}>
+                  {cat.doneInCat}/{cat.totalInCat}
+                </Txt>
+              </View>
             </View>
             {cat.items.map((item, i) => (
               <View key={item.id}>
@@ -202,18 +228,52 @@ export default function GroceryScreen() {
 }
 
 const s = StyleSheet.create({
-  catHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: Space.md },
+  catHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Space.md,
+  },
+  catTitleRow: { flexDirection: 'row', alignItems: 'center' },
   catEmoji: { marginRight: Space.sm },
-  tools: { flexDirection: 'row', marginBottom: Space.base },
+  catBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  toolsRow: {
+    marginBottom: Space.lg,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Space.sm,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   tool: {
-    flexDirection: 'row', alignItems: 'center', minHeight: 34, paddingVertical: 4,
-    paddingHorizontal: Space.md, borderRadius: Radius.pill, borderWidth: 1, marginRight: Space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 34,
+    paddingVertical: 4,
+    paddingHorizontal: Space.md,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    marginRight: Space.sm,
   },
   item: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Space.md },
   itemText: { flex: 1 },
   box: {
-    width: 20, height: 20, borderRadius: 6, borderWidth: 1.5,
-    alignItems: 'center', justifyContent: 'center', marginRight: Space.md, marginTop: 1,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Space.md,
+    marginTop: 1,
   },
   struck: { textDecorationLine: 'line-through' },
 });

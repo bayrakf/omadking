@@ -60,7 +60,7 @@ export default function RemindersScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="accent" eyebrow={t('you.title')} title={t('you.reminders')} sub={t('reminders.sub')} />
+        <PageHeader tone="accent" back={true} eyebrow={t('you.title')} title={t('you.reminders')} sub={t('reminders.sub')} />
       </Enter>
 
       <Enter index={1}>

@@ -5,7 +5,7 @@ import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { Space, Radius } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, PageHeader, Bar, Empty, Tap,
-  PairedBars, NavRow, Columns, useTheme,
+  PairedBars, NavRow, Columns, SegmentedControl, useTheme,
 } from '@/components/ui';
 import { useT } from '@/components/lang';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
@@ -336,36 +336,17 @@ export default function ProgressScreen() {
           removed — it becomes findable. The instruction stays above them,
           because it is the only card that asks for anything. */}
       <Enter index={2}>
-        <View style={s.segments}>
-          {([['week', t('progress.thisWeek')], ['body', t('progress.yourBody')], ['history', t('progress.history')]] as const).map(
-            ([key, label]) => (
-              <Tap
-                key={key}
-                onPress={() => setTab(key)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: tab === key }}
-                accessibilityLabel={label}
-                style={s.segmentCell}
-              >
-                <View
-                  style={[
-                    s.segment,
-                    {
-                      // Violet, not the app accent: this screen is about what
-                      // was measured from your body, and its own switch
-                      // arguing with its own header was the loudest thing on
-                      // it.
-                      borderColor: tab === key ? c.body : c.line,
-                      backgroundColor: tab === key ? c.body : 'transparent',
-                    },
-                  ]}
-                >
-                  <Txt variant="small" color={tab === key ? c.onAccent : c.textDim}>{label}</Txt>
-                </View>
-              </Tap>
-            )
-          )}
-        </View>
+        <SegmentedControl
+          values={[
+            { id: 'week', label: t('progress.tabWeek'), icon: 'chart' },
+            { id: 'body', label: t('progress.tabBody'), icon: 'user' },
+            { id: 'history', label: t('progress.tabHistory'), icon: 'clock' },
+          ]}
+          selected={tab}
+          onSelect={setTab}
+          tone="body"
+          style={{ marginBottom: Space.base }}
+        />
       </Enter>
 
       {tab === 'week' && (

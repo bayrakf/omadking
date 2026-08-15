@@ -34,7 +34,7 @@ export default function TargetsScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="plan" eyebrow={t('you.title')} title={t('you.targets')} sub={t('you.targetsSub')} />
+        <PageHeader tone="plan" back={true} eyebrow={t('you.title')} title={t('you.targets')} sub={t('you.targetsSub')} />
       </Enter>
 
       <Enter index={1}>

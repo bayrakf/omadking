@@ -121,7 +121,7 @@ export default function DataScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader eyebrow={t('you.title')} title={t('data.title')} sub={t('data.sub')} />
+        <PageHeader back={true} eyebrow={t('you.title')} title={t('data.title')} sub={t('data.sub')} />
       </Enter>
 
       <Enter index={1}>

@@ -28,7 +28,9 @@ import {
   TabBarClearance, type ThemePalette,
 } from '@/constants/theme';
 import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
+import { useRouter } from 'expo-router';
 import { Icon, type IconName } from './icons';
+import { useLang } from './lang';
 
 export function useTheme(): ThemePalette {
   const scheme = useColorScheme();
@@ -763,16 +765,39 @@ export function PageHeader({
   title,
   sub,
   tone,
+  back,
+  onBack,
 }: {
   eyebrow?: string;
   title: string;
   sub?: string;
   tone?: Tone;
+  back?: boolean;
+  onBack?: () => void;
 }) {
   const c = useTheme();
+  const router = useRouter();
+  const { t: tr } = useLang();
   const t = tone ? TONES[tone](c) : null;
+  const showBack = Boolean(back || onBack);
+
+  const handleBack = () => {
+    if (onBack) onBack();
+    else router.back();
+  };
+
   return (
     <View style={styles.pageHeader}>
+      {showBack && (
+        <Tap onPress={handleBack} accessibilityLabel={tr('nav.back')} style={styles.backBtnTap}>
+          <View style={[styles.backBtn, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
+            <Icon name="chevronLeft" size={16} color={c.text} />
+            <Text style={[Type.bodyMedium, { color: c.text, fontSize: 13, marginLeft: 4, fontWeight: '600' }]}>
+              {tr('nav.back')}
+            </Text>
+          </View>
+        </Tap>
+      )}
       {eyebrow &&
         (t ? (
           <View style={styles.headerBadgeRow}>
@@ -789,6 +814,75 @@ export function PageHeader({
           {sub}
         </Txt>
       )}
+    </View>
+  );
+}
+
+export function SegmentedControl<T extends string>({
+  values,
+  selected,
+  onSelect,
+  tone = 'accent',
+  style,
+}: {
+  values: { id: T; label: string; icon?: IconName }[];
+  selected: T;
+  onSelect: (id: T) => void;
+  tone?: Tone;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const c = useTheme();
+  const t = TONES[tone](c);
+  return (
+    <View style={[styles.segmentTrack, { backgroundColor: c.well, borderColor: c.line }, style]}>
+      {values.map((v) => {
+        const active = selected === v.id;
+        return (
+          <Tap
+            key={v.id}
+            onPress={() => onSelect(v.id)}
+            style={styles.segmentItem}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={v.label}
+          >
+            <View
+              style={[
+                styles.segmentPill,
+                active && {
+                  backgroundColor: c.surface,
+                  borderColor: c.line,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.08,
+                  shadowRadius: 4,
+                  elevation: 2,
+                },
+              ]}
+            >
+              {v.icon && (
+                <Icon
+                  name={v.icon}
+                  size={15}
+                  color={active ? t.ink : c.textDim}
+                />
+              )}
+              <Text
+                style={[
+                  Type.subheading,
+                  {
+                    color: active ? c.text : c.textDim,
+                    fontSize: 13,
+                    fontWeight: active ? '700' : '500',
+                    marginLeft: v.icon ? 6 : 0,
+                  },
+                ]}
+              >
+                {v.label}
+              </Text>
+            </View>
+          </Tap>
+        );
+      })}
     </View>
   );
 }
@@ -971,5 +1065,38 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     borderWidth: 1,
     marginTop: Space.md,
+  },
+  backBtnTap: {
+    alignSelf: 'flex-start',
+    marginBottom: Space.md,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  segmentTrack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginBottom: Space.base,
+  },
+  segmentItem: {
+    flex: 1,
+  },
+  segmentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
 });

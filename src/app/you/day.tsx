@@ -28,7 +28,7 @@ export default function DayScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="accent" eyebrow={t('you.title')} title={t('you.day')} sub={t('you.daySub')} />
+        <PageHeader tone="accent" back={true} eyebrow={t('you.title')} title={t('you.day')} sub={t('you.daySub')} />
       </Enter>
 
       <Enter index={1}>

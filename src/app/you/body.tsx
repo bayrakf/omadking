@@ -63,7 +63,7 @@ export default function BodyScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="body" eyebrow={t('you.title')} title={t('you.body')} sub={t('you.bodySub')} />
+        <PageHeader tone="body" back={true} eyebrow={t('you.title')} title={t('you.body')} sub={t('you.bodySub')} />
       </Enter>
 
       <Enter index={1}>
