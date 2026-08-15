@@ -69,6 +69,38 @@ export function consistency(dates: string[], days = 30, today = todayISO()): { h
   return { hit, days };
 }
 
+// ---------------------------------------------------------------------------
+// Human-readable date labels (no cryptic single-letter abbreviations)
+// ---------------------------------------------------------------------------
+
+export const GERMAN_WEEKDAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+export const GERMAN_WEEKDAYS_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+export const GERMAN_MONTHS = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+];
+
+export const ENGLISH_WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+export const ENGLISH_WEEKDAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+export const ENGLISH_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+export function formatFullWeekday(date: Date | string, lang: 'de' | 'en' = 'de'): string {
+  const d = typeof date === 'string' ? parseISO(date) : date;
+  const dayIdx = (d.getDay() + 6) % 7; // Monday = 0
+  return lang === 'de' ? GERMAN_WEEKDAYS[dayIdx] : ENGLISH_WEEKDAYS[dayIdx];
+}
+
+export function formatReadableDate(date: Date | string, lang: 'de' | 'en' = 'de'): string {
+  const d = typeof date === 'string' ? parseISO(date) : date;
+  const weekday = formatFullWeekday(d, lang);
+  const dayNum = d.getDate();
+  const monthName = lang === 'de' ? GERMAN_MONTHS[d.getMonth()] : ENGLISH_MONTHS[d.getMonth()];
+  return lang === 'de' ? `${weekday}, ${dayNum}. ${monthName}` : `${weekday}, ${monthName} ${dayNum}`;
+}
+
 export function demo() {
   const assert = (cond: boolean, msg: string) => {
     if (!cond) throw new Error('FAIL: ' + msg);
@@ -121,6 +153,12 @@ export function demo() {
   assert(consistency(['2020-01-01'], 30, '2026-08-20').hit === 0, 'dates outside the window do not count');
   assert(consistency(null as any, 30, '2026-08-20').hit === 0, 'a missing log does not throw');
   assert(consistency([null, 7, day(1)] as any, 30, '2026-08-20').hit === 1, 'junk entries are ignored');
+
+  // Format checks
+  assert(formatFullWeekday('2026-08-15', 'de') === 'Samstag', 'Saturday in German');
+  assert(formatFullWeekday('2026-08-15', 'en') === 'Saturday', 'Saturday in English');
+  assert(formatReadableDate('2026-08-15', 'de') === 'Samstag, 15. August', 'Full readable German date');
+  assert(formatReadableDate('2026-08-15', 'en') === 'Saturday, August 15', 'Full readable English date');
 
   return 'dates.ts: all checks passed';
 }

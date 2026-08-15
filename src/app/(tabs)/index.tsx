@@ -18,6 +18,7 @@ import {
   type UserProfile, type FastingState,
 } from '@/lib/nutrition';
 import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
+import { formatReadableDate } from '@/lib/dates';
 import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
@@ -69,9 +70,9 @@ export default function DashboardScreen() {
   const [measured, setMeasured] = useState<number | undefined>(undefined);
 
   useEffect(() => {
-    setDateLabel(new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }));
+    setDateLabel(formatReadableDate(new Date(), lang));
     setMounted(true);
-  }, []);
+  }, [lang]);
 
   const refresh = useCallback(async () => {
     const [p, h, fl, cl, last, weights, intake, prem] = await Promise.all([

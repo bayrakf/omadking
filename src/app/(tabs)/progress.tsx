@@ -7,7 +7,7 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, PageHeader, Bar, Empty, Tap,
   PairedBars, NavRow, Columns, SegmentedControl, useTheme,
 } from '@/components/ui';
-import { useT } from '@/components/lang';
+import { useLang } from '@/components/lang';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
@@ -16,7 +16,7 @@ import {
   type Measurement, type Forecast, type WeekdayPattern, type WeekBudget, type ProteinAdherence,
   type WeekCycle, type MonthlyComparison, type RateGap,
 } from '@/lib/energy';
-import { consistency, currentStreak } from '@/lib/dates';
+import { consistency, currentStreak, formatReadableDate } from '@/lib/dates';
 import {
   loadProfileOrDefault, loadWeightLog,
   loadFastLog, loadCookLog, loadPlanHistory,
@@ -89,7 +89,7 @@ function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?
 
 export default function ProgressScreen() {
   const c = useTheme();
-  const t = useT();
+  const { lang, t } = useLang();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -836,7 +836,7 @@ export default function ProgressScreen() {
                   <View key={e.id}>
                     {i > 0 && <Divider />}
                     <View style={s.histRow}>
-                      <Txt variant="data" color={c.text}>{e.date}</Txt>
+                      <Txt variant="data" color={c.text}>{formatReadableDate(e.date, lang)}</Txt>
                       <View style={s.rowEnd}>
                         {delta !== null && delta !== 0 && (
                           <Txt variant="data" color={delta > 0 ? c.negative : c.positive} style={{ marginRight: Space.md }}>

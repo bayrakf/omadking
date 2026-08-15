@@ -3,8 +3,8 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
 import { Txt, useTheme } from './ui';
 import { Icon } from './icons';
-import { useT } from './lang';
-import { todayISO } from '@/lib/dates';
+import { todayISO, formatFullWeekday } from '@/lib/dates';
+import { useLang } from './lang';
 
 interface StreakBannerProps {
   streak: number;
@@ -13,7 +13,7 @@ interface StreakBannerProps {
 
 export function StreakBanner({ streak, fastLog }: StreakBannerProps) {
   const c = useTheme();
-  const t = useT();
+  const { lang, t } = useLang();
   const [showInfo, setShowInfo] = useState(false);
 
   const today = todayISO();
@@ -24,14 +24,15 @@ export function StreakBanner({ streak, fastLog }: StreakBannerProps) {
     const d = new Date(now);
     d.setDate(now.getDate() - (4 - i));
     const iso = d.toISOString().slice(0, 10);
-    const dayLabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const shortDay = formatFullWeekday(d, lang).slice(0, 2);
+    const dayLabel = `${shortDay} ${d.getDate()}.`;
     const isToday = iso === today;
     const isFuture = iso > today;
     const completed = fastLog.includes(iso);
 
     return {
       date: iso,
-      dayLabel,
+      dayLabel: isToday ? (lang === 'de' ? 'Heute' : 'Today') : isFuture ? (lang === 'de' ? 'Morgen' : 'Tomorrow') : dayLabel,
       isToday,
       isFuture,
       completed,
