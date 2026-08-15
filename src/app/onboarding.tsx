@@ -8,6 +8,17 @@ import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Button, Chip, Tap, Card, Divider, useTheme, useReducedMotion } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { STEPS, skipsStep, stepPosition } from '@/lib/onboarding';
+
+/**
+ * The hue of the subject each screen is asking about.
+ *
+ * The bar changes colour as the questions change domain: violet while it asks
+ * about your body, teal while it asks about your day. By the time someone
+ * reaches the app they have been shown the palette twice — on the landing page
+ * as three icons, here as a bar that moves — so a violet card on Progress is
+ * already labelled the first time they see it.
+ */
+const STEP_HUE = ['accent', 'body', 'body', 'accent', 'body', 'accent'] as const;
 import {
   normalizeProfile, normTime, toMinutes, fromMinutes, PROTOCOLS, protocolForHours,
   targetWeight, dailyTargets, bmr, paceDeficit, PACE_OPTIONS, DEFAULT_DEFICIT_KCAL,
@@ -311,7 +322,7 @@ export default function OnboardingScreen() {
         const end = fromMinutes(toMinutes(p.omad_window_start) + p.omad_window_hours * 60);
         return (
           <View style={s.centre}>
-            <Icon name="check" size={26} color={c.accent} strokeWidth={2.2} />
+            <Icon name="check" size={26} color={c.positive} strokeWidth={2.2} />
             <Txt variant="title" style={{ marginTop: Space.base }}>That’s everything</Txt>
             <Card style={{ marginTop: Space.xl, paddingVertical: Space.sm }}>
               {([
@@ -345,6 +356,7 @@ export default function OnboardingScreen() {
   };
 
   const here = stepPosition(step, data.goal);
+  const hue = c[STEP_HUE[step] ?? 'accent'];
   const label = step === 0 ? 'Start' : step === STEPS - 1 ? 'Open the app' : 'Continue';
 
   return (
@@ -368,7 +380,7 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={[s.progress, { backgroundColor: c.well }]}>
-          <View style={[s.progressFill, { backgroundColor: c.accent, width: `${(here.position / here.total) * 100}%` }]} />
+          <View style={[s.progressFill, { backgroundColor: hue, width: `${(here.position / here.total) * 100}%` }]} />
         </View>
 
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">

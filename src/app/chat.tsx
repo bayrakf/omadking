@@ -198,7 +198,18 @@ export default function ChatScreen() {
                 style={[
                   s.bubble,
                   ai
-                    ? { backgroundColor: m.failed ? 'transparent' : c.surface, borderColor: m.failed ? c.negative : c.line, alignSelf: 'flex-start' }
+                    ? {
+                        backgroundColor: m.failed ? 'transparent' : c.surface,
+                        borderColor: m.failed ? c.negative : c.line,
+                        // The coach's own voice, attributed by an edge rather
+                        // than by a fill. Your messages keep the tint and the
+                        // right side, which is the convention every messaging
+                        // app has taught already — inverting it to add colour
+                        // would cost more than the colour is worth.
+                        borderLeftWidth: 3,
+                        borderLeftColor: m.failed ? c.negative : c.accent,
+                        alignSelf: 'flex-start',
+                      }
                     : { backgroundColor: c.accentWash, borderColor: c.accentDim, alignSelf: 'flex-end' },
                 ]}
               >
@@ -211,7 +222,12 @@ export default function ChatScreen() {
             );
           })}
           {loading && (
-            <View style={[s.bubble, { backgroundColor: c.surface, borderColor: c.line, alignSelf: 'flex-start' }]}>
+            <View
+              style={[
+                s.bubble,
+                { backgroundColor: c.surface, borderColor: c.line, borderLeftWidth: 3, borderLeftColor: c.accent, alignSelf: 'flex-start' },
+              ]}
+            >
               <Thinking color={c.textDim} />
             </View>
           )}
@@ -230,9 +246,15 @@ export default function ChatScreen() {
           )}
         </ScrollView>
 
+        {/* A horizontal ScrollView inside a column stretches to fill on
+            react-native-web instead of hugging its row, which left the
+            suggestions floating in the middle of an empty conversation with a
+            gap above and below. flexGrow: 0 pins them to the input, where the
+            thing they are suggesting actually happens. */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={s.promptsRow}
           contentContainerStyle={s.prompts}
           keyboardShouldPersistTaps="handled"
         >
@@ -293,6 +315,7 @@ const s = StyleSheet.create({
   },
   dots: { flexDirection: 'row', alignItems: 'center', height: 20 },
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
+  promptsRow: { flexGrow: 0 },
   prompts: { paddingHorizontal: Space.lg, paddingBottom: Space.md },
   prompt: {
     height: 36, paddingHorizontal: Space.base, borderRadius: Radius.pill,
