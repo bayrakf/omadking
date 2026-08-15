@@ -141,6 +141,60 @@ const EN = {
   'progress.history': 'History',
   'progress.corrections': 'Corrections',
   'progress.correctionsSub': 'Weigh-in, evenings, fasts, days to leave out',
+
+  // Coach
+  'coach.title': 'Coach',
+  'coach.disclaimer': 'Not medical advice',
+  'coach.greeting':
+    'Ask me about meal timing, electrolytes, or fuelling a hard session on one meal a day.',
+  'coach.placeholder': 'Ask the coach',
+  'coach.send': 'Send',
+  'coach.message': 'Message',
+  'coach.clear': 'Clear conversation',
+  'coach.clearShort': 'Clear',
+  'coach.knows': 'What the coach could know',
+  'coach.free':
+    'Answers use general ranges. With Premium the coach reasons with your measured maintenance, your trend and your weekday pattern instead.',
+  'coach.p1': 'Best electrolytes for a long fast?',
+  'coach.p2': 'Why do I crash mid-session?',
+  'coach.p3': 'Pre-workout on OMAD?',
+  'coach.p4': 'How much protein do I need?',
+  'coach.p5': 'Is tonight’s meal enough?',
+  'coach.p6': 'Can I swap an ingredient?',
+
+  // Shared chrome
+  'nav.back': 'Back',
+
+  // Body
+  'body.avoid': 'Never put in a recipe',
+
+  // Targets
+  'targets.numbers': 'Your numbers',
+  'targets.training': 'Training',
+
+  // Reminders
+  'reminders.sub': 'Local to this device. No account, no push token.',
+  'reminders.tellMe': 'Tell me when to eat',
+  'reminders.arrives': 'What arrives',
+
+  // Sync
+  'sync.title': 'Sync',
+  'sync.sub': 'Optional, anonymous, and unreadable to the server.',
+  'sync.across': 'Sync across devices',
+  'sync.now': 'Sync now',
+  'sync.phrase': 'Recovery phrase',
+
+  // Your data
+  'data.title': 'Your data',
+  'data.sub': 'It lives on this device. Take it with you or remove it.',
+  'data.keep': 'Keep a copy',
+  'data.export': 'Export',
+  'data.restore': 'Restore',
+  'data.summary': 'Summary for an appointment',
+  'data.startOver': 'Start over',
+  'data.reset': 'Reset profile',
+  'data.deleteAll': 'Delete all data',
+  'data.deleteAccount': 'Delete account and server copy',
 } as const;
 
 export type Key = keyof typeof EN;
@@ -241,6 +295,52 @@ const DE: Record<Key, string> = {
   'progress.history': 'Historie',
   'progress.corrections': 'Korrekturen',
   'progress.correctionsSub': 'Wiegung, Abende, Fasten, Tage zum Auslassen',
+  'coach.title': 'Coach',
+  'coach.disclaimer': 'Keine medizinische Beratung',
+  'coach.greeting':
+    'Frag mich nach Essenszeiten, Elektrolyten oder wie du eine harte Einheit auf eine Mahlzeit am Tag bringst.',
+  'coach.placeholder': 'Frag den Coach',
+  'coach.send': 'Senden',
+  'coach.message': 'Nachricht',
+  'coach.clear': 'Unterhaltung löschen',
+  'coach.clearShort': 'Löschen',
+  'coach.knows': 'Was der Coach wissen könnte',
+  'coach.free':
+    'Antworten arbeiten mit allgemeinen Bereichen. Mit Premium rechnet der Coach stattdessen mit deinem gemessenen Erhaltungsbedarf, deinem Trend und deinem Wochentagsmuster.',
+  'coach.p1': 'Beste Elektrolyte für ein langes Fasten?',
+  'coach.p2': 'Warum falle ich mitten im Training ab?',
+  'coach.p3': 'Pre-Workout bei OMAD?',
+  'coach.p4': 'Wie viel Protein brauche ich?',
+  'coach.p5': 'Reicht das Essen heute Abend?',
+  'coach.p6': 'Kann ich eine Zutat tauschen?',
+
+  'nav.back': 'Zurück',
+
+  'body.avoid': 'Kommt nie ins Rezept',
+
+  'targets.numbers': 'Deine Werte',
+  'targets.training': 'Training',
+
+  'reminders.sub': 'Nur auf diesem Gerät. Kein Konto, kein Push-Token.',
+  'reminders.tellMe': 'Sag mir, wann ich essen soll',
+  'reminders.arrives': 'Was ankommt',
+
+  'sync.title': 'Sync',
+  'sync.sub': 'Optional, anonym, und für den Server unlesbar.',
+  'sync.across': 'Sync über Geräte hinweg',
+  'sync.now': 'Jetzt synchronisieren',
+  'sync.phrase': 'Wiederherstellungsphrase',
+
+  'data.title': 'Deine Daten',
+  'data.sub': 'Sie liegen auf diesem Gerät. Nimm sie mit oder lösche sie.',
+  'data.keep': 'Eine Kopie behalten',
+  'data.export': 'Exportieren',
+  'data.restore': 'Wiederherstellen',
+  'data.summary': 'Zusammenfassung für einen Termin',
+  'data.startOver': 'Von vorn',
+  'data.reset': 'Profil zurücksetzen',
+  'data.deleteAll': 'Alle Daten löschen',
+  'data.deleteAccount': 'Konto und Serverkopie löschen',
 };
 
 const TABLES: Record<Lang, Record<Key, string>> = { en: EN, de: DE };

@@ -336,6 +336,8 @@ export type CoachState = {
 export async function askCoach(
   message: string,
   history: ChatTurn[],
+  /** Same reasoning as `generateMealPlan`: required, so it cannot be forgotten. */
+  lang: Lang,
   profile?: UserProfile | null,
   plan?: MealPlan | null,
   state?: CoachState | null
@@ -344,6 +346,7 @@ export async function askCoach(
 
   const res = await postJSON('chat', {
     message,
+    language: lang,
     // Trim to the last few turns: the whole transcript would grow the prompt
     // (and the bill) without improving the answer.
     history: history.slice(-8),

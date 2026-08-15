@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Tap, Markdown, useTheme, useReducedMotion } from '@/components/ui';
+import type { Key } from '@/lib/i18n';
+import { useLang } from '@/components/lang';
 import { Icon } from '@/components/icons';
 import { askCoach, conversationOf, type ChatTurn, type MealPlan, type CoachState } from '@/lib/ai';
 import {
@@ -18,21 +20,17 @@ import type { UserProfile } from '@/lib/nutrition';
 
 type Message = { id: string; sender: 'user' | 'ai'; text: string; failed?: boolean };
 
-const PROMPTS = [
-  'Best electrolytes for a long fast?',
-  'Why do I crash mid-session?',
-  'Pre-workout on OMAD?',
-  'How much protein do I need?',
-];
+/**
+ * Keys, not sentences.
+ *
+ * These were module constants, which is one tick before any language is
+ * known — the greeting would have been fixed in English for the life of the
+ * process and would not have changed when the switch was flipped.
+ */
+const PROMPT_KEYS: Key[] = ['coach.p1', 'coach.p2', 'coach.p3', 'coach.p4'];
 
 /** Only offered once there is a plan the coach can actually talk about. */
-const PLAN_PROMPTS = ['Is tonight’s meal enough?', 'Can I swap an ingredient?'];
-
-const GREETING: Message = {
-  id: 'greeting',
-  sender: 'ai',
-  text: 'Ask me about meal timing, electrolytes, or fuelling a hard session on one meal a day.',
-};
+const PLAN_PROMPT_KEYS: Key[] = ['coach.p5', 'coach.p6'];
 
 /** Three dots that breathe. The only ambient motion in the app. */
 function Thinking({ color }: { color: string }) {
@@ -66,10 +64,12 @@ function Thinking({ color }: { color: string }) {
 
 export default function ChatScreen() {
   const c = useTheme();
+  const { lang, t } = useLang();
   const router = useRouter();
   const scroller = useRef<ScrollView>(null);
 
-  const [messages, setMessages] = useState<Message[]>([GREETING]);
+  const greeting: Message = { id: 'greeting', sender: 'ai', text: t('coach.greeting') };
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -108,9 +108,9 @@ export default function ChatScreen() {
         weekday_pattern: pat.worst ? pat.note : null,
       });
     })();
-    // The greeting stays at the top; restored messages follow it.
+    // The greeting is not stored; it is prepended at render.
     loadChat().then((stored) => {
-      if (stored.length) setMessages([GREETING, ...stored]);
+      if (stored.length) setMessages(stored);
       setRestored(true);
     });
   }, []);
@@ -132,7 +132,7 @@ export default function ChatScreen() {
     toBottom();
 
     try {
-      const reply = await askCoach(trimmed, history, profile, plan, state);
+      const reply = await askCoach(trimmed, history, lang, profile, plan, state);
       setMessages((p) => [...p, { id: `a${Date.now()}`, sender: 'ai', text: reply }]);
     } catch (err: any) {
       // Previously this swallowed the error and printed a canned tip, so a broken
@@ -157,23 +157,23 @@ export default function ChatScreen() {
 
   const wipe = async () => {
     await clearChat();
-    setMessages([GREETING]);
+    setMessages([]);
   };
 
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: c.bg }]} edges={['top', 'bottom']}>
       <View style={[s.header, { borderBottomColor: c.line }]}>
-        <Tap onPress={() => router.back()} accessibilityLabel="Back">
+        <Tap onPress={() => router.back()} accessibilityLabel={t('nav.back')}>
           <View style={s.back}><Icon name="chevronLeft" size={20} color={c.text} /></View>
         </Tap>
         <View style={s.flex}>
-          <Txt variant="subheading">Coach</Txt>
-          <Eyebrow numberOfLines={1}>Not medical advice</Eyebrow>
+          <Txt variant="subheading">{t('coach.title')}</Txt>
+          <Eyebrow numberOfLines={1}>{t('coach.disclaimer')}</Eyebrow>
         </View>
-        {messages.length > 1 && (
-          <Tap onPress={wipe} accessibilityLabel="Clear conversation">
+        {messages.length > 0 && (
+          <Tap onPress={wipe} accessibilityLabel={t('coach.clear')}>
             <View style={s.clear}>
-              <Txt variant="small" color={c.textDim}>Clear</Txt>
+              <Txt variant="small" color={c.textDim}>{t('coach.clearShort')}</Txt>
             </View>
           </Tap>
         )}
@@ -190,7 +190,11 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {messages.map((m) => {
+          {/* The greeting is prepended at render rather than stored, so it
+              speaks whatever language is set right now. `conversationOf`
+              already drops anything with this id, so it never reaches the
+              model either way. */}
+          {[greeting, ...messages].map((m) => {
             const ai = m.sender === 'ai';
             return (
               <View
@@ -235,11 +239,10 @@ export default function ChatScreen() {
               way; what premium buys is what it reasons with. Withholding that
               quietly meant nobody could ask for it. */}
           {restored && !premium && (
-            <Tap onPress={() => router.push('/paywall')} accessibilityLabel="What the coach could know">
+            <Tap onPress={() => router.push('/paywall')} accessibilityLabel={t('coach.knows')}>
               <View style={[s.hint, { borderColor: c.line }]}>
                 <Txt variant="small" color={c.textDim}>
-                  Answers use general ranges. With Premium the coach reasons with your measured
-                  maintenance, your trend and your weekday pattern instead.
+                  {t('coach.free')}
                 </Txt>
               </View>
             </Tap>
@@ -258,7 +261,7 @@ export default function ChatScreen() {
           contentContainerStyle={s.prompts}
           keyboardShouldPersistTaps="handled"
         >
-          {[...(plan ? PLAN_PROMPTS : []), ...PROMPTS].map((p) => (
+          {[...(plan ? PLAN_PROMPT_KEYS : []), ...PROMPT_KEYS].map((k) => t(k)).map((p) => (
             <Tap key={p} onPress={() => send(p)} disabled={loading} accessibilityLabel={p}>
               <View style={[s.prompt, { borderColor: c.line, backgroundColor: c.surface }]}>
                 <Txt variant="small" color={c.textDim}>{p}</Txt>
@@ -269,7 +272,7 @@ export default function ChatScreen() {
 
         <View style={[s.inputBar, { borderTopColor: c.line, backgroundColor: c.bg }]}>
           <TextInput
-            placeholder="Ask the coach"
+            placeholder={t('coach.placeholder')}
             placeholderTextColor={c.textFaint}
             value={input}
             onChangeText={setInput}
@@ -277,10 +280,10 @@ export default function ChatScreen() {
             editable={!loading}
             multiline
             maxLength={1000}
-            accessibilityLabel="Message"
+            accessibilityLabel={t('coach.message')}
             style={[Type.body, s.input, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
           />
-          <Tap onPress={() => send(input)} disabled={!input.trim() || loading} accessibilityLabel="Send">
+          <Tap onPress={() => send(input)} disabled={!input.trim() || loading} accessibilityLabel={t('coach.send')}>
             <View style={[s.send, { backgroundColor: input.trim() && !loading ? c.accent : c.well }]}>
               {loading
                 ? <ActivityIndicator size="small" color={c.textDim} />

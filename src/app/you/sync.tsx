@@ -14,8 +14,10 @@ import { Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Notice, PageHeader, use
 import { Icon } from '@/components/icons';
 import { Space } from '@/constants/theme';
 import { syncNow, lastSyncedAt, deleteAccount } from '@/lib/sync';
+import { useT } from '@/components/lang';
 
 export default function SyncScreen() {
+  const t = useT();
   const c = useTheme();
   const router = useRouter();
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
@@ -67,12 +69,12 @@ export default function SyncScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader eyebrow="You" title="Sync" sub="Optional, anonymous, and unreadable to the server." />
+        <PageHeader eyebrow={t('you.title')} title={t('sync.title')} sub={t('sync.sub')} />
       </Enter>
 
       <Enter index={1}>
         <Card>
-          <Eyebrow style={{ marginBottom: Space.sm }}>Sync across devices</Eyebrow>
+          <Eyebrow style={{ marginBottom: Space.sm }}>{t('sync.across')}</Eyebrow>
           <Txt variant="small" color={c.textDim}>
             Your data is encrypted on this device before it is sent. The server stores a blob nobody
             can read — not us either. That also means only your recovery phrase can restore it.
@@ -89,7 +91,7 @@ export default function SyncScreen() {
           {notice && <Notice tone={notice.ok ? 'ok' : 'error'}>{notice.text}</Notice>}
           <Tap onPress={() => router.push('/recovery')} accessibilityLabel="Recovery phrase">
             <View style={s.row}>
-              <Txt variant="body" color={c.textDim}>Recovery phrase</Txt>
+              <Txt variant="body" color={c.textDim}>{t('sync.phrase')}</Txt>
               <Icon name="chevronRight" size={16} color={c.textFaint} />
             </View>
           </Tap>

@@ -19,8 +19,10 @@ import { loadLastPlan, loadFastLog, loadCookLog, todayISO } from '@/lib/store';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import type { MealPlan } from '@/lib/ai';
+import { useT } from '@/components/lang';
 
 export default function RemindersScreen() {
+  const t = useT();
   const c = useTheme();
   const { profile, mounted, queued, setQueued } = useProfileEditor();
   const [remindOn, setRemindOn] = useState(false);
@@ -58,14 +60,14 @@ export default function RemindersScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="accent" eyebrow="You" title="Reminders" sub="Local to this device. No account, no push token." />
+        <PageHeader tone="accent" eyebrow={t('you.title')} title={t('you.reminders')} sub={t('reminders.sub')} />
       </Enter>
 
       <Enter index={1}>
         <Card>
           <View style={s.row}>
             <View style={{ flex: 1, marginRight: Space.base }}>
-              <Txt variant="body">Tell me when to eat</Txt>
+              <Txt variant="body">{t('reminders.tellMe')}</Txt>
               <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
                 {!remindersSupported()
                   ? 'Only available in the iOS and Android apps.'
@@ -88,7 +90,7 @@ export default function RemindersScreen() {
 
       <Enter index={2}>
         <Card style={{ marginTop: Space.base }}>
-          <Eyebrow style={{ marginBottom: Space.sm }}>What arrives</Eyebrow>
+          <Eyebrow style={{ marginBottom: Space.sm }}>{t('reminders.arrives')}</Eyebrow>
           <Txt variant="small" color={c.textDim}>
             The moments from today’s plan: when to start cooking, when the window opens, the meal
             itself, and the last bite before it closes. They are rebuilt every time the app comes

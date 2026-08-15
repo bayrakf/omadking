@@ -70,7 +70,7 @@ serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const { message, history, profile, plan, state } = await req.json().catch(() => ({}));
+    const { message, history, profile, plan, state, language } = await req.json().catch(() => ({}));
 
     // Validate at the trust boundary — this text goes straight into a paid API call.
     if (typeof message !== 'string' || !message.trim()) {
@@ -101,6 +101,19 @@ serve(async (req) => {
     // Context blocks are appended rather than interpolated into the rules, so a
     // crafted profile value cannot rewrite the instructions above it.
     let systemText = BASE_PROMPT;
+    /**
+     * The reply language, stated before any context is appended.
+     *
+     * Above the profile block on purpose: everything after this point is
+     * user-controlled text, and an instruction that arrives after it can be
+     * argued with by it. The rule the model needs first is which language the
+     * person reads.
+     */
+    if (language === 'de') {
+      systemText +=
+        `\n\nAnswer in German, using the informal "du". Use German fasting and training vocabulary. ` +
+        `Keep numbers, units and clock times exactly as they are given to you.`;
+    }
     if (profile) systemText += `\n\nThis athlete: ${JSON.stringify(profile).slice(0, 500)}`;
     // What the app measured, so "why am I not losing" gets answered with this
     // person's own figures instead of a general range.

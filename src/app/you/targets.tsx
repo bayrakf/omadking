@@ -12,8 +12,10 @@ import { Screen, Card, Txt, Eyebrow, Enter, Divider, PageHeader, useTheme } from
 import { useProfileEditor } from '@/components/profile-fields';
 import { Space } from '@/constants/theme';
 import { dailyTargets, bmr } from '@/lib/nutrition';
+import { useT } from '@/components/lang';
 
 export default function TargetsScreen() {
+  const t = useT();
   const c = useTheme();
   const { profile, mounted } = useProfileEditor();
 
@@ -32,12 +34,12 @@ export default function TargetsScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="plan" eyebrow="You" title="Targets" sub="Worked out from your body and your goal." />
+        <PageHeader tone="plan" eyebrow={t('you.title')} title={t('you.targets')} sub={t('you.targetsSub')} />
       </Enter>
 
       <Enter index={1}>
         <Card>
-          <Eyebrow style={{ marginBottom: Space.sm }}>Your numbers</Eyebrow>
+          <Eyebrow style={{ marginBottom: Space.sm }}>{t('targets.numbers')}</Eyebrow>
           {rows.map(([label, value], i) => (
             <View key={label}>
               {i > 0 && <Divider />}

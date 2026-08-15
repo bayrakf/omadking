@@ -20,12 +20,14 @@ import { healthSummary } from '@/lib/review';
 import { currentUserId } from '@/lib/account';
 import { deleteAccount } from '@/lib/sync';
 import { resync } from '@/lib/notify';
+import { useT } from '@/components/lang';
 import {
   loadProfileOrDefault, loadWeightLog, loadFastLog, loadIntakeLog,
   resetOnboarding, eraseEverything,
 } from '@/lib/store';
 
 export default function DataScreen() {
+  const t = useT();
   const c = useTheme();
   const router = useRouter();
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null);
@@ -119,26 +121,26 @@ export default function DataScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader eyebrow="You" title="Your data" sub="It lives on this device. Take it with you or remove it." />
+        <PageHeader eyebrow={t('you.title')} title={t('data.title')} sub={t('data.sub')} />
       </Enter>
 
       <Enter index={1}>
         <Card>
-          <Eyebrow style={{ marginBottom: Space.sm }}>Keep a copy</Eyebrow>
+          <Eyebrow style={{ marginBottom: Space.sm }}>{t('data.keep')}</Eyebrow>
           <Txt variant="small" color={c.textDim}>
             Everything lives on this device. An account is optional and only ever holds an encrypted
             copy, so a backup file is still the only copy you can read yourself.
           </Txt>
           <View style={s.dataRow}>
-            <Button label="Export" variant="secondary" icon="share" onPress={doExport} style={s.dataBtn} />
-            <Button label="Restore" variant="ghost" onPress={doImport} style={s.dataBtn} />
+            <Button label={t('data.export')} variant="secondary" icon="share" onPress={doExport} style={s.dataBtn} />
+            <Button label={t('data.restore')} variant="ghost" onPress={doImport} style={s.dataBtn} />
           </View>
           {/* Free, and not as a concession: the readable form of your own
               record is data portability, and charging for it would be absurd.
               Separate from Export because that file is for the app to read
               back and this text is for a person. */}
           <Button
-            label="Summary for an appointment"
+            label={t('data.summary')}
             variant="ghost"
             onPress={doSummary}
             style={{ marginTop: Space.sm }}
@@ -149,8 +151,8 @@ export default function DataScreen() {
 
       <Enter index={2}>
         <Card style={{ marginTop: Space.base }}>
-          <Eyebrow style={{ marginBottom: Space.sm }}>Start over</Eyebrow>
-          <Button label="Reset profile" variant="ghost" onPress={reset} />
+          <Eyebrow style={{ marginBottom: Space.sm }}>{t('data.startOver')}</Eyebrow>
+          <Button label={t('data.reset')} variant="ghost" onPress={reset} />
           <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
             Clears your profile and restarts setup. Your weight log and plans stay.
           </Txt>
@@ -159,7 +161,7 @@ export default function DataScreen() {
               does not, and confusing the two costs someone their history. */}
           <Tap onPress={eraseAll} accessibilityLabel="Delete all data">
             <View style={s.row}>
-              <Txt variant="body" color={c.negative}>Delete all data</Txt>
+              <Txt variant="body" color={c.negative}>{t('data.deleteAll')}</Txt>
               <Icon name="chevronRight" size={16} color={c.negative} />
             </View>
           </Tap>

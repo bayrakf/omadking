@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import { Screen, Card, Txt, Eyebrow, Enter, Chip, Divider, PageHeader, useTheme } from '@/components/ui';
 import { useProfileEditor } from '@/components/profile-fields';
+import { useT } from '@/components/lang';
 import { Type, Space, Radius } from '@/constants/theme';
 import { normalizeProfile, targetWeight } from '@/lib/nutrition';
 import { saveProfile } from '@/lib/store';
@@ -22,6 +23,7 @@ const CHOICES = {
 } as const;
 
 export default function BodyScreen() {
+  const t = useT();
   const c = useTheme();
   const { profile, setProfile, mounted, persist, row } = useProfileEditor();
   const [avoid, setAvoid] = useState('');
@@ -61,7 +63,7 @@ export default function BodyScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="body" eyebrow="You" title="Body" sub="What the targets are calculated from." />
+        <PageHeader tone="body" eyebrow={t('you.title')} title={t('you.body')} sub={t('you.bodySub')} />
       </Enter>
 
       <Enter index={1}>
@@ -82,7 +84,7 @@ export default function BodyScreen() {
               better than a taxonomy. Its own row rather than a ProfileRow —
               that component treats null as "use the default target". */}
           <View style={{ paddingVertical: Space.md }}>
-            <Txt variant="body" color={c.textDim}>Never put in a recipe</Txt>
+            <Txt variant="body" color={c.textDim}>{t('body.avoid')}</Txt>
             <TextInput
               value={avoid}
               onChangeText={setAvoid}
