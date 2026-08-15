@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
@@ -223,13 +223,23 @@ export default function DashboardScreen() {
       </Enter>
 
       <Enter index={1}>
-        <View style={[s.hero, { backgroundColor: c.heroFill }]}>
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={() => router.push('/timer')}
+          style={[s.hero, { backgroundColor: c.heroFill }]}
+        >
           <View style={s.heroTop}>
             <View style={[s.heroBadge, { backgroundColor: fast.isEating ? c.emberWash : 'rgba(56, 189, 248, 0.2)' }]}>
               <Icon name={fast.isEating ? 'plate' : 'flame'} size={14} color={fast.isEating ? c.ember : '#38BDF8'} />
               <Txt variant="data" color={fast.isEating ? c.ember : '#38BDF8'} style={{ marginLeft: 5, fontSize: 11, fontWeight: '700' }}>
-                {fast.isEating ? 'ESSENSFENSTER' : 'FASTENLÄUFT'}
+                {fast.isEating ? 'ESSENSFENSTER' : 'FASTEN LÄUFT'}
               </Txt>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Txt variant="eyebrow" color={c.onHero} style={{ opacity: 0.8, fontSize: 10, marginRight: 4 }}>
+                LIVE-TIMER
+              </Txt>
+              <Icon name="chevronRight" size={12} color={c.onHero} />
             </View>
           </View>
           <View style={s.countRow}>
@@ -249,7 +259,7 @@ export default function DashboardScreen() {
             items={items}
             isEating={fast.isEating}
           />
-        </View>
+        </TouchableOpacity>
         <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
       </Enter>
 
