@@ -128,8 +128,20 @@ export function dayAgenda(
 
   const raw: Omit<AgendaItem, 'at' | 'past'>[] = [];
 
-  // Meal sits inside the window by construction in mealTiming().
-  const mealOffset = plan ? mod(toMinutes(plan.main_meal_time) - windowStart) : 0;
+  /**
+   * Meal sits inside the window by construction in `mealTiming()` — but only
+   * against the window it was built for, and a saved plan outlives that.
+   *
+   * Move the opening from 18:00 to 19:00 and yesterday's 18:30 meal is no
+   * longer 30 minutes into the window; `mod` reads it as 23.5 hours into the
+   * next one. The row then sorted after "Log the fast", printed cooking at
+   * 17:50 below a 21:30 entry, and `next` could point at a meal a day away.
+   *
+   * A plan that no longer fits its window is placed at the opening, which is
+   * where `mealTiming()` would put a fresh one.
+   */
+  const plannedOffset = plan ? mod(toMinutes(plan.main_meal_time) - windowStart) : 0;
+  const mealOffset = plannedOffset > windowLen ? 0 : plannedOffset;
 
   if (plan) {
     const lead = cookLead(plan);
@@ -323,6 +335,22 @@ export function demo() {
   const overlap: PlanLike = { ...plan, pre_training_snack_time: '18:30', timing_pattern: 'overlap', main_meal_time: '19:20' };
   const o = dayAgenda(profile, overlap, { cooked: false, fastLogged: false }, at(12));
   assert(o.items.find((i) => i.kind === 'snack')!.offset > 0, 'overlap snack is inside the window');
+
+  // A plan kept from before the window moved. Its 18:30 meal is half an hour
+  // *before* a 19:00 opening, which mod() reads as 23.5 hours after it — the
+  // meal then sorted last, cooking printed at 17:50 under a 21:30 row, and
+  // `next` offered a meal a day out.
+  const moved = { ...profile, omad_window_start: '19:00' } as UserProfile;
+  const stale = dayAgenda(moved, plan, { cooked: false, fastLogged: false }, at(12));
+  const staleKinds = stale.items.map((i) => i.kind);
+  assert(
+    JSON.stringify(staleKinds) === JSON.stringify(['cook', 'window_open', 'meal', 'window_close', 'log_fast']),
+    'a plan older than the window still reads in order, got ' + staleKinds.join(',')
+  );
+  assert(
+    stale.items.find((i) => i.kind === 'meal')!.at === '19:00',
+    'a meal that no longer fits the window falls back to the opening, got ' + stale.items.find((i) => i.kind === 'meal')!.at
+  );
 
   // A window crossing midnight must not scramble the order.
   const late = { ...profile, omad_window_start: '23:00', omad_window_hours: 2 } as UserProfile;
