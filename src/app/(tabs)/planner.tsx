@@ -76,7 +76,7 @@ export default function PlannerScreen() {
   const [rotation, setRotation] = useState<CookedRecipe[]>([]);
   const [history, setHistory] = useState<MealPlan[]>([]);
   const [favorites, setFavorites] = useState<MealPlan[]>([]);
-  const [plannerTab, setPlannerTab] = useState<'today' | 'saved'>('today');
+  const [plannerTab, setPlannerTab] = useState<'today' | 'week' | 'saved'>('today');
 
   useFocusEffect(
     useCallback(() => {
@@ -235,10 +235,11 @@ export default function PlannerScreen() {
         <SegmentedControl
           values={[
             { id: 'today', label: t('plan.tabToday'), icon: 'plate' },
+            { id: 'week', label: lang === 'de' ? '7-Tage-Woche' : '7-Day Week', icon: 'chart' },
             { id: 'saved', label: t('plan.tabSaved'), icon: 'clock' },
           ]}
           selected={plannerTab}
-          onSelect={setPlannerTab}
+          onSelect={(id) => setPlannerTab(id as any)}
           tone="plan"
           style={{ marginBottom: Space.base }}
         />
@@ -683,6 +684,116 @@ export default function PlannerScreen() {
             </Enter>
           )}
         </>
+      ) : plannerTab === 'week' ? (
+        /* 7-Day Week Planner Tab */
+        <>
+          <Enter index={1}>
+            <Card style={{ marginTop: Space.base }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.md }}>
+                <View>
+                  <Eyebrow color={c.plan}>{lang === 'de' ? '7-TAGE MAHLZEIT-PERIODISIERUNG' : '7-DAY MEAL PERIODISATION'}</Eyebrow>
+                  <Txt variant="heading" style={{ fontSize: 20, marginTop: 2 }}>
+                    {lang === 'de' ? 'Wochen-Mahlzeitenplan' : 'Weekly Meal Plan'}
+                  </Txt>
+                </View>
+                {!premium && (
+                  <View style={[s.premiumPill, { backgroundColor: c.goldWash, borderColor: c.gold }]}>
+                    <Txt variant="eyebrow" color={c.gold} style={{ fontSize: 10, fontWeight: '800' }}>★ PREMIUM</Txt>
+                  </View>
+                )}
+              </View>
+
+              {!premium ? (
+                <>
+                  <Txt variant="body" color={c.textDim} style={{ lineHeight: 22 }}>
+                    {lang === 'de'
+                      ? 'Plane deine gesamte Trainings- & Fastenwoche im Voraus. Die KI passt Kalorien & Makros automatisch an harte Einheiten und Ruhetage an.'
+                      : 'Plan your entire training and fasting week in advance. AI automatically adjusts macros for hard training sessions vs. recovery days.'}
+                  </Txt>
+
+                  <View style={[s.weekFeatureGrid, { marginTop: Space.base }]}>
+                    <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                      <Txt style={{ fontSize: 20 }}>🗓</Txt>
+                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 4 }}>
+                        {lang === 'de' ? '7-Tage-Vorschau' : '7-Day Overview'}
+                      </Txt>
+                      <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
+                        {lang === 'de' ? 'Mo–So Mahlzeiten im Blick' : 'Mon–Sun meals organized'}
+                      </Txt>
+                    </View>
+                    <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                      <Txt style={{ fontSize: 20 }}>⚡</Txt>
+                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 4 }}>
+                        {lang === 'de' ? 'Makro-Periodisierung' : 'Macro Periodisation'}
+                      </Txt>
+                      <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
+                        {lang === 'de' ? 'Mehr Carbs an Beintagen' : 'High carbs on workout days'}
+                      </Txt>
+                    </View>
+                    <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                      <Txt style={{ fontSize: 20 }}>🛒</Txt>
+                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 4 }}>
+                        {lang === 'de' ? '1x Wocheneinkauf' : '1x Weekly Shopping'}
+                      </Txt>
+                      <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
+                        {lang === 'de' ? 'Konsolidierte Einkaufsliste' : 'Aggregated grocery list'}
+                      </Txt>
+                    </View>
+                  </View>
+
+                  <Button
+                    label={lang === 'de' ? 'Wochenplan freischalten' : 'Unlock Weekly Planner'}
+                    onPress={() => router.push('/paywall')}
+                    tone="plan"
+                    style={{ marginTop: Space.base }}
+                  />
+                </>
+              ) : (
+                /* Premium 7-Day Day-by-Day View */
+                <View style={{ marginTop: Space.sm }}>
+                  {['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'].map((dayName, idx) => {
+                    const isWorkoutDay = idx % 2 === 0;
+                    return (
+                      <View key={dayName} style={[s.weekDayRow, { borderColor: c.line }]}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Txt variant="bodyMedium" style={{ fontWeight: '700' }}>{dayName}</Txt>
+                            <View style={[s.workoutDayBadge, {
+                              backgroundColor: isWorkoutDay ? c.planWash : c.well,
+                              borderColor: isWorkoutDay ? c.plan : c.line,
+                            }]}>
+                              <Txt variant="eyebrow" color={isWorkoutDay ? c.plan : c.textDim} style={{ fontSize: 9 }}>
+                                {isWorkoutDay ? (lang === 'de' ? 'TRAINING' : 'WORKOUT') : (lang === 'de' ? 'RUHETAG' : 'REST')}
+                              </Txt>
+                            </View>
+                          </View>
+                          <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                            {isWorkoutDay
+                              ? `${preview.kcal} kcal · ${preview.protein_g}g P · ${preview.carbs_g}g C`
+                              : `${Math.round(preview.kcal * 0.85)} kcal · ${preview.protein_g}g P · Moderate Carbs`}
+                          </Txt>
+                        </View>
+                        <Tap
+                          onPress={() => {
+                            setIsRestDay(!isWorkoutDay);
+                            setPlannerTab('today');
+                          }}
+                        >
+                          <View style={[s.dayPlanBtn, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
+                            <Icon name="plate" size={14} color={c.plan} />
+                            <Txt variant="eyebrow" color={c.plan} style={{ marginLeft: 4, fontSize: 10, fontWeight: '700' }}>
+                              {lang === 'de' ? 'PLANEN' : 'PLAN'}
+                            </Txt>
+                          </View>
+                        </Tap>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </Card>
+          </Enter>
+        </>
       ) : (
         /* Saved plans tab */
         <>
@@ -850,5 +961,29 @@ const s = StyleSheet.create({
     borderWidth: 1, borderRadius: Radius.md,
     paddingHorizontal: Space.base, paddingVertical: Space.md,
     marginTop: Space.base, marginBottom: Space.xl,
+  },
+  premiumPill: {
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: Radius.pill, borderWidth: 1,
+  },
+  weekFeatureGrid: {
+    flexDirection: 'row', gap: Space.sm,
+  },
+  weekFeatureCard: {
+    flex: 1, padding: Space.sm,
+    borderRadius: Radius.md, borderWidth: 1,
+  },
+  weekDayRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: Space.md, borderBottomWidth: 1,
+  },
+  workoutDayBadge: {
+    marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: Radius.pill, borderWidth: 1,
+  },
+  dayPlanBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: Radius.pill, borderWidth: 1,
   },
 });

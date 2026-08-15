@@ -17,6 +17,7 @@ import { WindowShifterModal } from '@/components/WindowShifterModal';
 import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
 import { BreakFastGuideModal } from '@/components/BreakFastGuideModal';
 import { todayISO } from '@/lib/dates';
+import { haptic } from '@/lib/haptic';
 
 const { width } = Dimensions.get('window');
 const DIAL_SIZE = Math.min(width - 48, 300);
@@ -71,12 +72,14 @@ export default function TimerScreen() {
   const strokeDashoffset = CIRCUMFERENCE - (CIRCUMFERENCE * Math.min(100, fast.progressPct)) / 100;
 
   const addWater = async (ml: number) => {
+    haptic('light');
     const nextH = { ...hydration, ml: Math.min(8000, hydration.ml + ml) };
     setHydration(nextH);
     await saveHydration(nextH);
   };
 
   const endAndLog = async () => {
+    haptic('success');
     await markFastComplete();
     setLogged(true);
     setShowCelebration(true);
