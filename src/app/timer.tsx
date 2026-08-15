@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { useEffect, useState, useCallback } from 'react';
+import { View, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Space, Radius, Type } from '@/constants/theme';
 import { Screen, Txt, Eyebrow, Enter, Button, useTheme, PageHeader } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
-import { loadProfileOrDefault, loadHydration, saveHydration, markFastComplete, type Hydration } from '@/lib/store';
+import {
+  loadProfileOrDefault, loadHydration, saveHydration, markFastComplete,
+  loadTodayWindowShift, type Hydration,
+} from '@/lib/store';
 import { fastingState, fastingStage, formatCountdown, type UserProfile, type FastingState } from '@/lib/nutrition';
 import { FastingFeelingBar } from '@/components/FastingFeelingBar';
+import { WindowShifterModal } from '@/components/WindowShifterModal';
 import { todayISO } from '@/lib/dates';
 
 const { width } = Dimensions.get('window');
@@ -19,18 +23,30 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export default function TimerScreen() {
   const c = useTheme();
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const router = useRouter();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [fast, setFast] = useState<FastingState | null>(null);
   const [hydration, setHydration] = useState<Hydration>({ date: todayISO(), ml: 0, electrolytes: false });
   const [logged, setLogged] = useState(false);
+  const [showShifter, setShowShifter] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const [p, h, shift] = await Promise.all([
+      loadProfileOrDefault(),
+      loadHydration(),
+      loadTodayWindowShift(),
+    ]);
+    const effectiveProfile = shift ? { ...p, omad_window_start: shift.window_start } : p;
+    setProfile(effectiveProfile);
+    setHydration(h);
+  }, []);
 
   useEffect(() => {
-    loadProfileOrDefault().then(setProfile);
-    loadHydration().then(setHydration);
-  }, []);
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     if (!profile) return;
@@ -58,9 +74,12 @@ export default function TimerScreen() {
   const endAndLog = async () => {
     await markFastComplete();
     setLogged(true);
-    setTimeout(() => {
-      router.push('/(tabs)');
-    }, 800);
+    setShowCelebration(true);
+  };
+
+  const closeCelebrationAndLeave = () => {
+    setShowCelebration(false);
+    router.push('/(tabs)');
   };
 
   const phaseColor =
@@ -154,6 +173,18 @@ export default function TimerScreen() {
             </Txt>
           </View>
         </View>
+
+        {/* Quick Shift Button */}
+        <TouchableOpacity
+          onPress={() => setShowShifter(true)}
+          activeOpacity={0.7}
+          style={[s.shiftBtn, { backgroundColor: c.well, borderColor: c.line }]}
+        >
+          <Icon name="clock" size={13} color={c.accent} />
+          <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 6, fontSize: 11, fontWeight: '800' }}>
+            {lang === 'de' ? 'FENSTER HEUTE VERSCHIEBEN' : 'SHIFT TODAY’S WINDOW'}
+          </Txt>
+        </TouchableOpacity>
       </Enter>
 
       {/* Biological Phase Details Card */}
@@ -215,12 +246,63 @@ export default function TimerScreen() {
       {/* End Fast Button */}
       <Enter index={5} style={{ marginBottom: 40 }}>
         <Button
-          label={logged ? 'Fasten erfolgreich geloggt ✓' : 'Fasten für heute abschließen & loggen'}
+          label={logged ? 'Fasten geloggt ✓' : 'Fasten für heute abschließen & loggen'}
           icon="check"
           tone={logged ? 'plan' : 'accent'}
           onPress={endAndLog}
         />
       </Enter>
+
+      {/* Window Shifter Modal */}
+      <WindowShifterModal
+        visible={showShifter}
+        onClose={() => setShowShifter(false)}
+        baseStart={profile.omad_window_start}
+        baseLengthHours={profile.omad_window_hours}
+        onShiftApplied={refresh}
+      />
+
+      {/* Celebration Modal */}
+      <Modal visible={showCelebration} transparent animationType="fade" onRequestClose={closeCelebrationAndLeave}>
+        <View style={s.modalBackdrop}>
+          <View style={[s.celebrationCard, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
+            <View style={[s.flameBigBadge, { backgroundColor: c.emberWash }]}>
+              <Icon name="flame" size={36} color={c.ember} />
+            </View>
+
+            <Txt variant="heading" style={{ fontSize: 24, fontWeight: '800', textAlign: 'center', marginTop: Space.md }}>
+              {lang === 'de' ? 'Fasten erfolgreich beendet!' : 'Fast Completed!'}
+            </Txt>
+            <Txt variant="body" color={c.textDim} style={{ textAlign: 'center', marginTop: Space.xs, lineHeight: 20 }}>
+              {lang === 'de'
+                ? `Du hast heute ${hoursFasted.toFixed(1)} Stunden gefastet und die Stufe "${stage.label}" erreicht.`
+                : `You fasted ${hoursFasted.toFixed(1)} hours today and reached the "${stage.label}" phase.`}
+            </Txt>
+
+            <View style={[s.celebrationStats, { backgroundColor: c.well, borderColor: c.line }]}>
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Eyebrow color={c.accent}>{lang === 'de' ? 'GEFASTET' : 'FASTED'}</Eyebrow>
+                <Txt variant="heading" style={{ fontSize: 20, fontWeight: '800', marginTop: 2 }}>
+                  {hoursFasted.toFixed(1)}h
+                </Txt>
+              </View>
+              <View style={{ width: 1, height: 32, backgroundColor: c.line }} />
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Eyebrow color={phaseColor}>{lang === 'de' ? 'PHASE' : 'PHASE'}</Eyebrow>
+                <Txt variant="heading" color={phaseColor} style={{ fontSize: 20, fontWeight: '800', marginTop: 2 }}>
+                  {stage.label}
+                </Txt>
+              </View>
+            </View>
+
+            <Button
+              label={lang === 'de' ? 'Guten Appetit! (Zur Übersicht)' : 'Enjoy your meal! (Dashboard)'}
+              onPress={closeCelebrationAndLeave}
+              style={{ marginTop: Space.lg }}
+            />
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -250,6 +332,15 @@ const s = StyleSheet.create({
     lineHeight: 40,
     fontWeight: '800',
     letterSpacing: -1,
+  },
+  shiftBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    marginTop: Space.md,
   },
   phaseCard: {
     borderRadius: Radius.lg,
@@ -287,5 +378,37 @@ const s = StyleSheet.create({
     borderRadius: Radius.pill,
     borderWidth: 1,
     marginRight: Space.xs,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Space.base,
+  },
+  celebrationCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    padding: Space.lg,
+    alignItems: 'center',
+  },
+  flameBigBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Space.xs,
+  },
+  celebrationStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginTop: Space.md,
   },
 });

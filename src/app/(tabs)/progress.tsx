@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Space, Radius } from '@/constants/theme';
@@ -7,6 +7,7 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, PageHeader, Bar, Empty, Tap,
   PairedBars, NavRow, Columns, SegmentedControl, useTheme,
 } from '@/components/ui';
+import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
@@ -827,7 +828,23 @@ export default function ProgressScreen() {
 
         {entries.length > 0 ? (
           <Enter index={3}>
-            <Eyebrow color={c.body} style={{ marginBottom: Space.md, marginTop: Space.sm }}>Wäge-Historie</Eyebrow>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.md, marginTop: Space.sm }}>
+              <Eyebrow color={c.body}>Wäge-Historie</Eyebrow>
+              <TouchableOpacity
+                onPress={() => {
+                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    window.print?.();
+                  }
+                }}
+                activeOpacity={0.7}
+                style={[s.reportBtn, { backgroundColor: c.well, borderColor: c.line }]}
+              >
+                <Icon name="share" size={12} color={c.accent} />
+                <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 4, fontSize: 10, fontWeight: '700' }}>
+                  {lang === 'de' ? 'BERICHT DRUCKEN / PDF' : 'PRINT REPORT / PDF'}
+                </Txt>
+              </TouchableOpacity>
+            </View>
             <Card style={{ paddingVertical: Space.sm }}>
               {entries.slice(0, 15).map((e, i) => {
                 const prev = entries[i + 1];
@@ -898,5 +915,13 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: Radius.pill,
     marginTop: 4,
+  },
+  reportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
 });
