@@ -17,11 +17,12 @@ import {
 } from '@/lib/nutrition';
 import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
 import { formatReadableDate } from '@/lib/dates';
+import { WindowShifterModal } from '@/components/WindowShifterModal';
 import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
   remindersOffered, markRemindersOffered,
-  saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, type Hydration,
+  saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, loadTodayWindowShift, type Hydration,
 } from '@/lib/store';
 import {
   readTrend, effectiveMaintenance, intakeQuestionFor, scaleJump, readiness,
@@ -66,6 +67,7 @@ export default function DashboardScreen() {
   const [answered, setAnswered] = useState<{ date: string; factor: number } | null>(null);
   const [trend, setTrend] = useState<ReturnType<typeof readTrend> | null>(null);
   const [measured, setMeasured] = useState<number | undefined>(undefined);
+  const [showShifter, setShowShifter] = useState(false);
 
   useEffect(() => {
     setDateLabel(formatReadableDate(new Date(), lang));
@@ -73,18 +75,20 @@ export default function DashboardScreen() {
   }, [lang]);
 
   const refresh = useCallback(async () => {
-    const [p, h, fl, cl, last, weights, intake, prem] = await Promise.all([
+    const [p, h, fl, cl, last, weights, intake, prem, shift] = await Promise.all([
       loadProfileOrDefault(), loadHydration(), loadFastLog(), loadCookLog(),
       loadLastPlan<MealPlan>(), loadWeightLog(), loadIntakeLog(), isPremium(),
+      loadTodayWindowShift(),
     ]);
-    setQuestion(intakeQuestionFor(p, intake));
+    const effectiveProfile = shift ? { ...p, omad_window_start: shift.window_start } : p;
+    setQuestion(intakeQuestionFor(effectiveProfile, intake));
     const latest = [...(intake ?? [])].sort((a, b) => a.date.localeCompare(b.date)).pop();
     setAnswered(latest ? { date: latest.date, factor: latest.factor } : null);
     setTrend(readTrend(weights));
     setJump(scaleJump(weights, intake));
     setNeed(readiness(intake, weights));
-    setMeasured(effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem));
-    setProfile(p);
+    setMeasured(effectiveMaintenance(intake, weights, dailyTargets(effectiveProfile, null).maintenance_kcal, prem));
+    setProfile(effectiveProfile);
     setHydration(h);
     setFastLog(fl);
     setStreak(currentStreak(fl));
@@ -259,7 +263,19 @@ export default function DashboardScreen() {
             isEating={fast.isEating}
           />
         </TouchableOpacity>
-        <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: Space.base }}>
+          <Eyebrow>{windowLabel}</Eyebrow>
+          <TouchableOpacity
+            onPress={() => setShowShifter(true)}
+            activeOpacity={0.7}
+            style={[s.shiftPill, { backgroundColor: c.well, borderColor: c.line }]}
+          >
+            <Icon name="clock" size={11} color={c.accent} />
+            <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 4, fontSize: 10, fontWeight: '700' }}>
+              {lang === 'de' ? 'VERSCHIEBEN' : 'SHIFT'}
+            </Txt>
+          </TouchableOpacity>
+        </View>
       </Enter>
 
       {/* 2x2 Vibrant Bento Grid */}
@@ -624,6 +640,14 @@ export default function DashboardScreen() {
         <NavRow icon="chart" tone="body" title="Verlauf & Trend" sub="Gewicht, Kalibrierung & Historie" onPress={() => router.push('/progress')} />
         <NavRow icon="coach" title="Fasten-Coach" sub="KI-Beratung für Fasten & Makros" onPress={() => router.push('/chat')} />
       </Enter>
+
+      <WindowShifterModal
+        visible={showShifter}
+        onClose={() => setShowShifter(false)}
+        baseStart={profile.omad_window_start}
+        baseLengthHours={profile.omad_window_hours}
+        onShiftApplied={refresh}
+      />
     </Screen>
   );
 }
@@ -718,5 +742,14 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: Radius.pill,
     marginBottom: 2,
+  },
+  shiftPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    marginLeft: Space.sm,
   },
 });

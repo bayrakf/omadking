@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { View, StyleSheet, Image } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
 import { Card, Txt, Eyebrow, Tap, useTheme, useTone } from './ui';
 import { useT } from './lang';
 import { Icon } from './icons';
 import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
+import { isFavoriteRecipe, toggleFavoriteRecipe } from '@/lib/store';
 import type { MealPlan } from '@/lib/ai';
 
 /**
@@ -25,7 +26,17 @@ export default function RecipeCard({
   const t = useT();
   const plan_ = useTone('plan');
   const [done, setDone] = useState<Record<string, boolean>>({});
+  const [favorite, setFavorite] = useState(false);
   const toggle = (k: string) => setDone((p) => ({ ...p, [k]: !p[k] }));
+
+  useEffect(() => {
+    isFavoriteRecipe(plan.recipe.title).then(setFavorite);
+  }, [plan.recipe.title]);
+
+  const onToggleFav = async () => {
+    const next = await toggleFavoriteRecipe(plan);
+    setFavorite(next);
+  };
 
   const cook = splitSteps(plan.recipe.instructions);
   const reheat = splitSteps(plan.recipe.reheat_instructions ?? '');
@@ -76,11 +87,30 @@ export default function RecipeCard({
 
   return (
     <Card style={{ marginTop: Space.md }}>
-      <Image
-        source={require('../../assets/images/omad_plate_hero.jpg')}
-        style={s.foodImage}
-        resizeMode="cover"
-      />
+      <View style={s.imageWrapper}>
+        <Image
+          source={require('../../assets/images/omad_plate_hero.jpg')}
+          style={s.foodImage}
+          resizeMode="cover"
+        />
+        <TouchableOpacity
+          onPress={onToggleFav}
+          activeOpacity={0.75}
+          style={[
+            s.favBtn,
+            {
+              backgroundColor: favorite ? '#EF4444' : 'rgba(8, 12, 20, 0.75)',
+              borderColor: favorite ? '#EF4444' : 'rgba(255, 255, 255, 0.25)',
+            },
+          ]}
+          accessibilityLabel={favorite ? 'Favorit' : 'Als Favorit speichern'}
+        >
+          <Icon name="check" size={13} color="#FFFFFF" strokeWidth={2.4} />
+          <Txt variant="eyebrow" color="#FFFFFF" style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
+            {favorite ? 'FAVORIT' : '+FAVORIT'}
+          </Txt>
+        </TouchableOpacity>
+      </View>
       <Eyebrow style={{ marginTop: Space.xs }}>{t('recipe.prep', { min: plan.recipe.prep_time_min ?? 30 })}</Eyebrow>
       <Txt variant="heading" style={s.recipeTitle}>{plan.recipe.title}</Txt>
 
@@ -183,11 +213,28 @@ export default function RecipeCard({
 }
 
 const s = StyleSheet.create({
-  foodImage: {
+  imageWrapper: {
+    position: 'relative',
     width: '100%',
     height: 170,
     borderRadius: Radius.md,
+    overflow: 'hidden',
     marginBottom: Space.sm,
+  },
+  foodImage: {
+    width: '100%',
+    height: '100%',
+  },
+  favBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
   subCard: {
     padding: Space.base,

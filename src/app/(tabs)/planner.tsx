@@ -17,7 +17,7 @@ import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
 import {
   loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
   loadLastSession, saveLastSession, loadPortions, savePortions,
-  loadIntakeLog, loadWeightLog, isPremium, loadCookedRecipes, todayISO, type Quota,
+  loadIntakeLog, loadWeightLog, isPremium, loadCookedRecipes, loadFavoriteRecipes, todayISO, type Quota,
 } from '@/lib/store';
 import type { CookedRecipe } from '@/lib/grocery';
 import { effectiveMaintenance } from '@/lib/energy';
@@ -66,6 +66,7 @@ export default function PlannerScreen() {
   const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [rotation, setRotation] = useState<CookedRecipe[]>([]);
   const [history, setHistory] = useState<MealPlan[]>([]);
+  const [favorites, setFavorites] = useState<MealPlan[]>([]);
   const [plannerTab, setPlannerTab] = useState<'today' | 'saved'>('today');
 
   useFocusEffect(
@@ -73,7 +74,7 @@ export default function PlannerScreen() {
       let active = true;
       (async () => {
         const p = await loadProfileOrDefault();
-        const [h, q, batch, intake, weights, prem, cooked, last] = await Promise.all([
+        const [h, q, batch, intake, weights, prem, cooked, last, favs] = await Promise.all([
           loadPlanHistory<MealPlan>(),
           getQuota(),
           loadPortions(),
@@ -81,9 +82,8 @@ export default function PlannerScreen() {
           loadWeightLog(),
           isPremium(),
           loadCookedRecipes(),
-          // Prefill from the last session, falling back to the profile's usual
-          // training time when there is nothing stored yet.
           loadLastSession(p.default_training_time),
+          loadFavoriteRecipes(),
         ]);
         if (!active) return;
         setProfile(p);
@@ -96,6 +96,7 @@ export default function PlannerScreen() {
         setQuota(q);
         setPortions(batch);
         setRotation(cooked);
+        setFavorites(favs);
         setMeasured(
           effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem)
         );
@@ -391,11 +392,40 @@ export default function PlannerScreen() {
       ) : (
         <>
           {/* Saved & History Tab */}
-          {rotation.length > 0 && (
+          {favorites.length > 0 && (
             <Enter index={1}>
               <View style={[s.rotationHead, { marginTop: Space.base }]}>
-                <Eyebrow color={c.plan}>Cooked before</Eyebrow>
-                <Txt variant="data" color={c.textFaint}>no quota used</Txt>
+                <Eyebrow color="#EF4444">⭐️ {lang === 'de' ? 'Gespeicherte Favoriten' : 'Saved Favorites'}</Eyebrow>
+                <Txt variant="data" color={c.textFaint}>{favorites.length} {lang === 'de' ? 'Rezepte' : 'recipes'}</Txt>
+              </View>
+              {favorites.map((f, i) => (
+                <Tap
+                  key={`fav-${f.recipe.title}-${i}`}
+                  onPress={() => {
+                    setPlan(f);
+                    setPlannerTab('today');
+                  }}
+                  accessibilityLabel={`Cook ${f.recipe.title}`}
+                >
+                  <View style={[s.histRow, { borderColor: '#EF4444', backgroundColor: c.surface }]}>
+                    <View style={{ flex: 1 }}>
+                      <Txt variant="bodyMedium" numberOfLines={2}>{f.recipe.title}</Txt>
+                      <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
+                        {f.total_kcal} kcal · {f.protein_g}g Protein
+                      </Txt>
+                    </View>
+                    <Icon name="chevronRight" size={16} color="#EF4444" />
+                  </View>
+                </Tap>
+              ))}
+            </Enter>
+          )}
+
+          {rotation.length > 0 && (
+            <Enter index={favorites.length > 0 ? 2 : 1} style={{ marginTop: favorites.length > 0 ? Space.xl : 0 }}>
+              <View style={[s.rotationHead, { marginTop: Space.base }]}>
+                <Eyebrow color={c.plan}>Zuletzt gekocht (Rotation)</Eyebrow>
+                <Txt variant="data" color={c.textFaint}>ohne Kontingent</Txt>
               </View>
               {rotation.slice(0, 6).map((r) => (
                 <Tap
@@ -412,7 +442,7 @@ export default function PlannerScreen() {
                     <View style={{ flex: 1 }}>
                       <Txt variant="bodyMedium" numberOfLines={2}>{r.title}</Txt>
                       <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
-                        cooked {r.count}×{r.lastCooked ? ` · last ${r.lastCooked}` : ''}
+                        gekocht {r.count}×{r.lastCooked ? ` · zuletzt ${r.lastCooked}` : ''}
                       </Txt>
                     </View>
                     <Icon name="chevronRight" size={16} color={c.textFaint} />
@@ -423,7 +453,7 @@ export default function PlannerScreen() {
           )}
 
           {history.length > 0 && (
-            <Enter index={2} style={{ marginTop: rotation.length > 0 ? Space.xl : Space.base }}>
+            <Enter index={3} style={{ marginTop: Space.xl }}>
               <Eyebrow color={c.plan} style={{ marginBottom: Space.md }}>{t('plan.recent')}</Eyebrow>
               {history.map((h, i) => (
                 <Tap
@@ -448,7 +478,7 @@ export default function PlannerScreen() {
             </Enter>
           )}
 
-          {rotation.length === 0 && history.length === 0 && (
+          {favorites.length === 0 && rotation.length === 0 && history.length === 0 && (
             <Enter index={1}>
               <Card style={{ marginTop: Space.base, alignItems: 'center', paddingVertical: Space.xxl }}>
                 <Icon name="plate" size={28} color={c.textFaint} />

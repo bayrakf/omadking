@@ -32,6 +32,8 @@ export const KEYS = {
   portions: 'cook_portions',
   intakeLog: 'intake_log',
   cookedRecipes: 'cooked_recipes',
+  favoriteRecipes: 'favorite_recipes',
+  todayWindowShift: 'today_window_shift',
   syncedAt: 'sync_last',
 } as const;
 
@@ -445,4 +447,49 @@ export async function unmarkCooked(date = todayISO()): Promise<string[]> {
   const next = (await loadCookLog()).filter((d) => d !== date);
   await writeJSON(KEYS.cookLog, next);
   return next;
+}
+
+// --- Favorite Recipes ------------------------------------------------------
+
+export async function loadFavoriteRecipes(): Promise<any[]> {
+  return await readJSON<any[]>(KEYS.favoriteRecipes, []);
+}
+
+export async function isFavoriteRecipe(title: string): Promise<boolean> {
+  const favs = await loadFavoriteRecipes();
+  return favs.some((f) => f?.recipe?.title === title);
+}
+
+export async function toggleFavoriteRecipe(plan: any): Promise<boolean> {
+  const title = plan?.recipe?.title;
+  if (!title) return false;
+  const favs = await loadFavoriteRecipes();
+  const exists = favs.some((f) => f?.recipe?.title === title);
+  const updated = exists
+    ? favs.filter((f) => f?.recipe?.title !== title)
+    : [plan, ...favs.filter((f) => f?.recipe?.title !== title)].slice(0, 50);
+  await writeJSON(KEYS.favoriteRecipes, updated);
+  return !exists;
+}
+
+// --- Dynamic Today Fasting Window Shift ------------------------------------
+
+export interface WindowShift {
+  date: string;
+  window_start: string;
+  window_end: string;
+}
+
+export async function loadTodayWindowShift(): Promise<WindowShift | null> {
+  const shift = await readJSON<WindowShift | null>(KEYS.todayWindowShift, null);
+  if (shift && shift.date === todayISO()) return shift;
+  return null;
+}
+
+export async function saveTodayWindowShift(start: string, end: string, date = todayISO()): Promise<void> {
+  await writeJSON(KEYS.todayWindowShift, { date, window_start: start, window_end: end });
+}
+
+export async function clearTodayWindowShift(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.todayWindowShift).catch(() => {});
 }
