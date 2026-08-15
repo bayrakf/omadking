@@ -259,6 +259,29 @@ try {
     }
   }
 
+  // --- the counter and the bar tell the same story ----------------------
+  //
+  // The target step is skipped for anyone not losing weight. Both the number
+  // and the bar have to be computed from the path this person actually walks,
+  // and the fix once landed on only one of them: the counter read 01/05 while
+  // the bar underneath filled in fifths of six. Half-honest is its own bug, and
+  // a search-and-replace that silently matches nothing is how it happens.
+  {
+    const onboarding = readFileSync('src/app/onboarding.tsx', 'utf8');
+    const wrong = onboarding.match(/\(\s*\(?step \+ 1\)?\s*\/\s*STEPS\s*\)/);
+    if (wrong) {
+      failed = true;
+      console.error('❌ onboarding — the progress indicator divides by the fixed total:', wrong[0],
+        '\n   Skipped steps make that overstate the length. Use stepPosition(step, goal).');
+    } else if (!/here\.position/.test(onboarding) || !/here\.total/.test(onboarding)) {
+      failed = true;
+      console.error('❌ onboarding — the progress indicator no longer reads the walked path.',
+        '\n   Both the counter and the bar come from stepPosition; neither may compute its own.');
+    } else {
+      console.log('✅ the onboarding counter and its bar measure the same path');
+    }
+  }
+
   if (sold.size === 0) {
     failed = true;
     console.error('❌ offer — no screen reads cards.sell at all;',

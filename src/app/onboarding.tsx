@@ -368,7 +368,7 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={[s.progress, { backgroundColor: c.well }]}>
-          <View style={[s.progressFill, { backgroundColor: c.accent, width: `${((step + 1) / STEPS) * 100}%` }]} />
+          <View style={[s.progressFill, { backgroundColor: c.accent, width: `${(here.position / here.total) * 100}%` }]} />
         </View>
 
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
