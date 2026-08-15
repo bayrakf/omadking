@@ -33,6 +33,7 @@ export function DayBand({
   windowLengthMin,
   items,
   isEating,
+  onHero = false,
   style,
 }: {
   /** minutes past local midnight */
@@ -41,6 +42,15 @@ export function DayBand({
   windowLengthMin: number;
   items: AgendaItem[];
   isEating: boolean;
+  /**
+   * Drawn on the filled hero rather than on a card.
+   *
+   * The page palette is built for light-on-light and dark-on-dark; none of it
+   * has contrast against a saturated block. On the hero the strip borrows the
+   * hero's own foreground and a translucent track, so it stays legible without
+   * a second set of tokens that would have to be kept in step.
+   */
+  onHero?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
@@ -79,7 +89,14 @@ export function DayBand({
           "now" is a position read off the instrument and not another event
           printed on it. */}
       <View style={styles.bandWrap}>
-        <View style={[styles.track, { backgroundColor: c.well, borderColor: c.line }]}>
+        <View
+          style={[
+            styles.track,
+            onHero
+              ? { backgroundColor: c.heroTrack, borderColor: 'transparent' }
+              : { backgroundColor: c.well, borderColor: c.line },
+          ]}
+        >
           {segments.map((s, i) => (
             <View
               key={i}
@@ -88,7 +105,7 @@ export function DayBand({
                 {
                   left: `${s.from * 100}%`,
                   width: `${(s.to - s.from) * 100}%`,
-                  backgroundColor: isEating ? c.ember : c.accent,
+                  backgroundColor: isEating ? c.ember : onHero ? c.onHero : c.accent,
                 },
               ]}
             />
@@ -96,7 +113,13 @@ export function DayBand({
 
           {/* Dimmer than the marker, deliberately. These are things that
               happen and there are several of them; where you are is one thing
-              and it has to win. At equal weight the eye cannot find it. */}
+              and it has to win. At equal weight the eye cannot find it.
+
+              Dimmer has a floor, though. A past mark was `lineStrong`, which
+              against the track in dark is about 1.5:1 — quiet enough to be
+              gone. A thin light line on a dark ground also reads thinner than
+              the same line inverted, so the width is set here rather than
+              inherited from what looked right in light mode. */}
           {marks.map((m, i) => (
             <View
               key={`${m.kind}-${i}`}
@@ -104,7 +127,11 @@ export function DayBand({
                 styles.mark,
                 {
                   left: `${m.left}%`,
-                  backgroundColor: m.done ? c.positive : m.past ? c.lineStrong : c.textDim,
+                  backgroundColor: m.done
+                    ? c.positive
+                    : onHero
+                      ? c.heroTrack.replace(/[\d.]+\)$/, '0.55)')
+                      : m.past ? c.textFaint : c.textDim,
                 },
               ]}
             />
@@ -118,8 +145,8 @@ export function DayBand({
           ]}
           pointerEvents="none"
         >
-          <View style={[styles.nowHead, { borderTopColor: c.text }]} />
-          <View style={[styles.nowStem, { backgroundColor: c.text }]} />
+          <View style={[styles.nowHead, { borderTopColor: onHero ? c.onHero : c.text }]} />
+          <View style={[styles.nowStem, { backgroundColor: onHero ? c.onHero : c.text }]} />
         </Animated.View>
       </View>
 
@@ -127,7 +154,11 @@ export function DayBand({
         {TICK_HOURS.map((h) => (
           <Text
             key={h}
-            style={[Type.eyebrow, styles.tick, { color: c.textFaint, left: `${(h / 24) * 100}%` }]}
+            style={[
+              Type.eyebrow,
+              styles.tick,
+              { color: onHero ? c.onHero : c.textFaint, opacity: onHero ? 0.55 : 1, left: `${(h / 24) * 100}%` },
+            ]}
           >
             {String(h).padStart(2, '0')}
           </Text>
@@ -148,7 +179,7 @@ const styles = StyleSheet.create({
   },
   window: { position: 'absolute', top: 0, bottom: 0 },
   /** A hairline through the full height, so a moment reads as an instant. */
-  mark: { position: 'absolute', top: 0, bottom: 0, width: 1.5, marginLeft: -0.75 },
+  mark: { position: 'absolute', top: 0, bottom: 0, width: 2, marginLeft: -1 },
   nowWrap: { position: 'absolute', top: 0, bottom: 0, width: 10, marginLeft: -5, alignItems: 'center' },
   /** A downward caret. Border tricks beat shipping an SVG for six triangles. */
   nowHead: {
