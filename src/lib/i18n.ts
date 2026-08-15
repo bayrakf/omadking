@@ -379,6 +379,19 @@ const EN = {
   'today.dailyWeighIn': 'Daily weigh-in',
   'today.dailyWeighInSub': 'Log your morning weight for the maintenance measurement.',
   'today.defaultMeal': 'Nutrient-dense OMAD main meal',
+  // The measured-maintenance card. English keeps the wording the suite pins,
+  // and the approximation note is a standing honesty rule, not a caption.
+  'meas.stale': 'The measurement needs fresh data from the last 21 days — {missing}. Until then the formula applies.',
+  'meas.notEnough': 'Not enough to measure yet — {missing}.',
+  'meas.perDay': ' kcal a day',
+  'meas.spread': '± {n} kcal spread',
+  'meas.yoursNow': 'This is your measured figure. Premium keeps measuring it and moves your plan with it.',
+  'meas.sellKeep': 'Keep it measured',
+  'meas.sellShow': 'Show the measured figure',
+  'meas.matchesFormula': 'Exactly what the formula says.',
+  'meas.offBy': '{n} kcal away from the standard formula. Worked out from {days} days of eating and {weighIns} weigh-ins.',
+  'meas.basedOn': 'Worked out from {days} days of eating and {weighIns} weigh-ins.',
+  'meas.approximation': 'Based on the standard approximation of 7,700 kcal per kilogram. It moves as you do.',
 } as const;
 
 export type Key = keyof typeof EN;
@@ -706,6 +719,17 @@ const DE: Record<Key, string> = {
   'today.dailyWeighIn': 'Tages-Wägung',
   'today.dailyWeighInSub': 'Erfasse dein morgendliches Gewicht für die Stoffwechsel-Messung.',
   'today.defaultMeal': 'Nährstoffreiche OMAD-Hauptmahlzeit',
+  'meas.stale': 'Die Messung benötigt frische Daten der letzten 21 Tage — {missing}. Bis dahin gilt die Formel.',
+  'meas.notEnough': 'Noch nicht genug Daten — {missing}.',
+  'meas.perDay': ' kcal / Tag',
+  'meas.spread': '± {n} kcal Schwankungsbereich',
+  'meas.yoursNow': 'Dies ist dein gemessener Wert. Premium aktualisiert ihn laufend und passt deinen Plan mit an.',
+  'meas.sellKeep': 'Wert dauerhaft messen',
+  'meas.sellShow': 'Messergebnis anzeigen',
+  'meas.matchesFormula': 'Entspricht exakt der Formel.',
+  'meas.offBy': 'Weicht um {n} kcal von der Standard-Formel ab. Ermittelt aus {days} Tagen Ernährung und {weighIns} Wägungen.',
+  'meas.basedOn': 'Ermittelt aus {days} Tagen Ernährung und {weighIns} Wägungen.',
+  'meas.approximation': 'Beruht auf der üblichen Näherung von 7.700 kcal pro Kilogramm. Sie bewegt sich mit dir.',
 };
 
 const TABLES: Record<Lang, Record<Key, string>> = { en: EN, de: DE };

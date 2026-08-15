@@ -645,28 +645,28 @@ export default function ProgressScreen() {
               {measured.kcal === null ? (
                 <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
                   {everMeasured
-                    ? `Die Messung benötigt frische Daten der letzten 21 Tage — ${measured.missing}. Bis dahin gilt die Formel.`
-                    : `Noch nicht genug Daten — ${measured.missing}.`}
+                    ? t('meas.stale', { missing: measured.missing ?? '' })
+                    : t('meas.notEnough', { missing: measured.missing ?? '' })}
                 </Txt>
               ) : premium || preview ? (
                 <>
                   <Txt variant="heading" style={{ marginTop: Space.md, fontSize: 26, fontWeight: '800' }}>
                     {measured.kcal}
-                    <Txt variant="small" color={c.textFaint}> kcal / Tag</Txt>
+                    <Txt variant="small" color={c.textFaint}>{t('meas.perDay')}</Txt>
                   </Txt>
                   {measured.plusMinus !== null && (
                     <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
-                      ± {measured.plusMinus} kcal Schwankungsbereich
+                      {t('meas.spread', { n: measured.plusMinus })}
                     </Txt>
                   )}
                   {!premium && (
                     <>
                       <Txt variant="small" color={c.accent} style={{ marginTop: Space.sm }}>
-                        Dies ist dein gemessener Wert. Premium aktualisiert ihn kontinuierlich und passt deinen Plan dynamisch an.
+                        {t('meas.yoursNow')}
                       </Txt>
                       {cards.sell === 'measured' && (
                         <Button
-                          label="Wert dauerhaft messen"
+                          label={t('meas.sellKeep')}
                           onPress={() => router.push('/paywall')}
                           style={{ marginTop: Space.md }}
                         />
@@ -675,18 +675,31 @@ export default function ProgressScreen() {
                   )}
                   <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
                     {measured.deltaToEstimate === null || measured.deltaToEstimate === 0
-                      ? 'Entspricht exakt der Formel.'
-                      : `Weicht um ${Math.abs(measured.deltaToEstimate)} kcal von der Standard-Formel ab. Ermittelt aus ${measured.intakeDays} Tagen Ernährung und ${measured.weighIns} Wägungen.`}
+                      ? t('meas.matchesFormula')
+                      : t('meas.offBy', {
+                          n: Math.abs(measured.deltaToEstimate),
+                          days: measured.intakeDays,
+                          weighIns: measured.weighIns,
+                        })}
+                  </Txt>
+                  {/* The measurement rests on 7,700 kcal per kilogram, which is
+                      an approximation of body tissue and not a fact about this
+                      person. Saying so is the same standing rule that keeps
+                      "approximate" on the fasting stage — it was lost in the
+                      rewrite, and without it the figure reads as measured to
+                      the calorie. */}
+                  <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
+                    {t('meas.approximation')}
                   </Txt>
                 </>
               ) : (
                 <>
                   <Txt variant="body" style={{ marginTop: Space.md }}>
-                    Ermittelt aus {measured.intakeDays} Tagen Ernährung und {measured.weighIns} Wägungen.
+                    {t('meas.basedOn', { days: measured.intakeDays, weighIns: measured.weighIns })}
                   </Txt>
                   {cards.sell === 'measured' && (
                     <Button
-                      label="Messergebnis anzeigen"
+                      label={t('meas.sellShow')}
                       onPress={() => router.push('/paywall')}
                       style={{ marginTop: Space.md }}
                     />
