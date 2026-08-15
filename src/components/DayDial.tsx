@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef } from 'react';
-import { View, Text, Animated, StyleSheet } from 'react-native';
+import { View, Text, Animated, StyleSheet, Platform } from 'react-native';
 import Svg, { Circle, G, Line, Path, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { Type, Font, Radius } from '@/constants/theme';
 import { useTheme, useReducedMotion } from './ui';
@@ -105,7 +105,7 @@ export default function DayDial({
           </LinearGradient>
         </Defs>
 
-        <G rotation={-90} origin={`${cx}, ${cy}`}>
+        <G transform={`rotate(-90 ${cx} ${cy})`}>
           {/* The whole day. */}
           <Circle cx={cx} cy={cy} r={r} stroke={c.dialTrack} strokeWidth={stroke} fill="none" />
 
@@ -123,17 +123,31 @@ export default function DayDial({
           />
 
           {/* The eating window. */}
-          <AnimatedCircle
-            cx={cx}
-            cy={cy}
-            r={r}
-            stroke="url(#dialEatGrad)"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            fill="none"
-            strokeDasharray={windowDash as unknown as string}
-            strokeDashoffset={at(windowStartMin)}
-          />
+          {Platform.OS === 'web' || reduced ? (
+            <Circle
+              cx={cx}
+              cy={cy}
+              r={r}
+              stroke="url(#dialEatGrad)"
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={`${arc(windowLengthMin)}, ${C}`}
+              strokeDashoffset={at(windowStartMin)}
+            />
+          ) : (
+            <AnimatedCircle
+              cx={cx}
+              cy={cy}
+              r={r}
+              stroke="url(#dialEatGrad)"
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={windowDash as unknown as string}
+              strokeDashoffset={at(windowStartMin)}
+            />
+          )}
 
           {/* The session, on its own outer track. */}
           {training && (
