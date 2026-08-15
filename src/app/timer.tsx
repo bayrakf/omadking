@@ -12,7 +12,10 @@ import {
 } from '@/lib/store';
 import { fastingState, fastingStage, formatCountdown, type UserProfile, type FastingState } from '@/lib/nutrition';
 import { FastingFeelingBar } from '@/components/FastingFeelingBar';
+import { DailyFastingNote } from '@/components/DailyFastingNote';
 import { WindowShifterModal } from '@/components/WindowShifterModal';
+import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
+import { BreakFastGuideModal } from '@/components/BreakFastGuideModal';
 import { todayISO } from '@/lib/dates';
 
 const { width } = Dimensions.get('window');
@@ -32,6 +35,8 @@ export default function TimerScreen() {
   const [logged, setLogged] = useState(false);
   const [showShifter, setShowShifter] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showMetabolic, setShowMetabolic] = useState(false);
+  const [showBreakFast, setShowBreakFast] = useState(false);
 
   const refresh = useCallback(async () => {
     const [p, h, shift] = await Promise.all([
@@ -189,13 +194,22 @@ export default function TimerScreen() {
 
       {/* Biological Phase Details Card */}
       <Enter index={2}>
-        <View style={[s.phaseCard, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setShowMetabolic(true)}
+          style={[s.phaseCard, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}
+        >
           <View style={s.phaseHead}>
             <View style={[s.phaseIconBox, { backgroundColor: `${phaseColor}22` }]}>
               <Icon name="flame" size={18} color={phaseColor} />
             </View>
             <View style={{ flex: 1, marginLeft: Space.sm }}>
-              <Eyebrow color={phaseColor}>Biologische Stoffwechsel-Phase</Eyebrow>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Eyebrow color={phaseColor}>Biologische Stoffwechsel-Phase</Eyebrow>
+                <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 10, fontWeight: '800' }}>
+                  24H GUIDE ›
+                </Txt>
+              </View>
               <Txt variant="subheading" style={{ fontSize: 16, fontWeight: '800', marginTop: 1 }}>
                 {stage.label} ({hoursFasted.toFixed(1)}h gefastet)
               </Txt>
@@ -204,7 +218,7 @@ export default function TimerScreen() {
           <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm, lineHeight: 19 }}>
             {stage.note}
           </Txt>
-        </View>
+        </TouchableOpacity>
       </Enter>
 
       {/* Quick Hydration Chips */}
@@ -238,13 +252,36 @@ export default function TimerScreen() {
         </View>
       </Enter>
 
-      {/* Daily Feeling Logger */}
+      {/* Daily Feeling Logger & Journal */}
       <Enter index={4}>
         <FastingFeelingBar />
+        <DailyFastingNote />
+      </Enter>
+
+      {/* Break Fast Guide Button */}
+      <Enter index={5} style={{ marginBottom: Space.md }}>
+        <TouchableOpacity
+          onPress={() => setShowBreakFast(true)}
+          activeOpacity={0.75}
+          style={[s.breakFastRow, { backgroundColor: c.surface, borderColor: '#10B981' }]}
+        >
+          <View style={[s.breakIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+            <Icon name="shield" size={18} color="#10B981" />
+          </View>
+          <View style={{ flex: 1, marginLeft: Space.sm }}>
+            <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>
+              {lang === 'de' ? 'Fastenbrechen-Protokoll' : 'Break-Fast Protocol'}
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 11 }}>
+              {lang === 'de' ? '3-Stufen-Regel gegen das Food-Coma' : '3 steps to prevent food coma'}
+            </Txt>
+          </View>
+          <Icon name="chevronRight" size={16} color="#10B981" />
+        </TouchableOpacity>
       </Enter>
 
       {/* End Fast Button */}
-      <Enter index={5} style={{ marginBottom: 40 }}>
+      <Enter index={6} style={{ marginBottom: 40 }}>
         <Button
           label={logged ? 'Fasten geloggt ✓' : 'Fasten für heute abschließen & loggen'}
           icon="check"
@@ -253,13 +290,24 @@ export default function TimerScreen() {
         />
       </Enter>
 
-      {/* Window Shifter Modal */}
+      {/* Modals */}
       <WindowShifterModal
         visible={showShifter}
         onClose={() => setShowShifter(false)}
         baseStart={profile.omad_window_start}
         baseLengthHours={profile.omad_window_hours}
         onShiftApplied={refresh}
+      />
+
+      <MetabolicTimelineModal
+        visible={showMetabolic}
+        onClose={() => setShowMetabolic(false)}
+        hoursFasted={hoursFasted}
+      />
+
+      <BreakFastGuideModal
+        visible={showBreakFast}
+        onClose={() => setShowBreakFast(false)}
       />
 
       {/* Celebration Modal */}
@@ -378,6 +426,20 @@ const s = StyleSheet.create({
     borderRadius: Radius.pill,
     borderWidth: 1,
     marginRight: Space.xs,
+  },
+  breakFastRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Space.sm,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  breakIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalBackdrop: {
     flex: 1,

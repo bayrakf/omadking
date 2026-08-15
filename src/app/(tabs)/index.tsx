@@ -18,11 +18,15 @@ import {
 import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
 import { formatReadableDate } from '@/lib/dates';
 import { WindowShifterModal } from '@/components/WindowShifterModal';
+import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
+import { BreakFastGuideModal } from '@/components/BreakFastGuideModal';
+import { DailyFastingNote } from '@/components/DailyFastingNote';
 import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
   remindersOffered, markRemindersOffered,
-  saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, loadTodayWindowShift, type Hydration,
+  saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, loadTodayWindowShift,
+  loadDailySteps, saveDailySteps, type Hydration,
 } from '@/lib/store';
 import {
   readTrend, effectiveMaintenance, intakeQuestionFor, scaleJump, readiness,
@@ -68,17 +72,26 @@ export default function DashboardScreen() {
   const [trend, setTrend] = useState<ReturnType<typeof readTrend> | null>(null);
   const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [showShifter, setShowShifter] = useState(false);
+  const [showMetabolic, setShowMetabolic] = useState(false);
+  const [showBreakFast, setShowBreakFast] = useState(false);
+  const [steps, setSteps] = useState(0);
 
   useEffect(() => {
     setDateLabel(formatReadableDate(new Date(), lang));
     setMounted(true);
   }, [lang]);
 
+  const addSteps = async (count: number) => {
+    const next = steps + count;
+    setSteps(next);
+    await saveDailySteps(next);
+  };
+
   const refresh = useCallback(async () => {
-    const [p, h, fl, cl, last, weights, intake, prem, shift] = await Promise.all([
+    const [p, h, fl, cl, last, weights, intake, prem, shift, st] = await Promise.all([
       loadProfileOrDefault(), loadHydration(), loadFastLog(), loadCookLog(),
       loadLastPlan<MealPlan>(), loadWeightLog(), loadIntakeLog(), isPremium(),
-      loadTodayWindowShift(),
+      loadTodayWindowShift(), loadDailySteps(),
     ]);
     const effectiveProfile = shift ? { ...p, omad_window_start: shift.window_start } : p;
     setQuestion(intakeQuestionFor(effectiveProfile, intake));
@@ -96,6 +109,7 @@ export default function DashboardScreen() {
     setCooked(cl.includes(todayISO()));
     setPlan(last?.date === todayISO() ? last : null);
     setWeighedToday(weights.some((w) => w.date === todayISO()));
+    setSteps(st);
   }, []);
 
   useFocusEffect(
@@ -278,7 +292,7 @@ export default function DashboardScreen() {
         </View>
       </Enter>
 
-      {/* 2x2 Vibrant Bento Grid */}
+      {/* Vibrant Bento Grid */}
       <Enter index={2}>
         <BentoGrid>
           <BentoTile
@@ -288,7 +302,9 @@ export default function DashboardScreen() {
             icon="flame"
             color="#8B5CF6"
             wash="rgba(139, 92, 246, 0.18)"
-            subtitle={`${hoursFasted.toFixed(1)}h gefastet · Fettverbrennung`}
+            subtitle={`${hoursFasted.toFixed(1)}h gefastet · 24h Bio-Guide`}
+            actionLabel="Guide"
+            onPress={() => setShowMetabolic(true)}
           />
 
           <BentoTile
@@ -347,11 +363,53 @@ export default function DashboardScreen() {
             actionLabel="Verlauf"
             onPress={() => router.push('/progress')}
           />
+
+          <BentoTile
+            title={lang === 'de' ? 'Schritte & Aktivität' : 'Steps & Activity'}
+            value={steps > 0 ? `${steps.toLocaleString()}` : '0'}
+            unit={lang === 'de' ? 'Schritte' : 'steps'}
+            badge={steps >= 8000 ? 'Ziel ✓' : `${Math.round((steps / 8000) * 100)}%`}
+            icon="flame"
+            color="#F59E0B"
+            wash="rgba(245, 158, 11, 0.18)"
+            subtitle={`~${Math.round(steps * 0.038)} kcal Bonus`}
+          >
+            <View style={s.bentoActions}>
+              <Tap onPress={() => addSteps(1000)} style={{ flex: 1, marginRight: 4 }}>
+                <View style={[s.miniPill, { backgroundColor: c.well }]}>
+                  <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+1k</Txt>
+                </View>
+              </Tap>
+              <Tap onPress={() => addSteps(2500)} style={{ flex: 1, marginRight: 4 }}>
+                <View style={[s.miniPill, { backgroundColor: c.well }]}>
+                  <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+2.5k</Txt>
+                </View>
+              </Tap>
+              <Tap onPress={() => router.push('/health')} style={{ flex: 1 }}>
+                <View style={[s.miniPill, { backgroundColor: c.accentWash }]}>
+                  <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9 }}>Health</Txt>
+                </View>
+              </Tap>
+            </View>
+          </BentoTile>
+
+          <BentoTile
+            title={lang === 'de' ? 'Fastenbrechen-Guide' : 'Break-Fast Protocol'}
+            value="3 Stufen"
+            badge="Food-Coma"
+            icon="shield"
+            color="#10B981"
+            wash="rgba(16, 185, 129, 0.18)"
+            subtitle="1. Brühe → 2. Protein → 3. Carbs"
+            actionLabel="Guide"
+            onPress={() => setShowBreakFast(true)}
+          />
         </BentoGrid>
       </Enter>
 
       <Enter index={3}>
         <FastingFeelingBar />
+        <DailyFastingNote />
       </Enter>
 
       {/* Asked about the day the eating window belonged to */}
@@ -647,6 +705,17 @@ export default function DashboardScreen() {
         baseStart={profile.omad_window_start}
         baseLengthHours={profile.omad_window_hours}
         onShiftApplied={refresh}
+      />
+
+      <MetabolicTimelineModal
+        visible={showMetabolic}
+        onClose={() => setShowMetabolic(false)}
+        hoursFasted={hoursFasted}
+      />
+
+      <BreakFastGuideModal
+        visible={showBreakFast}
+        onClose={() => setShowBreakFast(false)}
       />
     </Screen>
   );

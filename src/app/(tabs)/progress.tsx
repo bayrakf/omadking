@@ -24,6 +24,7 @@ import {
   loadIntakeLog, loadLastSession, isPremium,
   loadOutliers, measurementPreviewed, markMeasurementPreviewed,
   measurementAnnounced, markMeasurementAnnounced,
+  loadAllFastingNotes,
   type WeightEntry,
 } from '@/lib/store';
 import {
@@ -122,6 +123,7 @@ export default function ProgressScreen() {
   const [cycle, setCycle] = useState<WeekCycle>(null);
   const [tab, setTab] = useState<'week' | 'body' | 'history'>('week');
   const [steady, setSteady] = useState<{ hit: number; days: number; streak: number } | null>(null);
+  const [fastingNotes, setFastingNotes] = useState<Record<string, string>>({});
   const [premium, setPremium] = useState(false);
   /** The plan against the scale, when the two have drifted apart. */
   const [gap, setGap] = useState<RateGap | null>(null);
@@ -130,19 +132,17 @@ export default function ProgressScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        // The profile first: the session's fallback training time has to be
-        // *this* user's, not the app default. Passing DEFAULT_PROFILE here made
-        // the window suggestion come out of the wrong session time entirely.
         const p = await loadProfileOrDefault();
-        const [log, fasts, cooks, plans, intake, prem, session] = await Promise.all([
+        const [log, fasts, cooks, plans, intake, prem, session, notes] = await Promise.all([
           loadWeightLog(), loadFastLog(), loadCookLog(),
           loadPlanHistory<{ date: string }>(), loadIntakeLog(), isPremium(),
-          loadLastSession(p.default_training_time),
+          loadLastSession(p.default_training_time), loadAllFastingNotes(),
         ]);
         const skip = await loadOutliers();
         if (!active) return;
         setProfile(p);
         setEntries(log);
+        setFastingNotes(notes);
         setPremium(prem);
 
         // Computed once and shared. measuredMaintenance and readPlateau were
@@ -853,7 +853,14 @@ export default function ProgressScreen() {
                   <View key={e.id}>
                     {i > 0 && <Divider />}
                     <View style={s.histRow}>
-                      <Txt variant="data" color={c.text}>{formatReadableDate(e.date, lang)}</Txt>
+                      <View style={{ flex: 1 }}>
+                        <Txt variant="data" color={c.text}>{formatReadableDate(e.date, lang)}</Txt>
+                        {fastingNotes[e.date] ? (
+                          <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
+                            📝 {fastingNotes[e.date]}
+                          </Txt>
+                        ) : null}
+                      </View>
                       <View style={s.rowEnd}>
                         {delta !== null && delta !== 0 && (
                           <Txt variant="data" color={delta > 0 ? c.negative : c.positive} style={{ marginRight: Space.md }}>

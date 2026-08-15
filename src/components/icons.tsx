@@ -32,6 +32,7 @@ export type IconName =
   | 'crown'
   | 'alert'
   | 'bell'
+  | 'shield'
   | 'sync';
 
 const PATHS: Record<IconName, string[]> = {
@@ -57,6 +58,7 @@ const PATHS: Record<IconName, string[]> = {
   crown: ['M4 17.5 5.5 7l4.3 4L12 5.5 14.2 11l4.3-4L20 17.5H4Z'],
   alert: ['M12 8v5', 'M12 16.5h.01', 'M12 3.5 21 20H3l9-16.5Z'],
   bell: ['M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9', 'M13.7 21a2 2 0 0 1-3.4 0'],
+  shield: ['M12 3.5 4 7v6c0 5.2 3.4 9.4 8 10.5 4.6-1.1 8-5.3 8-10.5V7l-8-3.5Z'],
   // Two arcs chasing each other: the blob goes up, the merge comes back.
   sync: ['M20.5 12a8.5 8.5 0 0 1-14.6 6', 'M3.5 12a8.5 8.5 0 0 1 14.6-6',
          'M18.1 2.5v3.5h-3.5', 'M5.9 21.5V18h3.5'],

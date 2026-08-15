@@ -34,6 +34,8 @@ export const KEYS = {
   cookedRecipes: 'cooked_recipes',
   favoriteRecipes: 'favorite_recipes',
   todayWindowShift: 'today_window_shift',
+  fastingNotes: 'fasting_notes_map',
+  dailySteps: 'daily_steps_map',
   syncedAt: 'sync_last',
 } as const;
 
@@ -492,4 +494,38 @@ export async function saveTodayWindowShift(start: string, end: string, date = to
 
 export async function clearTodayWindowShift(): Promise<void> {
   await AsyncStorage.removeItem(KEYS.todayWindowShift).catch(() => {});
+}
+
+// --- Daily Fasting Notes ---------------------------------------------------
+
+export async function loadAllFastingNotes(): Promise<Record<string, string>> {
+  return await readJSON<Record<string, string>>(KEYS.fastingNotes, {});
+}
+
+export async function loadFastingNote(date = todayISO()): Promise<string> {
+  const map = await loadAllFastingNotes();
+  return map[date] ?? '';
+}
+
+export async function saveFastingNote(note: string, date = todayISO()): Promise<void> {
+  const map = await loadAllFastingNotes();
+  if (note.trim()) {
+    map[date] = note.trim();
+  } else {
+    delete map[date];
+  }
+  await writeJSON(KEYS.fastingNotes, map);
+}
+
+// --- Daily Steps & Activity ------------------------------------------------
+
+export async function loadDailySteps(date = todayISO()): Promise<number> {
+  const map = await readJSON<Record<string, number>>(KEYS.dailySteps, {});
+  return map[date] ?? 0;
+}
+
+export async function saveDailySteps(steps: number, date = todayISO()): Promise<void> {
+  const map = await readJSON<Record<string, number>>(KEYS.dailySteps, {});
+  map[date] = Math.max(0, Math.round(steps));
+  await writeJSON(KEYS.dailySteps, map);
 }
