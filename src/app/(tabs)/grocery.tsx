@@ -73,10 +73,20 @@ export default function GroceryScreen() {
     });
   };
 
-  const shareList = async () => {
-    const text = categories
-      .map((cat) => `${cat.name}\n${cat.items.map((i) => `${i.checked ? '[x]' : '[ ]'} ${i.name}`).join('\n')}`)
+  const formatListText = (forWhatsApp = false) => {
+    const header = forWhatsApp ? '🛒 *OMAD EINKAUFSLISTE*\n━━━━━━━━━━━━━━━━━━━━' : '🛒 OMAD EINKAUFSLISTE\n--------------------';
+    const body = categories
+      .map((cat) => {
+        const title = forWhatsApp ? `${cat.emoji} *${cat.name.toUpperCase()}*` : `${cat.emoji} ${cat.name.toUpperCase()}`;
+        const items = cat.items.map((i) => `${i.checked ? '✓' : '□'} ${i.name}${i.detail ? ` (${i.detail})` : ''}`).join('\n');
+        return `${title}\n${items}`;
+      })
       .join('\n\n');
+    return `${header}\n\n${body}\n\nGeneriert mit OMAD King`;
+  };
+
+  const shareList = async () => {
+    const text = formatListText(false);
     if (Platform.OS === 'web') {
       try {
         await navigator.clipboard.writeText(text);
@@ -85,6 +95,22 @@ export default function GroceryScreen() {
       } catch { /* clipboard blocked */ }
     } else {
       await Share.share({ message: text });
+    }
+  };
+
+  const shareWhatsApp = async () => {
+    const text = formatListText(true);
+    if (Platform.OS === 'web') {
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    } else {
+      await Share.share({ message: text });
+    }
+  };
+
+  const printList = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.print();
     }
   };
 
@@ -149,6 +175,12 @@ export default function GroceryScreen() {
             ))}
           </View>
           <View style={s.actionsRow}>
+            <Tap onPress={shareWhatsApp} accessibilityLabel="WhatsApp Export">
+              <View style={[s.tool, { borderColor: '#25D366', backgroundColor: 'rgba(37, 211, 102, 0.12)' }]}>
+                <Icon name="share" size={14} color="#25D366" />
+                <Txt variant="small" color="#25D366" style={{ marginLeft: 4, fontWeight: '700' }}>WhatsApp</Txt>
+              </View>
+            </Tap>
             <Tap onPress={shareList} accessibilityLabel="Share list">
               <View style={[s.tool, { borderColor: c.line }]}>
                 <Icon name={copied ? 'check' : 'share'} size={14} color={copied ? c.positive : c.textDim} />
@@ -157,6 +189,14 @@ export default function GroceryScreen() {
                 </Txt>
               </View>
             </Tap>
+            {Platform.OS === 'web' && (
+              <Tap onPress={printList} accessibilityLabel="Print list">
+                <View style={[s.tool, { borderColor: c.line }]}>
+                  <Icon name="edit" size={14} color={c.textDim} />
+                  <Txt variant="small" color={c.textDim} style={{ marginLeft: 4 }}>Print / PDF</Txt>
+                </View>
+              </Tap>
+            )}
             <Tap onPress={clear} accessibilityLabel="Clear ticks">
               <View style={[s.tool, { borderColor: c.line }]}>
                 <Icon name="close" size={14} color={c.textDim} />
