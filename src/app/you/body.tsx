@@ -11,10 +11,11 @@ import { useEffect, useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import { Screen, Card, Txt, Eyebrow, Enter, Chip, Divider, PageHeader, useTheme } from '@/components/ui';
 import { useProfileEditor } from '@/components/profile-fields';
-import { useT } from '@/components/lang';
+import { useLang } from '@/components/lang';
 import { Type, Space, Radius } from '@/constants/theme';
 import { normalizeProfile, targetWeight } from '@/lib/nutrition';
 import { saveProfile } from '@/lib/store';
+import { haptic } from '@/lib/haptic';
 
 const CHOICES = {
   sex: [['male', 'Male'], ['female', 'Female'], ['other', 'Other']],
@@ -22,8 +23,18 @@ const CHOICES = {
   goal: [['performance', 'Performance'], ['weight_loss', 'Lose fat'], ['muscle_gain', 'Build muscle']],
 } as const;
 
+const QUICK_AVOIDS = [
+  { id: 'no dairy', label: 'Laktosefrei / Kein Milch', labelEn: 'No dairy' },
+  { id: 'no gluten', label: 'Glutenfrei', labelEn: 'Gluten-free' },
+  { id: 'no pork', label: 'Kein Schweinefleisch', labelEn: 'No pork' },
+  { id: 'vegetarian', label: 'Vegetarisch', labelEn: 'Vegetarian' },
+  { id: 'vegan', label: 'Vegan', labelEn: 'Vegan' },
+  { id: 'no nuts', label: 'Keine Nüsse', labelEn: 'No nuts' },
+  { id: 'no seafood', label: 'Kein Fisch / Seafood', labelEn: 'No seafood' },
+];
+
 export default function BodyScreen() {
-  const t = useT();
+  const { lang, t } = useLang();
   const c = useTheme();
   const { profile, setProfile, mounted, persist, row } = useProfileEditor();
   const [avoid, setAvoid] = useState('');
@@ -37,6 +48,20 @@ export default function BodyScreen() {
     const next = normalizeProfile({ ...profile, avoid });
     setProfile(next);
     setAvoid(next.avoid);
+    await saveProfile(next);
+  };
+
+  const toggleAvoidTag = async (tag: string) => {
+    haptic('light');
+    const parts = avoid.split(',').map((s) => s.trim()).filter(Boolean);
+    const hasTag = parts.some((p) => p.toLowerCase() === tag.toLowerCase());
+    const nextParts = hasTag
+      ? parts.filter((p) => p.toLowerCase() !== tag.toLowerCase())
+      : [...parts, tag];
+    const nextText = nextParts.join(', ');
+    setAvoid(nextText);
+    const next = normalizeProfile({ ...profile, avoid: nextText });
+    setProfile(next);
     await saveProfile(next);
   };
 
@@ -85,6 +110,25 @@ export default function BodyScreen() {
               that component treats null as "use the default target". */}
           <View style={{ paddingVertical: Space.md }}>
             <Txt variant="body" color={c.textDim}>{t('body.avoid')}</Txt>
+            
+            {/* Quick 1-tap allergen & diet chips */}
+            <View style={[s.wrap, { marginTop: Space.sm }]}>
+              {QUICK_AVOIDS.map((qa) => {
+                const parts = avoid.split(',').map((s) => s.trim().toLowerCase());
+                const isSelected = parts.includes(qa.id.toLowerCase());
+                return (
+                  <Chip
+                    key={qa.id}
+                    label={lang === 'de' ? qa.label : qa.labelEn}
+                    selected={isSelected}
+                    onPress={() => toggleAvoidTag(qa.id)}
+                    tone="accent"
+                    style={s.chip}
+                  />
+                );
+              })}
+            </View>
+
             <TextInput
               value={avoid}
               onChangeText={setAvoid}
