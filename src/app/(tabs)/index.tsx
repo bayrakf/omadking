@@ -3,7 +3,7 @@ import { View, TextInput, StyleSheet, TouchableOpacity, Image } from 'react-nati
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Divider, NavRow, PageHeader, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Divider, PageHeader, useTheme,
 } from '@/components/ui';
 import { useLang } from '@/components/lang';
 import { Icon, type IconName } from '@/components/icons';
@@ -408,8 +408,11 @@ export default function DashboardScreen() {
       </Enter>
 
       <Enter index={3}>
-        <FastingFeelingBar />
-        <DailyFastingNote />
+        <Card style={{ marginTop: Space.base, padding: Space.base }}>
+          <FastingFeelingBar embedded />
+          <Divider style={{ marginVertical: Space.base }} />
+          <DailyFastingNote embedded />
+        </Card>
       </Enter>
 
       {/* Asked about the day the eating window belonged to */}
@@ -526,44 +529,55 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* The one thing to do next */}
-      {next && (
-        <Enter index={5}>
-          <Card style={{ marginTop: Space.base }} tone={nextMins <= 60 ? 'ember' : 'accent'}>
-            <View style={s.nextTop}>
-              <Eyebrow color={nextColor}>
-                {nextMins <= 0 ? 'Now' : nextMins < 60 ? `In ${Math.round(nextMins)} min` : `At ${next.at}`}
-              </Eyebrow>
-              {nextMins < 60 && <Txt variant="data" color={c.textFaint}>{next.at}</Txt>}
-            </View>
-            <View style={s.nextBody}>
-              <Icon name={ICONS[next.kind]} size={22} color={nextColor} />
-              <View style={[s.flex, { marginLeft: Space.md }]}>
-                <Txt variant="heading" style={{ fontSize: 19 }}>{next.title}</Txt>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: 3 }}>{next.body}</Txt>
-              </View>
-            </View>
-            {next.actionable && (
-              <Button
-                label={next.kind === 'cook' ? 'Mark as cooked' : 'Log it'}
-                variant="secondary"
-                onPress={() => doAction(next.kind)}
-                style={{ marginTop: Space.base }}
-              />
-            )}
-          </Card>
-        </Enter>
-      )}
-
-      {/* Full day agenda */}
-      <Enter index={6}>
+      {/* Unified smart Agenda with integrated active milestone */}
+      <Enter index={5}>
         <Card style={{ marginTop: Space.base, paddingVertical: Space.sm }}>
-          <Eyebrow style={{ paddingVertical: Space.md }}>{t('today.agenda')}</Eyebrow>
+          <View style={{ paddingHorizontal: Space.base, paddingVertical: Space.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Eyebrow>{t('today.agenda')}</Eyebrow>
+            {next && nextMins < 60 && (
+              <View style={[s.badgePill, { backgroundColor: nextColor, paddingHorizontal: 8, paddingVertical: 3 }]}>
+                <Txt variant="eyebrow" color="#080C14" style={{ fontSize: 10, fontWeight: '800' }}>
+                  {nextMins <= 0 ? 'JETZT FÄLLIG' : `IN ${Math.round(nextMins)} MIN`}
+                </Txt>
+              </View>
+            )}
+          </View>
+
+          {/* Active next step highlight banner if present */}
+          {next && (
+            <View style={[s.activeNextBanner, { backgroundColor: nextMins <= 60 ? c.emberWash : c.accentWash, borderColor: nextColor }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Icon name={ICONS[next.kind]} size={18} color={nextColor} />
+                  <View style={{ marginLeft: Space.sm, flex: 1 }}>
+                    <Txt variant="subheading" color={c.text} style={{ fontSize: 15, fontWeight: '700' }}>
+                      {next.title}
+                    </Txt>
+                    <Txt variant="small" color={c.textDim} style={{ marginTop: 2, fontSize: 12 }}>
+                      {next.body}
+                    </Txt>
+                  </View>
+                </View>
+                <Txt variant="data" color={nextColor} style={{ fontWeight: '700', marginLeft: Space.sm }}>
+                  {next.at}
+                </Txt>
+              </View>
+              {next.actionable && (
+                <Button
+                  label={next.kind === 'cook' ? (lang === 'de' ? 'Als gekocht markieren' : 'Mark as cooked') : (lang === 'de' ? 'Fasten eintragen' : 'Log it')}
+                  variant="secondary"
+                  onPress={() => doAction(next.kind)}
+                  style={{ marginTop: Space.sm }}
+                />
+              )}
+            </View>
+          )}
+
           {items.map((item, i) => {
             const dim = item.past || item.done;
             return (
               <View key={item.kind}>
-                {i > 0 && <Divider />}
+                {(i > 0 || next) && <Divider />}
                 <Tap
                   onPress={item.actionable && !item.done ? () => doAction(item.kind) : undefined}
                   disabled={!item.actionable || item.done}
@@ -587,7 +601,9 @@ export default function DashboardScreen() {
                       </Txt>
                     </View>
                     {item.actionable && !item.done && (
-                      <Txt variant="small" color={c.accent}>Tick</Txt>
+                      <Txt variant="small" color={c.accent}>
+                        {lang === 'de' ? 'Erledigen' : 'Tick'}
+                      </Txt>
                     )}
                   </View>
                 </Tap>
@@ -599,7 +615,7 @@ export default function DashboardScreen() {
 
       {/* Weigh-in field if not weighed today */}
       {!weighedToday && (
-        <Enter index={7}>
+        <Enter index={6}>
           <Card style={{ marginTop: Space.base }} tone="body">
             <Eyebrow style={{ marginBottom: Space.sm }}>Tages-Wägung</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginBottom: Space.md }}>
@@ -628,7 +644,7 @@ export default function DashboardScreen() {
       )}
 
       {jump && (
-        <Enter index={8}>
+        <Enter index={7}>
           <Card style={{ marginTop: Space.base }} tone="ember">
             <Eyebrow color={c.ember}>Up {jump.kg} kg</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
@@ -639,7 +655,7 @@ export default function DashboardScreen() {
       )}
 
       {trend && trend.state !== 'insufficient' && (
-        <Enter index={8}>
+        <Enter index={7}>
           <Card style={{ marginTop: Space.base }} tone="body">
             <Eyebrow color={c.body}>Gewichts-Trend</Eyebrow>
             <Txt variant="small" color={trend.state === 'steady' ? c.textDim : c.text} style={{ marginTop: Space.sm }}>
@@ -705,11 +721,58 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </Enter>
 
+      {/* Modern 3-Column Quick Tools Widget Grid */}
       <Enter index={9} style={{ marginTop: Space.xl }}>
         <Eyebrow style={{ marginBottom: Space.md }}>Schnellzugriff & Tools</Eyebrow>
-        <NavRow icon="basket" tone="plan" title="Einkaufsliste" sub="Zutaten aus deinen Plänen sortiert nach Regal" onPress={() => router.push('/grocery')} />
-        <NavRow icon="chart" tone="body" title="Verlauf & Trend" sub="Gewicht, Kalibrierung & Historie" onPress={() => router.push('/progress')} />
-        <NavRow icon="coach" title="Fasten-Coach" sub="KI-Beratung für Fasten & Makros" onPress={() => router.push('/chat')} />
+        <View style={s.quickToolGrid}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/grocery')}
+            style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
+          >
+            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(129, 140, 248, 0.15)' }]}>
+              <Icon name="basket" size={18} color={c.plan} />
+            </View>
+            <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
+              Einkaufsliste
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
+              Zutaten sortiert
+            </Txt>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/progress')}
+            style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: Space.sm }]}
+          >
+            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+              <Icon name="chart" size={18} color={c.body} />
+            </View>
+            <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
+              Verlauf & Trend
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
+              Gewicht & Daten
+            </Txt>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/chat')}
+            style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
+          >
+            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+              <Icon name="coach" size={18} color={c.accent} />
+            </View>
+            <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
+              Fasten-Coach
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
+              KI-Beratung
+            </Txt>
+          </TouchableOpacity>
+        </View>
       </Enter>
 
       <WindowShifterModal
@@ -762,9 +825,34 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   rowCentre: { flexDirection: 'row', alignItems: 'center' },
 
-  nextTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Space.md },
-  nextBody: { flexDirection: 'row', alignItems: 'flex-start' },
-
+  activeNextBanner: {
+    marginHorizontal: Space.base,
+    marginBottom: Space.sm,
+    padding: Space.base,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  quickToolGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quickToolCard: {
+    flex: 1,
+    paddingVertical: Space.base,
+    paddingHorizontal: Space.sm,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickToolIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: Space.md },
   time: { width: 54 },
   struck: { textDecorationLine: 'line-through' },

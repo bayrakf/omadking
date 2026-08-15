@@ -103,7 +103,7 @@ const SOS_TIPS = [
 
 const STORAGE_KEY = 'fasting_feeling_log';
 
-export function FastingFeelingBar() {
+export function FastingFeelingBar({ embedded = false }: { embedded?: boolean }) {
   const c = useTheme();
   const { lang, t } = useLang();
   const today = todayISO();
@@ -140,7 +140,7 @@ export function FastingFeelingBar() {
   const activeMoodObj = MOODS.find((m) => m.id === selected);
 
   return (
-    <View style={[s.container, { backgroundColor: c.surface, borderColor: c.line }]}>
+    <View style={embedded ? s.embeddedContainer : [s.container, { backgroundColor: c.surface, borderColor: c.line }]}>
       <View style={s.headRow}>
         <Eyebrow color={c.accent}>{t('today.feelingTitle')}</Eyebrow>
         <TouchableOpacity
@@ -263,6 +263,10 @@ const s = StyleSheet.create({
     borderWidth: 1,
     padding: Space.base,
     marginBottom: Space.base,
+  },
+  embeddedContainer: {
+    padding: 0,
+    marginBottom: 0,
   },
   headRow: {
     flexDirection: 'row',

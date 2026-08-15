@@ -14,7 +14,7 @@ const PRESET_TAGS = [
   '💧 3L getrunken',
 ];
 
-export function DailyFastingNote() {
+export function DailyFastingNote({ embedded = false }: { embedded?: boolean }) {
   const c = useTheme();
   const { lang } = useLang();
   const [note, setNote] = useState('');
@@ -37,7 +37,7 @@ export function DailyFastingNote() {
   };
 
   return (
-    <View style={[s.container, { backgroundColor: c.surface, borderColor: c.line }]}>
+    <View style={embedded ? s.embeddedContainer : [s.container, { backgroundColor: c.surface, borderColor: c.line }]}>
       <View style={s.head}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Icon name="edit" size={14} color={c.accent} />
@@ -88,6 +88,10 @@ const s = StyleSheet.create({
     borderWidth: 1,
     padding: Space.base,
     marginBottom: Space.base,
+  },
+  embeddedContainer: {
+    padding: 0,
+    marginBottom: 0,
   },
   head: {
     flexDirection: 'row',
