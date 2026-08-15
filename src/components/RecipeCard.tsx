@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
-import { Card, Txt, Eyebrow, Tap, Divider, useTheme } from './ui';
+import { Card, Txt, Eyebrow, Tap, Divider, useTheme, useTone } from './ui';
 import { Icon } from './icons';
-import { splitSteps, scaleIngredients } from '@/lib/grocery';
+import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
 import type { MealPlan } from '@/lib/ai';
 
 /**
@@ -21,13 +21,24 @@ export default function RecipeCard({
   onPortions?: (n: number) => void;
 }) {
   const c = useTheme();
+  const plan_ = useTone('plan');
   const [done, setDone] = useState<Record<string, boolean>>({});
   const toggle = (k: string) => setDone((p) => ({ ...p, [k]: !p[k] }));
 
   const cook = splitSteps(plan.recipe.instructions);
   const reheat = splitSteps(plan.recipe.reheat_instructions ?? '');
 
-  const steps = (list: string[], prefix: string, numbered: boolean) =>
+  /**
+   * The box shows the step's number until it is ticked, then the check.
+   *
+   * It used to be a bare box beside a paragraph that opened "1. ", so the
+   * order lived in the prose and the box was a second, wordless column. One
+   * element can carry both: standing at a hob you are looking for "where was
+   * I", and a numbered token that fills in as you go answers that from across
+   * the kitchen. Unnumbered lists (reheating, where the steps are
+   * alternatives rather than a sequence) keep the plain box.
+   */
+  const steps = (list: string[], prefix: string, numbered: boolean, tint: string) =>
     list.map((step, i) => {
       const key = `${prefix}${i}`;
       const isDone = done[key];
@@ -40,11 +51,21 @@ export default function RecipeCard({
           accessibilityLabel={step}
         >
           <View style={s.step}>
-            <View style={[s.box, { borderColor: isDone ? c.accent : c.lineStrong, backgroundColor: isDone ? c.accent : 'transparent' }]}>
-              {isDone && <Icon name="check" size={12} color={c.onAccent} strokeWidth={2.4} />}
+            <View
+              style={[
+                s.box,
+                numbered && s.boxNumbered,
+                { borderColor: isDone ? tint : c.lineStrong, backgroundColor: isDone ? tint : 'transparent' },
+              ]}
+            >
+              {isDone ? (
+                <Icon name="check" size={12} color={c.onAccent} strokeWidth={2.4} />
+              ) : numbered ? (
+                <Txt variant="data" color={tint}>{i + 1}</Txt>
+              ) : null}
             </View>
             <Txt variant="body" color={isDone ? c.textFaint : c.text} style={[s.stepText, isDone && s.struck]}>
-              {numbered ? `${i + 1}. ` : ''}{step}
+              {step}
             </Txt>
           </View>
         </Tap>
@@ -67,7 +88,7 @@ export default function RecipeCard({
         </View>
       )}
 
-      <View style={[s.macros, { backgroundColor: c.well }]}>
+      <View style={[s.macros, { backgroundColor: plan_.fill, borderColor: plan_.edge }]}>
         {([
           [String(plan.total_kcal), 'kcal'],
           [`${plan.protein_g}`, 'protein'],
@@ -82,7 +103,7 @@ export default function RecipeCard({
       </View>
 
       <View style={s.ingredientHead}>
-        <Eyebrow>Ingredients</Eyebrow>
+        <Eyebrow color={plan_.ink}>Ingredients</Eyebrow>
         {onPortions && (
           <View style={s.portions}>
             {[1, 2, 3].map((n) => (
@@ -97,8 +118,8 @@ export default function RecipeCard({
                   style={[
                     s.portion,
                     {
-                      borderColor: portions === n ? c.accent : c.line,
-                      backgroundColor: portions === n ? c.accent : 'transparent',
+                      borderColor: portions === n ? plan_.ink : c.line,
+                      backgroundColor: portions === n ? plan_.ink : 'transparent',
                     },
                   ]}
                 >
@@ -111,18 +132,28 @@ export default function RecipeCard({
           </View>
         )}
       </View>
-      {scaleIngredients(plan.recipe.ingredients, portions).map((item, i) => (
-        <View key={`${item}-${i}`} style={s.ingredient}>
-          <View style={[s.dot, { backgroundColor: c.lineStrong }]} />
-          <Txt variant="body" style={{ flex: 1 }}>{item}</Txt>
-        </View>
-      ))}
+      {/* Amount left, food right, both starting on the same vertical line.
+          A dot bullet ahead of a run-on sentence put every quantity at a
+          different indent, which is the one thing this list is scanned for. */}
+      {scaleIngredients(plan.recipe.ingredients, portions).map((item, i) => {
+        const { amount, name } = splitAmount(item);
+        return (
+          <View key={`${item}-${i}`} style={s.ingredient}>
+            {amount ? (
+              <Txt variant="data" color={plan_.ink} style={s.amount}>{amount}</Txt>
+            ) : (
+              <View style={s.amount} />
+            )}
+            <Txt variant="body" style={s.ingredientName}>{name}</Txt>
+          </View>
+        );
+      })}
 
       {cook.length > 0 && (
         <>
           <Divider style={{ marginTop: Space.lg }} />
-          <Eyebrow style={s.section}>Method</Eyebrow>
-          {steps(cook, 'c', true)}
+          <Eyebrow style={s.section} color={plan_.ink}>Method</Eyebrow>
+          {steps(cook, 'c', true, plan_.ink)}
         </>
       )}
 
@@ -130,7 +161,7 @@ export default function RecipeCard({
         <>
           <Divider style={{ marginTop: Space.lg }} />
           <Eyebrow style={s.section} color={c.ember}>Reheating tomorrow</Eyebrow>
-          {steps(reheat, 'r', false)}
+          {steps(reheat, 'r', false, c.ember)}
         </>
       )}
     </Card>
@@ -146,7 +177,7 @@ const s = StyleSheet.create({
   },
   fallbackText: { flex: 1, marginLeft: Space.sm },
   macros: {
-    flexDirection: 'row', borderRadius: Radius.md,
+    flexDirection: 'row', borderRadius: Radius.md, borderWidth: 1,
     paddingVertical: Space.base, marginTop: Space.base,
   },
   macro: { flex: 1, alignItems: 'center' },
@@ -161,13 +192,19 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginRight: Space.xs,
     paddingHorizontal: Space.sm,
   },
-  ingredient: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
-  dot: { width: 4, height: 4, borderRadius: 2, marginRight: Space.md },
+  ingredient: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 6 },
+  // Fixed, so the food names line up whatever the numbers do. Wide enough for
+  // "1.82kg"; anything longer wraps inside its own column rather than pushing
+  // the names out of alignment.
+  amount: { width: 72, marginRight: Space.md, marginTop: 2 },
+  ingredientName: { flex: 1 },
   step: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 7 },
   box: {
     width: 20, height: 20, borderRadius: 6, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center', marginRight: Space.md, marginTop: 1,
   },
+  /** A numeral needs a round token, not a checkbox that happens to hold one. */
+  boxNumbered: { width: 24, height: 24, borderRadius: 12 },
   stepText: { flex: 1 },
   struck: { textDecorationLine: 'line-through' },
 });

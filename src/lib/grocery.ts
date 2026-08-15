@@ -309,6 +309,27 @@ export function formatAmount(value: number, canon: string, rest: string): string
   return `${tidy(value)} ${unit} ${rest}`.trim();
 }
 
+/**
+ * The same line, split for reading rather than for summing.
+ *
+ * A recipe is read twice in two different ways: once while shopping, where
+ * only the amounts matter, and once at the hob, where only the names do. Run
+ * together as prose — "704g chicken breast, salmon or firm tofu" — neither
+ * scan works, because every amount starts at a different place down the list.
+ *
+ * `amount` is null when the line has none ("Sea salt, to taste"), which is the
+ * signal to let that line run the full width instead of leaving a gap where a
+ * number would be.
+ */
+export function splitAmount(line: string): { amount: string | null; name: string } {
+  const p = parseAmount(line);
+  if (!p) return { amount: null, name: String(line ?? '').trim() };
+  // formatAmount with no remainder renders the quantity alone, so the two
+  // halves cannot disagree about how 1820g is spelled.
+  const amount = formatAmount(p.value, p.canon, '');
+  return amount ? { amount, name: p.rest } : { amount: null, name: p.rest };
+}
+
 /** Longest matching keyword wins, so "sweet potato" beats "potato". */
 export function categorise(line: string): number {
   const lower = line.toLowerCase();
@@ -493,6 +514,17 @@ export function demo() {
   assert(formatAmount(1, 'clove', 'garlic') === '1 clove garlic', 'one clove stays singular');
   assert(formatAmount(3, 'clove', 'garlic') === '3 cloves garlic', 'three become cloves');
   assert(formatAmount(5, 'count', 'eggs') === '5 eggs', 'a count needs no unit word');
+
+  // Split for reading: the quantity in its own column, the food in the other.
+  const split = splitAmount('704g chicken breast, salmon or firm tofu');
+  assert(split.amount === '704g', 'the amount comes off the front, got ' + split.amount);
+  assert(split.name === 'chicken breast, salmon or firm tofu', 'the food keeps the rest of the line');
+  assert(splitAmount('2 tbsp extra virgin olive oil').amount === '2 tbsp', 'a unit stays with its number');
+  assert(splitAmount('2 eggs').amount === '2', 'a bare count is still an amount');
+  assert(splitAmount('2 eggs').name === 'eggs', 'and the thing counted is the name');
+  const taste = splitAmount('Sea salt, to taste');
+  assert(taste.amount === null, 'a line with no amount reports none rather than inventing one');
+  assert(taste.name === 'Sea salt, to taste', 'and keeps every word of itself');
 
   // --- summing across plans ------------------------------------------------
 

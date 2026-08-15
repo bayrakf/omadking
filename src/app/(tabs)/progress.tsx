@@ -513,6 +513,11 @@ export default function ProgressScreen() {
           read "ate more" can be six hundred kilocalories apart. Each day is
           drawn against its own target, since the target moves as someone gets
           lighter. */}
+      {/* Only once there is something to draw. With no answered evening the
+          card still rendered: a title, a legend, seven day letters and no
+          bars — a chart of nothing, which reads as broken rather than as
+          empty. The card above already says how to fill it. */}
+      {eaten.some((d) => d.kcal !== null) && (
       <Enter index={2}>
         <Card style={{ marginBottom: Space.base }}>
           <View style={s.split}>
@@ -522,6 +527,7 @@ export default function ProgressScreen() {
           <PairedBars days={eaten} height={72} />
         </Card>
       </Enter>
+      )}
 
       {/* The four places you go to fix something used to sit in the middle of
           the readings, which made the week tab twice as long and neither half
