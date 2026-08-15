@@ -24,19 +24,19 @@ import { effectiveMaintenance } from '@/lib/energy';
 import { resync } from '@/lib/notify';
 
 const SPORTS = [
-  { id: 'running', label: 'Running' },
-  { id: 'weights', label: 'Weights' },
-  { id: 'cycling', label: 'Cycling' },
-  { id: 'soccer', label: 'Football' },
-  { id: 'boxing', label: 'Boxing' },
-  { id: 'yoga', label: 'Yoga' },
+  { id: 'running', label: 'Running', labelDe: 'Laufen' },
+  { id: 'weights', label: 'Weights', labelDe: 'Kraft' },
+  { id: 'cycling', label: 'Cycling', labelDe: 'Radfahren' },
+  { id: 'soccer', label: 'Football', labelDe: 'Fußball' },
+  { id: 'boxing', label: 'Boxing', labelDe: 'Boxen' },
+  { id: 'yoga', label: 'Yoga', labelDe: 'Yoga & Flow' },
 ];
 const DURATIONS = [30, 45, 60, 90, 120];
-const INTENSITIES: { id: Intensity; label: string }[] = [
-  { id: 'low', label: 'Easy' },
-  { id: 'medium', label: 'Moderate' },
-  { id: 'high', label: 'Hard' },
-  { id: 'max', label: 'All out' },
+const INTENSITIES: { id: Intensity; label: string; labelDe: string }[] = [
+  { id: 'low', label: 'Easy', labelDe: 'Leicht' },
+  { id: 'medium', label: 'Moderate', labelDe: 'Moderat' },
+  { id: 'high', label: 'Hard', labelDe: 'Intensiv' },
+  { id: 'max', label: 'All out', labelDe: 'Maximal' },
 ];
 const TIMES = ['06:00', '12:00', '17:00', '18:00', '19:00', '20:00'];
 
@@ -239,7 +239,13 @@ export default function PlannerScreen() {
               <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade">
                 <View style={[s.quota, { borderColor: c.line, backgroundColor: c.surface }]}>
                   <Eyebrow color={quota.remaining > 0 ? c.textDim : c.ember}>
-                    {quota.remaining > 0 ? `${quota.remaining} of ${quota.limit} plans left this week` : 'Weekly plans used'}
+                    {quota.remaining > 0
+                      ? lang === 'de'
+                        ? `${quota.remaining} von ${quota.limit} Plänen diese Woche verfügbar`
+                        : `${quota.remaining} of ${quota.limit} plans left this week`
+                      : lang === 'de'
+                      ? 'Wöchentliche Pläne aufgebraucht'
+                      : 'Weekly plans used'}
                   </Eyebrow>
                   <Txt variant="small" color={c.accent}>Upgrade</Txt>
                 </View>
@@ -247,33 +253,126 @@ export default function PlannerScreen() {
             </Enter>
           )}
 
-          {/* Live targets */}
+          {/* Live targets: High-End Macro & Calorie Center */}
           <Enter index={2}>
-            <Card style={{ marginTop: Space.base }} tone="plan">
-              <View style={s.macroRow}>
-                {[
-                  { label: 'Energy', value: String(preview.kcal), unit: 'kcal', color: c.gold, bg: c.goldWash },
-                  { label: 'Protein', value: String(preview.protein_g), unit: 'g', color: c.body, bg: c.bodyWash },
-                  { label: 'Carbs', value: String(preview.carbs_g), unit: 'g', color: c.plan, bg: c.planWash },
-                  { label: 'Fat', value: String(preview.fat_g), unit: 'g', color: c.hydro, bg: c.hydroWash },
-                ].map((m) => (
-                  <View key={m.label} style={[s.macroBox, { backgroundColor: m.bg, borderColor: m.color }]}>
-                    <Eyebrow color={m.color}>{m.label}</Eyebrow>
-                    <Txt variant="heading" style={{ fontSize: 18, marginTop: 4, color: m.color, fontWeight: '700' }}>
-                      {m.value}
-                    </Txt>
-                    <Txt variant="small" color={m.color} style={{ opacity: 0.8, fontSize: 11 }}>
-                      {m.unit}
-                    </Txt>
+            {(() => {
+              const totalKcal = preview.kcal;
+              const pKcal = preview.protein_g * 4;
+              const cKcal = preview.carbs_g * 4;
+              const fKcal = preview.fat_g * 9;
+              const macroSum = pKcal + cKcal + fKcal || totalKcal;
+              const pPct = Math.round((pKcal / macroSum) * 100);
+              const cPct = Math.round((cKcal / macroSum) * 100);
+              const fPct = Math.max(0, 100 - pPct - cPct);
+              const proteinPerKg = profile.weight_kg ? (preview.protein_g / profile.weight_kg).toFixed(1) : null;
+
+              return (
+                <Card style={{ marginTop: Space.base }}>
+                  {/* Hero Calorie Header */}
+                  <View style={s.macroHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={[s.calIconCircle, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
+                        <Icon name="flame" size={18} color={c.ember} />
+                      </View>
+                      <View style={{ marginLeft: Space.sm }}>
+                        <Eyebrow color={c.textDim}>
+                          {lang === 'de' ? 'TAGESZIEL (OMAD)' : 'DAILY TARGET (OMAD)'}
+                        </Eyebrow>
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 2 }}>
+                          <Txt variant="hero" color={c.text} style={{ fontSize: 28, lineHeight: 32, fontWeight: '800' }}>
+                            {totalKcal.toLocaleString('de-DE')}
+                          </Txt>
+                          <Txt variant="subheading" color={c.textDim} style={{ marginLeft: 6, fontWeight: '600' }}>
+                            kcal
+                          </Txt>
+                        </View>
+                      </View>
+                    </View>
+
+                    {preview.burn_kcal > 0 && (
+                      <View style={[s.workoutBonusPill, { backgroundColor: 'rgba(255, 107, 74, 0.12)', borderColor: 'rgba(255, 107, 74, 0.3)' }]}>
+                        <Txt variant="eyebrow" color="#FF6B4A" style={{ fontSize: 11, fontWeight: '800' }}>
+                          +{preview.burn_kcal} KCAL WORKOUT
+                        </Txt>
+                      </View>
+                    )}
                   </View>
-                ))}
-              </View>
-              {preview.burn_kcal > 0 && (
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
-                  Includes about {preview.burn_kcal} kcal for the session.
-                </Txt>
-              )}
-            </Card>
+
+                  {/* Proportional Macro Distribution Bar */}
+                  <View style={s.macroBarTrack}>
+                    <View style={[s.macroBarSeg, { flex: pPct, backgroundColor: '#10B981', borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }]} />
+                    <View style={[s.macroBarSeg, { flex: cPct, backgroundColor: '#38BDF8', marginLeft: 2 }]} />
+                    <View style={[s.macroBarSeg, { flex: fPct, backgroundColor: '#F59E0B', marginLeft: 2, borderTopRightRadius: 4, borderBottomRightRadius: 4 }]} />
+                  </View>
+
+                  {/* Macro Trio Cards */}
+                  <View style={s.macroTrioRow}>
+                    {/* Protein */}
+                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={[s.macroDot, { backgroundColor: '#10B981' }]} />
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>PROTEIN</Eyebrow>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
+                        <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
+                          {preview.protein_g}
+                        </Txt>
+                        <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
+                      </View>
+                      <Txt variant="eyebrow" color="#10B981" style={{ fontSize: 10, marginTop: 2, fontWeight: '700' }}>
+                        {pPct}% {proteinPerKg ? `· ${proteinPerKg}g/kg` : ''}
+                      </Txt>
+                    </View>
+
+                    {/* Carbs */}
+                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line, marginHorizontal: Space.xs }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={[s.macroDot, { backgroundColor: '#38BDF8' }]} />
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>
+                          {lang === 'de' ? 'CARBS' : 'CARBS'}
+                        </Eyebrow>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
+                        <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
+                          {preview.carbs_g}
+                        </Txt>
+                        <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
+                      </View>
+                      <Txt variant="eyebrow" color="#38BDF8" style={{ fontSize: 10, marginTop: 2, fontWeight: '700' }}>
+                        {cPct}% · Refill
+                      </Txt>
+                    </View>
+
+                    {/* Fat */}
+                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={[s.macroDot, { backgroundColor: '#F59E0B' }]} />
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>
+                          {lang === 'de' ? 'FETT' : 'FAT'}
+                        </Eyebrow>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
+                        <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
+                          {preview.fat_g}
+                        </Txt>
+                        <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
+                      </View>
+                      <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 10, marginTop: 2, fontWeight: '700' }}>
+                        {fPct}% · Hormone
+                      </Txt>
+                    </View>
+                  </View>
+
+                  {preview.burn_kcal > 0 && (
+                    <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md, textAlign: 'center', fontSize: 12 }}>
+                      {lang === 'de'
+                        ? `Inklusive ca. ${preview.burn_kcal} kcal Zuschlag für dein heutiges Training.`
+                        : `Includes about ${preview.burn_kcal} kcal for today's session.`}
+                    </Txt>
+                  )}
+                </Card>
+              );
+            })()}
           </Enter>
 
           {/* Session & Workouts */}
@@ -313,7 +412,14 @@ export default function PlannerScreen() {
                 <View style={{ marginTop: Space.lg }}>
                   <Field label={t('plan.sport')}>
                     {SPORTS.map((x) => (
-                      <Chip key={x.id} label={x.label} selected={sport === x.id} onPress={() => setSport(x.id)} tone="plan" style={s.chip} />
+                      <Chip
+                        key={x.id}
+                        label={lang === 'de' ? x.labelDe : x.label}
+                        selected={sport === x.id}
+                        onPress={() => setSport(x.id)}
+                        tone="plan"
+                        style={s.chip}
+                      />
                     ))}
                   </Field>
                   <Field label={t('plan.duration')}>
@@ -323,7 +429,14 @@ export default function PlannerScreen() {
                   </Field>
                   <Field label={t('plan.effort')}>
                     {INTENSITIES.map((x) => (
-                      <Chip key={x.id} label={x.label} selected={intensity === x.id} onPress={() => setIntensity(x.id)} tone="plan" style={s.chip} />
+                      <Chip
+                        key={x.id}
+                        label={lang === 'de' ? x.labelDe : x.label}
+                        selected={intensity === x.id}
+                        onPress={() => setIntensity(x.id)}
+                        tone="plan"
+                        style={s.chip}
+                      />
                     ))}
                   </Field>
                   <Field label={t('plan.startsAt')} last>
@@ -581,15 +694,53 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Space.base, height: 44, borderRadius: Radius.sm, borderWidth: 1,
   },
-  macroRow: { flexDirection: 'row', alignItems: 'center', marginRight: -Space.xs },
-  macroBox: {
-    flex: 1,
+  macroHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Space.sm,
-    paddingHorizontal: 2,
+    justifyContent: 'space-between',
+    marginBottom: Space.base,
+  },
+  calIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  workoutBonusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  macroBarTrack: {
+    height: 8,
+    flexDirection: 'row',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: Space.base,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  macroBarSeg: {
+    height: 8,
+  },
+  macroTrioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  macroTrioCard: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderRadius: Radius.md,
     borderWidth: 1,
-    marginRight: Space.xs,
+  },
+  macroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 5,
   },
   figureRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 5 },
   vline: { width: 1, height: 34, marginHorizontal: Space.sm },

@@ -492,9 +492,22 @@ export default function DashboardScreen() {
 
       {need && !need.ready && (
         <Enter index={4}>
-          <View style={[s.readiness, { borderColor: c.line }]}>
-            <Eyebrow>Until your maintenance can be measured</Eyebrow>
-            <Txt variant="small" color={c.textDim} style={{ marginTop: 4 }}>{need.note}</Txt>
+          <View style={[s.readiness, { borderColor: c.line, backgroundColor: c.surface }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Icon name="chart" size={13} color={c.accent} />
+              <Eyebrow color={c.accent} style={{ marginLeft: 6 }}>
+                {lang === 'de' ? 'STOFFWECHSEL-KALIBRIERUNG' : 'UNTIL YOUR MAINTENANCE CAN BE MEASURED'}
+              </Eyebrow>
+            </View>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: 4 }}>
+              {lang === 'de' && need.note.includes('evenings')
+                ? need.note
+                    .replace('of 8 evenings', 'von 8 Abenden')
+                    .replace('of 4 weigh-ins', 'von 4 Wägungen')
+                    .replace('across', 'über')
+                    .replace('of 10 days', 'von 10 Tagen')
+                : need.note}
+            </Txt>
           </View>
         </Enter>
       )}
