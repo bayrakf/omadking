@@ -3,7 +3,7 @@ import { View, StyleSheet, Switch, Share, Platform, ActivityIndicator } from 're
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Chip, Tap, Divider, Notice, PageHeader,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Chip, Tap, Notice, PageHeader,
   SegmentedControl, useTheme,
 } from '@/components/ui';
 import { useLang } from '@/components/lang';
@@ -66,6 +66,7 @@ export default function PlannerScreen() {
   const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [rotation, setRotation] = useState<CookedRecipe[]>([]);
   const [history, setHistory] = useState<MealPlan[]>([]);
+  const [plannerTab, setPlannerTab] = useState<'today' | 'saved'>('today');
 
   useFocusEffect(
     useCallback(() => {
@@ -208,8 +209,6 @@ export default function PlannerScreen() {
       await Share.share({ message: text });
     }
   };
-
-  const [plannerTab, setPlannerTab] = useState<'today' | 'saved'>('today');
 
   return (
     <Screen>
@@ -457,45 +456,75 @@ function Field({ label, children, last }: { label: string; children: React.React
   );
 }
 
-/** The answer the product exists to give. */
 function Timing({ plan }: { plan: MealPlan }) {
   const c = useTheme();
-  const rows: [string, string, boolean][] = [];
-  if (plan.pre_training_snack_time) rows.push(['Pre-training snack', plan.pre_training_snack_time, false]);
-  rows.push(['Main meal', plan.main_meal_time, true]);
-  rows.push(['Window closes', plan.eating_window_end, false]);
+  const rows: [string, string, boolean, string][] = [];
+  if (plan.pre_training_snack_time) rows.push(['Pre-training Snack', plan.pre_training_snack_time, false, 'Snack für Leistung']);
+  rows.push(['Hauptmahlzeit', plan.main_meal_time, true, `${plan.total_kcal} kcal · ${plan.protein_g}g Protein`]);
+  rows.push(['Fenster schließt', plan.eating_window_end, false, 'Fasten beginnt']);
 
   return (
     <Card style={{ marginTop: Space.lg }} tone="ember">
-      <Eyebrow style={{ marginBottom: Space.base }}>Today’s timing</Eyebrow>
-      {rows.map(([label, time, primary], i) => (
-        <View key={label}>
-          {i > 0 && <Divider style={{ marginVertical: Space.md }} />}
-          <View style={s.timeRow}>
-            <Txt variant={primary ? 'subheading' : 'body'} color={primary ? c.text : c.textDim}>{label}</Txt>
-            <Txt
-              variant="heading"
-              color={primary ? c.ember : c.text}
-              style={{ fontSize: primary ? 24 : 18 }}
-            >
-              {time}
-            </Txt>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Space.base }}>
+        <Icon name="clock" size={18} color={c.ember} />
+        <Eyebrow color={c.ember} style={{ marginLeft: 6 }}>Tages-Timing & Essensfenster</Eyebrow>
+      </View>
+
+      <View style={s.timingGrid}>
+        {rows.map(([label, time, primary, desc]) => (
+          <View
+            key={label}
+            style={[
+              s.timingTile,
+              {
+                backgroundColor: primary ? c.emberWash : c.well,
+                borderColor: primary ? c.ember : c.line,
+              },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Txt variant={primary ? 'subheading' : 'body'} color={primary ? c.text : c.textDim} style={{ fontWeight: '700' }}>
+                {label}
+              </Txt>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                {desc}
+              </Txt>
+            </View>
+            <View style={[s.timeBadge, { backgroundColor: primary ? c.ember : c.surface, borderColor: primary ? c.ember : c.line }]}>
+              <Txt
+                variant="heading"
+                color={primary ? c.onAccent : c.text}
+                style={{ fontSize: primary ? 20 : 16, fontWeight: '800' }}
+              >
+                {time}
+              </Txt>
+            </View>
           </View>
+        ))}
+      </View>
+
+      {plan.ai_reasoning ? (
+        <View style={[s.reasonBox, { backgroundColor: c.well, borderColor: c.line }]}>
+          <Txt variant="small" color={c.textDim}>{plan.ai_reasoning}</Txt>
         </View>
-      ))}
-      <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>{plan.ai_reasoning}</Txt>
+      ) : null}
+
       {plan.timing_warning && <Notice tone="warn">{plan.timing_warning}</Notice>}
 
-      {/* The app has worked out when to eat since the timing engine landed and
-          never said how. After twenty-odd hours the order matters. */}
-      <Divider style={{ marginVertical: Space.base }} />
-      <Eyebrow style={{ marginBottom: Space.md }}>Breaking the fast</Eyebrow>
-      {breakFastSteps(plan.timing_pattern).map((step, i) => (
-        <View key={i} style={s.breakRow}>
-          <Txt variant="data" color={c.ember} style={s.breakNum}>{i + 1}</Txt>
-          <Txt variant="small" color={c.textDim} style={{ flex: 1 }}>{step}</Txt>
+      <View style={[s.breakCard, { backgroundColor: c.well, borderColor: c.line }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Space.md }}>
+          <Icon name="plate" size={16} color={c.ember} />
+          <Eyebrow color={c.ember} style={{ marginLeft: 6 }}>Fastenbrechen — Die richtige Reihenfolge</Eyebrow>
         </View>
-      ))}
+        {breakFastSteps(plan.timing_pattern).map((step, i) => (
+          <View key={i} style={s.breakRow}>
+            <View style={[s.breakNumCircle, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
+              <Txt variant="data" color={c.ember} style={{ fontWeight: '700' }}>{i + 1}</Txt>
+            </View>
+            <Txt variant="small" color={c.text} style={{ flex: 1, marginLeft: Space.sm, marginTop: 2 }}>{step}</Txt>
+          </View>
+        ))}
+      </View>
     </Card>
   );
 }
@@ -532,5 +561,41 @@ const s = StyleSheet.create({
   histRow: {
     flexDirection: 'row', alignItems: 'center', padding: Space.base,
     borderRadius: Radius.md, borderWidth: 1, marginBottom: Space.sm,
+  },
+  timingGrid: { marginBottom: Space.sm },
+  timingTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginBottom: Space.sm,
+  },
+  timeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginLeft: Space.md,
+  },
+  reasonBox: {
+    padding: Space.base,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginBottom: Space.md,
+  },
+  breakCard: {
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginTop: Space.sm,
+  },
+  breakNumCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

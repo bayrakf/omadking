@@ -352,621 +352,514 @@ export default function ProgressScreen() {
       {tab === 'week' && (
         <>
         <Columns>
-      {/* The week as a budget, not seven verdicts. Free: it is arithmetic on a
-          target the user already has, and gating it would take away something
-          they could do on paper. */}
-      {budget && (
+        {/* Weight & Trend Hero */}
         <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
+          <Card tone="body" style={{ marginBottom: Space.base }}>
             <View style={s.split}>
-              <Eyebrow>This week's budget</Eyebrow>
-              <Txt variant="data" color={budget.perDayLeft < 0 ? c.ember : c.textFaint}>
-                {budget.daysLeft > 0 ? `${budget.daysLeft} days left` : 'week done'}
-              </Txt>
-            </View>
-            <Bar
-              pct={Math.min(100, (budget.usedKcal / Math.max(1, budget.totalKcal)) * 100)}
-              color={budget.perDayLeft < 0 ? c.ember : c.accent}
-            />
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{budget.note}</Txt>
-          </Card>
-        </Enter>
-      )}
-
-      {/* Losing, but not at the rate the target was built for. readPlateau
-          covers held and rising and has a better sentence for both; this is the
-          case it returns early on, which is most people most of the time.
-          Free, and deliberately: gating "your plan is not landing" would be
-          charging someone to be told the thing they are already paying for is
-          not working. */}
-      {gap && (
-        <Enter index={2}>
-          <Card style={{ marginBottom: Space.base }}>
-            <View style={s.split}>
-              <Eyebrow>Plan against scale</Eyebrow>
-              <Txt variant="data" color={c.textFaint}>{gap.gapKcal} kcal a day</Txt>
-            </View>
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{gap.note}</Txt>
-          </Card>
-        </Enter>
-      )}
-
-      {/* The only thing this screen does before a day rather than after it.
-          Everything else reads back, but nobody plans a wedding
-          retrospectively — you know Saturday will run over, and the useful
-          answer is what the other days become, not a verdict on Sunday.
-          Rough amounts, not a number field: the answer is an estimate either
-          way, and a decimal point would promise a precision it does not have. */}
-      {aheadDays.length > 0 && budget && (
-        <Enter index={2}>
-          <Card style={{ marginBottom: Space.base }}>
-            <Eyebrow>A big day coming up</Eyebrow>
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-              Pick the day and roughly how far over it will run.
-            </Txt>
-
-            <View style={s.segments as any}>
-              {aheadDays.map((d) => (
-                <Tap
-                  key={d.date}
-                  onPress={() => setBigDay(bigDay === d.date ? null : d.date)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: bigDay === d.date }}
-                  accessibilityLabel={`Big day on ${d.date}`}
-                  style={s.segmentCell}
-                >
-                  <View
-                    style={[
-                      s.segment,
-                      {
-                        borderColor: bigDay === d.date ? c.accent : c.line,
-                        backgroundColor: bigDay === d.date ? c.accent : 'transparent',
-                      },
-                    ]}
+              <View style={{ flex: 1 }}>
+                <Eyebrow color={c.body}>Aktuelles Gewicht</Eyebrow>
+                <View style={s.figRow}>
+                  <Txt variant="display" style={{ fontSize: 36, fontWeight: '800' }}>{current.toFixed(1)}</Txt>
+                  <Txt variant="data" color={c.textFaint} style={{ marginLeft: 4, fontSize: 16 }}>kg</Txt>
+                </View>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Eyebrow color={c.body}>Seit Beginn</Eyebrow>
+                <View style={[s.changeBadge, { backgroundColor: good ? c.planWash : c.well }]}>
+                  <Txt
+                    variant="heading"
+                    color={change === 0 ? c.textDim : good ? c.positive : c.negative}
+                    style={{ fontSize: 16, fontWeight: '800' }}
                   >
-                    <Txt variant="small" color={bigDay === d.date ? c.onAccent : c.textDim}>{d.label}</Txt>
-                  </View>
-                </Tap>
-              ))}
+                    {change > 0 ? '+' : ''}{change.toFixed(1)} kg
+                  </Txt>
+                </View>
+              </View>
             </View>
 
-            {bigDay && (
+            {entries.length >= 2 ? (
+              <>
+                <View style={{ marginVertical: Space.sm }}>
+                  <TrendChart entries={entries} />
+                </View>
+                <Divider style={{ marginVertical: Space.sm }} />
+                <View style={s.split}>
+                  <Txt variant="small" color={c.textDim}>Wöchentlicher Trend</Txt>
+                  <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
+                    {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg / Woche`}
+                  </Txt>
+                </View>
+              </>
+            ) : (
+              <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
+                Trage mindestens 2 Wägungen ein, um den Kurvenverlauf zu sehen.
+              </Txt>
+            )}
+
+            <View style={{ marginTop: Space.base }}>
+              <View style={[s.split, { marginBottom: 6 }]}>
+                <Eyebrow>Ziel-Fortschritt ({profile.goal.replace('_', ' ')})</Eyebrow>
+                <Txt variant="data" color={c.textDim}>{pct.toFixed(0)}% · BMI {bmi.toFixed(1)} ({bmiLabel})</Txt>
+              </View>
+              <Bar pct={pct} color={c.body} />
+              <View style={[s.split, { marginTop: 6 }]}>
+                <Txt variant="data" color={c.textFaint}>Start {start.toFixed(1)} kg</Txt>
+                <Txt variant="data" color={c.textFaint}>Ziel {target.toFixed(1)} kg</Txt>
+              </View>
+            </View>
+          </Card>
+        </Enter>
+
+        {gap && (
+          <Enter index={2}>
+            <Card style={{ marginBottom: Space.base }}>
+              <View style={s.split}>
+                <Eyebrow>Plan vs. Waage</Eyebrow>
+                <Txt variant="data" color={c.textFaint}>{gap.gapKcal} kcal / Tag Differenz</Txt>
+              </View>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{gap.note}</Txt>
+            </Card>
+          </Enter>
+        )}
+
+        {adapt && adapt.daysLogged > 0 && (
+          <Enter index={2}>
+            <Card style={{ marginBottom: Space.base }}>
+              <View style={s.split}>
+                <Eyebrow>{adapt.label}</Eyebrow>
+                <Txt variant="data" color={c.textFaint}>
+                  {adapt.daysLogged} {adapt.daysLogged === 1 ? 'Tag' : 'Tage'} erfasst
+                </Txt>
+              </View>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                {adapt.note}
+              </Txt>
+            </Card>
+          </Enter>
+        )}
+
+        {/* Calorie Balance & Paired Bars */}
+        <Enter index={2}>
+          <Card style={{ marginBottom: Space.base }}>
+            <View style={s.split}>
+              <Eyebrow color={c.accent}>Kalorienbilanz diese Woche</Eyebrow>
+              <Txt variant="data" color={c.textFaint}>Plan vs. Tatsächlich</Txt>
+            </View>
+            <View style={{ marginTop: Space.sm }}>
+              <PairedBars days={eaten} height={76} />
+            </View>
+          </Card>
+        </Enter>
+
+        {budget && (
+          <Enter index={2}>
+            <Card style={{ marginBottom: Space.base }}>
+              <View style={s.split}>
+                <Eyebrow>Wochen-Kalorienbudget</Eyebrow>
+                <Txt variant="data" color={budget.perDayLeft < 0 ? c.ember : c.textFaint}>
+                  {budget.daysLeft > 0 ? `noch ${budget.daysLeft} Tage` : 'Woche beendet'}
+                </Txt>
+              </View>
+              <Bar
+                pct={Math.min(100, (budget.usedKcal / Math.max(1, budget.totalKcal)) * 100)}
+                color={budget.perDayLeft < 0 ? c.ember : c.accent}
+              />
+              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{budget.note}</Txt>
+            </Card>
+          </Enter>
+        )}
+
+        {aheadDays.length > 0 && budget && (
+          <Enter index={2}>
+            <Card style={{ marginBottom: Space.base }}>
+              <Eyebrow>Besonderer Anlass / Schummeltag</Eyebrow>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                Wähle den Tag und wie viele Kalorien du voraussichtlich mehr benötigst.
+              </Txt>
+
               <View style={s.segments as any}>
-                {[500, 1000, 2000].map((x) => (
+                {aheadDays.map((d) => (
                   <Tap
-                    key={x}
-                    onPress={() => setBigExtra(x)}
+                    key={d.date}
+                    onPress={() => setBigDay(bigDay === d.date ? null : d.date)}
                     accessibilityRole="radio"
-                    accessibilityState={{ checked: bigExtra === x }}
-                    accessibilityLabel={`About ${x} kcal over`}
+                    accessibilityState={{ checked: bigDay === d.date }}
+                    accessibilityLabel={`Big day on ${d.date}`}
                     style={s.segmentCell}
                   >
                     <View
                       style={[
                         s.segment,
                         {
-                          borderColor: bigExtra === x ? c.accent : c.line,
-                          backgroundColor: bigExtra === x ? c.accent : 'transparent',
+                          borderColor: bigDay === d.date ? c.accent : c.line,
+                          backgroundColor: bigDay === d.date ? c.accent : 'transparent',
                         },
                       ]}
                     >
-                      <Txt variant="small" color={bigExtra === x ? c.onAccent : c.textDim}>+{x}</Txt>
+                      <Txt variant="small" color={bigDay === d.date ? c.onAccent : c.textDim}>{d.label}</Txt>
                     </View>
                   </Tap>
                 ))}
               </View>
-            )}
 
-            {bigDay && (
-              premium ? (
-                bigPlan ? (
-                  <>
-                    {bigPlan.perDayKcal !== null && (
-                      <Txt variant="heading" style={{ marginTop: Space.md }}>
-                        {bigPlan.perDayKcal}
-                        <Txt variant="small" color={c.textFaint}> kcal on the other days</Txt>
-                      </Txt>
-                    )}
-                    <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                      {bigPlan.note}
-                    </Txt>
-                  </>
-                ) : (
-                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                    That day is outside the week this budget covers.
-                  </Txt>
-                )
-              ) : (
-                <>
-                  <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                    Premium works out what the other days become so the week still lands where it was
-                    going to — or tells you plainly that it cannot, and what the evening costs instead.
-                  </Txt>
-                  {cards.sell === 'ahead' && (
-                    <Button
-                      label="Plan the day"
-                      onPress={() => router.push('/paywall')}
-                      style={{ marginTop: Space.md }}
-                    />
-                  )}
-                </>
-              )
-            )}
-          </Card>
-        </Enter>
-      )}
-
-      {/* The magnitudes stayed here when the corrections left: a glyph says a
-          day was "ate more", the bars say by how much, and two days that both
-          read "ate more" can be six hundred kilocalories apart. Each day is
-          drawn against its own target, since the target moves as someone gets
-          lighter. */}
-      {/* Only once there is something to draw. With no answered evening the
-          card still rendered: a title, a legend, seven day letters and no
-          bars — a chart of nothing, which reads as broken rather than as
-          empty. The card above already says how to fill it. */}
-      {eaten.some((d) => d.kcal !== null) && (
-      <Enter index={2}>
-        <Card style={{ marginBottom: Space.base }}>
-          <View style={s.split}>
-            <Eyebrow>Evenings this week</Eyebrow>
-            <Txt variant="data" color={c.textFaint}>plan · eaten</Txt>
-          </View>
-          <PairedBars days={eaten} height={72} />
-        </Card>
-      </Enter>
-      )}
-
-      {/* The four places you go to fix something used to sit in the middle of
-          the readings, which made the week tab twice as long and neither half
-          easy to find. They all have a primary path elsewhere — the evening
-          question and the weigh-in prompt are both on Today — so one tap away
-          costs nothing and gives the readings room to be read. */}
-      <Enter index={2}>
-        <NavRow
-          icon="edit"
-          tone="body"
-          title={t('progress.corrections')}
-          sub={t('progress.correctionsSub')}
-          onPress={() => router.push('/week/corrections')}
-        />
-      </Enter>
-
-      {review && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }} tone={review.sparse ? 'default' : 'accent'}>
-            <Eyebrow>Last 7 days</Eyebrow>
-            {review.sparse ? (
-              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                {review.consequence}
-              </Txt>
-            ) : (
-              <>
-                <View style={s.reviewRow}>
-                  <View style={s.reviewCell}>
-                    <Txt variant="heading" style={s.reviewFigure}>{review.fastDays}<Txt variant="small" color={c.textFaint}>/7</Txt></Txt>
-                    <Txt variant="small" color={c.textDim}>fasts</Txt>
-                  </View>
-                  <Divider style={s.reviewLine} />
-                  <View style={s.reviewCell}>
-                    <Txt variant="heading" style={s.reviewFigure}>{review.cookDays}</Txt>
-                    <Txt variant="small" color={c.textDim}>cooked</Txt>
-                  </View>
-                  <Divider style={s.reviewLine} />
-                  <View style={s.reviewCell}>
-                    <Txt variant="heading" style={s.reviewFigure}>{review.weighIns}</Txt>
-                    <Txt variant="small" color={c.textDim}>weigh-ins</Txt>
-                  </View>
+              {bigDay && (
+                <View style={s.segments as any}>
+                  {[500, 1000, 2000].map((x) => (
+                    <Tap
+                      key={x}
+                      onPress={() => setBigExtra(x)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: bigExtra === x }}
+                      accessibilityLabel={`About ${x} kcal over`}
+                      style={s.segmentCell}
+                    >
+                      <View
+                        style={[
+                          s.segment,
+                          {
+                            borderColor: bigExtra === x ? c.accent : c.line,
+                            backgroundColor: bigExtra === x ? c.accent : 'transparent',
+                          },
+                        ]}
+                      >
+                        <Txt variant="small" color={bigExtra === x ? c.onAccent : c.textDim}>+{x}</Txt>
+                      </View>
+                    </Tap>
+                  ))}
                 </View>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
-                  {review.headline}
-                </Txt>
-                <Txt variant="small" color={c.text} style={{ marginTop: Space.sm }}>
-                  {review.consequence}
-                </Txt>
-              </>
-            )}
-          </Card>
-        </Enter>
-      )}
-
-      {adapt && adapt.daysLogged > 0 && (
-        <Enter index={2}>
-          <Card style={{ marginBottom: Space.base }}>
-            <View style={s.split}>
-              <Eyebrow>{adapt.label}</Eyebrow>
-              <Txt variant="data" color={c.textFaint}>
-                {adapt.daysLogged} {adapt.daysLogged === 1 ? 'day' : 'days'} logged
-              </Txt>
-            </View>
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-              {adapt.note}
-            </Txt>
-          </Card>
-        </Enter>
-      )}
-
-        </Columns>
-        </>
-      )}
-      {tab === 'body' && (
-        <>
-        <Columns>
-      {/* One line above the cards that each say what they cannot do yet.
-          Counted across the three segments there were six or seven of those,
-          and every segment opened on one — which reads as an app that cannot
-          do anything rather than one that is still counting. */}
-      {need && !need.ready && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <Eyebrow>Still counting</Eyebrow>
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{need.note}</Txt>
-          </Card>
-        </Enter>
-      )}
-
-      {/* The moment people quit — a flat line reads as failure and is not one.
-          It used to have a card of its own here, which could never appear:
-          weeklyDecision ranks a stall above everything, so the decision card
-          above was always already saying it. The days it had to add are now
-          part of that sentence instead. */}
-
-      {/* The reason to pay, and it has to be visible before paying: the app
-          says plainly that it measured something, and what it means is the
-          part that costs. No artificial limit on anything that already worked. */}
-      {measured && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }} tone="body">
-            <View style={s.split}>
-              <Eyebrow color={measured.kcal ? c.accent : undefined}>What your body actually costs</Eyebrow>
-              {measured.kcal !== null && (
-                <Txt variant="data" color={c.textFaint}>
-                  {measured.confidence === 'good' ? 'measured' : 'early'}
-                </Txt>
               )}
-            </View>
 
-            {measured.kcal === null ? (
-              // Every reading looks at 21 days. Three weeks away and the
-              // measurement is gone, dailyTargets quietly falls back to the
-              // formula, and nothing used to say so — for a paying user the
-              // thing they pay for vanished without a word.
-              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                {everMeasured
-                  ? `Your measurement has lapsed — it reads the last 21 days, and ${measured.missing} `
-                    + 'is what is short. Until it is back, the target comes from the formula again.'
-                  : `Not enough to measure yet — ${measured.missing}. Until then the target comes from a `
-                    + 'formula, which is right for a population and often wrong for a person.'}
-              </Txt>
-            ) : premium || preview ? (
-              <>
-                <Txt variant="heading" style={{ marginTop: Space.md }}>
-                  {measured.kcal}
-                  <Txt variant="small" color={c.textFaint}> kcal a day</Txt>
-                </Txt>
-                {/* A single figure implied a precision four weigh-ins cannot
-                    support. The band is the scatter in the weigh-ins carried
-                    through the same conversion as the figure itself, so it
-                    tightens as someone keeps standing on the scale — which is
-                    the argument for doing it, made in a number. */}
-                {measured.plusMinus !== null && (
-                  <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
-                    give or take {measured.plusMinus}, from how much your weigh-ins scatter
-                  </Txt>
-                )}
-                {!premium && (
-                  <>
-                    <Txt variant="small" color={c.accent} style={{ marginTop: Space.sm }}>
-                      This is the figure you spent two weeks earning. It moves as you get lighter —
-                      Premium keeps measuring it and pulls your daily target along with it.
+              {bigDay && (
+                premium ? (
+                  bigPlan ? (
+                    <>
+                      {bigPlan.perDayKcal !== null && (
+                        <Txt variant="heading" style={{ marginTop: Space.md }}>
+                          {bigPlan.perDayKcal}
+                          <Txt variant="small" color={c.textFaint}> kcal an den anderen Tagen</Txt>
+                        </Txt>
+                      )}
+                      <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                        {bigPlan.note}
+                      </Txt>
+                    </>
+                  ) : (
+                    <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                      Dieser Tag liegt außerhalb des aktuellen Wochenbudgets.
                     </Txt>
-                    {cards.sell === 'measured' && (
+                  )
+                ) : (
+                  <>
+                    <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                      Premium berechnet die restlichen Tage automatisch neu, um den Überschuss auszugleichen.
+                    </Txt>
+                    {cards.sell === 'ahead' && (
                       <Button
-                        label="Keep it moving"
+                        label="Woche ausbalancieren"
                         onPress={() => router.push('/paywall')}
                         style={{ marginTop: Space.md }}
                       />
                     )}
                   </>
-                )}
-                {/* "So your target follows it" was said whether the figure came
-                    from the log or from the bound it hit on the way out. A
-                    clamped answer read exactly like a measured one, which is
-                    the one thing the number people pay for cannot afford. */}
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-                  {measured.deltaToEstimate === null || measured.deltaToEstimate === 0
-                    ? 'Which is what the formula estimated.'
-                    : measured.clamped !== 'none'
-                      ? `That is ${Math.abs(measured.deltaToEstimate)} kcal ${measured.deltaToEstimate < 0 ? 'below' : 'above'} the formula's estimate, and your log points further still. `
-                        + `The target moves as far as ${measured.intakeDays} days of eating and ${measured.weighIns} weigh-ins have earned — more of both let it move the rest of the way.`
-                      : `That is ${Math.abs(measured.deltaToEstimate)} kcal ${measured.deltaToEstimate < 0 ? 'below' : 'above'} the formula's estimate. Measured from ${measured.intakeDays} days of eating and ${measured.weighIns} weigh-ins, so your target follows it.`}
-                </Txt>
-                <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
-                  Based on the standard approximation of 7,700 kcal per kilogram. It moves as you do.
-                </Txt>
-              </>
-            ) : (
-              <>
-                <Txt variant="body" style={{ marginTop: Space.md }}>
-                  Measured from {measured.intakeDays} days of eating and {measured.weighIns} weigh-ins.
-                </Txt>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-                  The formula's estimate is off — Premium shows by how much and moves your target to
-                  the measured figure.
-                </Txt>
-                {cards.sell === 'measured' && (
-                  <Button
-                    label="See what it measured"
-                    onPress={() => router.push('/paywall')}
-                    style={{ marginTop: Space.md }}
-                  />
-                )}
-              </>
-            )}
-          </Card>
-        </Enter>
-      )}
-
-      {/* The one thing here nobody could have worked out for themselves,
-          because it needs months of their own log to exist. Counting, never
-          causation: "in your four best weeks you trained four times" is a
-          count; "training four times works for you" is a claim about a
-          mechanism drawn from four weeks, which this app does not make. The
-          rule is enforced in review.ts, not here. */}
-      {best && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <Eyebrow>What your best weeks had in common</Eyebrow>
-            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-              {best.differences.length === 0 || premium
-                ? best.note
-                : `Your best ${best.bestCount} weeks were measurably different from the other `
-                  + `${best.restCount}. Premium counts what changed.`}
-            </Txt>
-            {cards.sell === 'best' && (
-              <Button
-                label="Count the difference"
-                onPress={() => router.push('/paywall')}
-                style={{ marginTop: Space.md }}
-              />
-            )}
-          </Card>
-        </Enter>
-      )}
-
-      {/* The answer to "why is it getting harder", from your own log rather
-          than from a study: a lighter body costs less to run, so the same
-          plate stops being a deficit. Nothing here is estimated — a month
-          without enough days is skipped, not guessed at. */}
-      {months && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <Eyebrow>Month against month</Eyebrow>
-            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-              {premium
-                ? months.note
-                : 'You have two months with enough data to compare. Premium works out what changed '
-                  + 'between them and what your maintenance did while you got lighter.'}
-            </Txt>
-            {cards.sell === 'months' && (
-              <Button
-                label="Compare the months"
-                onPress={() => router.push('/paywall')}
-                style={{ marginTop: Space.md }}
-              />
-            )}
-          </Card>
-        </Enter>
-      )}
-
-      {/* What everybody half knows about themselves, turned into a number. */}
-      {pattern && (pattern.worst || pattern.note || pattern.missing) && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <Eyebrow>Your pattern</Eyebrow>
-            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-              {pattern.missing
-                // Written, checked, and never rendered until now: the guard
-                // demanded worst or note, and when `missing` is set both are
-                // empty. Same class as intakeWeek in point 38.
-                ? `Not enough to read a pattern yet — ${pattern.missing}.`
-                : premium || !pattern.worst
-                ? pattern.note
-                : 'Your days are not alike — one of them runs well over the rest. Premium names it and '
-                  + 'works out what it costs across a week.'}
-            </Txt>
-            {!pattern.missing && cards.sell === 'pattern' && (
-              <Button
-                label="See which day"
-                onPress={() => router.push('/paywall')}
-                style={{ marginTop: Space.md }}
-              />
-            )}
-          </Card>
-        </Enter>
-      )}
-
-      {/* The same week, arranged around the sessions. The balance is untouched;
-          only how easy the week is to hold changes. */}
-      {cycle && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <Eyebrow>Around your training</Eyebrow>
-            {premium ? (
-              <>
-                <View style={[s.split, { marginTop: Space.md }]}>
-                  <View style={{ flex: 1 }}>
-                    <Txt variant="subheading">{cycle.trainingKcal}</Txt>
-                    <Eyebrow style={{ marginTop: 2 }}>{cycle.trainingDays} training days</Eyebrow>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Txt variant="subheading" color={c.textDim}>{cycle.restKcal}</Txt>
-                    <Eyebrow style={{ marginTop: 2 }}>{cycle.restDays} rest days</Eyebrow>
-                  </View>
-                </View>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{cycle.note}</Txt>
-              </>
-            ) : (
-              <>
-                <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                  You train {cycle.trainingDays} days a week. The same weekly total eats more easily
-                  when it follows the sessions — Premium works out the split.
-                </Txt>
-                {cards.sell === 'cycle' && (
-                  <Button
-                    label="See the split"
-                    onPress={() => router.push('/paywall')}
-                    style={{ marginTop: Space.md }}
-                  />
-                )}
-              </>
-            )}
-          </Card>
-        </Enter>
-      )}
-
-      {/* The question everyone actually has, answered without the flattery.
-          A naive projection divides distance by current rate and is always
-          optimistic, because a lighter body costs less to run. This one bends,
-          and when the plate is too big to reach the goal it says so. */}
-      {outlook && cards.outlook && (
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <View style={s.split}>
-              <Eyebrow>Where this leads</Eyebrow>
-              {premium && outlook.weeks !== null && (
-                <Txt variant="data" color={c.accent}>{outlook.weeks} weeks</Txt>
+                )
               )}
-            </View>
-            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-              {premium
-                ? outlook.note
-                : outlook.stallWeight !== null
-                  ? 'At your current intake the weight levels off before the target — a lighter body '
-                    + 'costs less to run. Premium shows where, and what to eat instead.'
-                  : 'Premium works out how long this takes at your current intake, allowing for the '
-                    + 'fact that the rate eases as you get lighter.'}
-            </Txt>
-            {cards.sell === 'outlook' && (
-              <Button
-                label="See where this leads"
-                onPress={() => router.push('/paywall')}
-                style={{ marginTop: Space.md }}
-              />
-            )}
-          </Card>
-        </Enter>
-      )}
+            </Card>
+          </Enter>
+        )}
 
+        {review && (
+          <Enter index={3}>
+            <Card style={{ marginBottom: Space.base }} tone={review.sparse ? 'default' : 'accent'}>
+              <Eyebrow>Rückblick letzte 7 Tage</Eyebrow>
+              {review.sparse ? (
+                <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                  {review.consequence}
+                </Txt>
+              ) : (
+                <>
+                  <View style={s.reviewRow}>
+                    <View style={s.reviewCell}>
+                      <Txt variant="heading" style={s.reviewFigure}>{review.fastDays}<Txt variant="small" color={c.textFaint}>/7</Txt></Txt>
+                      <Txt variant="small" color={c.textDim}>Fastentage</Txt>
+                    </View>
+                    <Divider style={s.reviewLine} />
+                    <View style={s.reviewCell}>
+                      <Txt variant="heading" style={s.reviewFigure}>{review.cookDays}</Txt>
+                      <Txt variant="small" color={c.textDim}>Gekocht</Txt>
+                    </View>
+                    <Divider style={s.reviewLine} />
+                    <View style={s.reviewCell}>
+                      <Txt variant="heading" style={s.reviewFigure}>{review.weighIns}</Txt>
+                      <Txt variant="small" color={c.textDim}>Wägungen</Txt>
+                    </View>
+                  </View>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
+                    {review.headline}
+                  </Txt>
+                </>
+              )}
+            </Card>
+          </Enter>
+        )}
+
+        <Enter index={4}>
+          <NavRow
+            icon="edit"
+            tone="body"
+            title={t('progress.corrections')}
+            sub={t('progress.correctionsSub')}
+            onPress={() => router.push('/week/corrections')}
+          />
+        </Enter>
         </Columns>
         </>
       )}
+
+      {tab === 'body' && (
+        <>
+        <Columns>
+        {need && !need.ready && (
+          <Enter index={1}>
+            <Card style={{ marginBottom: Space.base }}>
+              <Eyebrow>Kalibrierung läuft</Eyebrow>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{need.note}</Txt>
+            </Card>
+          </Enter>
+        )}
+
+        {measured && (
+          <Enter index={1}>
+            <Card style={{ marginBottom: Space.base }} tone="body">
+              <View style={s.split}>
+                <Eyebrow color={measured.kcal ? c.body : undefined}>Tatsächlicher Energiebedarf</Eyebrow>
+                {measured.kcal !== null && (
+                  <View style={[s.changeBadge, { backgroundColor: c.bodyWash }]}>
+                    <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
+                      {measured.confidence === 'good' ? 'Gemessen' : 'Frühe Messung'}
+                    </Txt>
+                  </View>
+                )}
+              </View>
+
+              {measured.kcal === null ? (
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                  {everMeasured
+                    ? `Die Messung benötigt frische Daten der letzten 21 Tage — ${measured.missing}. Bis dahin gilt die Formel.`
+                    : `Noch nicht genug Daten — ${measured.missing}.`}
+                </Txt>
+              ) : premium || preview ? (
+                <>
+                  <Txt variant="heading" style={{ marginTop: Space.md, fontSize: 26, fontWeight: '800' }}>
+                    {measured.kcal}
+                    <Txt variant="small" color={c.textFaint}> kcal / Tag</Txt>
+                  </Txt>
+                  {measured.plusMinus !== null && (
+                    <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
+                      ± {measured.plusMinus} kcal Schwankungsbereich
+                    </Txt>
+                  )}
+                  {!premium && (
+                    <>
+                      <Txt variant="small" color={c.accent} style={{ marginTop: Space.sm }}>
+                        Dies ist dein gemessener Wert. Premium aktualisiert ihn kontinuierlich und passt deinen Plan dynamisch an.
+                      </Txt>
+                      {cards.sell === 'measured' && (
+                        <Button
+                          label="Wert dauerhaft messen"
+                          onPress={() => router.push('/paywall')}
+                          style={{ marginTop: Space.md }}
+                        />
+                      )}
+                    </>
+                  )}
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                    {measured.deltaToEstimate === null || measured.deltaToEstimate === 0
+                      ? 'Entspricht exakt der Formel.'
+                      : `Weicht um ${Math.abs(measured.deltaToEstimate)} kcal von der Standard-Formel ab. Ermittelt aus ${measured.intakeDays} Tagen Ernährung und ${measured.weighIns} Wägungen.`}
+                  </Txt>
+                </>
+              ) : (
+                <>
+                  <Txt variant="body" style={{ marginTop: Space.md }}>
+                    Ermittelt aus {measured.intakeDays} Tagen Ernährung und {measured.weighIns} Wägungen.
+                  </Txt>
+                  {cards.sell === 'measured' && (
+                    <Button
+                      label="Messergebnis anzeigen"
+                      onPress={() => router.push('/paywall')}
+                      style={{ marginTop: Space.md }}
+                    />
+                  )}
+                </>
+              )}
+            </Card>
+          </Enter>
+        )}
+
+        {cycle && (
+          <Enter index={2}>
+            <Card style={{ marginBottom: Space.base }}>
+              <Eyebrow color={c.plan}>Kalorienverteilung Training vs. Pause</Eyebrow>
+              {premium ? (
+                <>
+                  <View style={[s.split, { marginTop: Space.md }]}>
+                    <View style={{ flex: 1 }}>
+                      <Txt variant="heading" style={{ fontSize: 20 }}>{cycle.trainingKcal} kcal</Txt>
+                      <Eyebrow style={{ marginTop: 2 }}>{cycle.trainingDays} Trainingstage</Eyebrow>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Txt variant="heading" color={c.textDim} style={{ fontSize: 20 }}>{cycle.restKcal} kcal</Txt>
+                      <Eyebrow style={{ marginTop: 2 }}>{cycle.restDays} Ruhetage</Eyebrow>
+                    </View>
+                  </View>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{cycle.note}</Txt>
+                </>
+              ) : (
+                <>
+                  <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                    Du trainierst {cycle.trainingDays} Tage pro Woche. Premium berechnet die optimale Kalorienaufteilung auf Trainings- und Ruhetage.
+                  </Txt>
+                  {cards.sell === 'cycle' && (
+                    <Button
+                      label="Aufteilung freischalten"
+                      onPress={() => router.push('/paywall')}
+                      style={{ marginTop: Space.md }}
+                    />
+                  )}
+                </>
+              )}
+            </Card>
+          </Enter>
+        )}
+
+        {pattern && (pattern.worst || pattern.note || pattern.missing) && (
+          <Enter index={3}>
+            <Card style={{ marginBottom: Space.base }}>
+              <Eyebrow>Wochentags-Muster</Eyebrow>
+              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                {pattern.missing
+                  ? `Noch nicht genügend Tage für ein klares Muster erfasst.`
+                  : premium || !pattern.worst
+                  ? pattern.note
+                  : 'Deine Tage unterscheiden sich — einer läuft regelmäßig aus dem Ruder. Premium analysiert den Unterschied.'}
+              </Txt>
+              {!pattern.missing && cards.sell === 'pattern' && (
+                <Button
+                  label="Muster anzeigen"
+                  onPress={() => router.push('/paywall')}
+                  style={{ marginTop: Space.md }}
+                />
+              )}
+            </Card>
+          </Enter>
+        )}
+
+        {outlook && cards.outlook && (
+          <Enter index={4}>
+            <Card style={{ marginBottom: Space.base }}>
+              <View style={s.split}>
+                <Eyebrow>Ziel-Prognose</Eyebrow>
+                {premium && outlook.weeks !== null && (
+                  <Txt variant="data" color={c.accent}>{outlook.weeks} Wochen</Txt>
+                )}
+              </View>
+              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                {premium
+                  ? outlook.note
+                  : 'Premium berechnet, wie lange dein Ziel realistisch dauert, unter Berücksichtigung der Stoffwechselanpassung.'}
+              </Txt>
+              {cards.sell === 'outlook' && (
+                <Button
+                  label="Prognose freischalten"
+                  onPress={() => router.push('/paywall')}
+                  style={{ marginTop: Space.md }}
+                />
+              )}
+            </Card>
+          </Enter>
+        )}
+        </Columns>
+        </>
+      )}
+
       {tab === 'history' && (
         <>
         <Columns>
-      <Enter index={3}>
-        <Card tone="body">
-          <View style={s.split}>
-            <View style={{ flex: 1 }}>
-              <Eyebrow>Now</Eyebrow>
-              <View style={s.figRow}>
-                <Txt variant="display" style={{ fontSize: 38 }}>{current.toFixed(1)}</Txt>
-                <Txt variant="data" color={c.textFaint} style={{ marginLeft: 4 }}>kg</Txt>
-              </View>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Eyebrow>Since start</Eyebrow>
-              <Txt
-                variant="heading"
-                color={change === 0 ? c.textDim : good ? c.positive : c.negative}
-                style={{ marginTop: 6 }}
-              >
-                {change > 0 ? '+' : ''}{change.toFixed(1)} kg
+        {best && (
+          <Enter index={1}>
+            <Card style={{ marginBottom: Space.base }} tone="plan">
+              <Eyebrow color={c.plan}>Gemeinsamkeiten deiner besten Wochen</Eyebrow>
+              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                {best.differences.length === 0 || premium
+                  ? best.note
+                  : `Deine ${best.bestCount} besten Wochen unterschieden sich messbar. Premium zeigt die Erfolgsfaktoren.`}
               </Txt>
-            </View>
-          </View>
+              {cards.sell === 'best' && (
+                <Button
+                  label="Erfolgsfaktoren ansehen"
+                  onPress={() => router.push('/paywall')}
+                  style={{ marginTop: Space.md }}
+                />
+              )}
+            </Card>
+          </Enter>
+        )}
 
-          {entries.length >= 2 ? (
-            <>
-              <TrendChart entries={entries} />
-              <Divider style={{ marginVertical: Space.base }} />
-              <View style={s.split}>
-                <Txt variant="small" color={c.textDim}>Trend</Txt>
-                <Txt variant="data" color={c.accent}>
-                  {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg / week`}
-                </Txt>
-              </View>
-              <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
-                Bodyweight swings a kilo or two on water alone. The weekly slope is the signal.
+        {months && (
+          <Enter index={2}>
+            <Card style={{ marginBottom: Space.base }}>
+              <Eyebrow>Monatlicher Vergleich</Eyebrow>
+              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                {premium
+                  ? months.note
+                  : 'Du hast genügend Daten für einen Monatsvergleich. Premium zeigt, wie sich dein Stoffwechsel verändert hat.'}
               </Txt>
-            </>
-          ) : (
-            <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
-              Log twice to see a trend line.
-            </Txt>
-          )}
-        </Card>
-      </Enter>
+              {cards.sell === 'months' && (
+                <Button
+                  label="Monate vergleichen"
+                  onPress={() => router.push('/paywall')}
+                  style={{ marginTop: Space.md }}
+                />
+              )}
+            </Card>
+          </Enter>
+        )}
 
-      <Enter index={4}>
-        <Card style={{ marginTop: Space.base }}>
-          <View style={s.split}>
-            <Eyebrow>Toward target</Eyebrow>
-            <Txt variant="data" color={c.textDim}>{profile.goal.replace('_', ' ')}</Txt>
-          </View>
-          <View style={{ marginTop: Space.base }}>
-            <Bar pct={pct} color={c.accent} />
-          </View>
-          <View style={[s.split, { marginTop: Space.md }]}>
-            <Txt variant="data" color={c.textFaint}>start {start.toFixed(1)}</Txt>
-            <Txt variant="data" color={c.textFaint}>target {target.toFixed(1)}</Txt>
-          </View>
-          <Divider style={{ marginVertical: Space.base }} />
-          <View style={s.split}>
-            <Txt variant="small" color={c.textDim}>BMI</Txt>
-            <Txt variant="data" color={c.text}>{bmi.toFixed(1)} · {bmiLabel}</Txt>
-          </View>
-          <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
-            BMI cannot see muscle. Treat it as a rough marker.
-          </Txt>
-        </Card>
-      </Enter>
-
-      {entries.length > 0 ? (
-        <Enter index={6} style={{ marginTop: Space.xxl }}>
-          <Eyebrow style={{ marginBottom: Space.md }}>History</Eyebrow>
-          <Card style={{ paddingVertical: Space.sm }}>
-            {entries.slice(0, 10).map((e, i, arr) => {
-              const prev = entries[i + 1];
-              const delta = prev ? e.weight_kg - prev.weight_kg : null;
-              return (
-                <View key={e.id}>
-                  {i > 0 && <Divider />}
-                  <View style={s.histRow}>
-                    <Txt variant="data" color={c.textDim}>{e.date}</Txt>
-                    <View style={s.rowEnd}>
-                      {delta !== null && delta !== 0 && (
-                        <Txt variant="data" color={delta > 0 ? c.textFaint : c.positive} style={{ marginRight: Space.md }}>
-                          {delta > 0 ? '+' : ''}{delta.toFixed(1)}
-                        </Txt>
-                      )}
-                      <Txt variant="subheading">{e.weight_kg.toFixed(1)} kg</Txt>
+        {entries.length > 0 ? (
+          <Enter index={3}>
+            <Eyebrow color={c.body} style={{ marginBottom: Space.md, marginTop: Space.sm }}>Wäge-Historie</Eyebrow>
+            <Card style={{ paddingVertical: Space.sm }}>
+              {entries.slice(0, 15).map((e, i) => {
+                const prev = entries[i + 1];
+                const delta = prev ? e.weight_kg - prev.weight_kg : null;
+                return (
+                  <View key={e.id}>
+                    {i > 0 && <Divider />}
+                    <View style={s.histRow}>
+                      <Txt variant="data" color={c.text}>{e.date}</Txt>
+                      <View style={s.rowEnd}>
+                        {delta !== null && delta !== 0 && (
+                          <Txt variant="data" color={delta > 0 ? c.negative : c.positive} style={{ marginRight: Space.md }}>
+                            {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
+                          </Txt>
+                        )}
+                        <Txt variant="heading" style={{ fontSize: 16 }}>{e.weight_kg.toFixed(1)} kg</Txt>
+                      </View>
                     </View>
                   </View>
-                </View>
-              );
-            })}
-          </Card>
-        </Enter>
-      ) : (
-        <Enter index={6}>
-          <Empty
-            icon="chart"
-            title="Nothing logged yet"
-            body="Weigh in at the same time of day, ideally before your first drink. Consistency matters more than the number."
-          />
-        </Enter>
-      )}
+                );
+              })}
+            </Card>
+          </Enter>
+        ) : (
+          <Enter index={3}>
+            <Empty
+              icon="chart"
+              title="Nothing logged yet"
+              body="Weigh in at the same time of day, ideally before your first drink. Consistency matters more than the number."
+            />
+          </Enter>
+        )}
 
         </Columns>
         </>
@@ -1000,4 +893,10 @@ const s = StyleSheet.create({
   input: { height: 48, borderRadius: Radius.sm, borderWidth: 1, paddingHorizontal: Space.md, fontSize: 15 },
   histRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Space.md },
   rowEnd: { flexDirection: 'row', alignItems: 'center' },
+  changeBadge: {
+    paddingHorizontal: Space.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    marginTop: 4,
+  },
 });

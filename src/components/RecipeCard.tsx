@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
-import { Card, Txt, Eyebrow, Tap, Divider, useTheme, useTone } from './ui';
+import { Card, Txt, Eyebrow, Tap, useTheme, useTone } from './ui';
 import { useT } from './lang';
 import { Icon } from './icons';
 import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
@@ -103,79 +103,95 @@ export default function RecipeCard({
           </View>
         ))}
       </View>
-
-      <View style={s.ingredientHead}>
-        <Eyebrow color={plan_.ink}>{t('recipe.ingredients')}</Eyebrow>
-        {onPortions && (
-          <View style={s.portions}>
-            {[1, 2, 3].map((n) => (
-              <Tap
-                key={n}
-                onPress={() => onPortions(n)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: portions === n }}
-                accessibilityLabel={`${n} portions`}
-              >
-                <View
-                  style={[
-                    s.portion,
-                    {
-                      borderColor: portions === n ? plan_.ink : c.line,
-                      backgroundColor: portions === n ? plan_.ink : 'transparent',
-                    },
-                  ]}
+      <View style={[s.subCard, { backgroundColor: c.well, borderColor: c.line }]}>
+        <View style={s.ingredientHead}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Icon name="basket" size={16} color={plan_.ink} />
+            <Eyebrow color={plan_.ink} style={{ marginLeft: 6 }}>{t('recipe.ingredients')}</Eyebrow>
+          </View>
+          {onPortions && (
+            <View style={s.portions}>
+              {[1, 2, 3].map((n) => (
+                <Tap
+                  key={n}
+                  onPress={() => onPortions(n)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: portions === n }}
+                  accessibilityLabel={`${n} portions`}
                 >
-                  <Txt variant="data" color={portions === n ? c.onAccent : c.textDim}>
-                    {n}×
-                  </Txt>
+                  <View
+                    style={[
+                      s.portion,
+                      {
+                        borderColor: portions === n ? plan_.ink : c.line,
+                        backgroundColor: portions === n ? plan_.ink : c.surface,
+                      },
+                    ]}
+                  >
+                    <Txt variant="data" color={portions === n ? c.onAccent : c.textDim} style={{ fontWeight: '700' }}>
+                      {n}×
+                    </Txt>
+                  </View>
+                </Tap>
+              ))}
+            </View>
+          )}
+        </View>
+        {scaleIngredients(plan.recipe.ingredients, portions).map((item, i) => {
+          const { amount, name } = splitAmount(item);
+          return (
+            <View key={`${item}-${i}`} style={s.ingredient}>
+              {amount ? (
+                <View style={[s.amountBadge, { backgroundColor: plan_.fill, borderColor: plan_.edge }]}>
+                  <Txt variant="data" color={plan_.ink} style={s.amount}>{amount}</Txt>
                 </View>
-              </Tap>
-            ))}
-          </View>
-        )}
+              ) : (
+                <View style={s.amountBadgeEmpty} />
+              )}
+              <Txt variant="body" style={s.ingredientName}>{name}</Txt>
+            </View>
+          );
+        })}
       </View>
-      {/* Amount left, food right, both starting on the same vertical line.
-          A dot bullet ahead of a run-on sentence put every quantity at a
-          different indent, which is the one thing this list is scanned for. */}
-      {scaleIngredients(plan.recipe.ingredients, portions).map((item, i) => {
-        const { amount, name } = splitAmount(item);
-        return (
-          <View key={`${item}-${i}`} style={s.ingredient}>
-            {amount ? (
-              <Txt variant="data" color={plan_.ink} style={s.amount}>{amount}</Txt>
-            ) : (
-              <View style={s.amount} />
-            )}
-            <Txt variant="body" style={s.ingredientName}>{name}</Txt>
-          </View>
-        );
-      })}
 
       {cook.length > 0 && (
-        <>
-          <Divider style={{ marginTop: Space.lg }} />
-          <Eyebrow style={s.section} color={plan_.ink}>{t('recipe.method')}</Eyebrow>
+        <View style={[s.subCard, { backgroundColor: c.well, borderColor: c.line, marginTop: Space.base }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Space.md }}>
+            <Icon name="plate" size={16} color={plan_.ink} />
+            <Eyebrow color={plan_.ink} style={{ marginLeft: 6 }}>{t('recipe.method')}</Eyebrow>
+          </View>
           {steps(cook, 'c', true, plan_.ink)}
-        </>
+        </View>
       )}
 
       {reheat.length > 0 && (
-        <>
-          <Divider style={{ marginTop: Space.lg }} />
-          <Eyebrow style={s.section} color={c.ember}>{t('recipe.reheat')}</Eyebrow>
-          {steps(reheat, 'r', false, c.ember)}
-        </>
+        <View style={[s.subCard, { backgroundColor: c.goldWash, borderColor: c.gold, marginTop: Space.base }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Space.md }}>
+            <Icon name="flame" size={16} color={c.gold} />
+            <Eyebrow color={c.gold} style={{ marginLeft: 6 }}>{t('recipe.reheat')}</Eyebrow>
+          </View>
+          {steps(reheat, 'r', false, c.gold)}
+        </View>
       )}
     </Card>
   );
 }
 
 const s = StyleSheet.create({
-  recipeTitle: { marginTop: Space.sm, lineHeight: 27 },
+  subCard: {
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginTop: Space.base,
+  },
+  recipeTitle: { marginTop: Space.xs, fontSize: 22, fontWeight: '700' },
   fallback: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    borderRadius: Radius.sm, borderWidth: 1,
-    padding: Space.md, marginTop: Space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Space.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginTop: Space.md,
   },
   fallbackText: { flex: 1, marginLeft: Space.sm },
   macros: {
@@ -192,30 +208,51 @@ const s = StyleSheet.create({
     borderWidth: 1,
     marginRight: Space.xs,
   },
-  section: { marginTop: Space.lg, marginBottom: Space.md },
   ingredientHead: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: Space.lg, marginBottom: Space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Space.md,
   },
-  portions: { flexDirection: 'row', marginRight: -Space.xs },
+  portions: { flexDirection: 'row' },
   portion: {
-    minWidth: 34, minHeight: 28, borderRadius: Radius.pill, borderWidth: 1, paddingVertical: 3,
-    alignItems: 'center', justifyContent: 'center', marginRight: Space.xs,
     paddingHorizontal: Space.sm,
+    minHeight: 28,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Space.xs,
   },
-  ingredient: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 6 },
-  // Fixed, so the food names line up whatever the numbers do. Wide enough for
-  // "1.82kg"; anything longer wraps inside its own column rather than pushing
-  // the names out of alignment.
-  amount: { width: 72, marginRight: Space.md, marginTop: 2 },
+  ingredient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  amountBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    minWidth: 54,
+    alignItems: 'center',
+    marginRight: Space.sm,
+  },
+  amountBadgeEmpty: { width: 54, marginRight: Space.sm },
+  amount: { fontSize: 12, fontWeight: '600' },
   ingredientName: { flex: 1 },
-  step: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 7 },
+  step: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Space.sm },
   box: {
-    width: 20, height: 20, borderRadius: 6, borderWidth: 1.5,
-    alignItems: 'center', justifyContent: 'center', marginRight: Space.md, marginTop: 1,
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Space.md,
+    marginTop: 1,
   },
-  /** A numeral needs a round token, not a checkbox that happens to hold one. */
-  boxNumbered: { width: 24, height: 24, borderRadius: 12 },
+  boxNumbered: { borderRadius: Radius.pill },
   stepText: { flex: 1 },
   struck: { textDecorationLine: 'line-through' },
 });
