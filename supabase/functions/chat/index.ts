@@ -70,7 +70,7 @@ serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
-    const { message, history, profile, plan, state, language } = await req.json().catch(() => ({}));
+    const { message, history, profile, plan, state, language, memory } = await req.json().catch(() => ({}));
 
     // Validate at the trust boundary — this text goes straight into a paid API call.
     if (typeof message !== 'string' || !message.trim()) {
@@ -128,6 +128,9 @@ serve(async (req) => {
       systemText +=
         `\n\nToday's plan (already calculated for them — treat these numbers as fixed): ` +
         `${JSON.stringify(plan).slice(0, 600)}`;
+    }
+    if (Array.isArray(memory) && memory.length > 0) {
+      systemText += `\n\nMemory from past coaching sessions with this athlete (use to stay consistent): \n${memory.map((m: string) => `- ${String(m).slice(0, 150)}`).join('\n')}`;
     }
 
     const controller = new AbortController();

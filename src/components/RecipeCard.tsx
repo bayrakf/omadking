@@ -93,6 +93,14 @@ export default function RecipeCard({
           style={s.foodImage}
           resizeMode="cover"
         />
+        {plan.complexity === 'chef' && (
+          <View style={[s.chefImageBadge, { backgroundColor: 'rgba(15, 23, 42, 0.85)', borderColor: '#F59E0B' }]}>
+            <Icon name="crown" size={11} color="#F59E0B" />
+            <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 9, fontWeight: '800', marginLeft: 4 }}>
+              GOURMET PLATING ARCHITEKTUR
+            </Txt>
+          </View>
+        )}
         <TouchableOpacity
           onPress={onToggleFav}
           activeOpacity={0.75}
@@ -164,7 +172,7 @@ export default function RecipeCard({
           </View>
           {onPortions && (
             <View style={s.portions}>
-              {[1, 2, 3].map((n) => (
+              {[1, 2, 3, 4].map((n) => (
                 <Tap
                   key={n}
                   onPress={() => onPortions(n)}
@@ -190,6 +198,14 @@ export default function RecipeCard({
             </View>
           )}
         </View>
+        {portions > 1 && (
+          <View style={[s.batchNotice, { backgroundColor: plan_.fill, borderColor: plan_.edge }]}>
+            <Icon name="basket" size={13} color={plan_.ink} />
+            <Txt variant="small" color={plan_.ink} style={{ marginLeft: 6, fontWeight: '600' }}>
+              Meal-Prep Modus: Zutaten für {portions} Tage automatisch skaliert.
+            </Txt>
+          </View>
+        )}
         {scaleIngredients(plan.recipe.ingredients, portions).map((item, i) => {
           const { amount, name } = splitAmount(item);
           return (
@@ -243,6 +259,17 @@ const s = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  chefImageBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
   favBtn: {
     position: 'absolute',
     top: 10,
@@ -293,6 +320,15 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: Space.md,
+  },
+  batchNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Space.sm,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: 1,
     marginBottom: Space.md,
   },
   portions: { flexDirection: 'row' },

@@ -377,7 +377,8 @@ export async function askCoach(
   lang: Lang,
   profile?: UserProfile | null,
   plan?: MealPlan | null,
-  state?: CoachState | null
+  state?: CoachState | null,
+  memory?: string[] | null
 ): Promise<string> {
   if (!SUPABASE_URL) throw new Error('Coach is not configured.');
 
@@ -417,6 +418,8 @@ export async function askCoach(
     // Only the derived figures, never the logs they came from: the coach needs
     // to know the trend is -0.4, not every weigh-in that produced it.
     state: state ?? null,
+    // Persistent memory from previous sessions so the coach remembers preferences/notes
+    memory: memory && memory.length > 0 ? memory.slice(0, 5) : null,
   }, TIMEOUT_CHAT_MS);
 
   if (!res.ok) {

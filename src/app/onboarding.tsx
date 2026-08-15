@@ -146,13 +146,43 @@ export default function OnboardingScreen() {
       case 0:
         return (
           <View style={s.centre}>
-            <Eyebrow color={c.accent}>One meal a day · built for training</Eyebrow>
-            <Txt variant="display" style={{ marginTop: Space.base }}>
+            <Eyebrow color={c.accent}>One meal a day · built for athletes</Eyebrow>
+            <Txt variant="display" style={{ marginTop: Space.sm }}>
               Eat once.{'\n'}Time it right.
             </Txt>
-            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.base }}>
-              Four questions, about a minute. Then you get the exact times to eat around the sessions you actually do.
+            <Txt variant="body" color={c.textDim} style={{ marginTop: Space.sm }}>
+              Four questions, about a minute. We calculate your exact fasting window, metabolic macros, and training timing.
             </Txt>
+
+            <View style={[s.benefitCard, { backgroundColor: c.well, borderColor: c.line }]}>
+              <View style={s.benefitRow}>
+                <Txt style={{ fontSize: 20 }}>🔥</Txt>
+                <View style={{ flex: 1, marginLeft: Space.md }}>
+                  <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Deep Ketosis & Fat Oxidation</Txt>
+                  <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
+                    23h daily fast trains metabolic flexibility and eliminates afternoon energy crashes.
+                  </Txt>
+                </View>
+              </View>
+              <View style={[s.benefitRow, { marginTop: Space.md }]}>
+                <Txt style={{ fontSize: 20 }}>🧬</Txt>
+                <View style={{ flex: 1, marginLeft: Space.md }}>
+                  <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Autophagy & Cellular Renewal</Txt>
+                  <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
+                    Accelerated systemic recovery and lower chronic inflammation for peak performance.
+                  </Txt>
+                </View>
+              </View>
+              <View style={[s.benefitRow, { marginTop: Space.md }]}>
+                <Txt style={{ fontSize: 20 }}>⚡</Txt>
+                <View style={{ flex: 1, marginLeft: Space.md }}>
+                  <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Sharp Cognitive Focus</Txt>
+                  <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
+                    Zero blood sugar spikes or digestive fatigue throughout the working day.
+                  </Txt>
+                </View>
+              </View>
+            </View>
           </View>
         );
 
@@ -484,6 +514,16 @@ const s = StyleSheet.create({
   chip: { marginRight: Space.sm, marginBottom: Space.sm },
   input: { height: 50, borderRadius: Radius.sm, borderWidth: 1, paddingHorizontal: Space.base, fontSize: 15 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Space.base },
+  benefitCard: {
+    marginTop: Space.base,
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   footer: {
     padding: Space.lg, paddingBottom: Platform.OS === 'ios' ? Space.sm : Space.lg,
     maxWidth: MaxContentWidth, alignSelf: 'center', width: '100%',

@@ -17,9 +17,10 @@ import { View, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Tap, NavRow, PageHeader, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Tap, NavRow, PageHeader, useTheme, SegmentedControl,
 } from '@/components/ui';
 import { useLang } from '@/components/lang';
+import { useOverrideTheme } from '@/components/ThemeProvider';
 import { LANGS } from '@/lib/i18n';
 import { Icon } from '@/components/icons';
 import { toMinutes, fromMinutes, dailyTargets, DEFAULT_PROFILE, type UserProfile } from '@/lib/nutrition';
@@ -40,7 +41,8 @@ function ago(iso: string | null): string {
 
 export default function ProfileScreen() {
   const c = useTheme();
-  const { chosen, t } = useLang();
+  const { lang, t, chosen } = useLang();
+  const { mode: themeMode, setMode: setThemeMode } = useOverrideTheme();
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
@@ -191,6 +193,23 @@ export default function ProfileScreen() {
           sub={chosen === null ? t('you.languageFollows') : (LANGS.find((l) => l.id === chosen)?.endonym ?? '')}
           onPress={() => router.push('/you/language')}
         />
+
+        {/* Theme mode selection */}
+        <View style={{ marginTop: Space.md }}>
+          <Eyebrow color={c.textDim} style={{ marginBottom: Space.xs, marginLeft: 2 }}>
+            {lang === 'de' ? 'DESIGN / THEMA' : 'THEME'}
+          </Eyebrow>
+          <SegmentedControl
+            values={[
+              { id: 'system', label: lang === 'de' ? 'System' : 'System' },
+              { id: 'dark', label: lang === 'de' ? 'Dunkel' : 'Dark', icon: 'moon' },
+              { id: 'light', label: lang === 'de' ? 'Hell' : 'Light' },
+            ]}
+            selected={themeMode}
+            onSelect={(m) => setThemeMode(m as any)}
+            tone="accent"
+          />
+        </View>
       </Enter>
 
       {/* Über die App & Rechtliches */}

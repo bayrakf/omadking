@@ -37,6 +37,8 @@ export const KEYS = {
   fastingNotes: 'fasting_notes_map',
   dailySteps: 'daily_steps_map',
   syncedAt: 'sync_last',
+  themeMode: 'theme_mode',
+  coachMemory: 'coach_memory',
 } as const;
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -345,7 +347,8 @@ export async function loadPortions(): Promise<number> {
 }
 
 export async function savePortions(n: number): Promise<void> {
-  await AsyncStorage.setItem(KEYS.portions, String(n === 2 || n === 3 ? n : 1));
+  const valid = Math.min(4, Math.max(1, Math.round(n)));
+  await AsyncStorage.setItem(KEYS.portions, String(valid));
 }
 
 // --- Last planner input ----------------------------------------------------
@@ -529,3 +532,41 @@ export async function saveDailySteps(steps: number, date = todayISO()): Promise<
   map[date] = Math.max(0, Math.round(steps));
   await writeJSON(KEYS.dailySteps, map);
 }
+
+// --- Theme override ---------------------------------------------------------
+
+/** 'system' means follow the OS. 'dark' / 'light' override it manually. */
+export type ThemeMode = 'system' | 'dark' | 'light';
+
+export async function loadThemeMode(): Promise<ThemeMode> {
+  const v = await AsyncStorage.getItem(KEYS.themeMode);
+  if (v === 'dark' || v === 'light') return v;
+  return 'system';
+}
+
+export async function saveThemeMode(mode: ThemeMode): Promise<void> {
+  await AsyncStorage.setItem(KEYS.themeMode, mode);
+}
+
+// --- KI-Coach Memory --------------------------------------------------------
+
+export type CoachMemoryEntry = {
+  date: string;           // ISO date of the conversation
+  summary: string;        // 1-2 sentence summary of what the coach noted
+};
+
+export async function loadCoachMemory(): Promise<CoachMemoryEntry[]> {
+  return readJSON<CoachMemoryEntry[]>(KEYS.coachMemory, []);
+}
+
+export async function saveCoachMemoryEntry(entry: CoachMemoryEntry): Promise<void> {
+  const existing = await loadCoachMemory();
+  // Keep last 20 entries; oldest fall off.
+  const updated = [entry, ...existing.filter((e) => e.date !== entry.date)].slice(0, 20);
+  await writeJSON(KEYS.coachMemory, updated);
+}
+
+export async function clearCoachMemory(): Promise<void> {
+  await writeJSON(KEYS.coachMemory, []);
+}
+

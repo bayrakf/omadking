@@ -14,6 +14,7 @@ import {
   type Intensity, type Training, type UserProfile,
 } from '@/lib/nutrition';
 import { generateMealPlan, QuotaError, type MealPlan, type MealComplexity } from '@/lib/ai';
+import { haptic } from '@/lib/haptic';
 import {
   loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
   loadLastSession, saveLastSession, loadPortions, savePortions,
@@ -179,6 +180,7 @@ export default function PlannerScreen() {
         start_time: trainingTime,
       });
       setPlan(next);
+      haptic(next.recipe_source === 'ai' ? 'success' : 'medium');
       setHistory(await savePlan(next));
       // Only a real generated recipe costs one of the three weekly plans.
       // Charging for the built-in fallback would bill the user for an outage —
@@ -192,7 +194,7 @@ export default function PlannerScreen() {
       setQuota(await getQuota());
     } catch (e) {
       if (e instanceof QuotaError) router.push('/paywall');
-      else setError('Could not reach the planner. Check your connection and try again.');
+      else { setError('Could not reach the planner. Check your connection and try again.'); haptic('error'); }
     } finally {
       setLoading(false);
     }

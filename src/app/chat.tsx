@@ -13,6 +13,7 @@ import { askCoach, conversationOf, type ChatTurn, type MealPlan, type CoachState
 import {
   loadProfile, loadLastPlan, loadChat, saveChat, clearChat,
   loadIntakeLog, loadWeightLog, isPremium, todayISO,
+  loadCoachMemory, saveCoachMemoryEntry,
 } from '@/lib/store';
 import { dailyTargets } from '@/lib/nutrition';
 import { measuredMaintenance, readTrend, readPlateau, weekdayPattern } from '@/lib/energy';
@@ -77,6 +78,7 @@ export default function ChatScreen() {
   const [state, setState] = useState<CoachState | null>(null);
   const [restored, setRestored] = useState(false);
   const [premium, setPremium] = useState(false);
+  const [memory, setMemory] = useState<string[]>([]);
 
   useEffect(() => {
     loadProfile().then(setProfile);
@@ -85,10 +87,11 @@ export default function ChatScreen() {
     // What the app knows about this person, so the coach stops answering with
     // ranges when it could answer with their numbers.
     (async () => {
-      const [prof, intake, weights, prem] = await Promise.all([
-        loadProfile(), loadIntakeLog(), loadWeightLog(), isPremium(),
+      const [prof, intake, weights, prem, mem] = await Promise.all([
+        loadProfile(), loadIntakeLog(), loadWeightLog(), isPremium(), loadCoachMemory(),
       ]);
       setPremium(prem);
+      setMemory(mem.map((m) => `${m.date}: ${m.summary}`));
       // Without premium the coach still answers, unlimited — it just answers
       // with ranges instead of this person's own figures. Saying so beats
       // silently being worse, which is what it did before.
@@ -132,8 +135,16 @@ export default function ChatScreen() {
     toBottom();
 
     try {
-      const reply = await askCoach(trimmed, history, lang, profile, plan, state);
+      const reply = await askCoach(trimmed, history, lang, profile, plan, state, memory);
       setMessages((p) => [...p, { id: `a${Date.now()}`, sender: 'ai', text: reply }]);
+
+      // If user provided substantive preference or context, record short memory
+      if (trimmed.length > 20) {
+        saveCoachMemoryEntry({
+          date: todayISO(),
+          summary: trimmed.slice(0, 100),
+        }).catch(() => {});
+      }
     } catch (err: any) {
       // Previously this swallowed the error and printed a canned tip, so a broken
       // API looked like a working coach giving irrelevant answers.

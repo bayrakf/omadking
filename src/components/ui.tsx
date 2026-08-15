@@ -14,7 +14,6 @@ import {
   Animated,
   ScrollView,
   StyleSheet,
-  useColorScheme,
   AccessibilityInfo,
   type StyleProp,
   type ViewStyle,
@@ -31,10 +30,11 @@ import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown'
 import { useRouter } from 'expo-router';
 import { Icon, type IconName } from './icons';
 import { useLang } from './lang';
+import { useResolvedScheme } from './ThemeProvider';
 
 export function useTheme(): ThemePalette {
-  const scheme = useColorScheme();
-  return Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const scheme = useResolvedScheme();
+  return Colors[scheme];
 }
 
 /** Honours the OS "reduce motion" setting; entrances become instant. */

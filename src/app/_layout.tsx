@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { AppState, View, useColorScheme } from 'react-native';
+import { AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -11,6 +11,7 @@ import { resync, announceMeasurement } from '@/lib/notify';
 import { syncEntitlement } from '@/lib/purchases';
 import ErrorScreen from '@/components/ErrorScreen';
 import { LangProvider } from '@/components/lang';
+import { ThemeProvider, useResolvedScheme } from '@/components/ThemeProvider';
 
 // Surfaces real errors instead of a white screen.
 // expo-router's own boundary keeps the screen from going white, but it reads
@@ -25,9 +26,17 @@ const PUBLIC_ROUTES = new Set(['onboarding', 'landing']);
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutInner />
+    </ThemeProvider>
+  );
+}
+
+function RootLayoutInner() {
   const router = useRouter();
   const segments = useSegments();
-  const colorScheme = useColorScheme();
+  const colorScheme = useResolvedScheme();
   const [checked, setChecked] = useState(false);
 
   // Keys here are the family names referenced by Font in constants/theme.

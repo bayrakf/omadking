@@ -11,6 +11,7 @@ import { useT } from '@/components/lang';
 import { Icon } from '@/components/icons';
 import { loadPlanHistory, loadPortions, KEYS } from '@/lib/store';
 import { buildGroceryList, scaleIngredients, type GroceryCategory } from '@/lib/grocery';
+import { haptic } from '@/lib/haptic';
 import type { MealPlan } from '@/lib/ai';
 
 export default function GroceryScreen() {
@@ -56,6 +57,7 @@ export default function GroceryScreen() {
   };
 
   const toggle = (catIdx: number, id: string) => {
+    haptic('light');
     setCategories((prev) => {
       const next = prev.map((cat, i) =>
         i !== catIdx ? cat : { ...cat, items: cat.items.map((it) => (it.id === id ? { ...it, checked: !it.checked } : it)) }

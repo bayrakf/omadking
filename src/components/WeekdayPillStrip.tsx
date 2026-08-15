@@ -4,6 +4,8 @@ import { Txt, useTheme } from './ui';
 import { Icon } from './icons';
 import { todayISO, formatReadableDate, GERMAN_WEEKDAYS_SHORT, ENGLISH_WEEKDAYS_SHORT } from '@/lib/dates';
 import { useLang } from './lang';
+import { useRouter } from 'expo-router';
+import { haptic } from '@/lib/haptic';
 
 interface WeekdayPillStripProps {
   fastLog?: string[];
@@ -20,6 +22,7 @@ export function WeekdayPillStrip({
 }: WeekdayPillStripProps) {
   const c = useTheme();
   const { lang } = useLang();
+  const router = useRouter();
   const today = todayISO();
   const currentSelected = selectedDate ?? today;
 
@@ -62,12 +65,20 @@ export function WeekdayPillStrip({
         </Txt>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {streak > 0 && (
-            <View style={[s.todayBadge, { backgroundColor: c.emberWash, borderColor: c.ember, marginRight: 6, flexDirection: 'row', alignItems: 'center' }]}>
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                haptic('light');
+                router.push('/achievements');
+              }}
+              style={[s.todayBadge, { backgroundColor: c.emberWash, borderColor: c.ember, marginRight: 6, flexDirection: 'row', alignItems: 'center' }]}
+              accessibilityLabel={`Streak: ${streak} days. Tap to view achievements.`}
+            >
               <Icon name="flame" size={10} color={c.ember} />
               <Txt variant="data" color={c.ember} style={{ fontSize: 10, fontWeight: '800', marginLeft: 3 }}>
                 {streak} {lang === 'de' ? (streak === 1 ? 'TAG' : 'TAGE') : (streak === 1 ? 'DAY' : 'DAYS')}
               </Txt>
-            </View>
+            </TouchableOpacity>
           )}
           {currentSelected === today && (
             <View style={[s.todayBadge, { backgroundColor: c.accentWash, borderColor: c.accent }]}>

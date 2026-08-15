@@ -33,6 +33,7 @@ import {
   type IntakeQuestion, type ScaleJump, type Readiness,
 } from '@/lib/energy';
 import { INTAKE_OPTIONS, intakeKcal, intakeLabel } from '@/lib/review';
+import { haptic } from '@/lib/haptic';
 import type { MealPlan } from '@/lib/ai';
 import { resync, setEnabled as setRemindersEnabled } from '@/lib/notify';
 
@@ -160,10 +161,12 @@ export default function DashboardScreen() {
       setFastLog(updatedFasts);
       setStreak(currentStreak(updatedFasts));
       setFastLogged(true);
+      haptic('success');
       if (!(await remindersOffered())) setOfferReminders(true);
     } else if (kind === 'cook') {
       await markCooked(todayISO(), plan);
       setCooked(true);
+      haptic('medium');
     }
     await resync();
   };
@@ -208,6 +211,7 @@ export default function DashboardScreen() {
     setProfile(nextProfile);
     setWeightInput('');
     setWeighedToday(true);
+    haptic('success');
     // The jump is about the entry that was just made, so it has to be read
     // from the log that now includes it.
     const freshIntake = await loadIntakeLog();
