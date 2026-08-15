@@ -25,7 +25,7 @@ export default function DayScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader eyebrow="You" title="Your day" sub="When the window opens, and for how long." />
+        <PageHeader tone="accent" eyebrow="You" title="Your day" sub="When the window opens, and for how long." />
       </Enter>
 
       <Enter index={1}>

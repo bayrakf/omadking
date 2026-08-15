@@ -121,6 +121,7 @@ export default function CorrectionsScreen() {
     <Screen tabBar={false}>
       <Enter index={0}>
         <PageHeader
+          tone="body"
           eyebrow="This week"
           title="Corrections"
           sub="A mistap, a forgotten morning, or a week that was nothing like the rest."

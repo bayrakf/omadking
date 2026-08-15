@@ -111,11 +111,12 @@ export default function GroceryScreen() {
     <Screen wide>
       <Enter index={0}>
         <PageHeader
+          tone="plan"
           eyebrow={`${done} of ${total} in the basket${batch > 1 ? ` · ${batch} portions` : ''}`}
           title="Shopping"
         />
         <View style={{ marginTop: -Space.md, marginBottom: Space.lg }}>
-          <Bar pct={(done / total) * 100} color={c.accent} />
+          <Bar pct={(done / total) * 100} color={c.plan} />
         </View>
       </Enter>
 
@@ -151,7 +152,7 @@ export default function GroceryScreen() {
                 is worth more here than anywhere else in the app. */}
             <View style={s.catHead}>
               <Txt variant="body" style={s.catEmoji}>{cat.emoji}</Txt>
-              <Eyebrow>{cat.name}</Eyebrow>
+              <Eyebrow color={c.plan}>{cat.name}</Eyebrow>
             </View>
             {cat.items.map((item, i) => (
               <View key={item.id}>

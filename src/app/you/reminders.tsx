@@ -58,7 +58,7 @@ export default function RemindersScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader eyebrow="You" title="Reminders" sub="Local to this device. No account, no push token." />
+        <PageHeader tone="accent" eyebrow="You" title="Reminders" sub="Local to this device. No account, no push token." />
       </Enter>
 
       <Enter index={1}>

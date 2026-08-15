@@ -336,13 +336,31 @@ export function Eyebrow({ children, color, style, numberOfLines }: { children: R
  */
 export type CardTone = 'default' | 'accent' | 'ember' | 'hydro' | 'body' | 'plan';
 
-const TONES: Record<Exclude<CardTone, 'default'>, (c: ThemePalette) => { edge: string; fill: string }> = {
-  accent: (c) => ({ edge: c.accentDim, fill: c.accentWash }),
-  ember: (c) => ({ edge: c.ember, fill: c.emberWash }),
-  hydro: (c) => ({ edge: c.hydro, fill: c.hydroWash }),
-  body: (c) => ({ edge: c.body, fill: c.bodyWash }),
-  plan: (c) => ({ edge: c.plan, fill: c.planWash }),
+/** The domains a tone can name. `default` is "this belongs to no domain". */
+export type Tone = Exclude<CardTone, 'default'>;
+
+/**
+ * `edge` draws the border, `fill` washes the surface, `ink` is what text and
+ * icons on that wash are set in.
+ *
+ * `ink` is separate from `edge` because the accent's border is deliberately
+ * dimmed — a full-strength teal outline on every accent card was louder than
+ * the card's contents — while its text has to stay readable. For the domain
+ * hues the two happen to be the same value, and saying so once here is
+ * cheaper than every call site deciding.
+ */
+const TONES: Record<Tone, (c: ThemePalette) => { edge: string; fill: string; ink: string }> = {
+  accent: (c) => ({ edge: c.accentDim, fill: c.accentWash, ink: c.accent }),
+  ember: (c) => ({ edge: c.ember, fill: c.emberWash, ink: c.ember }),
+  hydro: (c) => ({ edge: c.hydro, fill: c.hydroWash, ink: c.hydro }),
+  body: (c) => ({ edge: c.body, fill: c.bodyWash, ink: c.body }),
+  plan: (c) => ({ edge: c.plan, fill: c.planWash, ink: c.plan }),
 };
+
+/** The palette entry for a domain, for anything that is not a `Card`. */
+export function useTone(tone: Tone) {
+  return TONES[tone](useTheme());
+}
 
 export function Card({
   children,
@@ -465,6 +483,7 @@ export function Button({
   disabled,
   loading,
   style,
+  tone = 'accent',
 }: {
   label: string;
   onPress?: () => void;
@@ -473,11 +492,21 @@ export function Button({
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  /**
+   * The domain the action belongs to.
+   *
+   * A teal button is the app's action colour and stays the default, but on a
+   * screen that is otherwise green the one thing you are meant to press was
+   * the only element arguing with it. The button follows the screen so that
+   * the accent still means "act" rather than "teal".
+   */
+  tone?: Tone;
 }) {
   const c = useTheme();
   const off = disabled || loading;
+  const t = TONES[tone](c);
 
-  const bg = variant === 'primary' ? (off ? c.well : c.accent) : variant === 'secondary' ? c.well : 'transparent';
+  const bg = variant === 'primary' ? (off ? c.well : t.ink) : variant === 'secondary' ? c.well : 'transparent';
   const fg = variant === 'primary' ? (off ? c.textFaint : c.onAccent) : off ? c.textFaint : c.text;
 
   return (
@@ -507,13 +536,17 @@ export function Chip({
   selected,
   onPress,
   style,
+  tone = 'accent',
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
+  /** The domain the choice belongs to, so a screen's chips match its header. */
+  tone?: Tone;
 }) {
   const c = useTheme();
+  const t = TONES[tone](c);
   return (
     <Tap
       onPress={onPress}
@@ -522,16 +555,22 @@ export function Chip({
       accessibilityLabel={label}
       style={style}
     >
+      {/* Filled rather than outlined when chosen. A wash behind a hued label
+          is the same weight as the unchosen pill beside it, and the Plan
+          screen is twenty of these — the answer to "what did I pick" should
+          not be a border. `onAccent` inverts with the scheme, which is what
+          keeps the label readable on a hue that is dark on white and bright
+          on black. */}
       <View
         style={[
           styles.chip,
           {
-            backgroundColor: selected ? c.accentWash : c.well,
-            borderColor: selected ? c.accent : 'transparent',
+            backgroundColor: selected ? t.ink : c.well,
+            borderColor: selected ? t.ink : 'transparent',
           },
         ]}
       >
-        <Text style={[Type.bodyMedium, { color: selected ? c.accent : c.textDim, fontSize: 14 }]}>
+        <Text style={[Type.bodyMedium, { color: selected ? c.onAccent : c.textDim, fontSize: 14 }]}>
           {label}
         </Text>
       </View>
@@ -678,11 +717,40 @@ export function PairedBars({
 }
 
 /** Screen title block. Eyebrow carries real data, not a decorative kicker. */
-export function PageHeader({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) {
+/**
+ * The eyebrow is where a screen says which part of the app you are in, so it
+ * is the cheapest place to put the domain's colour: one prop, and the header
+ * of every screen stops being the same grey caption on the same white page.
+ *
+ * As a badge rather than loose text because at 10pt a hue is barely a hue —
+ * coloured type that small reads as grey type someone got slightly wrong. The
+ * wash behind it gives the colour enough area to be a colour.
+ */
+export function PageHeader({
+  eyebrow,
+  title,
+  sub,
+  tone,
+}: {
+  eyebrow?: string;
+  title: string;
+  sub?: string;
+  tone?: Tone;
+}) {
   const c = useTheme();
+  const t = tone ? TONES[tone](c) : null;
   return (
     <View style={styles.pageHeader}>
-      {eyebrow && <Eyebrow style={{ marginBottom: Space.sm }}>{eyebrow}</Eyebrow>}
+      {eyebrow &&
+        (t ? (
+          <View style={styles.headerBadgeRow}>
+            <View style={[styles.headerBadge, { backgroundColor: t.fill, borderColor: t.edge }]}>
+              <Eyebrow color={t.ink} numberOfLines={1}>{eyebrow}</Eyebrow>
+            </View>
+          </View>
+        ) : (
+          <Eyebrow style={{ marginBottom: Space.sm }}>{eyebrow}</Eyebrow>
+        ))}
       <Txt variant="title">{title}</Txt>
       {sub && (
         <Txt variant="body" color={c.textDim} style={{ marginTop: Space.sm }}>
@@ -704,20 +772,33 @@ export function NavRow({
   title,
   sub,
   onPress,
-  tint,
+  tone,
 }: {
   icon: IconName;
   title: string;
   sub: string;
   onPress: () => void;
-  tint?: string;
+  /**
+   * The domain this row leads to, if it leads to one.
+   *
+   * Six rows with six identical grey tiles is a list you have to read from the
+   * top every time. Left without a tone the tile stays neutral, which is the
+   * honest answer for the rows that are not about your body, your water or the
+   * plan — Sync and Export lead somewhere real but nowhere coloured, and
+   * giving them a hue anyway would be the point at which the hues stop meaning
+   * a place and start meaning "this row exists".
+   */
+  tone?: Tone;
 }) {
   const c = useTheme();
+  const t = tone ? TONES[tone](c) : null;
   return (
     <Tap onPress={onPress} accessibilityLabel={title}>
       <View style={[styles.navRow, { backgroundColor: c.surface, borderColor: c.line }]}>
-        <View style={[styles.navIcon, { backgroundColor: c.well }]}>
-          <Icon name={icon} size={20} color={tint ?? c.accent} />
+        <View style={[styles.navIcon, { backgroundColor: t ? t.fill : c.well }]}>
+          {/* Not `textDim` when there is no tone: beside three coloured tiles
+              a dim glyph reads as a disabled row rather than a neutral one. */}
+          <Icon name={icon} size={20} color={t ? t.ink : c.text} />
         </View>
         <View style={styles.flex}>
           <Txt variant="subheading">{title}</Txt>
@@ -819,6 +900,15 @@ const styles = StyleSheet.create({
   pairBarLast: { marginRight: 0 },
   hidden: { display: 'none' },
   pageHeader: { paddingTop: Space.base, paddingBottom: Space.xl },
+  // A row, so the badge is only as wide as its label. Left to itself inside
+  // the header it would stretch the full column and read as a banner.
+  headerBadgeRow: { flexDirection: 'row', marginBottom: Space.md },
+  headerBadge: {
+    paddingHorizontal: Space.md,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',

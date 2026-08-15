@@ -95,18 +95,21 @@ export default function ProfileScreen() {
         <Eyebrow style={{ marginBottom: Space.md }}>Your setup</Eyebrow>
         <NavRow
           icon="user"
+          tone="body"
           title="Body"
           sub={`${profile.weight_kg} kg · ${profile.height_cm} cm · ${profile.age}`}
           onPress={() => router.push('/you/body')}
         />
         <NavRow
           icon="clock"
+          tone="accent"
           title="Your day"
           sub={`${profile.omad_window_start}–${windowEnd} · ${24 - profile.omad_window_hours}h fast`}
           onPress={() => router.push('/you/day')}
         />
         <NavRow
           icon="chart"
+          tone="plan"
           title="Targets"
           sub={`${targets.kcal} kcal · ${targets.protein_g} g protein`}
           onPress={() => router.push('/you/targets')}

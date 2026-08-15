@@ -217,6 +217,7 @@ export default function PlannerScreen() {
     <Screen>
       <Enter index={0}>
         <PageHeader
+          tone="plan"
           eyebrow={isRestDay ? 'Rest day' : `${sport} · ${duration} min · ${intensity}`}
           title="Plan the meal"
           sub="Your targets follow the session you actually do."
@@ -281,22 +282,22 @@ export default function PlannerScreen() {
             <View style={{ marginTop: Space.lg }}>
               <Field label="Sport">
                 {SPORTS.map((x) => (
-                  <Chip key={x.id} label={x.label} selected={sport === x.id} onPress={() => setSport(x.id)} style={s.chip} />
+                  <Chip key={x.id} label={x.label} selected={sport === x.id} onPress={() => setSport(x.id)} tone="plan" style={s.chip} />
                 ))}
               </Field>
               <Field label="Duration">
                 {DURATIONS.map((d) => (
-                  <Chip key={d} label={`${d} min`} selected={duration === d} onPress={() => setDuration(d)} style={s.chip} />
+                  <Chip key={d} label={`${d} min`} selected={duration === d} onPress={() => setDuration(d)} tone="plan" style={s.chip} />
                 ))}
               </Field>
               <Field label="Effort">
                 {INTENSITIES.map((x) => (
-                  <Chip key={x.id} label={x.label} selected={intensity === x.id} onPress={() => setIntensity(x.id)} style={s.chip} />
+                  <Chip key={x.id} label={x.label} selected={intensity === x.id} onPress={() => setIntensity(x.id)} tone="plan" style={s.chip} />
                 ))}
               </Field>
               <Field label="Starts at" last>
                 {TIMES.map((t) => (
-                  <Chip key={t} label={t} selected={trainingTime === t} onPress={() => setTrainingTime(t)} style={s.chip} />
+                  <Chip key={t} label={t} selected={trainingTime === t} onPress={() => setTrainingTime(t)} tone="plan" style={s.chip} />
                 ))}
               </Field>
             </View>
@@ -314,7 +315,7 @@ export default function PlannerScreen() {
               </Txt>
             </View>
           ) : (
-            <Button label="Build the plan" icon="plate" onPress={() => generate()} />
+            <Button label="Build the plan" icon="plate" tone="plan" onPress={() => generate()} />
           )}
           {error && <Notice tone="error">{error}</Notice>}
           {copied && <Notice tone="ok">Copied to clipboard.</Notice>}

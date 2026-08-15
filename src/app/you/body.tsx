@@ -50,6 +50,7 @@ export default function BodyScreen() {
             label={text}
             selected={profile[field] === value}
             onPress={() => persist({ ...profile, [field]: value })}
+            tone="body"
             style={s.chip}
           />
         ))}
@@ -60,7 +61,7 @@ export default function BodyScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader eyebrow="You" title="Body" sub="What the targets are calculated from." />
+        <PageHeader tone="body" eyebrow="You" title="Body" sub="What the targets are calculated from." />
       </Enter>
 
       <Enter index={1}>

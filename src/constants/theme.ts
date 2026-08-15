@@ -152,20 +152,20 @@ const light: ThemePalette = {
   // Darkened so contrast holds on white; same hue family as dark mode.
   accent: '#0E7A92',
   accentDim: '#4A93A5',
-  accentWash: 'rgba(14, 122, 146, 0.10)',
+  accentWash: 'rgba(14, 122, 146, 0.13)',
   onAccent: '#FFFFFF',
 
   ember: '#C2500F',
-  emberWash: 'rgba(194, 80, 15, 0.10)',
+  emberWash: 'rgba(194, 80, 15, 0.13)',
 
   // Darkened against white the same way the accent is: same hues as dark mode,
   // enough contrast to carry text and an icon on a tinted card.
   hydro: '#1F6FD0',
-  hydroWash: 'rgba(31, 111, 208, 0.09)',
+  hydroWash: 'rgba(31, 111, 208, 0.13)',
   body: '#6D4FD0',
-  bodyWash: 'rgba(109, 79, 208, 0.09)',
+  bodyWash: 'rgba(109, 79, 208, 0.13)',
   plan: '#3E8E3F',
-  planWash: 'rgba(62, 142, 63, 0.10)',
+  planWash: 'rgba(62, 142, 63, 0.13)',
 
   positive: '#12805A',
   negative: '#C0392B',

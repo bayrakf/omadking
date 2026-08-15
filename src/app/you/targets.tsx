@@ -32,7 +32,7 @@ export default function TargetsScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader eyebrow="You" title="Targets" sub="Worked out from your body and your goal." />
+        <PageHeader tone="plan" eyebrow="You" title="Targets" sub="Worked out from your body and your goal." />
       </Enter>
 
       <Enter index={1}>

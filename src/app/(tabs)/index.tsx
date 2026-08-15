@@ -3,7 +3,7 @@ import { View, TextInput, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, Columns, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, Columns, PageHeader, useTheme,
 } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 import { DayBand } from '@/components/DayBand';
@@ -223,12 +223,15 @@ export default function DashboardScreen() {
   return (
     <Screen wide>
       <Enter index={0}>
-        <View style={s.head}>
-          <Eyebrow>{dateLabel}</Eyebrow>
-          <Txt variant="title" style={{ marginTop: Space.sm }}>
-            {fast.isEating ? 'Window open' : 'Fasting'}
-          </Txt>
-        </View>
+        {/* The one badge in the app that changes colour, because the one
+            thing it reports changes: cold while the fast runs, ember the
+            moment the window opens. That is the whole product in a pill, and
+            it is the palette's own rule rather than an exception to it. */}
+        <PageHeader
+          tone={fast.isEating ? 'ember' : 'accent'}
+          eyebrow={dateLabel}
+          title={fast.isEating ? 'Window open' : 'Fasting'}
+        />
       </Enter>
 
       {/* The strip rather than the ring, for one reason: the ring had nowhere
@@ -616,9 +619,9 @@ export default function DashboardScreen() {
 
       <Enter index={7} style={{ marginTop: Space.xl }}>
         <Eyebrow style={{ marginBottom: Space.md }}>More</Eyebrow>
-        {plan && <NavRow icon="plate" tint={c.plan} title="Today's plan" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
-        <NavRow icon="basket" tint={c.plan} title="Shopping list" sub="Ingredients from your recent plans" onPress={() => router.push('/grocery')} />
-        <NavRow icon="chart" tint={c.body} title="Progress" sub="Weight and trend over time" onPress={() => router.push('/progress')} />
+        {plan && <NavRow icon="plate" tone="plan" title="Today's plan" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
+        <NavRow icon="basket" tone="plan" title="Shopping list" sub="Ingredients from your recent plans" onPress={() => router.push('/grocery')} />
+        <NavRow icon="chart" tone="body" title="Progress" sub="Weight and trend over time" onPress={() => router.push('/progress')} />
         <NavRow icon="coach" title="Coach" sub="Fasting, electrolytes and fuelling" onPress={() => router.push('/chat')} />
       </Enter>
       </Columns>
@@ -627,7 +630,6 @@ export default function DashboardScreen() {
 }
 
 const s = StyleSheet.create({
-  head: { paddingTop: Space.sm, paddingBottom: Space.xl },
   stage: { marginTop: Space.lg, paddingHorizontal: Space.sm },
   answered: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

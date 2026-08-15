@@ -275,6 +275,7 @@ export default function ProgressScreen() {
     <Screen wide>
       <Enter index={0}>
         <PageHeader
+          tone="body"
           eyebrow={entries.length ? `${entries.length} entries logged` : 'No entries yet'}
           title="Progress"
         />
@@ -343,8 +344,12 @@ export default function ProgressScreen() {
                   style={[
                     s.segment,
                     {
-                      borderColor: tab === key ? c.accent : c.line,
-                      backgroundColor: tab === key ? c.accent : 'transparent',
+                      // Violet, not the app accent: this screen is about what
+                      // was measured from your body, and its own switch
+                      // arguing with its own header was the loudest thing on
+                      // it.
+                      borderColor: tab === key ? c.body : c.line,
+                      backgroundColor: tab === key ? c.body : 'transparent',
                     },
                   ]}
                 >
@@ -526,6 +531,7 @@ export default function ProgressScreen() {
       <Enter index={2}>
         <NavRow
           icon="edit"
+          tone="body"
           title="Corrections"
           sub="Weigh-in, evenings, fasts, days to leave out"
           onPress={() => router.push('/week/corrections')}
