@@ -3,7 +3,7 @@
  * scratch, which is what keeps nine screens looking like one product.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   useWindowDimensions,
   PixelRatio,
@@ -19,6 +19,7 @@ import {
   type StyleProp,
   type ViewStyle,
   type TextStyle,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { clampFontScale, scaleType } from '@/lib/typography';
@@ -171,26 +172,62 @@ export function Screen({
 /**
  * Two columns on a wide screen, one on a phone.
  *
- * Children are dealt alternately into a left and a right column rather than
- * wrapped. Wrapping at 50% width lines cards up in rows, so a short card
- * beside a tall one leaves a hole the height of the difference — and this app's
- * cards differ a lot, a two-line notice next to a chart. Dealing them keeps
- * both columns packed.
+ * Children go into a left and a right column rather than wrapping. Wrapping at
+ * 50% width lines cards up in rows, so a short card beside a tall one leaves a
+ * hole the height of the difference — and this app's cards differ a lot, a
+ * two-line notice next to a chart.
  *
- * Order therefore runs down the left and then down the right, which is how
- * someone reads two columns anyway. Anything whose sequence carries meaning
- * should not be in here — put it above the split.
+ * Which column a card lands in is decided by height, not by turn. Dealing them
+ * alternately packs each column but not against each other: on Progress the
+ * odd positions happened to hold the two short cards and the even ones the
+ * three tall ones, so the right column ended half way up the screen and the
+ * bottom right of the page was empty. Each card now goes under whichever
+ * column is currently shorter, which is what makes a masonry look deliberate.
+ *
+ * Heights are only known after a layout pass, so the first paint deals
+ * alternately and the arrangement settles once. Moving a card between columns
+ * cannot change its height — both columns are the same width — so it settles
+ * exactly once rather than oscillating.
+ *
+ * Order runs down the left and then down the right, which is how someone reads
+ * two columns anyway. Anything whose sequence carries meaning should not be in
+ * here — put it above the split.
  *
  * Margins, not `gap`: the README's standing constraint.
  */
 export function Columns({ children }: { children: React.ReactNode }) {
   const wide = useWide();
+  const [heights, setHeights] = useState<Record<number, number>>({});
   const items = React.Children.toArray(children).filter(Boolean);
+
+  const measure = (i: number) => (e: LayoutChangeEvent) => {
+    const h = Math.round(e.nativeEvent.layout.height);
+    setHeights((prev) => (prev[i] === h ? prev : { ...prev, [i]: h }));
+  };
 
   if (!wide || items.length < 2) return <>{children}</>;
 
-  const left = items.filter((_, i) => i % 2 === 0);
-  const right = items.filter((_, i) => i % 2 === 1);
+  const measured = items.every((_, i) => heights[i] !== undefined);
+  const left: React.ReactNode[] = [];
+  const right: React.ReactNode[] = [];
+  let leftHeight = 0;
+  let rightHeight = 0;
+
+  items.forEach((child, i) => {
+    const cell = (
+      <View key={i} onLayout={measure(i)}>
+        {child}
+      </View>
+    );
+    const goLeft = measured ? leftHeight <= rightHeight : i % 2 === 0;
+    if (goLeft) {
+      left.push(cell);
+      leftHeight += heights[i] ?? 0;
+    } else {
+      right.push(cell);
+      rightHeight += heights[i] ?? 0;
+    }
+  });
 
   return (
     <View style={styles.columns}>

@@ -249,20 +249,23 @@ export const Motion = {
 export const MaxContentWidth = 560;
 
 /**
- * Where the phone column stops being the right answer.
+ * The column budget once there are two of them, and where two start.
  *
- * Below this the app is a phone app and one column is correct. Above it, a
- * 560pt strip stranded in a 1600pt window is not restraint, it is a phone app
- * someone opened on a laptop — which is exactly how it read.
+ * Below the breakpoint the app is a phone app and one column is correct. Above
+ * it, a 560pt strip stranded in a 1600pt window is not restraint, it is a phone
+ * app someone opened on a laptop — which is exactly how it read.
  *
- * 900 rather than a rounder number: two 520pt columns plus the gutter is the
- * narrowest arrangement where neither column is cramped, and a card narrower
- * than that starts wrapping its own figures.
+ * Both numbers are derived rather than chosen, because the chosen ones were
+ * wrong in a way that is easy to miss: at a 900pt breakpoint with a 1080pt
+ * budget, crossing into two columns gave each card 422pt where the single
+ * column had given it 520. The window got wider and every card got narrower.
+ *
+ * So the rule is stated instead: a column is never narrower than the one
+ * column it replaces, which makes the budget two full content widths plus the
+ * gutter between them, and the breakpoint the width at which that fits.
  */
-export const Breakpoint = { wide: 900 } as const;
-
-/** The column budget once there are two of them. */
-export const MaxWideWidth = 1080;
+export const MaxWideWidth = MaxContentWidth * 2 + Space.base;
+export const Breakpoint = { wide: MaxWideWidth } as const;
 
 /** Tab bar height + breathing room, so scroll views clear the floating bar. */
 export const TabBarClearance = 108;
