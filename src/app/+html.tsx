@@ -11,8 +11,13 @@ const DESCRIPTION =
  */
 const PRELOAD_THEME = `
 :root { color-scheme: light dark; }
-body { background-color: #FAFAFA; }
-@media (prefers-color-scheme: dark) { body { background-color: #0F0F1A; } }
+
+/* Exactly the palette's own bg. These were #FAFAFA and #0F0F1A, close enough
+   to look right and different enough to leave a faint seam where the app's
+   column met the page behind it. */
+body { background-color: #F6F7F9; }
+@media (prefers-color-scheme: dark) { body { background-color: #0A0C10; } }
+
 `;
 
 export default function Root({ children }: PropsWithChildren) {
@@ -34,8 +39,8 @@ export default function Root({ children }: PropsWithChildren) {
           content="OMAD, one meal a day, intermittent fasting, sports nutrition, meal timing, macro calculator, fasting app"
         />
 
-        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAFAFA" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F0F1A" />
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F7F9" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A0C10" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="OMADCoach" />
         <meta name="mobile-web-app-capable" content="yes" />
