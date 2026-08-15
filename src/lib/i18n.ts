@@ -66,6 +66,18 @@ const EN = {
   'today.bentoHydration': 'Hydration',
   'today.bentoMeal': 'Next Meal',
   'today.bentoBody': 'Body & Weight',
+  // Workouts
+  'workout.title': 'Workouts & Training',
+  'workout.sub': 'Sessions tailored for fasted training and optimal meal timing.',
+  'workout.applyToPlan': 'Apply to today’s meal plan',
+  'workout.applied': 'Applied to meal plan ✓',
+  'workout.fastingNote': 'Fasting protocol',
+  'workout.exercises': 'Exercise breakdown',
+  'workout.all': 'All',
+  'workout.strength': 'Strength',
+  'workout.cardio': 'Cardio',
+  'workout.hiit': 'HIIT',
+  'workout.mobility': 'Mobility',
 
   // You
   'you.title': 'You',
@@ -314,6 +326,18 @@ const DE: Record<Key, string> = {
   'today.bentoHydration': 'Hydration',
   'today.bentoMeal': 'Nächste Mahlzeit',
   'today.bentoBody': 'Körper & Gewicht',
+  // Workouts
+  'workout.title': 'Workouts & Training',
+  'workout.sub': 'Einheiten optimiert für gefastetes Training und Nährstoff-Timing.',
+  'workout.applyToPlan': 'Für heutigen Tag im Planer übernehmen',
+  'workout.applied': 'In Planer übernommen ✓',
+  'workout.fastingNote': 'Fasten-Protokoll',
+  'workout.exercises': 'Übungsablauf',
+  'workout.all': 'Alle',
+  'workout.strength': 'Kraft',
+  'workout.cardio': 'Cardio',
+  'workout.hiit': 'HIIT',
+  'workout.mobility': 'Mobilität',
 
   'you.title': 'Du',
   'you.setup': 'Deine Einstellungen',

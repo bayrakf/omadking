@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, Switch, Share, Platform, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Switch, Share, Platform, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
 import {
@@ -275,8 +275,25 @@ export default function PlannerScreen() {
             </Card>
           </Enter>
 
-          {/* Session */}
+          {/* Session & Workouts */}
           <Enter index={3}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/workout')}
+              style={[s.workoutBanner, { backgroundColor: c.emberWash, borderColor: c.ember }]}
+            >
+              <Icon name="flame" size={18} color={c.ember} />
+              <View style={{ flex: 1, marginLeft: Space.sm }}>
+                <Txt variant="subheading" color={c.ember} style={{ fontSize: 14, fontWeight: '700' }}>
+                  Gefastete Workouts durchsuchen
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ fontSize: 12 }}>
+                  Push, Pull, Beine, Zone-2 Cardio & HIIT mit automatischer Makro-Berechnung
+                </Txt>
+              </View>
+              <Icon name="chevronRight" size={16} color={c.ember} />
+            </TouchableOpacity>
+
             <Card style={{ marginTop: Space.base }}>
               <View style={s.restRow}>
                 <View style={s.rowCentre}>
@@ -597,5 +614,13 @@ const s = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  workoutBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginTop: Space.base,
   },
 });

@@ -557,6 +557,7 @@ export default function DashboardScreen() {
 
       <Enter index={9} style={{ marginTop: Space.xl }}>
         <Eyebrow style={{ marginBottom: Space.md }}>Mehr Entdecken</Eyebrow>
+        <NavRow icon="flame" tone="ember" title={t('workout.title')} sub={t('workout.sub')} onPress={() => router.push('/workout')} />
         {plan && <NavRow icon="plate" tone="plan" title="Heutiges Rezept" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
         <NavRow icon="basket" tone="plan" title="Einkaufsliste" sub="Zutaten aus deinen Plänen" onPress={() => router.push('/grocery')} />
         <NavRow icon="chart" tone="body" title="Verlauf & Trend" sub="Gewicht, Kalibrierung & Historie" onPress={() => router.push('/progress')} />
