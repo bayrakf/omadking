@@ -238,14 +238,21 @@ export default function DashboardScreen() {
           countdown — which used to sit inside the ring, where it was the
           smallest large number on the screen — leads instead. */}
       <Enter index={1}>
-        <Card>
+        {/* The one filled surface in the app. Every screen was a light card on
+            a light ground, so the number looked at more than any other had the
+            same weight as the shopping list. A block of colour gives the day an
+            anchor — and it is the fast, so the colour is the fasting hue. */}
+        <View style={[s.hero, { backgroundColor: c.heroFill }]}>
           <View style={s.countRow}>
-            <Txt variant="display">{formatCountdown(fast.remainingMs)}</Txt>
-            <Txt variant="small" color={c.textDim} style={s.countCaption}>
+            <Txt variant="hero" color={c.onHero} style={s.heroFigure}>
+              {formatCountdown(fast.remainingMs)}
+            </Txt>
+            <Txt variant="small" color={c.onHero} style={s.countCaption}>
               {fast.isEating ? `left · closes ${fast.windowEnd}` : `until ${fast.windowStart}`}
             </Txt>
           </View>
           <DayBand
+            onHero
             style={{ marginTop: Space.lg }}
             nowMin={now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60}
             windowStartMin={toMinutes(profile.omad_window_start)}
@@ -253,7 +260,7 @@ export default function DashboardScreen() {
             items={items}
             isEating={fast.isEating}
           />
-        </Card>
+        </View>
         <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
 
         {/* What is roughly happening right now. Bands are approximate and the
@@ -466,9 +473,11 @@ export default function DashboardScreen() {
         </Card>
       </Enter>
 
-      {/* Reference numbers, deliberately smaller than the actions above. */}
+      {/* Reference numbers, deliberately smaller than the actions above.
+          Green because they are the plan's figures — the same hue the planner
+          and the shopping list carry, so the three read as one subject. */}
       <Enter index={4}>
-        <Card style={{ marginTop: Space.base }}>
+        <Card style={{ marginTop: Space.base }} tone="plan">
           <View style={s.statRow}>
             <View style={s.flex}>
               <Eyebrow>Energy</Eyebrow>
@@ -492,17 +501,17 @@ export default function DashboardScreen() {
       </Enter>
 
       <Enter index={5}>
-        <Card style={{ marginTop: Space.base }}>
+        <Card style={{ marginTop: Space.base }} tone="hydro">
           <View style={s.cardHead}>
             <View style={s.rowCentre}>
-              <Icon name="drop" size={18} color={c.accent} />
+              <Icon name="drop" size={18} color={c.hydro} />
               <Txt variant="subheading" style={{ marginLeft: Space.sm }}>Hydration</Txt>
             </View>
             <Txt variant="data" color={c.textDim}>
               {(hydration.ml / 1000).toFixed(1)} / {(waterTarget / 1000).toFixed(1)} L
             </Txt>
           </View>
-          <Bar pct={waterPct} color={c.accent} />
+          <Bar pct={waterPct} color={c.hydro} />
           <View style={s.actions}>
             {[250, 500].map((ml) => (
               <Tap key={ml} onPress={() => addWater(ml)} accessibilityLabel={`Add ${ml} millilitres`} style={s.action}>
@@ -602,9 +611,9 @@ export default function DashboardScreen() {
 
       <Enter index={7} style={{ marginTop: Space.xl }}>
         <Eyebrow style={{ marginBottom: Space.md }}>More</Eyebrow>
-        {plan && <NavRow icon="plate" title="Today's plan" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
-        <NavRow icon="basket" title="Shopping list" sub="Ingredients from your recent plans" onPress={() => router.push('/grocery')} />
-        <NavRow icon="chart" title="Progress" sub="Weight and trend over time" onPress={() => router.push('/progress')} />
+        {plan && <NavRow icon="plate" tint={c.plan} title="Today's plan" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
+        <NavRow icon="basket" tint={c.plan} title="Shopping list" sub="Ingredients from your recent plans" onPress={() => router.push('/grocery')} />
+        <NavRow icon="chart" tint={c.body} title="Progress" sub="Weight and trend over time" onPress={() => router.push('/progress')} />
         <NavRow icon="coach" title="Coach" sub="Fasting, electrolytes and fuelling" onPress={() => router.push('/chat')} />
       </Enter>
     </Screen>
@@ -647,8 +656,12 @@ const s = StyleSheet.create({
   time: { width: 54 },
   struck: { textDecorationLine: 'line-through' },
 
+  hero: { borderRadius: Radius.xl, padding: Space.lg, paddingTop: Space.xl },
+  // The caption rides the baseline of a 56pt numeral, so it needs its own
+  // opacity rather than a dimmer token — there is no dim-on-hero colour.
+  heroFigure: { marginRight: Space.sm },
   countRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
-  countCaption: { marginLeft: Space.sm },
+  countCaption: { opacity: 0.7 },
   statRow: { flexDirection: 'row', alignItems: 'center' },
   figure: { fontSize: 24, marginTop: 5 },
   vline: { width: 1, height: 34, marginHorizontal: Space.base },

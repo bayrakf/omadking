@@ -54,8 +54,49 @@ export type ThemePalette = {
   ember: string;
   emberWash: string;
 
+  /**
+   * Domain hues.
+   *
+   * One accent for everything made the app read as a single grey instrument
+   * with a teal light on it — every card the same weight, every icon the same
+   * colour, nothing telling you which part of the product you were in.
+   *
+   * These are not decoration. Each area of the app owns one, so the colour is
+   * a location: blue is water, violet is your body and what was measured from
+   * it, green is food and the plan. Someone who has used the app for a week
+   * knows where they are before reading a word — which is the same job the
+   * ember does for eating, extended to the rest.
+   *
+   * Each carries a wash: a low-alpha tint used as a card surface, so a screen
+   * is a set of distinguishable places rather than a stack of white boxes.
+   */
+  hydro: string;
+  hydroWash: string;
+  body: string;
+  bodyWash: string;
+  plan: string;
+  planWash: string;
+
   positive: string;
   negative: string;
+
+  /**
+   * The one filled surface in the app: the countdown on Today.
+   *
+   * Everything else is a light card on a light ground, which is why the app
+   * read as plain — the single thing looked at most was the same white box as
+   * the shopping list. A filled block gives the screen an anchor and the
+   * product a face.
+   *
+   * Scheme-aware on purpose rather than one colour dimmed: light mode needs a
+   * saturated block to have any drama at all, while dark mode already has
+   * drama and a bright teal slab would glare. Dark gets depth instead, and the
+   * numerals carry the colour.
+   */
+  heroFill: string;
+  onHero: string;
+  /** Track and window drawn *on* the hero, where the page palette has no contrast. */
+  heroTrack: string;
 
   /** the dial's untravelled track */
   dialTrack: string;
@@ -80,8 +121,19 @@ const dark: ThemePalette = {
   ember: '#FF8A4C',
   emberWash: 'rgba(255, 138, 76, 0.14)',
 
+  hydro: '#5AA9FF',
+  hydroWash: 'rgba(90, 169, 255, 0.13)',
+  body: '#A78BFA',
+  bodyWash: 'rgba(167, 139, 250, 0.13)',
+  plan: '#8FDB6E',
+  planWash: 'rgba(143, 219, 110, 0.13)',
+
   positive: '#5FD39B',
   negative: '#FF6B6B',
+
+  heroFill: '#0B3A47',
+  onHero: '#ECEFF3',
+  heroTrack: 'rgba(236, 239, 243, 0.10)',
 
   dialTrack: '#1C232E',
 };
@@ -106,8 +158,21 @@ const light: ThemePalette = {
   ember: '#C2500F',
   emberWash: 'rgba(194, 80, 15, 0.10)',
 
+  // Darkened against white the same way the accent is: same hues as dark mode,
+  // enough contrast to carry text and an icon on a tinted card.
+  hydro: '#1F6FD0',
+  hydroWash: 'rgba(31, 111, 208, 0.09)',
+  body: '#6D4FD0',
+  bodyWash: 'rgba(109, 79, 208, 0.09)',
+  plan: '#3E8E3F',
+  planWash: 'rgba(62, 142, 63, 0.10)',
+
   positive: '#12805A',
   negative: '#C0392B',
+
+  heroFill: '#0B5F72',
+  onHero: '#FFFFFF',
+  heroTrack: 'rgba(255, 255, 255, 0.18)',
 
   dialTrack: '#E3E8EE',
 };

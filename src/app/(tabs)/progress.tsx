@@ -70,10 +70,12 @@ function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       <Svg width={width} height={height}>
-        <Path d={area} fill={c.accentWash} />
-        <Path d={line} stroke={c.accent} strokeWidth={2} fill="none" strokeLinecap="round" />
+        {/* Violet: bodyweight is the body domain, and the line sits on a
+            card washed the same way. */}
+        <Path d={area} fill={c.bodyWash} />
+        <Path d={line} stroke={c.body} strokeWidth={2.5} fill="none" strokeLinecap="round" />
         <Circle cx={last.x} cy={last.y} r={5} fill={c.bg} />
-        <Circle cx={last.x} cy={last.y} r={3} fill={c.accent} />
+        <Circle cx={last.x} cy={last.y} r={3} fill={c.body} />
       </Svg>
     </View>
   );
@@ -611,7 +613,7 @@ export default function ProgressScreen() {
           part that costs. No artificial limit on anything that already worked. */}
       {measured && (
         <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }} tone={measured.kcal ? 'accent' : undefined}>
+          <Card style={{ marginBottom: Space.base }} tone="body">
             <View style={s.split}>
               <Eyebrow color={measured.kcal ? c.accent : undefined}>What your body actually costs</Eyebrow>
               {measured.kcal !== null && (
@@ -858,7 +860,7 @@ export default function ProgressScreen() {
       {tab === 'history' && (
         <>
       <Enter index={3}>
-        <Card>
+        <Card tone="body">
           <View style={s.split}>
             <View style={{ flex: 1 }}>
               <Eyebrow>Now</Eyebrow>

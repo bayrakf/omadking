@@ -238,7 +238,7 @@ export default function PlannerScreen() {
 
       {/* Live targets */}
       <Enter index={2}>
-        <Card style={{ marginTop: Space.base }} tone="accent">
+        <Card style={{ marginTop: Space.base }} tone="plan">
           <View style={s.macroRow}>
             {macros.map(([label, value, unit], i) => (
               <React.Fragment key={label}>

@@ -263,6 +263,27 @@ export function Eyebrow({ children, color, style, numberOfLines }: { children: R
 }
 
 /** Flat panel with a hairline border. Shadows go muddy on a near-black page. */
+/**
+ * A panel, optionally belonging to one of the app's domains.
+ *
+ * The tone is a location, not a decoration: a card washed in blue is about
+ * water, violet is about your body, green is about the plan. A screen of
+ * identical white boxes made everything the same weight and told the reader
+ * nothing; a wash and a matching edge cost one prop and say where they are.
+ *
+ * `default` stays plain on purpose. If every card were tinted the tint would
+ * mean as little as no tint at all — the same reasoning that keeps ember rare.
+ */
+export type CardTone = 'default' | 'accent' | 'ember' | 'hydro' | 'body' | 'plan';
+
+const TONES: Record<Exclude<CardTone, 'default'>, (c: ThemePalette) => { edge: string; fill: string }> = {
+  accent: (c) => ({ edge: c.accentDim, fill: c.accentWash }),
+  ember: (c) => ({ edge: c.ember, fill: c.emberWash }),
+  hydro: (c) => ({ edge: c.hydro, fill: c.hydroWash }),
+  body: (c) => ({ edge: c.body, fill: c.bodyWash }),
+  plan: (c) => ({ edge: c.plan, fill: c.planWash }),
+};
+
 export function Card({
   children,
   style,
@@ -270,15 +291,19 @@ export function Card({
 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
-  tone?: 'default' | 'accent' | 'ember';
+  tone?: CardTone;
 }) {
   const c = useTheme();
-  const border = tone === 'accent' ? c.accentDim : tone === 'ember' ? c.ember : c.line;
+  const t = tone === 'default' ? null : TONES[tone](c);
   return (
     <View
       style={[
         styles.card,
-        { backgroundColor: c.surface, borderColor: border, borderWidth: tone === 'default' ? 1 : 1.5 },
+        {
+          backgroundColor: t ? t.fill : c.surface,
+          borderColor: t ? t.edge : c.line,
+          borderWidth: t ? 1.5 : 1,
+        },
         style,
       ]}
     >
