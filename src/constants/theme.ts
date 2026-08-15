@@ -76,90 +76,102 @@ export type ThemePalette = {
   dialTrack: string;
 };
 
+/**
+ * The metabolic phases, in the palette's own temperature.
+ *
+ * These were the Tailwind swatches — amber-500, violet-500, cyan-500 — which is
+ * the same six colours every dashboard on the internet uses, at full chroma.
+ * Five of them side by side on one bar is what made the screen read as a
+ * framework rather than as a product. Same hue order, muted to sit together.
+ */
 export const PhaseColors = {
-  sugarDrop: '#F59E0B',
-  fatBurn: '#FF6B4A',
-  ketosis: '#8B5CF6',
-  autophagy: '#06B6D4',
-  deepFast: '#10B981',
+  sugarDrop: '#C9922F',
+  fatBurn: '#C4552A',
+  ketosis: '#7A5480',
+  autophagy: '#37789A',
+  deepFast: '#5B7A4B',
 };
-
 const dark: ThemePalette = {
-  bg: '#080C14',
-  surface: '#111827',
-  surfaceElevated: '#172238',
-  well: '#1A2438',
-  line: '#24324B',
-  lineStrong: '#3B4D6E',
+  // Warm charcoal, not blue-black. The cold greys read as a framework default
+  // because they are one; a ground with a little brown in it reads as chosen.
+  bg: '#14110E',
+  surface: '#1D1915',
+  surfaceElevated: '#252019',
+  well: '#292219',
+  line: '#332B22',
+  lineStrong: '#4A4034',
 
-  text: '#F8FAFC',
-  textDim: '#94A3B8',
-  textFaint: '#64748B',
+  text: '#F6F0E7',
+  textDim: '#A99C8C',
+  textFaint: '#7A6E60',
 
-  accent: '#38BDF8',
-  accentDim: '#0284C7',
-  accentWash: 'rgba(56, 189, 248, 0.18)',
-  onAccent: '#031726',
+  accent: '#6FB3D2',
+  accentDim: '#3F7B94',
+  accentWash: 'rgba(111, 179, 210, 0.16)',
+  onAccent: '#0B1A21',
 
-  ember: '#FF6B4A',
-  emberWash: 'rgba(255, 107, 74, 0.20)',
+  ember: '#E8834F',
+  emberWash: 'rgba(232, 131, 79, 0.18)',
 
-  hydro: '#38BDF8',
-  hydroWash: 'rgba(56, 189, 248, 0.18)',
-  body: '#A855F7',
-  bodyWash: 'rgba(168, 85, 247, 0.18)',
-  plan: '#34D399',
-  planWash: 'rgba(52, 211, 153, 0.18)',
-  gold: '#FBBF24',
-  goldWash: 'rgba(251, 191, 36, 0.18)',
+  hydro: '#7CBEDD',
+  hydroWash: 'rgba(124, 190, 221, 0.16)',
+  body: '#C4A0CB',
+  bodyWash: 'rgba(196, 160, 203, 0.16)',
+  plan: '#9DC482',
+  planWash: 'rgba(157, 196, 130, 0.16)',
+  gold: '#E0B25C',
+  goldWash: 'rgba(224, 178, 92, 0.16)',
 
-  positive: '#34D399',
-  negative: '#F87171',
+  positive: '#9DC482',
+  negative: '#E08267',
 
-  heroFill: '#0C2A38',
-  onHero: '#FFFFFF',
-  heroTrack: 'rgba(255, 255, 255, 0.14)',
+  heroFill: '#20303A',
+  onHero: '#F6F0E7',
+  heroTrack: 'rgba(246, 240, 231, 0.14)',
 
-  dialTrack: '#1A2436',
+  dialTrack: '#241E17',
 };
 
 const light: ThemePalette = {
-  bg: '#F3F6FA',
-  surface: '#FFFFFF',
+  // Sand rather than slate. This is the single change that takes the most
+  // "software" out of the screen: a warm ground makes every card on it read as
+  // paper instead of as a panel.
+  bg: '#F5F0E8',
+  surface: '#FFFCF7',
   surfaceElevated: '#FFFFFF',
-  well: '#EBF1F7',
-  line: '#E1E8F0',
-  lineStrong: '#CBD5E1',
+  well: '#EEE6DA',
+  line: '#E3D8C9',
+  lineStrong: '#C9BAA6',
 
-  text: '#0F172A',
-  textDim: '#506179',
-  textFaint: '#8797AB',
+  text: '#1E1913',
+  textDim: '#6B6055',
+  textFaint: '#9A8D7E',
 
-  accent: '#0284C7',
-  accentDim: '#0369A1',
-  accentWash: 'rgba(2, 132, 199, 0.14)',
+  accent: '#2F6D8C',
+  accentDim: '#4F8AA6',
+  accentWash: 'rgba(47, 109, 140, 0.11)',
   onAccent: '#FFFFFF',
 
-  ember: '#EA580C',
-  emberWash: 'rgba(234, 88, 12, 0.14)',
+  ember: '#C4552A',
+  emberWash: 'rgba(196, 85, 42, 0.12)',
 
-  hydro: '#0284C7',
-  hydroWash: 'rgba(2, 132, 199, 0.14)',
-  body: '#7C3AED',
-  bodyWash: 'rgba(124, 58, 237, 0.14)',
-  plan: '#059669',
-  planWash: 'rgba(5, 150, 105, 0.14)',
-  gold: '#D97706',
-  goldWash: 'rgba(217, 119, 6, 0.14)',
+  hydro: '#37789A',
+  hydroWash: 'rgba(55, 120, 154, 0.11)',
+  body: '#7A5480',
+  bodyWash: 'rgba(122, 84, 128, 0.11)',
+  plan: '#5B7A4B',
+  planWash: 'rgba(91, 122, 75, 0.12)',
+  gold: '#A8762B',
+  goldWash: 'rgba(168, 118, 43, 0.12)',
 
-  positive: '#059669',
-  negative: '#DC2626',
+  positive: '#4E7A54',
+  negative: '#A8462F',
 
-  heroFill: '#075985',
-  onHero: '#FFFFFF',
-  heroTrack: 'rgba(255, 255, 255, 0.22)',
+  heroFill: '#25505F',
+  onHero: '#FFFCF7',
+  heroTrack: 'rgba(255, 252, 247, 0.20)',
 
-  dialTrack: '#E2E8F0',
+  dialTrack: '#E6DCCC',
 };
 
 export const Colors = { light, dark };
@@ -213,12 +225,50 @@ export const Space = {
   hero: 56,
 } as const;
 
+/**
+ * Corners, generous on purpose.
+ *
+ * A 14pt radius on a 340pt card is a rectangle that has been told to be
+ * slightly polite about it — the eye still reads a box. The size where a corner
+ * stops being a detail and starts being the shape of the thing is around 24,
+ * which is where every app that gets called "soft" sits.
+ */
 export const Radius = {
-  sm: 10,
-  md: 14,
-  lg: 20,
-  xl: 28,
+  sm: 12,
+  md: 18,
+  lg: 24,
+  xl: 32,
   pill: 999,
+} as const;
+
+/**
+ * Depth instead of outlines.
+ *
+ * Every panel was drawn with a hairline, which is the cheapest way to say
+ * "this is a container" and also the most mechanical: a 1px rule is a drawing
+ * instruction, and forty of them on a screen is a wireframe. A soft shadow
+ * says the same thing the way paper does.
+ *
+ * Kept low and wide rather than tight and dark — a tight shadow reads as a
+ * button pressed into the page, a wide one reads as a card resting on it. On
+ * the dark scheme shadows are nearly invisible, which is why the surfaces
+ * there are separated by lightness instead, and `surfaceElevated` exists.
+ */
+export const Shadow = {
+  card: {
+    shadowColor: '#2B1F12',
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  lifted: {
+    shadowColor: '#2B1F12',
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 6,
+  },
 } as const;
 
 export const Motion = {

@@ -36,7 +36,7 @@ export default function HealthSyncScreen() {
         <Card style={[s.statusCard, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
           <View style={s.headRow}>
             <View style={[s.iconBox, { backgroundColor: connected ? 'rgba(16, 185, 129, 0.18)' : c.well }]}>
-              <Icon name="sync" size={20} color={connected ? '#10B981' : c.textFaint} />
+              <Icon name="sync" size={20} color={connected ? c.positive : c.textFaint} />
             </View>
             <View style={{ flex: 1, marginLeft: Space.md }}>
               <Txt variant="subheading" style={{ fontSize: 17, fontWeight: '700' }}>
@@ -50,7 +50,7 @@ export default function HealthSyncScreen() {
               value={connected}
               onValueChange={setConnected}
               trackColor={{ false: c.well, true: 'rgba(16, 185, 129, 0.4)' }}
-              thumbColor={connected ? '#10B981' : '#FFFFFF'}
+              thumbColor={connected ? c.positive : c.surface}
             />
           </View>
         </Card>
@@ -66,7 +66,7 @@ export default function HealthSyncScreen() {
               {/* Steps */}
               <View style={s.tileWrap}>
                 <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+                  <View style={[s.metricIcon, { backgroundColor: c.hydroWash }]}>
                     <Icon name="flame" size={18} color="#38BDF8" />
                   </View>
                   <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
@@ -82,7 +82,7 @@ export default function HealthSyncScreen() {
               {/* Active Burn */}
               <View style={s.tileWrap}>
                 <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: 'rgba(255, 107, 74, 0.15)' }]}>
+                  <View style={[s.metricIcon, { backgroundColor: c.emberWash }]}>
                     <Icon name="flame" size={18} color="#FF6B4A" />
                   </View>
                   <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
@@ -145,7 +145,7 @@ export default function HealthSyncScreen() {
                   value={autoSync}
                   onValueChange={setAutoSync}
                   trackColor={{ false: c.well, true: c.accentDim }}
-                  thumbColor={autoSync ? c.accent : '#FFFFFF'}
+                  thumbColor={autoSync ? c.accent : c.surface}
                 />
               </View>
             </Card>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
-import { Screen, Card, Txt, Eyebrow, Enter, Button, useTheme, PageHeader, SegmentedControl } from '@/components/ui';
+import { Screen, Card, Txt, Eyebrow, Enter, Button, useTheme, PageHeader, SegmentedControl, washOf } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 import { useLang } from '@/components/lang';
 import { saveLastSession } from '@/lib/store';
@@ -24,8 +24,12 @@ interface WorkoutPlan {
   intensity: 'low' | 'medium' | 'high' | 'max';
   estBurnKcal: number;
   icon: IconName;
-  color: string;
-  wash: string;
+  /**
+   * A palette slot, not a colour. Module scope has no theme, so the literals
+   * that used to sit here could never follow the scheme — and being raw
+   * Tailwind swatches they did not match the one the app had chosen either.
+   */
+  hue: 'ember' | 'hydro' | 'body' | 'plan';
   fastingNote: string;
   exercises: Exercise[];
 }
@@ -39,8 +43,7 @@ const WORKOUTS: WorkoutPlan[] = [
     intensity: 'high',
     estBurnKcal: 380,
     icon: 'flame',
-    color: '#FF6B4A',
-    wash: 'rgba(255, 107, 74, 0.18)',
+    hue: 'ember' as const,
     fastingNote: '500ml Wasser + 500mg Natrium 30 Minuten vor dem Training trinken. Maximale Insulinsensitivität für das anschließende Essensfenster.',
     exercises: [
       { name: 'Schrägbankdrücken (Kurzhantel)', sets: '4 Sätze × 8–10 Wiederholungen', notes: '2 Minuten Satzpause' },
@@ -58,8 +61,7 @@ const WORKOUTS: WorkoutPlan[] = [
     intensity: 'high',
     estBurnKcal: 390,
     icon: 'flame',
-    color: '#8B5CF6',
-    wash: 'rgba(139, 92, 246, 0.18)',
+    hue: 'body' as const,
     fastingNote: 'Ausreichend Salz vorab schützt vor Kraftverlust bei schweren Grundübungen.',
     exercises: [
       { name: 'Klimmzüge (breiter Griff)', sets: '4 Sätze × 6–8 Wiederholungen', notes: 'Saubere Dehnung im Lat' },
@@ -77,8 +79,7 @@ const WORKOUTS: WorkoutPlan[] = [
     intensity: 'high',
     estBurnKcal: 460,
     icon: 'flame',
-    color: '#F59E0B',
-    wash: 'rgba(245, 158, 11, 0.18)',
+    hue: 'ember' as const,
     fastingNote: 'Größter Glykogen-Verbrauch. Plane das Fastenbrechen innerhalb von 45–60 Minuten nach Trainingsende.',
     exercises: [
       { name: 'Kniebeugen (Barbell Squat)', sets: '4 Sätze × 6–8 Wiederholungen', notes: '3 Minuten Satzpause' },
@@ -96,8 +97,7 @@ const WORKOUTS: WorkoutPlan[] = [
     intensity: 'medium',
     estBurnKcal: 340,
     icon: 'drop',
-    color: '#38BDF8',
-    wash: 'rgba(56, 189, 248, 0.18)',
+    hue: 'hydro' as const,
     fastingNote: 'Herzfrequenz bei 60–70% HFmax halten (Nasenatmung möglich). Maximiert Fettfluss und schont Muskelmasse.',
     exercises: [
       { name: 'Lockerer Dauerlauf / Joggen', sets: '45 Minuten kontinuierlich', notes: 'Gleichmäßiges Tempo' },
@@ -113,8 +113,7 @@ const WORKOUTS: WorkoutPlan[] = [
     intensity: 'max',
     estBurnKcal: 290,
     icon: 'flame',
-    color: '#EC4899',
-    wash: 'rgba(236, 72, 153, 0.18)',
+    hue: 'body' as const,
     fastingNote: 'Extrem intensiver Stoffwechsel-Reiz. 20g schnelle Kohlenhydrate vorab empfohlen, falls 18h+ gefastet.',
     exercises: [
       { name: 'Kettlebell Swings', sets: '5 Runden: 40 Sekunden Belastung / 20 Sekunden Pause', notes: 'Explosive Hüftstreckung' },
@@ -131,8 +130,7 @@ const WORKOUTS: WorkoutPlan[] = [
     intensity: 'low',
     estBurnKcal: 110,
     icon: 'check',
-    color: '#10B981',
-    wash: 'rgba(16, 185, 129, 0.18)',
+    hue: 'plan' as const,
     fastingNote: 'Perfekt für Fasten-Ruhetage. Fördert Lymphfluss, Durchblutung und zelluläre Regeneration ohne Cortisol-Anstieg.',
     exercises: [
       { name: 'World’s Greatest Stretch', sets: '3 Durchgänge pro Seite', notes: 'Tiefe Atmung' },
@@ -217,7 +215,7 @@ export default function WorkoutScreen() {
                 style={[
                   s.card,
                   {
-                    borderColor: isExpanded ? w.color : c.line,
+                    borderColor: isExpanded ? c[w.hue] : c.line,
                     backgroundColor: c.surfaceElevated ?? c.surface,
                   },
                 ]}
@@ -228,8 +226,8 @@ export default function WorkoutScreen() {
                   onPress={() => setExpandedId(isExpanded ? null : w.id)}
                   style={s.cardHead}
                 >
-                  <View style={[s.iconBox, { backgroundColor: w.wash }]}>
-                    <Icon name={w.icon} size={20} color={w.color} />
+                  <View style={[s.iconBox, { backgroundColor: washOf(c[w.hue]) }]}>
+                    <Icon name={w.icon} size={20} color={c[w.hue]} />
                   </View>
                   <View style={{ flex: 1, marginLeft: Space.md }}>
                     <Txt variant="subheading" style={{ fontSize: 17, fontWeight: '800' }}>
@@ -250,8 +248,8 @@ export default function WorkoutScreen() {
                 {isExpanded && (
                   <View style={s.expandedBody}>
                     {/* Fasting Note */}
-                    <View style={[s.fastingBox, { backgroundColor: w.wash, borderColor: w.color }]}>
-                      <Eyebrow color={w.color}>💡 {t('workout.fastingNote')}</Eyebrow>
+                    <View style={[s.fastingBox, { backgroundColor: washOf(c[w.hue]), borderColor: c[w.hue] }]}>
+                      <Eyebrow color={c[w.hue]}>💡 {t('workout.fastingNote')}</Eyebrow>
                       <Txt variant="small" color={c.text} style={{ marginTop: 4, lineHeight: 18 }}>
                         {w.fastingNote}
                       </Txt>
@@ -283,8 +281,8 @@ export default function WorkoutScreen() {
                             style={[
                               s.checkbox,
                               {
-                                backgroundColor: isDone ? w.color : 'transparent',
-                                borderColor: isDone ? w.color : c.lineStrong,
+                                backgroundColor: isDone ? c[w.hue] : 'transparent',
+                                borderColor: isDone ? c[w.hue] : c.lineStrong,
                               },
                             ]}
                           >

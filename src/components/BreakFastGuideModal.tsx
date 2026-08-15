@@ -1,6 +1,6 @@
 import { View, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
-import { Txt, Eyebrow, Button, useTheme } from './ui';
+import { Txt, Eyebrow, Button, useTheme, washOf, type PaletteHue } from './ui';
 import { Icon, type IconName } from './icons';
 import { useLang } from './lang';
 
@@ -15,7 +15,8 @@ interface StepInfo {
   subtitle: string;
   timing: string;
   icon: IconName;
-  color: string;
+  /** Palette slot; module scope has no theme to resolve a literal against. */
+  hue: PaletteHue;
   points: string[];
   scientificEffect: string;
 }
@@ -27,7 +28,7 @@ const STEPS: StepInfo[] = [
     subtitle: 'Verdauungsenzyme und Magen-pH vorbereiten',
     timing: '15–20 Minuten vor dem ersten Bissen',
     icon: 'drop',
-    color: '#38BDF8',
+    hue: 'hydro' as PaletteHue,
     points: [
       '250ml lauwarmes Wasser mit 1 EL naturtrübem Bio-Apfelessig ODER 200ml warme Knochenbrühe mit einer Prise Meersalz.',
       'Aktiviert die Produktion von Magensäure (HCl) und bereitet die Bauchspeicheldrüse auf die Nährstoffaufnahme vor.',
@@ -40,7 +41,7 @@ const STEPS: StepInfo[] = [
     subtitle: 'Sättigungshormone stimulieren ohne Insulinexplosion',
     timing: 'Die ersten 15–20 Minuten der Mahlzeit',
     icon: 'plate',
-    color: '#10B981',
+    hue: 'plan' as PaletteHue,
     points: [
       'Beginne immer mit der Proteinquelle (Wildlachs, Rindersteak, Eier, Hähnchen, Tofu) und gesunden Fetten (Avocado, Olivenöl, Nüsse).',
       'Eiweiß und Fette stimulieren die Freisetzung der Sättigungshormone GLP-1, PYY und Cholecystokinin (CCK).',
@@ -53,7 +54,7 @@ const STEPS: StepInfo[] = [
     subtitle: 'Food-Coma & Blutzuckerspitzen um 40% reduzieren',
     timing: 'Nach dem Protein & Gemüse verzehren',
     icon: 'flame',
-    color: '#F59E0B',
+    hue: 'gold' as PaletteHue,
     points: [
       'Süßkartoffeln, Reis, Quinoa, Haferflocken oder Früchte erst am Ende der Mahlzeit essen.',
       'Weil der Magen bereits mit Protein und Ballaststoffen gefüllt ist, wird die Glukose stark verlangsamt ins Blut abgegeben.',
@@ -95,12 +96,12 @@ export function BreakFastGuideModal({ visible, onClose }: BreakFastGuideModalPro
                 style={[s.stepCard, { backgroundColor: c.well, borderColor: c.line }]}
               >
                 <View style={s.stepHeader}>
-                  <View style={[s.stepIconBox, { backgroundColor: `${step.color}25` }]}>
-                    <Icon name={step.icon} size={18} color={step.color} />
+                  <View style={[s.stepIconBox, { backgroundColor: washOf(c[step.hue]) }]}>
+                    <Icon name={step.icon} size={18} color={c[step.hue]} />
                   </View>
                   <View style={{ flex: 1, marginLeft: Space.sm }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Txt variant="eyebrow" color={step.color} style={{ fontSize: 10, fontWeight: '800' }}>
+                      <Txt variant="eyebrow" color={c[step.hue]} style={{ fontSize: 10, fontWeight: '800' }}>
                         {step.stepNum} · {step.timing.toUpperCase()}
                       </Txt>
                     </View>
@@ -117,7 +118,7 @@ export function BreakFastGuideModal({ visible, onClose }: BreakFastGuideModalPro
                 <View style={{ marginTop: Space.sm }}>
                   {step.points.map((p, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 4 }}>
-                      <Txt variant="small" color={step.color} style={{ marginRight: 6, fontWeight: '700' }}>✓</Txt>
+                      <Txt variant="small" color={c[step.hue]} style={{ marginRight: 6, fontWeight: '700' }}>✓</Txt>
                       <Txt variant="small" color={c.text} style={{ flex: 1, fontSize: 12, lineHeight: 17 }}>
                         {p}
                       </Txt>
@@ -126,7 +127,7 @@ export function BreakFastGuideModal({ visible, onClose }: BreakFastGuideModalPro
                 </View>
 
                 <View style={[s.bioBox, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <Txt variant="data" color={step.color} style={{ fontSize: 10, fontWeight: '700' }}>
+                  <Txt variant="data" color={c[step.hue]} style={{ fontSize: 10, fontWeight: '700' }}>
                     💡 {step.scientificEffect}
                   </Txt>
                 </View>

@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
-import { Txt, Eyebrow, Tap, Markdown, useTheme, useReducedMotion } from '@/components/ui';
+import { Txt, Eyebrow, Tap, Markdown, useTheme, useReducedMotion, washOf, type PaletteHue } from '@/components/ui';
 import type { Key } from '@/lib/i18n';
 import { useLang } from '@/components/lang';
 import { Icon } from '@/components/icons';
@@ -257,25 +257,25 @@ export default function ChatScreen() {
                     icon: 'drop' as const,
                     title: lang === 'de' ? 'Elektrolyte im Fasten' : 'Electrolytes in Fasting',
                     sub: lang === 'de' ? 'Wie viel Salz brauche ich wirklich?' : 'How much sodium do I need?',
-                    color: '#38BDF8',
+                    hue: 'hydro' as PaletteHue,
                   },
                   {
                     icon: 'plate' as const,
                     title: lang === 'de' ? 'Proteinziel erreichen' : 'Hit Protein Target',
                     sub: lang === 'de' ? '150g+ in einer OMAD-Mahlzeit?' : '150g+ in a single OMAD sitting?',
-                    color: '#10B981',
+                    hue: 'plan' as PaletteHue,
                   },
                   {
                     icon: 'flame' as const,
                     title: lang === 'de' ? 'Gefastetes Training' : 'Fasted Training',
                     sub: lang === 'de' ? 'Wann ist der beste Zeitpunkt?' : 'When is the ideal window?',
-                    color: '#FF6B4A',
+                    hue: 'ember' as PaletteHue,
                   },
                   {
                     icon: 'check' as const,
                     title: lang === 'de' ? 'Fastenbrechen Taktik' : 'Fast Break Tactics',
                     sub: lang === 'de' ? 'Was esse ich als Erstes?' : 'What should I eat first?',
-                    color: '#8B5CF6',
+                    hue: 'body' as PaletteHue,
                   },
                 ].map((item) => (
                   <TouchableOpacity
@@ -284,8 +284,8 @@ export default function ChatScreen() {
                     onPress={() => send(`${item.title}: ${item.sub}`)}
                     style={[s.starterCard, { backgroundColor: c.surface, borderColor: c.line }]}
                   >
-                    <View style={[s.starterIconBadge, { backgroundColor: `${item.color}20` }]}>
-                      <Icon name={item.icon} size={15} color={item.color} />
+                    <View style={[s.starterIconBadge, { backgroundColor: washOf(c[item.hue]) }]}>
+                      <Icon name={item.icon} size={15} color={c[item.hue]} />
                     </View>
                     <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: Space.xs }}>
                       {item.title}

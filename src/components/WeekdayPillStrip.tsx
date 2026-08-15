@@ -145,7 +145,7 @@ export function WeekdayPillStrip({
             {/* Streak & Completion Indicator */}
             <View style={s.tokenSlot}>
               {item.isFastCompleted ? (
-                <Icon name="flame" size={12} color={item.isSelected ? c.bg : '#FF6B4A'} />
+                <Icon name="flame" size={12} color={item.isSelected ? c.bg : c.ember} />
               ) : item.isPast ? (
                 <View
                   style={[

@@ -250,9 +250,15 @@ export default function DashboardScreen() {
           style={[s.hero, { backgroundColor: c.heroFill }]}
         >
           <View style={s.heroTop}>
-            <View style={[s.heroBadge, { backgroundColor: fast.isEating ? c.emberWash : 'rgba(56, 189, 248, 0.2)' }]}>
-              <Icon name={fast.isEating ? 'plate' : 'flame'} size={14} color={fast.isEating ? c.ember : '#38BDF8'} />
-              <Txt variant="data" color={fast.isEating ? c.ember : '#38BDF8'} style={{ marginLeft: 5, fontSize: 11, fontWeight: '700' }}>
+            {/* On the hero, not on the page. The page palette is built for
+                light-on-light and dark-on-dark; none of it has contrast
+                against the filled block, and the fasting chip drawn in `hydro`
+                came out as dark blue on dark teal. The hero carries its own
+                foreground, and ember is the one colour bright enough to keep
+                its meaning on top of it. */}
+            <View style={[s.heroBadge, { backgroundColor: fast.isEating ? c.emberWash : c.heroTrack }]}>
+              <Icon name={fast.isEating ? 'plate' : 'flame'} size={14} color={fast.isEating ? c.ember : c.onHero} />
+              <Txt variant="data" color={fast.isEating ? c.ember : c.onHero} style={{ marginLeft: 5, fontSize: 11, fontWeight: '700' }}>
                 {fast.isEating ? 'ESSENSFENSTER' : 'FASTEN LÄUFT'}
               </Txt>
             </View>
@@ -304,8 +310,7 @@ export default function DashboardScreen() {
             value={stage.label}
             badge={hoursFasted >= 18 ? 'Autophagie' : hoursFasted >= 12 ? 'Ketose' : 'Glukose'}
             icon="flame"
-            color="#8B5CF6"
-            wash="rgba(139, 92, 246, 0.18)"
+            hue="body"
             subtitle={`${hoursFasted.toFixed(1)}h gefastet · 24h Bio-Guide`}
             actionLabel="Guide"
             onPress={() => setShowMetabolic(true)}
@@ -317,8 +322,7 @@ export default function DashboardScreen() {
             unit={`/ ${(waterTarget / 1000).toFixed(1)}L`}
             badge={hydration.electrolytes ? 'Salz ✓' : '+Salz'}
             icon="drop"
-            color="#38BDF8"
-            wash="rgba(56, 189, 248, 0.18)"
+            hue="hydro"
             subtitle={`${Math.round(waterPct)}% Tagesziel · Trinken`}
           >
             <View style={s.bentoActions}>
@@ -348,8 +352,7 @@ export default function DashboardScreen() {
             unit="kcal"
             badge={plan ? 'Geplant' : 'Basis'}
             icon="plate"
-            color="#EA580C"
-            wash="rgba(234, 88, 12, 0.18)"
+            hue="ember"
             subtitle={`${protein}g Protein · Fenster ${fast.windowStart}`}
             actionLabel="Plan ansehen"
             onPress={() => router.push('/planner')}
@@ -361,8 +364,7 @@ export default function DashboardScreen() {
             unit="kg"
             badge={weighedToday ? 'Gewogen ✓' : 'Offen'}
             icon="chart"
-            color="#10B981"
-            wash="rgba(16, 185, 129, 0.18)"
+            hue="plan"
             subtitle={weighedToday ? 'Tagesgewicht erfasst' : 'Noch wiegen für Trend'}
             actionLabel="Verlauf"
             onPress={() => router.push('/progress')}
@@ -374,8 +376,7 @@ export default function DashboardScreen() {
             unit={lang === 'de' ? 'Schritte' : 'steps'}
             badge={steps >= 8000 ? 'Ziel ✓' : `${Math.round((steps / 8000) * 100)}%`}
             icon="flame"
-            color="#F59E0B"
-            wash="rgba(245, 158, 11, 0.18)"
+            hue="gold"
             subtitle={`~${Math.round(steps * 0.038)} kcal Bonus`}
           >
             <View style={s.bentoActions}>
@@ -402,8 +403,7 @@ export default function DashboardScreen() {
             value="3 Stufen"
             badge="Food-Coma"
             icon="shield"
-            color="#10B981"
-            wash="rgba(16, 185, 129, 0.18)"
+            hue="plan"
             subtitle="1. Brühe → 2. Protein → 3. Carbs"
             actionLabel="Guide"
             onPress={() => setShowBreakFast(true)}

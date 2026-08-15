@@ -23,7 +23,7 @@ import {
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { clampFontScale, scaleType } from '@/lib/typography';
 import {
-  Colors, Type, Space, Radius, Motion, Font, MaxContentWidth, MaxWideWidth, Breakpoint,
+  Colors, Type, Space, Radius, Motion, Font, Shadow, MaxContentWidth, MaxWideWidth, Breakpoint,
   TabBarClearance, type ThemePalette,
 } from '@/constants/theme';
 import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
@@ -391,6 +391,20 @@ const TONES: Record<Tone, (c: ThemePalette) => { edge: string; fill: string; ink
   gold: (c) => ({ edge: c.gold, fill: c.goldWash, ink: c.gold }),
 };
 
+/**
+ * A tint of any palette colour, for a surface that has to sit under it.
+ *
+ * The washes in the palette exist for the five domains; anything else that
+ * wants a tinted chip was reaching for a hand-written `rgba(...)`, which is
+ * how six different alphas ended up on one screen. One alpha, applied to
+ * whatever colour the scheme resolved, keeps them the same weight.
+ */
+export type PaletteHue = 'accent' | 'ember' | 'hydro' | 'body' | 'plan' | 'gold' | 'textDim';
+
+export function washOf(hex: string): string {
+  return /^#[0-9a-fA-F]{6}$/.test(hex) ? `${hex}22` : hex;
+}
+
 /** The palette entry for a domain, for anything that is not a `Card`. */
 export function useTone(tone: Tone) {
   return TONES[tone](useTheme());
@@ -406,16 +420,29 @@ export function Card({
   tone?: CardTone;
 }) {
   const c = useTheme();
+  const scheme = useResolvedScheme();
   const t = tone === 'default' ? null : TONES[tone](c);
+  /**
+   * Lit from above in the light scheme, lifted by lightness in the dark one.
+   *
+   * A shadow on a near-black ground is invisible, so drawing one there costs a
+   * compositing layer and buys nothing; the dark scheme separates a card from
+   * the page by making it lighter instead. A plain card also drops its outline
+   * in light mode — the shadow already says "this is a thing" — while a toned
+   * card keeps a hairline, because its tint is what carries the meaning and a
+   * wash with no edge dissolves into the sand.
+   */
+  const isDark = scheme === 'dark';
   return (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: t ? t.fill : c.surface,
+          backgroundColor: t ? t.fill : isDark ? c.surfaceElevated : c.surface,
           borderColor: t ? t.edge : c.line,
-          borderWidth: 1,
+          borderWidth: t ? 1 : isDark ? 1 : 0,
         },
+        !isDark && !t && Shadow.card,
         style,
       ]}
     >

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
-import { Card, Txt, Eyebrow, Tap, useTheme, useTone } from './ui';
+import { Card, Txt, Eyebrow, Tap, useTheme, useTone, washOf } from './ui';
 import { useT } from './lang';
 import { Icon } from './icons';
 import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
@@ -94,7 +94,7 @@ export default function RecipeCard({
           resizeMode="cover"
         />
         {plan.complexity === 'chef' && (
-          <View style={[s.chefImageBadge, { backgroundColor: 'rgba(15, 23, 42, 0.85)', borderColor: '#F59E0B' }]}>
+          <View style={[s.chefImageBadge, { backgroundColor: 'rgba(20, 17, 14, 0.82)', borderColor: c.gold }]}>
             <Icon name="crown" size={11} color="#F59E0B" />
             <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 9, fontWeight: '800', marginLeft: 4 }}>
               GOURMET PLATING ARCHITEKTUR
@@ -107,8 +107,8 @@ export default function RecipeCard({
           style={[
             s.favBtn,
             {
-              backgroundColor: favorite ? '#EF4444' : 'rgba(8, 12, 20, 0.75)',
-              borderColor: favorite ? '#EF4444' : 'rgba(255, 255, 255, 0.25)',
+              backgroundColor: favorite ? c.negative : 'rgba(20, 17, 14, 0.72)',
+              borderColor: favorite ? c.negative : 'rgba(255, 252, 247, 0.28)',
             },
           ]}
           accessibilityLabel={favorite ? 'Favorit' : 'Als Favorit speichern'}
@@ -125,13 +125,13 @@ export default function RecipeCard({
           <View style={[
             s.complexityBadge,
             plan.complexity === 'chef'
-              ? { backgroundColor: '#2D1F0E', borderColor: '#F59E0B' }
+              ? { backgroundColor: washOf(c.gold), borderColor: c.gold }
               : { backgroundColor: c.well, borderColor: c.line },
           ]}>
             <Txt
               variant="eyebrow"
               style={{ fontSize: 10, fontWeight: '800' }}
-              color={plan.complexity === 'chef' ? '#F59E0B' : c.textDim}
+              color={plan.complexity === 'chef' ? c.gold : c.textDim}
             >
               {plan.complexity === 'quick' ? '⚡ BLITZ · ≤15 MIN' : '👨‍🍳 CHEF-LEVEL'}
             </Txt>

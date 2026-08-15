@@ -92,12 +92,12 @@ export default function TimerScreen() {
 
   const phaseColor =
     stage.id === 'deep'
-      ? '#10B981'
+      ? c.positive
       : stage.id === 'ketosis-rising'
-        ? '#8B5CF6'
+        ? c.body
         : stage.id === 'glycogen-falling'
-          ? '#FF6B4A'
-          : '#F59E0B';
+          ? c.ember
+          : c.gold;
 
   return (
     <Screen wide>
@@ -116,7 +116,7 @@ export default function TimerScreen() {
           <Svg width={DIAL_SIZE} height={DIAL_SIZE}>
             <Defs>
               <LinearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={fast.isEating ? c.ember : '#38BDF8'} />
+                <Stop offset="0" stopColor={fast.isEating ? c.ember : c.hydro} />
                 <Stop offset="1" stopColor={phaseColor} />
               </LinearGradient>
             </Defs>
@@ -151,17 +151,17 @@ export default function TimerScreen() {
             <View
               style={[
                 s.statusBadge,
-                { backgroundColor: fast.isEating ? c.emberWash : 'rgba(56, 189, 248, 0.18)' },
+                { backgroundColor: fast.isEating ? c.emberWash : c.hydroWash },
               ]}
             >
               <Icon
                 name={fast.isEating ? 'plate' : 'flame'}
                 size={14}
-                color={fast.isEating ? c.ember : '#38BDF8'}
+                color={fast.isEating ? c.ember : c.hydro}
               />
               <Txt
                 variant="eyebrow"
-                color={fast.isEating ? c.ember : '#38BDF8'}
+                color={fast.isEating ? c.ember : c.hydro}
                 style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}
               >
                 {fast.isEating ? 'ESSENSFENSTER' : 'FASTEN LÄUFT'}
@@ -266,7 +266,7 @@ export default function TimerScreen() {
         <TouchableOpacity
           onPress={() => setShowBreakFast(true)}
           activeOpacity={0.75}
-          style={[s.breakFastRow, { backgroundColor: c.surface, borderColor: '#10B981' }]}
+          style={[s.breakFastRow, { backgroundColor: c.surface, borderColor: c.positive }]}
         >
           <View style={[s.breakIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
             <Icon name="shield" size={18} color="#10B981" />

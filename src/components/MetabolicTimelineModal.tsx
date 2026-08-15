@@ -1,6 +1,6 @@
 import { View, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
-import { Txt, Eyebrow, Button, useTheme } from './ui';
+import { Txt, Eyebrow, Button, useTheme, washOf, type PaletteHue } from './ui';
 import { Icon, type IconName } from './icons';
 import { useLang } from './lang';
 
@@ -17,7 +17,8 @@ interface StageDetail {
   title: string;
   subtitle: string;
   icon: IconName;
-  color: string;
+  /** Palette slot; module scope has no theme to resolve a literal against. */
+  hue: PaletteHue;
   badge: string;
   points: string[];
   biochemistry: string;
@@ -31,7 +32,7 @@ const STAGES: StageDetail[] = [
     title: 'Anabole Verdauung & Nährstoffaufnahme',
     subtitle: 'Blutzucker & Insulin sinken langsam ab',
     icon: 'plate',
-    color: '#F59E0B',
+    hue: 'gold' as PaletteHue,
     badge: 'Verdauung',
     points: [
       'Der Körper verdaut die letzte Mahlzeit und füllt Energie- & Glykogenspeicher.',
@@ -47,7 +48,7 @@ const STAGES: StageDetail[] = [
     title: 'Katabole Umschaltung & Glykogenabbau',
     subtitle: 'Insulin am Tiefpunkt · Fettverbrennung startet',
     icon: 'flame',
-    color: '#FF6B4A',
+    hue: 'ember' as PaletteHue,
     badge: 'Fettstart',
     points: [
       'Insulinspiegel sinkt auf den Minimalwert. Das Enzym HSL (Hormonsensitive Lipase) wird aktiviert.',
@@ -63,7 +64,7 @@ const STAGES: StageDetail[] = [
     title: 'Ketose & Maximale Fettoxidation',
     subtitle: 'Die Leber produziert Ketonkörper für Gehirn & Muskeln',
     icon: 'flame',
-    color: '#8B5CF6',
+    hue: 'body' as PaletteHue,
     badge: 'Ketose',
     points: [
       'Leberglykogen ist weitgehend entleert. Fett wird zum primären Treibstoff.',
@@ -79,7 +80,7 @@ const STAGES: StageDetail[] = [
     title: 'Tiefe Autophagie & Zellerneuerung',
     subtitle: 'Zelluläres Recycling & mTOR-Hemmung',
     icon: 'crown',
-    color: '#10B981',
+    hue: 'plan' as PaletteHue,
     badge: 'Autophagie',
     points: [
       'Makroautophagie: Lysosomen zerlegen beschädigte Proteine, defekte Mitochondrien und Zellmüll.',
@@ -127,23 +128,23 @@ export function MetabolicTimelineModal({ visible, onClose, hoursFasted }: Metabo
                   style={[
                     s.stageCard,
                     {
-                      backgroundColor: isCurrent ? `${st.color}15` : c.well,
-                      borderColor: isCurrent ? st.color : isPassed ? 'rgba(255,255,255,0.15)' : c.line,
+                      backgroundColor: isCurrent ? washOf(c[st.hue]) : c.well,
+                      borderColor: isCurrent ? c[st.hue] : isPassed ? 'rgba(255,255,255,0.15)' : c.line,
                       borderWidth: isCurrent ? 1.5 : 1,
                     },
                   ]}
                 >
                   <View style={s.stageHeaderRow}>
-                    <View style={[s.stageIcon, { backgroundColor: `${st.color}25` }]}>
-                      <Icon name={st.icon} size={18} color={st.color} />
+                    <View style={[s.stageIcon, { backgroundColor: washOf(c[st.hue]) }]}>
+                      <Icon name={st.icon} size={18} color={c[st.hue]} />
                     </View>
                     <View style={{ flex: 1, marginLeft: Space.sm }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Txt variant="eyebrow" color={st.color} style={{ fontSize: 11, fontWeight: '800' }}>
+                        <Txt variant="eyebrow" color={c[st.hue]} style={{ fontSize: 11, fontWeight: '800' }}>
                           {st.hoursRange.toUpperCase()}
                         </Txt>
                         {isCurrent && (
-                          <View style={[s.currentPill, { backgroundColor: st.color }]}>
+                          <View style={[s.currentPill, { backgroundColor: c[st.hue] }]}>
                             <Txt variant="eyebrow" color="#FFFFFF" style={{ fontSize: 9, fontWeight: '900' }}>
                               {lang === 'de' ? 'JETZT AKTIV' : 'ACTIVE NOW'}
                             </Txt>
@@ -163,7 +164,7 @@ export function MetabolicTimelineModal({ visible, onClose, hoursFasted }: Metabo
                   <View style={{ marginTop: Space.sm }}>
                     {st.points.map((p, idx) => (
                       <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 4 }}>
-                        <Txt variant="small" color={st.color} style={{ marginRight: 6, fontWeight: '700' }}>•</Txt>
+                        <Txt variant="small" color={c[st.hue]} style={{ marginRight: 6, fontWeight: '700' }}>•</Txt>
                         <Txt variant="small" color={c.text} style={{ flex: 1, fontSize: 12, lineHeight: 17 }}>
                           {p}
                         </Txt>
@@ -172,7 +173,7 @@ export function MetabolicTimelineModal({ visible, onClose, hoursFasted }: Metabo
                   </View>
 
                   <View style={[s.bioBox, { backgroundColor: c.surface, borderColor: c.line }]}>
-                    <Txt variant="data" color={st.color} style={{ fontSize: 10, fontWeight: '700' }}>
+                    <Txt variant="data" color={c[st.hue]} style={{ fontSize: 10, fontWeight: '700' }}>
                       🔬 {st.biochemistry}
                     </Txt>
                   </View>

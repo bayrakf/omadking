@@ -136,8 +136,8 @@ export function DayBand({
           ]}
           pointerEvents="none"
         >
-          <View style={[styles.nowHead, { borderTopColor: isEating ? c.ember : onHero ? '#38BDF8' : c.accent }]} />
-          <View style={[styles.nowStem, { backgroundColor: isEating ? c.ember : onHero ? '#38BDF8' : c.accent }]} />
+          <View style={[styles.nowHead, { borderTopColor: isEating ? c.ember : onHero ? c.hydro : c.accent }]} />
+          <View style={[styles.nowStem, { backgroundColor: isEating ? c.ember : onHero ? c.hydro : c.accent }]} />
         </Animated.View>
       </View>
 

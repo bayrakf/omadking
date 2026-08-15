@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
-import { Txt, useTheme, Eyebrow } from './ui';
+import { Txt, useTheme, Eyebrow, washOf, type PaletteHue } from './ui';
 import { Icon, type IconName } from './icons';
 
 interface BentoTileProps {
@@ -11,8 +11,15 @@ interface BentoTileProps {
   subtitle?: string;
   badge?: string;
   icon: IconName;
-  color: string;
-  wash: string;
+  /**
+   * The palette slot this tile belongs to.
+   *
+   * Six tiles used to be handed six literal Tailwind swatches by the
+   * dashboard, at full chroma and in a different temperature from the rest of
+   * the app — which is precisely what made a screen of identical rounded
+   * boxes read as generated rather than designed.
+   */
+  hue: PaletteHue;
   onPress?: () => void;
   actionLabel?: string;
   children?: ReactNode;
@@ -25,13 +32,14 @@ export function BentoTile({
   subtitle,
   badge,
   icon,
-  color,
-  wash,
+  hue,
   onPress,
   actionLabel,
   children,
 }: BentoTileProps) {
   const c = useTheme();
+  const tint = c[hue];
+  const wash = washOf(tint);
 
   const Content = (
     <View
@@ -49,13 +57,13 @@ export function BentoTile({
       <View style={s.tileHead}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
           <View style={[s.iconBox, { backgroundColor: wash }]}>
-            <Icon name={icon} size={15} color={color} />
+            <Icon name={icon} size={15} color={tint} />
           </View>
           <Eyebrow color={c.textDim} style={{ marginLeft: 6 }}>{title}</Eyebrow>
         </View>
         {badge && (
-          <View style={[s.badge, { backgroundColor: wash, borderColor: color }]}>
-            <Txt variant="data" color={color} style={{ fontSize: 10, fontWeight: '700' }}>
+          <View style={[s.badge, { backgroundColor: wash, borderColor: tint }]}>
+            <Txt variant="data" color={tint} style={{ fontSize: 10, fontWeight: '700' }}>
               {badge}
             </Txt>
           </View>
@@ -83,10 +91,10 @@ export function BentoTile({
 
       {actionLabel && (
         <View style={s.actionRow}>
-          <Txt variant="data" color={color} style={{ fontSize: 11, fontWeight: '700' }}>
+          <Txt variant="data" color={tint} style={{ fontSize: 11, fontWeight: '700' }}>
             {actionLabel}
           </Txt>
-          <Icon name="chevronRight" size={12} color={color} />
+          <Icon name="chevronRight" size={12} color={tint} />
         </View>
       )}
     </View>
