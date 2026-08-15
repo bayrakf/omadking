@@ -249,7 +249,7 @@ export async function generateMealPlan(
     training_duration_min: training?.duration_min ?? 0,
     recipe_source: recipe ? 'ai' : 'offline',
     recipe_note: recipe ? null : describeRecipeFallback(reason, detail),
-    recipe: recipe ?? offlineRecipe(profile, training, targets),
+    recipe: recipe ?? offlineRecipe(profile, training, targets, lang),
   };
 }
 
@@ -257,12 +257,37 @@ export async function generateMealPlan(
 function offlineRecipe(
   profile: UserProfile,
   training: Training | null,
-  targets: { protein_g: number; carbs_g: number; fat_g: number }
+  targets: { protein_g: number; carbs_g: number; fat_g: number },
+  lang: Lang = 'en'
 ): Recipe {
   const proteinRaw = Math.round(targets.protein_g / 0.26); // ~26g protein per 100g cooked lean meat
   const carbRaw = Math.round(targets.carbs_g / 0.2); // ~20g carbs per 100g cooked rice/potato
   const oilTbsp = Math.max(1, Math.round(targets.fat_g / 28));
-  const sport = training?.sport ?? 'rest day';
+  const sport = training?.sport ?? (lang === 'de' ? 'Ruhetag' : 'rest day');
+
+  if (lang === 'de') {
+    return {
+      title: training ? `${sport[0].toUpperCase()}${sport.slice(1)} Regenerations-Teller` : 'OMAD Hauptmahlzeit',
+      ingredients: [
+        `${proteinRaw}g Hähnchenbrust, Lachsfilet oder fester Tofu`,
+        `${carbRaw}g Süßkartoffeln oder Jasminreis (Rohgewicht ~${Math.round(carbRaw / 2.5)}g)`,
+        '250g knackiges Pfannengemüse — Brokkoli, Blattspinat, Zucchini',
+        `${oilTbsp} EL natives Olivenöl extra`,
+        '1 TL Meersalz, Zitronensaft, Knoblauch und schwarzer Pfeffer',
+      ],
+      instructions:
+        '1. Proteinquelle mit Salz, Knoblauch und Pfeffer würzen und 10 Minuten ruhen lassen. ' +
+        '2. Kohlenhydratquelle würfeln, mit der Hälfte des Olivenöls vermengen und bei 200°C 22 Minuten im Ofen backen. ' +
+        '3. Proteinquelle in einer Pfanne 5–6 Minuten je Seite scharf anbraten, danach 5 Minuten ruhen lassen. ' +
+        '4. Gemüse 4 Minuten dünsten und mit dem restlichen Olivenöl und etwas Zitrone verfeinern.',
+      reheat_instructions:
+        '1. Pfanne: 1 TL Öl, mittlere Hitze, 4 Minuten wenden — beste Textur. ' +
+        '2. Heißluftfritteuse (Airfryer): 180°C für 4 Minuten für ein knuspriges Finish. ' +
+        '3. Mikrowelle: Mit feuchtem Küchenpapier abdecken, 800W für 2,5 Minuten (Gemüse erst die letzten 30 Sek.).',
+      prep_time_min: 30,
+      is_meal_prep: true,
+    };
+  }
 
   return {
     title: training ? `${sport[0].toUpperCase()}${sport.slice(1)} Recovery Plate` : 'OMAD Maintenance Plate',
