@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
 import { Card, Txt, Eyebrow, Tap, Divider, useTheme, useTone } from './ui';
+import { useT } from './lang';
 import { Icon } from './icons';
 import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
 import type { MealPlan } from '@/lib/ai';
@@ -21,6 +22,7 @@ export default function RecipeCard({
   onPortions?: (n: number) => void;
 }) {
   const c = useTheme();
+  const t = useT();
   const plan_ = useTone('plan');
   const [done, setDone] = useState<Record<string, boolean>>({});
   const toggle = (k: string) => setDone((p) => ({ ...p, [k]: !p[k] }));
@@ -74,7 +76,7 @@ export default function RecipeCard({
 
   return (
     <Card style={{ marginTop: Space.md }}>
-      <Eyebrow>{plan.recipe.prep_time_min ?? 30} min prep · cook once, eat tomorrow</Eyebrow>
+      <Eyebrow>{t('recipe.prep', { min: plan.recipe.prep_time_min ?? 30 })}</Eyebrow>
       <Txt variant="heading" style={s.recipeTitle}>{plan.recipe.title}</Txt>
 
       {/* Stated plainly rather than hidden: a generic plate with no explanation
@@ -103,7 +105,7 @@ export default function RecipeCard({
       </View>
 
       <View style={s.ingredientHead}>
-        <Eyebrow color={plan_.ink}>Ingredients</Eyebrow>
+        <Eyebrow color={plan_.ink}>{t('recipe.ingredients')}</Eyebrow>
         {onPortions && (
           <View style={s.portions}>
             {[1, 2, 3].map((n) => (
@@ -152,7 +154,7 @@ export default function RecipeCard({
       {cook.length > 0 && (
         <>
           <Divider style={{ marginTop: Space.lg }} />
-          <Eyebrow style={s.section} color={plan_.ink}>Method</Eyebrow>
+          <Eyebrow style={s.section} color={plan_.ink}>{t('recipe.method')}</Eyebrow>
           {steps(cook, 'c', true, plan_.ink)}
         </>
       )}
@@ -160,7 +162,7 @@ export default function RecipeCard({
       {reheat.length > 0 && (
         <>
           <Divider style={{ marginTop: Space.lg }} />
-          <Eyebrow style={s.section} color={c.ember}>Reheating tomorrow</Eyebrow>
+          <Eyebrow style={s.section} color={c.ember}>{t('recipe.reheat')}</Eyebrow>
           {steps(reheat, 'r', false, c.ember)}
         </>
       )}

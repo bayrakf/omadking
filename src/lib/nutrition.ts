@@ -5,6 +5,7 @@
  * profile, edge function each had their own formula). Everything routes here now.
  * Pure functions only — no IO, no React — so `demo()` at the bottom can check them.
  */
+import type { Lang } from './i18n';
 
 export type Sex = 'male' | 'female' | 'other';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -44,6 +45,14 @@ export type UserProfile = {
    * a weekly plan.
    */
   avoid: string;
+  /**
+   * Chosen interface language, or null to follow the device.
+   *
+   * Null is a real value — see `pickLang`. Everybody who installed the app
+   * before this existed is in that state, and following their device is the
+   * right answer for them.
+   */
+  language: Lang | null;
 };
 
 export type Training = {
@@ -74,6 +83,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   target_weight_kg: null,
   weekly_rate_kg: null,
   avoid: '',
+  language: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -143,6 +153,9 @@ export function normalizeProfile(raw: any): UserProfile {
     // free instruction. Unknown to normalizeProfile would mean unknown to the
     // sync — the mistake the target weight already made once.
     avoid: typeof raw.avoid === 'string' ? raw.avoid.replace(/\s+/g, ' ').trim().slice(0, 120) : '',
+    // Anything that is not one of the two shipped languages means "follow the
+    // device", including a language we once shipped and later dropped.
+    language: raw.language === 'en' || raw.language === 'de' ? raw.language : null,
   };
 }
 
@@ -978,6 +991,10 @@ export function demo() {
   assert(normalizeProfile({ ...prof, avoid: 'x'.repeat(400) }).avoid.length === 120, 'and capped');
   assert(normalizeProfile(prof).avoid === '', 'nothing said is nothing sent');
   assert(normalizeProfile({ ...prof, avoid: 42 as any }).avoid === '', 'and nonsense is nothing too');
+
+  assert(normalizeProfile({ ...prof, language: 'de' }).language === 'de', 'a chosen language survives a reload');
+  assert(normalizeProfile({ ...prof, language: 'fr' }).language === null, 'a language we do not ship falls back to the device');
+  assert(normalizeProfile(prof).language === null, 'a profile from before the setting follows the device');
 
   // --- how fast, with the consequence attached ------------------------------
 

@@ -7,6 +7,7 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, PageHeader, Bar, Empty, Tap,
   PairedBars, NavRow, Columns, useTheme,
 } from '@/components/ui';
+import { useT } from '@/components/lang';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
   measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
@@ -83,6 +84,7 @@ function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?
 
 export default function ProgressScreen() {
   const c = useTheme();
+  const t = useT();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -276,8 +278,8 @@ export default function ProgressScreen() {
       <Enter index={0}>
         <PageHeader
           tone="body"
-          eyebrow={entries.length ? `${entries.length} entries logged` : 'No entries yet'}
-          title="Progress"
+          eyebrow={entries.length ? t('progress.entries', { n: entries.length }) : t('progress.noEntries')}
+          title={t('progress.title')}
         />
       </Enter>
 
@@ -330,7 +332,7 @@ export default function ProgressScreen() {
           because it is the only card that asks for anything. */}
       <Enter index={2}>
         <View style={s.segments}>
-          {([['week', 'This week'], ['body', 'Your body'], ['history', 'History']] as const).map(
+          {([['week', t('progress.thisWeek')], ['body', t('progress.yourBody')], ['history', t('progress.history')]] as const).map(
             ([key, label]) => (
               <Tap
                 key={key}
@@ -538,8 +540,8 @@ export default function ProgressScreen() {
         <NavRow
           icon="edit"
           tone="body"
-          title="Corrections"
-          sub="Weigh-in, evenings, fasts, days to leave out"
+          title={t('progress.corrections')}
+          sub={t('progress.correctionsSub')}
           onPress={() => router.push('/week/corrections')}
         />
       </Enter>

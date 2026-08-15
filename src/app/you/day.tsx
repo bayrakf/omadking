@@ -10,12 +10,15 @@
 import { View, StyleSheet } from 'react-native';
 import { Screen, Card, Txt, Eyebrow, Enter, Chip, Divider, PageHeader, useTheme } from '@/components/ui';
 import { useProfileEditor } from '@/components/profile-fields';
+import { useT } from '@/components/lang';
 import { Space, Radius } from '@/constants/theme';
 import { PROTOCOLS, protocolForHours, toMinutes, fromMinutes } from '@/lib/nutrition';
+import type { Key } from '@/lib/i18n';
 
 export default function DayScreen() {
   const c = useTheme();
   const { profile, mounted, persist, row } = useProfileEditor();
+  const t = useT();
 
   if (!mounted) return null;
 
@@ -25,20 +28,20 @@ export default function DayScreen() {
   return (
     <Screen tabBar={false}>
       <Enter index={0}>
-        <PageHeader tone="accent" eyebrow="You" title="Your day" sub="When the window opens, and for how long." />
+        <PageHeader tone="accent" eyebrow={t('you.title')} title={t('you.day')} sub={t('you.daySub')} />
       </Enter>
 
       <Enter index={1}>
         <Card>
-          <Eyebrow style={{ marginBottom: Space.sm }}>Window</Eyebrow>
-          {row('Opens', 'omad_window_start')}
+          <Eyebrow style={{ marginBottom: Space.sm }}>{t('day.window')}</Eyebrow>
+          {row(t('day.opens'), 'omad_window_start')}
           <Divider />
-          {row('Length', 'omad_window_hours', ' h')}
+          {row(t('day.length'), 'omad_window_hours', ' h')}
           <View style={s.wrap}>
             {PROTOCOLS.map((proto) => (
               <Chip
                 key={proto.id}
-                label={proto.label}
+                label={t(`protocol.${proto.id}` as Key)}
                 selected={profile.omad_window_hours === proto.windowHours}
                 onPress={() => persist({ ...profile, omad_window_hours: proto.windowHours })}
                 style={s.chip}
@@ -49,11 +52,11 @@ export default function DayScreen() {
               has no name to show. */}
           {named && (
             <Txt variant="small" color={c.textDim} style={{ marginBottom: Space.sm }}>
-              {named.note}
+              {t(`protocol.${named.id}.note` as Key)}
             </Txt>
           )}
           <Divider />
-          {row('Usual training', 'default_training_time')}
+          {row(t('day.training'), 'default_training_time')}
           <View style={[s.summary, { backgroundColor: c.well }]}>
             <Txt variant="data" color={c.accent}>
               {profile.omad_window_start}–{windowEnd}

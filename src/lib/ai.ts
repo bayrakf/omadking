@@ -6,7 +6,8 @@
  * bundle where anyone can lift it out of devtools and bill it to this project.
  */
 
-import { dailyTargets, mealTiming, type Training, type UserProfile } from './nutrition';
+import { dailyTargets, mealTiming, protocolForHours, type Training, type UserProfile } from './nutrition';
+import type { Lang } from './i18n';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -147,6 +148,15 @@ function isUsableRecipe(r: any): r is Recipe {
 export async function generateMealPlan(
   profile: UserProfile,
   training: Training | null,
+  /**
+   * Required rather than defaulted.
+   *
+   * `profile.language` is null for everyone who has not chosen one, and this
+   * module cannot see the device to resolve that — only the caller can. A
+   * default of 'en' here would look like it worked and quietly send English
+   * recipes to every German who never opened the setting.
+   */
+  lang: Lang,
   measuredMaintenance?: number
 ): Promise<MealPlan> {
   const targets = dailyTargets(profile, training, measuredMaintenance);
@@ -176,6 +186,25 @@ export async function generateMealPlan(
         target_carbs_g: targets.carbs_g,
         target_fat_g: targets.fat_g,
         timing_pattern: timing.pattern,
+        /**
+         * How long there is to eat it in, and what that arrangement is called.
+         *
+         * A meal for a one-hour strict window and a meal for a four-hour
+         * Warrior window are not the same dish: one has to be dense enough to
+         * finish in a sitting, the other can be two plates. The model was
+         * being told the macros and never the shape, so it wrote the same
+         * volume of food for a protocol that cannot physically contain it.
+         */
+        window_hours: profile.omad_window_hours,
+        protocol: protocolForHours(profile.omad_window_hours)?.id ?? null,
+        /**
+         * The language the prose comes back in.
+         *
+         * Written in it, not translated after: a recipe translated by a second
+         * pass loses the cooking vocabulary that makes it followable, and the
+         * app has no second pass to spend.
+         */
+        language: lang,
         // The one personal field that has to go: a recipe nobody can eat is
         // worse than no recipe, and rejecting one used to cost a weekly plan.
         avoid: profile.avoid || undefined,

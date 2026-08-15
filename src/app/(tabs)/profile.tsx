@@ -19,6 +19,8 @@ import { Space, Radius } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Tap, NavRow, PageHeader, useTheme,
 } from '@/components/ui';
+import { useLang } from '@/components/lang';
+import { LANGS } from '@/lib/i18n';
 import { Icon } from '@/components/icons';
 import { toMinutes, fromMinutes, dailyTargets, DEFAULT_PROFILE, type UserProfile } from '@/lib/nutrition';
 import { loadProfileOrDefault, getQuota, isPremium, type Quota } from '@/lib/store';
@@ -38,6 +40,7 @@ function ago(iso: string | null): string {
 
 export default function ProfileScreen() {
   const c = useTheme();
+  const { chosen, t } = useLang();
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
@@ -71,7 +74,7 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <Enter index={0}><PageHeader title="You" /></Enter>
+      <Enter index={0}><PageHeader title={t('you.title')} /></Enter>
 
       <Enter index={1}>
         <Tap onPress={() => !premium && router.push('/paywall')} disabled={premium} accessibilityLabel="Subscription">
@@ -92,31 +95,31 @@ export default function ProfileScreen() {
 
       {/* What the app knows about you and what it does with it. */}
       <Enter index={2} style={{ marginTop: Space.xl }}>
-        <Eyebrow style={{ marginBottom: Space.md }}>Your setup</Eyebrow>
+        <Eyebrow style={{ marginBottom: Space.md }}>{t('you.setup')}</Eyebrow>
         <NavRow
           icon="user"
           tone="body"
-          title="Body"
+          title={t('you.body')}
           sub={`${profile.weight_kg} kg · ${profile.height_cm} cm · ${profile.age}`}
           onPress={() => router.push('/you/body')}
         />
         <NavRow
           icon="clock"
           tone="accent"
-          title="Your day"
+          title={t('you.day')}
           sub={`${profile.omad_window_start}–${windowEnd} · ${24 - profile.omad_window_hours}h fast`}
           onPress={() => router.push('/you/day')}
         />
         <NavRow
           icon="chart"
           tone="plan"
-          title="Targets"
+          title={t('you.targets')}
           sub={`${targets.kcal} kcal · ${targets.protein_g} g protein`}
           onPress={() => router.push('/you/targets')}
         />
         <NavRow
           icon="bell"
-          title="Reminders"
+          title={t('you.reminders')}
           sub={
             !remindersSupported()
               ? 'App only'
@@ -132,18 +135,24 @@ export default function ProfileScreen() {
           the data lives. Ten cards in a row read as a junk drawer without this
           break. */}
       <Enter index={3} style={{ marginTop: Space.xl }}>
-        <Eyebrow style={{ marginBottom: Space.md }}>Your data</Eyebrow>
+        <Eyebrow style={{ marginBottom: Space.md }}>{t('you.data')}</Eyebrow>
         <NavRow
           icon="sync"
-          title="Sync"
+          title={t('you.sync')}
           sub={syncedAt ? `Last synced ${ago(syncedAt)}` : 'Not set up'}
           onPress={() => router.push('/you/sync')}
         />
         <NavRow
           icon="share"
-          title="Export, restore, delete"
-          sub="Everything lives on this device"
+          title={t('you.export')}
+          sub={t('you.exportSub')}
           onPress={() => router.push('/you/data')}
+        />
+        <NavRow
+          icon="coach"
+          title={t('you.language')}
+          sub={chosen === null ? t('you.languageFollows') : (LANGS.find((l) => l.id === chosen)?.endonym ?? '')}
+          onPress={() => router.push('/you/language')}
         />
       </Enter>
 

@@ -5,6 +5,7 @@ import { Space, Radius } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Chip, Tap, Divider, Notice, PageHeader, useTheme,
 } from '@/components/ui';
+import { useLang } from '@/components/lang';
 import { Icon } from '@/components/icons';
 import RecipeCard from '@/components/RecipeCard';
 import {
@@ -40,6 +41,7 @@ const TIMES = ['06:00', '12:00', '17:00', '18:00', '19:00', '20:00'];
 
 export default function PlannerScreen() {
   const c = useTheme();
+  const { lang, t } = useLang();
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
@@ -153,7 +155,7 @@ export default function PlannerScreen() {
     setLoading(true);
     setError(null);
     try {
-      const next = await generateMealPlan(profile, training, measured);
+      const next = await generateMealPlan(profile, training, lang, measured);
       // Remembered only once a plan was actually built, so idly tapping through
       // the options does not overwrite what worked yesterday.
       await saveLastSession({
@@ -218,9 +220,9 @@ export default function PlannerScreen() {
       <Enter index={0}>
         <PageHeader
           tone="plan"
-          eyebrow={isRestDay ? 'Rest day' : `${sport} · ${duration} min · ${intensity}`}
-          title="Plan the meal"
-          sub="Your targets follow the session you actually do."
+          eyebrow={isRestDay ? t('plan.restDay') : `${sport} · ${duration} min · ${intensity}`}
+          title={t('plan.title')}
+          sub={t('plan.sub')}
         />
       </Enter>
 
@@ -268,7 +270,7 @@ export default function PlannerScreen() {
           <View style={s.restRow}>
             <View style={s.rowCentre}>
               <Icon name="moon" size={18} color={isRestDay ? c.accent : c.textFaint} />
-              <Txt variant="subheading" style={{ marginLeft: Space.sm }}>Rest day</Txt>
+              <Txt variant="subheading" style={{ marginLeft: Space.sm }}>{t('plan.restDay')}</Txt>
             </View>
             <Switch
               value={isRestDay}
@@ -280,22 +282,22 @@ export default function PlannerScreen() {
 
           {!isRestDay && (
             <View style={{ marginTop: Space.lg }}>
-              <Field label="Sport">
+              <Field label={t('plan.sport')}>
                 {SPORTS.map((x) => (
                   <Chip key={x.id} label={x.label} selected={sport === x.id} onPress={() => setSport(x.id)} tone="plan" style={s.chip} />
                 ))}
               </Field>
-              <Field label="Duration">
+              <Field label={t('plan.duration')}>
                 {DURATIONS.map((d) => (
                   <Chip key={d} label={`${d} min`} selected={duration === d} onPress={() => setDuration(d)} tone="plan" style={s.chip} />
                 ))}
               </Field>
-              <Field label="Effort">
+              <Field label={t('plan.effort')}>
                 {INTENSITIES.map((x) => (
                   <Chip key={x.id} label={x.label} selected={intensity === x.id} onPress={() => setIntensity(x.id)} tone="plan" style={s.chip} />
                 ))}
               </Field>
-              <Field label="Starts at" last>
+              <Field label={t('plan.startsAt')} last>
                 {TIMES.map((t) => (
                   <Chip key={t} label={t} selected={trainingTime === t} onPress={() => setTrainingTime(t)} tone="plan" style={s.chip} />
                 ))}
@@ -311,11 +313,11 @@ export default function PlannerScreen() {
             <View style={[s.loading, { backgroundColor: c.well }]}>
               <ActivityIndicator color={c.accent} />
               <Txt variant="small" color={c.textDim} style={{ marginLeft: Space.md }}>
-                Building your plan…
+                {t('plan.building')}
               </Txt>
             </View>
           ) : (
-            <Button label="Build the plan" icon="plate" tone="plan" onPress={() => generate()} />
+            <Button label={t('plan.build')} icon="plate" tone="plan" onPress={() => generate()} />
           )}
           {error && <Notice tone="error">{error}</Notice>}
           {copied && <Notice tone="ok">Copied to clipboard.</Notice>}
@@ -352,7 +354,7 @@ export default function PlannerScreen() {
           <Card style={{ marginTop: Space.base, alignItems: 'center', paddingVertical: Space.xxl }}>
             <Icon name="clock" size={24} color={c.textFaint} />
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md, textAlign: 'center' }}>
-              Set the session above, then build a plan with the exact times to eat.
+              {t('plan.empty')}
             </Txt>
           </Card>
         </Enter>
@@ -394,7 +396,7 @@ export default function PlannerScreen() {
 
       {history.length > 0 && (
         <Enter index={6} style={{ marginTop: Space.xxl }}>
-          <Eyebrow style={{ marginBottom: Space.md }}>Recent plans</Eyebrow>
+          <Eyebrow style={{ marginBottom: Space.md }}>{t('plan.recent')}</Eyebrow>
           {history.map((h, i) => (
             <Tap key={`${h.date}-${i}`} onPress={() => setPlan(h)} accessibilityLabel={h.recipe.title}>
               <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>

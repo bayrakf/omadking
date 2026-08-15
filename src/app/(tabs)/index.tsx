@@ -5,6 +5,7 @@ import { Space, Radius, Type } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, Columns, PageHeader, useTheme,
 } from '@/components/ui';
+import { useT } from '@/components/lang';
 import { Icon, type IconName } from '@/components/icons';
 import { DayBand } from '@/components/DayBand';
 import {
@@ -38,6 +39,7 @@ const ICONS: Record<AgendaItem['kind'], IconName> = {
 export default function DashboardScreen() {
   const router = useRouter();
   const c = useTheme();
+  const t = useT();
 
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -230,7 +232,7 @@ export default function DashboardScreen() {
         <PageHeader
           tone={fast.isEating ? 'ember' : 'accent'}
           eyebrow={dateLabel}
-          title={fast.isEating ? 'Window open' : 'Fasting'}
+          title={fast.isEating ? t('today.windowOpen') : t('today.fasting')}
         />
       </Enter>
 
@@ -277,7 +279,7 @@ export default function DashboardScreen() {
             <Txt variant="small" color={c.textDim} style={s.stageNote}>
               {stage.note}
             </Txt>
-            <Eyebrow style={{ textAlign: 'center', marginTop: Space.sm }}>Approximate</Eyebrow>
+            <Eyebrow style={{ textAlign: 'center', marginTop: Space.sm }}>{t('today.approximate')}</Eyebrow>
           </View>
         )}
       </Enter>
@@ -437,7 +439,7 @@ export default function DashboardScreen() {
       {/* Full day, so the shape of it is visible at a glance. */}
       <Enter index={3}>
         <Card style={{ marginTop: Space.base, paddingVertical: Space.sm }}>
-          <Eyebrow style={{ paddingVertical: Space.md }}>Today</Eyebrow>
+          <Eyebrow style={{ paddingVertical: Space.md }}>{t('today.agenda')}</Eyebrow>
           {items.map((item, i) => {
             const dim = item.past || item.done;
             return (
@@ -488,12 +490,12 @@ export default function DashboardScreen() {
         <Card style={{ marginTop: Space.base }} tone="plan">
           <View style={s.statRow}>
             <View style={s.flex}>
-              <Eyebrow>Energy</Eyebrow>
+              <Eyebrow>{t('today.energy')}</Eyebrow>
               <Txt variant="heading" style={s.figure}>{kcal}<Txt variant="small" color={c.textFaint}> kcal</Txt></Txt>
             </View>
             <Divider style={s.vline} />
             <View style={s.flex}>
-              <Eyebrow>Protein</Eyebrow>
+              <Eyebrow>{t('today.protein')}</Eyebrow>
               <Txt variant="heading" style={s.figure}>{protein}<Txt variant="small" color={c.textFaint}> g</Txt></Txt>
             </View>
           </View>

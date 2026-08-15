@@ -41,6 +41,39 @@ function buildPrompt(p: Record<string, any>): string {
       ? 'Training falls inside the eating window, so the meal is split around it. Make the dish easy to portion into a smaller pre-training plate and a larger post-training plate.'
       : 'The athlete trains fasted and breaks the fast afterwards. Favour fast-digesting carbs and lean protein to start recovery quickly.';
 
+  /**
+   * How long there is to eat it in.
+   *
+   * This is the constraint the prompt was missing entirely. The macros say how
+   * much food; the window says whether a human can physically get through it
+   * in one sitting. 3,200 kcal is a reasonable plate over four hours and an
+   * ordeal in one, and the model has no way to know which it is writing for
+   * unless it is told.
+   */
+  const hours = Number(p.window_hours);
+  const windowNote = !isFinite(hours) || hours <= 0
+    ? ''
+    : hours <= 1
+    ? `The entire eating window is ${hours} hour — ONE sitting, and then nothing for 23 hours. Energy density is the binding constraint: choose calorie-dense whole foods (olive oil, nuts, fatty fish, full-fat dairy) over high-volume ones, and keep the cooked weight of the plate under about 900g. A salad the size of a bucket is a failed recipe here, however well its macros add up.`
+    : hours <= 2
+    ? `The eating window is ${hours} hours — one meal, with time to finish it. Keep the plate to something one person can comfortably eat in a sitting; favour density over volume, but it need not be extreme.`
+    : hours <= 4
+    ? `The eating window is ${hours} hours, so this is one long meal or two courses. Design it to be eaten in two passes — a first plate and a second — and say so in the method. Volume is much less of a constraint than it is at one hour.`
+    : `The eating window is ${hours} hours, so this is two proper meals rather than one. Split the targets into a first and a second meal in the instructions, and make the second one reheat well.`;
+
+  /**
+   * The prose language.
+   *
+   * Written in the target language rather than translated afterwards: cooking
+   * vocabulary is exactly what a translation pass loses, and "anbraten" is not
+   * "fry" with a different spelling. The JSON keys stay English because the
+   * client parses them.
+   */
+  const language = p.language === 'de' ? 'de' : 'en';
+  const languageNote = language === 'de'
+    ? `Write ALL prose — the title, every ingredient line, the method and the reheating steps — in German, using the informal "du" where a person is addressed. Use German culinary terms and German supermarket ingredient names. Keep units metric (g, ml, EL, TL) and keep the JSON keys exactly as given below, in English.`
+    : 'Write all prose in English. Keep units metric (g, ml, tbsp, tsp).';
+
   return `You are a Michelin-trained sports nutritionist. Return ONLY valid JSON — no markdown fences, no prose outside the JSON.
 
 Design ONE meal that hits these exact targets (do not change them):
@@ -49,6 +82,10 @@ Design ONE meal that hits these exact targets (do not change them):
 - Session: ${p.sport_type}, ${p.duration_min}min, ${p.intensity} intensity at ${p.planned_start_time}
 
 ${timingNote}
+
+${windowNote}
+
+${languageNote}
 
 ${avoid ? `HARD CONSTRAINT — the athlete cannot or will not eat: ${avoid}\nNo ingredient may contain any of it, including as a garnish or a sauce. If a target is impossible without it, get as close as you can and choose something they can eat.\n` : ''}
 Rules:
@@ -67,7 +104,9 @@ Return exactly this shape:
     "prep_time_min": 30,
     "is_meal_prep": true
   }
-}`;
+}
+
+The values above are examples of SHAPE only. Their language must follow the instruction above, not the example.`;
 }
 
 function isUsableRecipe(r: any): boolean {

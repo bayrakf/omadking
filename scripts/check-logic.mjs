@@ -12,7 +12,7 @@ import { mkdtempSync, mkdirSync, rmSync, readdirSync, readFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const MODULES = ['nutrition', 'onboarding', 'dates', 'grocery', 'agenda', 'ai', 'review', 'markdown', 'typography', 'legal', 'crypto', 'sync-merge', 'energy', 'offer'];
+const MODULES = ['nutrition', 'onboarding', 'dates', 'grocery', 'agenda', 'ai', 'review', 'markdown', 'typography', 'legal', 'crypto', 'sync-merge', 'energy', 'offer', 'i18n'];
 
 // Inside the project, not the system temp dir: the compiled modules import
 // real packages now (@noble/ciphers), and node resolves those by walking up
@@ -290,7 +290,30 @@ try {
   if (!failed) console.log(`✅ every paywalled card on screen is offered on the paywall (${sold.size})`);
 
   if (failed) process.exit(1);
-  console.log('\nAll logic checks passed.');
+  
+// The recipe prompt has to carry the two things the client cannot compute for
+// it: which language the prose comes back in, and how long there is to eat the
+// food. Both are sent from the client; a prompt that stops reading them fails
+// silently — the model writes a perfectly good English recipe for a window it
+// knows nothing about, and nobody sees an error.
+{
+  const src = readFileSync('supabase/functions/generate_meal_plan/index.ts', 'utf8');
+  const sent = readFileSync('src/lib/ai.ts', 'utf8');
+  const missing = [];
+  for (const field of ['language', 'window_hours']) {
+    if (!sent.includes(`${field}:`)) missing.push(`${field} (client never sends it)`);
+    else if (!src.includes(`p.${field}`)) missing.push(`${field} (function never reads it)`);
+  }
+  if (missing.length > 0) {
+    failed = true;
+    console.error('❌ meal prompt — the recipe is generated without:', missing.join(', '),
+      '\n   A German user would get English prose, or a one-hour window would get a four-hour plate.');
+  } else {
+    console.log('✅ the recipe prompt is told the language and the length of the window');
+  }
+}
+
+console.log('\nAll logic checks passed.');
 } finally {
   rmSync(outDir, { recursive: true, force: true });
 }

@@ -10,6 +10,7 @@ import { isOnboarded } from '@/lib/store';
 import { resync, announceMeasurement } from '@/lib/notify';
 import { syncEntitlement } from '@/lib/purchases';
 import ErrorScreen from '@/components/ErrorScreen';
+import { LangProvider } from '@/components/lang';
 
 // Surfaces real errors instead of a white screen.
 // expo-router's own boundary keeps the screen from going white, but it reads
@@ -93,6 +94,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider onLayout={onLayout}>
+      <LangProvider>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -118,8 +120,10 @@ export default function RootLayout() {
         <Stack.Screen name="you/reminders" />
         <Stack.Screen name="you/sync" />
         <Stack.Screen name="you/data" />
+        <Stack.Screen name="you/language" />
         <Stack.Screen name="week/corrections" />
       </Stack>
+      </LangProvider>
     </SafeAreaProvider>
   );
 }

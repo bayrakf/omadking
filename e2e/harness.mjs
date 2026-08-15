@@ -148,6 +148,32 @@ export async function newPage(browser, seed = SEED) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text().slice(0, 200)));
+  /**
+   * Every fixture speaks English, whatever the machine speaks.
+   *
+   * The app follows the device language when nobody has chosen one, and the
+   * Chrome this suite drives reports whatever the laptop is set to — de-DE
+   * here. So a check that clicks a button by its label passed or failed
+   * depending on whose machine ran it.
+   *
+   * Pinned here rather than in each fixture because several blocks replace
+   * `onboarding_profile` wholesale to exercise a different branch, and one of
+   * them forgetting is a suite that fails somewhere unrelated to the change
+   * that broke it. A block that wants to test German can still set it.
+   */
+  if (seed) {
+    seed = { ...seed };
+    let profile = {};
+    try {
+      profile = JSON.parse(seed.onboarding_profile ?? '{}');
+    } catch {
+      profile = {};
+    }
+    if (profile && typeof profile === 'object' && profile.language === undefined) {
+      seed.onboarding_profile = JSON.stringify({ ...profile, language: 'en' });
+    }
+  }
+
   if (seed) {
     // Once per context, not once per navigation. addInitScript runs on every
     // document load, so seeding unconditionally put the fixture back after

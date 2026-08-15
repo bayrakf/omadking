@@ -6,6 +6,7 @@ import { Space, Radius } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Columns, Tap, Divider, Empty, PageHeader, Bar, useTheme,
 } from '@/components/ui';
+import { useT } from '@/components/lang';
 import { Icon } from '@/components/icons';
 import { loadPlanHistory, loadPortions, KEYS } from '@/lib/store';
 import { buildGroceryList, scaleIngredients, type GroceryCategory } from '@/lib/grocery';
@@ -13,6 +14,7 @@ import type { MealPlan } from '@/lib/ai';
 
 export default function GroceryScreen() {
   const c = useTheme();
+  const t = useT();
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
@@ -93,7 +95,7 @@ export default function GroceryScreen() {
   if (total === 0) {
     return (
       <Screen>
-        <Enter index={0}><PageHeader title="Shopping" /></Enter>
+        <Enter index={0}><PageHeader title={t('shop.title')} /></Enter>
         <Enter index={1}>
           <Empty
             icon="basket"
@@ -112,8 +114,8 @@ export default function GroceryScreen() {
       <Enter index={0}>
         <PageHeader
           tone="plan"
-          eyebrow={`${done} of ${total} in the basket${batch > 1 ? ` · ${batch} portions` : ''}`}
-          title="Shopping"
+          eyebrow={t('shop.basket', { done, total }) + (batch > 1 ? ` · ${batch} portions` : '')}
+          title={t('shop.title')}
         />
         <View style={{ marginTop: -Space.md, marginBottom: Space.lg }}>
           <Bar pct={(done / total) * 100} color={c.plan} />
