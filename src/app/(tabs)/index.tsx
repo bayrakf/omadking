@@ -326,17 +326,21 @@ export default function DashboardScreen() {
             subtitle={`${Math.round(waterPct)}% Tagesziel · Trinken`}
           >
             <View style={s.bentoActions}>
-              <Tap onPress={() => addWater(250)} style={{ flex: 1, marginRight: 4 }}>
+              {/* Labelled, because "+250" is what the button looks like, not
+                  what it does. A screen reader reads the label, and the two
+                  water buttons lost theirs when the dashboard moved into the
+                  bento — so they announced as "plus two five zero". */}
+              <Tap onPress={() => addWater(250)} accessibilityLabel="Add 250 millilitres" style={{ flex: 1, marginRight: 4 }}>
                 <View style={[s.miniPill, { backgroundColor: c.well }]}>
                   <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+250</Txt>
                 </View>
               </Tap>
-              <Tap onPress={() => addWater(500)} style={{ flex: 1, marginRight: 4 }}>
+              <Tap onPress={() => addWater(500)} accessibilityLabel="Add 500 millilitres" style={{ flex: 1, marginRight: 4 }}>
                 <View style={[s.miniPill, { backgroundColor: c.well }]}>
                   <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+500</Txt>
                 </View>
               </Tap>
-              <Tap onPress={toggleSalt} style={{ flex: 1 }}>
+              <Tap onPress={toggleSalt} accessibilityLabel="Electrolytes" accessibilityRole="checkbox" accessibilityState={{ checked: hydration.electrolytes }} style={{ flex: 1 }}>
                 <View style={[s.miniPill, { backgroundColor: hydration.electrolytes ? c.emberWash : c.well }]}>
                   <Txt variant="eyebrow" color={hydration.electrolytes ? c.ember : c.textDim} style={{ fontSize: 9 }}>
                     {hydration.electrolytes ? 'Salz ✓' : 'Salz'}

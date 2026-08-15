@@ -213,7 +213,7 @@ export default async function run() {
     const max = await kcal();
     check(max > medium, 'raising intensity raises kcal', `${medium} → ${max}`);
 
-    await page.getByText('120 min', { exact: true }).click();
+    await page.getByText('120m', { exact: true }).click();
     await page.waitForTimeout(500);
     const long = await kcal();
     check(long > max, 'a longer session raises kcal further', `${max} → ${long}`);
@@ -226,7 +226,7 @@ export default async function run() {
 
     await page.locator('input[type="checkbox"]').first().click();
     await page.waitForTimeout(400);
-    await page.getByText('Build the plan').click();
+    await page.getByText(/Generate (plan|new)/).click();
     await page.waitForTimeout(6000);
 
     const plan = await body(page);
@@ -278,7 +278,7 @@ export default async function run() {
     await page.waitForTimeout(1500);
     check(has(await body(page), 'Weekly plans used'), 'shows the quota as spent');
 
-    await page.getByText('Build the plan').click();
+    await page.getByText(/Generate (plan|new)/).click();
     await page.waitForTimeout(2500);
     check(has(await body(page), 'Premium'), 'a spent quota routes to the paywall');
     await context.close();
@@ -383,14 +383,14 @@ export default async function run() {
       const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(has(t, 'Your pattern'), 'the pattern card is there');
       check(has(t, 'Saturdays run 30% over'), 'and names the day with its size',
         t.match(/\w+s run \d+% over/)?.[0] ?? '');
       check(/\d+ kcal more than planned/.test(t), 'and what it costs across a week',
         t.match(/about \d+ kcal more than planned/)?.[0] ?? '');
       // The budget is free arithmetic and must be visible either way.
-      check(has(await bodyIn(page, 'This week'), "This week's budget"), 'the weekly budget is shown');
+      check(has(await bodyIn(page, 'Week & trend'), "This week's budget"), 'the weekly budget is shown');
       await context.close();
     }
 
@@ -398,8 +398,8 @@ export default async function run() {
       const { context, page } = await newPage(browser, seed);
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      check(has(await bodyIn(page, 'This week'), "This week's budget"), 'the budget stays free');
-      const t = await bodyIn(page, 'Your body');
+      check(has(await bodyIn(page, 'Week & trend'), "This week's budget"), 'the budget stays free');
+      const t = await bodyIn(page, 'Body & rate');
       check(!has(t, 'Saturdays run'), 'but the day itself is not given away');
       check(has(t, 'Premium names it'), 'and it says what unlocks it');
       await context.close();
@@ -482,7 +482,7 @@ export default async function run() {
 
     const countBuys = async (page) => {
       let n = 0;
-      for (const seg of ['This week', 'Your body', 'History']) {
+      for (const seg of ['Week & trend', 'Body & rate', 'History']) {
         await page.getByLabel(seg).click();
         await page.waitForTimeout(500);
         // The five labels that lead to the paywall, listed rather than matched
@@ -599,7 +599,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(2000);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(has(t, 'What your best weeks had in common'), 'the card is there');
       check(/sessions a week, against/.test(t), 'and names the difference as a count',
         t.match(/[\d.]+ sessions a week, against [\d.]+ in the others/)?.[0] ?? '');
@@ -616,7 +616,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, seed);
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(2000);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(has(t, 'What your best weeks had in common'), 'free users see the card exists');
       check(!/sessions a week, against/.test(t), 'but not what the difference was');
       await context.close();
@@ -633,7 +633,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(2000);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(/\d+ more weeks?/.test(t), 'thin data asks for weeks rather than comparing',
         t.match(/\d+ more weeks?[^.]*/)?.[0] ?? '');
       check(!/sessions a week, against/.test(t), 'and names no difference');
@@ -688,7 +688,7 @@ export default async function run() {
 
       await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
-      await page.getByText('Build the plan').click();
+      await page.getByText(/Generate (plan|new)/).click();
       await page.waitForTimeout(3000);
       check(sent[0]?.avoid === 'no fish, no dairy', 'and rides along with the recipe request',
         String(sent[0]?.avoid));
@@ -697,14 +697,14 @@ export default async function run() {
       check(afterBuild.used === 1, 'a built plan costs one of the three', String(afterBuild.used));
 
       // The rejection that used to cost a third of the week.
-      const reject = page.getByText('Not this one');
+      const reject = page.getByText('Different recipe (free)');
       check(await reject.count() === 1, 'a plate you cannot eat can be rejected');
       await reject.click();
       await page.waitForTimeout(3000);
       const afterReject = JSON.parse(await page.evaluate(() => localStorage.getItem('plan_quota')) ?? '{}');
       check(afterReject.used === 1, 'and the rejection is free', String(afterReject.used));
       check(sent.length === 2, 'while still asking for a different plate', String(sent.length));
-      check(await page.getByText('Not this one').count() === 0,
+      check(await page.getByText('Different recipe (free)').count() === 0,
         'one rejection per build, not an endless supply');
       await context.close();
     }
@@ -764,7 +764,7 @@ export default async function run() {
     });
     await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
-    const t = await bodyIn(page, 'Your body');
+    const t = await bodyIn(page, 'Body & rate');
     check(has(t, 'has lapsed'), 'the card says the measurement expired',
       t.match(/Your measurement[^.]*\./)?.[0] ?? '');
     check(has(t, '21 days'), 'and why — it reads a window');
@@ -856,7 +856,7 @@ export default async function run() {
 
     await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
-    const first = await bodyIn(page, 'Your body');
+    const first = await bodyIn(page, 'Body & rate');
     check(/\d{4}\s*kcal a day/.test(first), 'a free user sees the measured figure once',
       first.match(/\d{4}\s*kcal a day/)?.[0] ?? '');
     check(has(first, 'two weeks earning'), 'and is told what it is');
@@ -877,7 +877,7 @@ export default async function run() {
     // Second visit: gated again.
     await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
-    const second = await bodyIn(page, 'Your body');
+    const second = await bodyIn(page, 'Body & rate');
     check(!/\d{4}\s*kcal a day/.test(second), 'a second visit no longer shows the figure',
       second.match(/\d{4}\s*kcal a day/)?.[0] ?? '');
     check(has(second, "The formula's estimate is off"), 'and the usual pitch is back');
@@ -971,9 +971,9 @@ export default async function run() {
     const measuredOf = async () => {
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1600);
-      await page.getByLabel('Your body').click();
+      await page.getByLabel('Body & rate').click();
       await page.waitForTimeout(700);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       return t.match(/(\d{4})\s*kcal a day/)?.[1] ?? null;
     };
     const before = await measuredOf();
@@ -1021,7 +1021,7 @@ export default async function run() {
         const { context, page } = await newPage(browser, { ...SEED, user_premium: 'true' });
         await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
         await page.waitForTimeout(1800);
-        await page.getByLabel('This week').click();
+        await page.getByLabel('Week & trend').click();
         await page.waitForTimeout(600);
 
         const t0 = await body(page);
@@ -1057,7 +1057,7 @@ export default async function run() {
         const { context, page } = await newPage(browser, SEED);
         await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
         await page.waitForTimeout(1800);
-        await page.getByLabel('This week').click();
+        await page.getByLabel('Week & trend').click();
         await page.waitForTimeout(600);
         await page.getByLabel(`Big day on ${tomorrowISO}`).click();
         await page.waitForTimeout(600);
@@ -1233,7 +1233,7 @@ export default async function run() {
         t.match(/Eat \d{4} kcal for seven days/)?.[0] ?? '');
       check(has(t, 'by accident'), 'and says why planning it matters');
       // The forecast that bends rather than divides.
-      const f = await bodyIn(page, 'Your body');
+      const f = await bodyIn(page, 'Body & rate');
       check(/About \d+ weeks to [\d.]+ kg/.test(f), 'and the forecast names a horizon',
         f.match(/About \d+ weeks to [\d.]+ kg/)?.[0] ?? '');
       await context.close();
@@ -1321,7 +1321,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(has(t, 'What your body actually costs'), 'the measurement card is shown to everyone');
       check(has(t, '14 days'), 'and says what it is based on');
       check(!/\b2[0-9]{3}\s*kcal a day/.test(t), 'but the figure itself is not given away',
@@ -1338,7 +1338,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(/\d{4}\s*kcal a day/.test(t), 'premium sees the measured figure',
         t.match(/\d{4}\s*kcal a day/)?.[0] ?? '');
       check(has(t, 'formula'), 'and how it compares to the estimate');
@@ -1353,7 +1353,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(has(t, 'Not enough to measure yet'), 'thin data produces a request, not a figure');
       check(!/\d{4}\s*kcal a day/.test(t), 'and no number is shown');
       await context.close();
@@ -1387,7 +1387,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(has(t, 'Month against month'), 'the comparison card is there');
       check(has(t, '2026-05') && has(t, '2026-07'), 'and names both months');
       check(/kg at \d{4} kcal a day/.test(t), 'with the weight change and what was eaten',
@@ -1402,7 +1402,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, seed);
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await bodyIn(page, 'Your body');
+      const t = await bodyIn(page, 'Body & rate');
       check(has(t, 'Month against month'), 'free users see that the comparison exists');
       check(!/maintenance is about \d+ kcal lower/.test(t), 'but not the figure itself');
     await context.close();
@@ -1416,7 +1416,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      check(!has(await bodyIn(page, 'Your body'), 'Month against month'),
+      check(!has(await bodyIn(page, 'Body & rate'), 'Month against month'),
         'a single month produces no card at all');
       await context.close();
     }
@@ -1732,7 +1732,7 @@ export default async function run() {
       (await body(page)).match(/\w+ · \d+ min · \w+/)?.[0]);
 
     await page.getByText('Running', { exact: true }).click();
-    await page.getByText('90 min', { exact: true }).click();
+    await page.getByText('90m', { exact: true }).click();
     await page.getByText('Hard', { exact: true }).click();
     await page.waitForTimeout(400);
 
@@ -1740,7 +1740,7 @@ export default async function run() {
     check(await page.evaluate(() => localStorage.getItem('last_session')) === null,
       'browsing the options alone stores nothing');
 
-    await page.getByText('Build the plan').click();
+    await page.getByText(/Generate (plan|new)/).click();
     await page.waitForTimeout(6000);
 
     const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('last_session')) ?? 'null');
@@ -1995,7 +1995,7 @@ export default async function run() {
     await page.waitForTimeout(1500);
     check(has(await body(page), '3 of 3 plans left'), 'starts with a full quota');
 
-    await page.getByText('Build the plan').click();
+    await page.getByText(/Generate (plan|new)/).click();
     await page.waitForTimeout(6000);
 
     const after = await body(page);
