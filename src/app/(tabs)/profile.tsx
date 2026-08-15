@@ -133,6 +133,13 @@ export default function ProfileScreen() {
           sub={`${targets.kcal} kcal · ${targets.protein_g} g protein`}
           onPress={() => router.push('/you/targets')}
         />
+        <NavRow
+          icon="crown"
+          tone="gold"
+          title={t('achievements.title')}
+          sub="Meilensteine, Trophäen & Fasten-Serien"
+          onPress={() => router.push('/achievements')}
+        />
       </Enter>
 
       {/* Erinnerungen */}
