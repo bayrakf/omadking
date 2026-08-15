@@ -645,7 +645,7 @@ export default function DashboardScreen() {
           style={[s.showcaseCard, { borderColor: c.line }]}
         >
           <Image
-            source={require('../../../../assets/images/fasted_workout_hero.jpg')}
+            source={require('../../../assets/images/fasted_workout_hero.jpg')}
             style={s.showcaseImage}
             resizeMode="cover"
           />
@@ -671,7 +671,7 @@ export default function DashboardScreen() {
           style={[s.showcaseCard, { borderColor: c.line, marginTop: Space.md }]}
         >
           <Image
-            source={require('../../../../assets/images/omad_plate_hero.jpg')}
+            source={require('../../../assets/images/omad_plate_hero.jpg')}
             style={s.showcaseImage}
             resizeMode="cover"
           />
