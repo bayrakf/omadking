@@ -208,13 +208,6 @@ export default function PlannerScreen() {
     }
   };
 
-  const macros = [
-    ['Energy', String(preview.kcal), 'kcal'],
-    ['Protein', String(preview.protein_g), 'g'],
-    ['Carbs', String(preview.carbs_g), 'g'],
-    ['Fat', String(preview.fat_g), 'g'],
-  ] as const;
-
   return (
     <Screen>
       <Enter index={0}>
@@ -243,17 +236,21 @@ export default function PlannerScreen() {
       <Enter index={2}>
         <Card style={{ marginTop: Space.base }} tone="plan">
           <View style={s.macroRow}>
-            {macros.map(([label, value, unit], i) => (
-              <React.Fragment key={label}>
-                {i > 0 && <Divider style={s.vline} />}
-                <View style={s.macro}>
-                  <Eyebrow>{label}</Eyebrow>
-                  {/* Unit sits under the figure: inline, a four-digit kcal value
-                      collided with the next column's divider. */}
-                  <Txt variant="heading" style={{ fontSize: 21, marginTop: 5 }}>{value}</Txt>
-                  <Txt variant="small" color={c.textFaint}>{unit}</Txt>
-                </View>
-              </React.Fragment>
+            {[
+              { label: 'Energy', value: String(preview.kcal), unit: 'kcal', color: c.gold, bg: c.goldWash },
+              { label: 'Protein', value: String(preview.protein_g), unit: 'g', color: c.body, bg: c.bodyWash },
+              { label: 'Carbs', value: String(preview.carbs_g), unit: 'g', color: c.plan, bg: c.planWash },
+              { label: 'Fat', value: String(preview.fat_g), unit: 'g', color: c.hydro, bg: c.hydroWash },
+            ].map((m) => (
+              <View key={m.label} style={[s.macroBox, { backgroundColor: m.bg, borderColor: m.color }]}>
+                <Eyebrow color={m.color}>{m.label}</Eyebrow>
+                <Txt variant="heading" style={{ fontSize: 18, marginTop: 4, color: m.color, fontWeight: '700' }}>
+                  {m.value}
+                </Txt>
+                <Txt variant="small" color={m.color} style={{ opacity: 0.8, fontSize: 11 }}>
+                  {m.unit}
+                </Txt>
+              </View>
             ))}
           </View>
           {preview.burn_kcal > 0 && (
@@ -475,8 +472,16 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Space.base, height: 44, borderRadius: Radius.sm, borderWidth: 1,
   },
-  macroRow: { flexDirection: 'row', alignItems: 'center' },
-  macro: { flex: 1 },
+  macroRow: { flexDirection: 'row', alignItems: 'center', marginRight: -Space.xs },
+  macroBox: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Space.sm,
+    paddingHorizontal: 2,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginRight: Space.xs,
+  },
   figureRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 5 },
   vline: { width: 1, height: 34, marginHorizontal: Space.sm },
   restRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -371,7 +371,7 @@ export function Eyebrow({ children, color, style, numberOfLines }: { children: R
  * `default` stays plain on purpose. If every card were tinted the tint would
  * mean as little as no tint at all — the same reasoning that keeps ember rare.
  */
-export type CardTone = 'default' | 'accent' | 'ember' | 'hydro' | 'body' | 'plan';
+export type CardTone = 'default' | 'accent' | 'ember' | 'hydro' | 'body' | 'plan' | 'gold';
 
 /** The domains a tone can name. `default` is "this belongs to no domain". */
 export type Tone = Exclude<CardTone, 'default'>;
@@ -379,12 +379,6 @@ export type Tone = Exclude<CardTone, 'default'>;
 /**
  * `edge` draws the border, `fill` washes the surface, `ink` is what text and
  * icons on that wash are set in.
- *
- * `ink` is separate from `edge` because the accent's border is deliberately
- * dimmed — a full-strength teal outline on every accent card was louder than
- * the card's contents — while its text has to stay readable. For the domain
- * hues the two happen to be the same value, and saying so once here is
- * cheaper than every call site deciding.
  */
 const TONES: Record<Tone, (c: ThemePalette) => { edge: string; fill: string; ink: string }> = {
   accent: (c) => ({ edge: c.accentDim, fill: c.accentWash, ink: c.accent }),
@@ -392,6 +386,7 @@ const TONES: Record<Tone, (c: ThemePalette) => { edge: string; fill: string; ink
   hydro: (c) => ({ edge: c.hydro, fill: c.hydroWash, ink: c.hydro }),
   body: (c) => ({ edge: c.body, fill: c.bodyWash, ink: c.body }),
   plan: (c) => ({ edge: c.plan, fill: c.planWash, ink: c.plan }),
+  gold: (c) => ({ edge: c.gold, fill: c.goldWash, ink: c.gold }),
 };
 
 /** The palette entry for a domain, for anything that is not a `Card`. */
@@ -417,7 +412,7 @@ export function Card({
         {
           backgroundColor: t ? t.fill : c.surface,
           borderColor: t ? t.edge : c.line,
-          borderWidth: t ? 1.5 : 1,
+          borderWidth: 1,
         },
         style,
       ]}
@@ -909,9 +904,9 @@ const styles = StyleSheet.create({
   columnHalf: { flex: 1, minWidth: 0 },
   columnLeft: { marginRight: Space.base },
   button: {
-    minHeight: 54,
+    minHeight: 52,
     paddingVertical: Space.sm,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -919,10 +914,10 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: Space.base,
-    minHeight: 40,
+    minHeight: 42,
     paddingVertical: Space.xs,
     borderRadius: Radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -930,19 +925,15 @@ const styles = StyleSheet.create({
   track: { width: '100%', overflow: 'hidden' },
   pairRow: { flexDirection: 'row', alignItems: 'flex-end' },
   pairCol: { flex: 1 },
-  // The pair sits on the baseline and the two bars touch, so each day reads as
-  // one object with a step in it rather than as two separate columns.
   pairBars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
-  pairBar: { width: 7, borderTopLeftRadius: 3, borderTopRightRadius: 3, marginRight: 2 },
+  pairBar: { width: 8, borderTopLeftRadius: 4, borderTopRightRadius: 4, marginRight: 2 },
   pairBarLast: { marginRight: 0 },
   hidden: { display: 'none' },
   pageHeader: { paddingTop: Space.base, paddingBottom: Space.xl },
-  // A row, so the badge is only as wide as its label. Left to itself inside
-  // the header it would stretch the full column and read as a banner.
   headerBadgeRow: { flexDirection: 'row', marginBottom: Space.md },
   headerBadge: {
     paddingHorizontal: Space.md,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: Radius.pill,
     borderWidth: 1,
   },
@@ -950,14 +941,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: Space.base,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     marginBottom: Space.sm,
   },
   navIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.sm,
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Space.md,

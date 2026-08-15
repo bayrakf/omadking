@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Space, Radius } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, PageHeader, Bar, Empty, Tap,
@@ -34,7 +34,7 @@ import {
 
 /**
  * A trend line, not bars. Bodyweight is a noisy continuous signal, and a line
- * with a soft band is the honest way to show that the day-to-day scatter is not
+ * with a soft gradient band is the honest way to show that the day-to-day scatter is not
  * the thing you should react to.
  */
 function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?: number }) {
@@ -71,11 +71,16 @@ function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       <Svg width={width} height={height}>
-        {/* Violet: bodyweight is the body domain, and the line sits on a
-            card washed the same way. */}
-        <Path d={area} fill={c.bodyWash} />
-        <Path d={line} stroke={c.body} strokeWidth={2.5} fill="none" strokeLinecap="round" />
-        <Circle cx={last.x} cy={last.y} r={5} fill={c.bg} />
+        <Defs>
+          <LinearGradient id="weightGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor={c.body} stopOpacity={0.35} />
+            <Stop offset="100%" stopColor={c.body} stopOpacity={0.02} />
+          </LinearGradient>
+        </Defs>
+        <Path d={area} fill="url(#weightGrad)" />
+        <Path d={line} stroke={c.body} strokeWidth={2.8} fill="none" strokeLinecap="round" />
+        <Circle cx={last.x} cy={last.y} r={7} fill={c.bodyWash} />
+        <Circle cx={last.x} cy={last.y} r={4.5} fill={c.bg} />
         <Circle cx={last.x} cy={last.y} r={3} fill={c.body} />
       </Svg>
     </View>

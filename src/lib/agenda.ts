@@ -14,6 +14,7 @@
  */
 
 import { fromMinutes, toMinutes, type UserProfile } from './nutrition';
+import { t, type Lang } from './i18n';
 
 const DAY = 1440;
 const mod = (n: number) => ((n % DAY) + DAY) % DAY;
@@ -119,7 +120,16 @@ export function dayAgenda(
   profile: UserProfile,
   plan: PlanLike | null,
   state: AgendaState = { cooked: false, fastLogged: false },
-  now: Date = new Date()
+  now: Date = new Date(),
+  /**
+   * Defaulted here, unlike the model calls.
+   *
+   * These are labels the app writes for itself, so a caller that forgets shows
+   * English rows on a German screen — visible, and fixed by looking. A recipe
+   * in the wrong language costs a model call and is not visible until it
+   * arrives, which is why that one is required and this one is not.
+   */
+  lang: Lang = 'en'
 ): { items: AgendaItem[]; next: AgendaItem | null } {
   const windowStart = toMinutes(profile.omad_window_start);
   const windowLen = profile.omad_window_hours * 60;
@@ -148,8 +158,8 @@ export function dayAgenda(
     raw.push({
       kind: 'cook',
       offset: mealOffset - lead,
-      title: 'Start cooking',
-      body: `${lead - 10} min prep, ready for ${plan.main_meal_time}`,
+      title: t(lang, 'agenda.cook'),
+      body: t(lang, 'agenda.cookBody', { min: lead - 10, time: plan.main_meal_time }),
       actionable: true,
       done: state.cooked,
     });
@@ -164,8 +174,8 @@ export function dayAgenda(
     raw.push({
       kind: 'snack',
       offset,
-      title: 'Pre-training snack',
-      body: '20–30g fast carbs plus sodium, to protect output',
+      title: t(lang, 'agenda.snack'),
+      body: t(lang, 'agenda.snackBody'),
       actionable: false,
       done: false,
     });
@@ -174,10 +184,10 @@ export function dayAgenda(
   raw.push({
     kind: 'window_open',
     offset: 0,
-    title: 'Window opens',
+    title: t(lang, 'agenda.open'),
     // Without a plan this *is* the meal moment, so it carries that meaning
     // rather than printing a second row at the identical time.
-    body: plan ? `${fastHours}h fast ends` : 'Break the fast',
+    body: plan ? t(lang, 'agenda.openBody', { hours: fastHours }) : t(lang, 'agenda.openBodyNoPlan'),
     actionable: false,
     done: false,
   });
@@ -186,8 +196,8 @@ export function dayAgenda(
     raw.push({
       kind: 'meal',
       offset: mealOffset,
-      title: 'Main meal',
-      body: `${plan.total_kcal} kcal · ${plan.protein_g}g protein`,
+      title: t(lang, 'agenda.meal'),
+      body: t(lang, 'agenda.mealBody', { kcal: plan.total_kcal, protein: plan.protein_g }),
       actionable: false,
       done: false,
     });
@@ -196,8 +206,8 @@ export function dayAgenda(
   raw.push({
     kind: 'window_close',
     offset: windowLen,
-    title: 'Window closes',
-    body: `Last bite — ${fastHours}h fast starts`,
+    title: t(lang, 'agenda.close'),
+    body: t(lang, 'agenda.closeBody', { hours: fastHours }),
     actionable: false,
     done: false,
   });
@@ -205,8 +215,8 @@ export function dayAgenda(
   raw.push({
     kind: 'log_fast',
     offset: windowLen + LOG_TAIL_MIN,
-    title: 'Log the fast',
-    body: 'Keeps the streak honest',
+    title: t(lang, 'agenda.log'),
+    body: t(lang, 'agenda.logBody'),
     actionable: true,
     done: state.fastLogged,
   });

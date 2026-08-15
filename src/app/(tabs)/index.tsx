@@ -5,7 +5,7 @@ import { Space, Radius, Type } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, Columns, PageHeader, useTheme,
 } from '@/components/ui';
-import { useT } from '@/components/lang';
+import { useLang } from '@/components/lang';
 import { Icon, type IconName } from '@/components/icons';
 import { DayBand } from '@/components/DayBand';
 import {
@@ -39,7 +39,7 @@ const ICONS: Record<AgendaItem['kind'], IconName> = {
 export default function DashboardScreen() {
   const router = useRouter();
   const c = useTheme();
-  const t = useT();
+  const { lang, t } = useLang();
 
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -114,7 +114,7 @@ export default function DashboardScreen() {
 
   if (!mounted || !fast) return null;
 
-  const { items, next } = dayAgenda(profile, plan, { cooked, fastLogged }, now);
+  const { items, next } = dayAgenda(profile, plan, { cooked, fastLogged }, now, lang);
 
   const baseline = dailyTargets(profile, null, measured);
   const kcal = plan ? plan.total_kcal : baseline.kcal;
@@ -243,11 +243,15 @@ export default function DashboardScreen() {
           countdown — which used to sit inside the ring, where it was the
           smallest large number on the screen — leads instead. */}
       <Enter index={1}>
-        {/* The one filled surface in the app. Every screen was a light card on
-            a light ground, so the number looked at more than any other had the
-            same weight as the shopping list. A block of colour gives the day an
-            anchor — and it is the fast, so the colour is the fasting hue. */}
         <View style={[s.hero, { backgroundColor: c.heroFill }]}>
+          <View style={s.heroTop}>
+            <View style={[s.heroBadge, { backgroundColor: fast.isEating ? c.emberWash : 'rgba(56, 189, 248, 0.2)' }]}>
+              <Icon name={fast.isEating ? 'plate' : 'flame'} size={14} color={fast.isEating ? c.ember : '#38BDF8'} />
+              <Txt variant="data" color={fast.isEating ? c.ember : '#38BDF8'} style={{ marginLeft: 5, fontSize: 11, fontWeight: '700' }}>
+                {fast.isEating ? 'ESSENSFENSTER' : 'FASTENLÄUFT'}
+              </Txt>
+            </View>
+          </View>
           <View style={s.countRow}>
             <Txt variant="hero" color={c.onHero} style={s.heroFigure}>
               {formatCountdown(fast.remainingMs)}
@@ -268,19 +272,70 @@ export default function DashboardScreen() {
         </View>
         <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
 
-        {/* What is roughly happening right now. Bands are approximate and the
-            caption says so — the transitions are gradual and shift with the
-            last meal, training and the person. */}
+        {/* Metabolic physiology stage card with rich icon and color */}
         {!fast.isEating && (
-          <View style={s.stage}>
-            <Txt variant="small" color={c.text} style={s.stageLabel}>
-              {stage.label}
-            </Txt>
-            <Txt variant="small" color={c.textDim} style={s.stageNote}>
+          <Card
+            style={{ marginTop: Space.lg }}
+            tone={
+              stage.id === 'deep'
+                ? 'accent'
+                : stage.id === 'ketosis-rising'
+                  ? 'body'
+                  : stage.id === 'glycogen-falling'
+                    ? 'ember'
+                    : 'plan'
+            }
+          >
+            <View style={s.stageHeader}>
+              <View
+                style={[
+                  s.stageIconBadge,
+                  {
+                    backgroundColor:
+                      stage.id === 'deep'
+                        ? c.accentWash
+                        : stage.id === 'ketosis-rising'
+                          ? c.bodyWash
+                          : stage.id === 'glycogen-falling'
+                            ? c.emberWash
+                            : c.planWash,
+                  },
+                ]}
+              >
+                <Icon
+                  name={
+                    stage.id === 'deep'
+                      ? 'coach'
+                      : stage.id === 'ketosis-rising'
+                        ? 'coach'
+                        : stage.id === 'glycogen-falling'
+                          ? 'flame'
+                          : 'drop'
+                  }
+                  size={18}
+                  color={
+                    stage.id === 'deep'
+                      ? c.accent
+                      : stage.id === 'ketosis-rising'
+                        ? c.body
+                        : stage.id === 'glycogen-falling'
+                          ? c.ember
+                          : c.plan
+                  }
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: Space.md }}>
+                <Eyebrow>Metabolische Phase</Eyebrow>
+                <Txt variant="subheading" style={{ marginTop: 2, fontWeight: '700' }}>
+                  {stage.label}
+                </Txt>
+              </View>
+            </View>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm, lineHeight: 20 }}>
               {stage.note}
             </Txt>
-            <Eyebrow style={{ textAlign: 'center', marginTop: Space.sm }}>{t('today.approximate')}</Eyebrow>
-          </View>
+            <Eyebrow style={{ marginTop: Space.sm }}>{t('today.approximate')}</Eyebrow>
+          </Card>
         )}
       </Enter>
 
@@ -666,7 +721,11 @@ const s = StyleSheet.create({
   time: { width: 54 },
   struck: { textDecorationLine: 'line-through' },
 
-  hero: { borderRadius: Radius.xl, padding: Space.lg, paddingTop: Space.xl },
+  hero: { borderRadius: Radius.xl, padding: Space.lg, paddingTop: Space.lg },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginBottom: Space.sm },
+  heroBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.pill },
+  stageHeader: { flexDirection: 'row', alignItems: 'center' },
+  stageIconBadge: { width: 36, height: 36, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   // The caption rides the baseline of a 56pt numeral, so it needs its own
   // opacity rather than a dimmer token — there is no dim-on-hero colour.
   heroFigure: { marginRight: Space.sm },

@@ -90,16 +90,16 @@ export default function RecipeCard({
         </View>
       )}
 
-      <View style={[s.macros, { backgroundColor: plan_.fill, borderColor: plan_.edge }]}>
-        {([
-          [String(plan.total_kcal), 'kcal'],
-          [`${plan.protein_g}`, 'protein'],
-          [`${plan.carbs_g}`, 'carbs'],
-          [`${plan.fat_g}`, 'fat'],
-        ] as const).map(([v, label]) => (
-          <View key={label} style={s.macro}>
-            <Txt variant="subheading" style={{ fontSize: 17 }}>{v}</Txt>
-            <Eyebrow style={{ marginTop: 3 }}>{label}</Eyebrow>
+      <View style={s.macros}>
+        {[
+          { v: String(plan.total_kcal), label: 'kcal', color: c.gold, bg: c.goldWash },
+          { v: `${plan.protein_g}g`, label: 'protein', color: c.body, bg: c.bodyWash },
+          { v: `${plan.carbs_g}g`, label: 'carbs', color: c.plan, bg: c.planWash },
+          { v: `${plan.fat_g}g`, label: 'fat', color: c.hydro, bg: c.hydroWash },
+        ].map((m) => (
+          <View key={m.label} style={[s.macro, { backgroundColor: m.bg, borderColor: m.color }]}>
+            <Txt variant="subheading" style={{ fontSize: 16, fontWeight: '700', color: m.color }}>{m.v}</Txt>
+            <Eyebrow style={{ marginTop: 2 }} color={m.color}>{m.label}</Eyebrow>
           </View>
         ))}
       </View>
@@ -179,10 +179,19 @@ const s = StyleSheet.create({
   },
   fallbackText: { flex: 1, marginLeft: Space.sm },
   macros: {
-    flexDirection: 'row', borderRadius: Radius.md, borderWidth: 1,
-    paddingVertical: Space.base, marginTop: Space.base,
+    flexDirection: 'row',
+    marginTop: Space.base,
+    marginRight: -Space.xs,
   },
-  macro: { flex: 1, alignItems: 'center' },
+  macro: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Space.sm,
+    paddingHorizontal: 2,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginRight: Space.xs,
+  },
   section: { marginTop: Space.lg, marginBottom: Space.md },
   ingredientHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

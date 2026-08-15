@@ -31,9 +31,11 @@ export type ThemePalette = {
   bg: string;
   /** card / panel */
   surface: string;
+  /** elevated card surface with extra pop */
+  surfaceElevated: string;
   /** input wells, progress tracks, inactive chips */
   well: string;
-  /** hairline borders — dark UI reads better with lines than shadows */
+  /** hairline borders */
   line: string;
   /** stronger border, for focus and selection */
   lineStrong: string;
@@ -42,139 +44,122 @@ export type ThemePalette = {
   textDim: string;
   textFaint: string;
 
-  /** resting identity: fasted, precise, cold */
+  /** vibrant teal/cyan accent */
   accent: string;
   accentDim: string;
-  /** 12% wash of accent, for selected chips and badges */
   accentWash: string;
-  /** text colour that sits on a filled accent surface */
   onAccent: string;
 
-  /** rationed: eating window open, meal due, the meal itself */
+  /** radiant flame / sunset: eating window, meal due, streak fire */
   ember: string;
   emberWash: string;
 
-  /**
-   * Domain hues.
-   *
-   * One accent for everything made the app read as a single grey instrument
-   * with a teal light on it — every card the same weight, every icon the same
-   * colour, nothing telling you which part of the product you were in.
-   *
-   * These are not decoration. Each area of the app owns one, so the colour is
-   * a location: blue is water, violet is your body and what was measured from
-   * it, green is food and the plan. Someone who has used the app for a week
-   * knows where they are before reading a word — which is the same job the
-   * ember does for eating, extended to the rest.
-   *
-   * Each carries a wash: a low-alpha tint used as a card surface, so a screen
-   * is a set of distinguishable places rather than a stack of white boxes.
-   */
+  /** Domain hues */
   hydro: string;
   hydroWash: string;
   body: string;
   bodyWash: string;
   plan: string;
   planWash: string;
+  gold: string;
+  goldWash: string;
 
   positive: string;
   negative: string;
 
-  /**
-   * The one filled surface in the app: the countdown on Today.
-   *
-   * Everything else is a light card on a light ground, which is why the app
-   * read as plain — the single thing looked at most was the same white box as
-   * the shopping list. A filled block gives the screen an anchor and the
-   * product a face.
-   *
-   * Scheme-aware on purpose rather than one colour dimmed: light mode needs a
-   * saturated block to have any drama at all, while dark mode already has
-   * drama and a bright teal slab would glare. Dark gets depth instead, and the
-   * numerals carry the colour.
-   */
+  /** Hero countdown block */
   heroFill: string;
   onHero: string;
-  /** Track and window drawn *on* the hero, where the page palette has no contrast. */
   heroTrack: string;
 
   /** the dial's untravelled track */
   dialTrack: string;
 };
 
+export const PhaseColors = {
+  sugarDrop: '#F59E0B',
+  fatBurn: '#FF6B4A',
+  ketosis: '#8B5CF6',
+  autophagy: '#06B6D4',
+  deepFast: '#10B981',
+};
+
 const dark: ThemePalette = {
-  bg: '#0A0C10',
-  surface: '#12161E',
-  well: '#1A202B',
-  line: '#222A36',
-  lineStrong: '#33404F',
+  bg: '#080C14',
+  surface: '#111827',
+  surfaceElevated: '#172238',
+  well: '#1A2438',
+  line: '#24324B',
+  lineStrong: '#3B4D6E',
 
-  text: '#ECEFF3',
-  textDim: '#8D97A6',
-  textFaint: '#5A6472',
+  text: '#F8FAFC',
+  textDim: '#94A3B8',
+  textFaint: '#64748B',
 
-  accent: '#6FD3E8',
-  accentDim: '#3E8FA3',
-  accentWash: 'rgba(111, 211, 232, 0.12)',
-  onAccent: '#04141A',
+  accent: '#38BDF8',
+  accentDim: '#0284C7',
+  accentWash: 'rgba(56, 189, 248, 0.18)',
+  onAccent: '#031726',
 
-  ember: '#FF8A4C',
-  emberWash: 'rgba(255, 138, 76, 0.14)',
+  ember: '#FF6B4A',
+  emberWash: 'rgba(255, 107, 74, 0.20)',
 
-  hydro: '#5AA9FF',
-  hydroWash: 'rgba(90, 169, 255, 0.13)',
-  body: '#A78BFA',
-  bodyWash: 'rgba(167, 139, 250, 0.13)',
-  plan: '#8FDB6E',
-  planWash: 'rgba(143, 219, 110, 0.13)',
+  hydro: '#38BDF8',
+  hydroWash: 'rgba(56, 189, 248, 0.18)',
+  body: '#A855F7',
+  bodyWash: 'rgba(168, 85, 247, 0.18)',
+  plan: '#34D399',
+  planWash: 'rgba(52, 211, 153, 0.18)',
+  gold: '#FBBF24',
+  goldWash: 'rgba(251, 191, 36, 0.18)',
 
-  positive: '#5FD39B',
-  negative: '#FF6B6B',
+  positive: '#34D399',
+  negative: '#F87171',
 
-  heroFill: '#0B3A47',
-  onHero: '#ECEFF3',
-  heroTrack: 'rgba(236, 239, 243, 0.10)',
+  heroFill: '#0C2A38',
+  onHero: '#FFFFFF',
+  heroTrack: 'rgba(255, 255, 255, 0.14)',
 
-  dialTrack: '#1C232E',
+  dialTrack: '#1A2436',
 };
 
 const light: ThemePalette = {
-  bg: '#F6F7F9',
+  bg: '#F3F6FA',
   surface: '#FFFFFF',
-  well: '#EDF0F4',
-  line: '#E0E5EC',
-  lineStrong: '#C4CCD7',
+  surfaceElevated: '#FFFFFF',
+  well: '#EBF1F7',
+  line: '#E1E8F0',
+  lineStrong: '#CBD5E1',
 
-  text: '#0C1017',
-  textDim: '#5C6675',
-  textFaint: '#8B95A3',
+  text: '#0F172A',
+  textDim: '#506179',
+  textFaint: '#8797AB',
 
-  // Darkened so contrast holds on white; same hue family as dark mode.
-  accent: '#0E7A92',
-  accentDim: '#4A93A5',
-  accentWash: 'rgba(14, 122, 146, 0.13)',
+  accent: '#0284C7',
+  accentDim: '#0369A1',
+  accentWash: 'rgba(2, 132, 199, 0.14)',
   onAccent: '#FFFFFF',
 
-  ember: '#C2500F',
-  emberWash: 'rgba(194, 80, 15, 0.13)',
+  ember: '#EA580C',
+  emberWash: 'rgba(234, 88, 12, 0.14)',
 
-  // Darkened against white the same way the accent is: same hues as dark mode,
-  // enough contrast to carry text and an icon on a tinted card.
-  hydro: '#1F6FD0',
-  hydroWash: 'rgba(31, 111, 208, 0.13)',
-  body: '#6D4FD0',
-  bodyWash: 'rgba(109, 79, 208, 0.13)',
-  plan: '#3E8E3F',
-  planWash: 'rgba(62, 142, 63, 0.13)',
+  hydro: '#0284C7',
+  hydroWash: 'rgba(2, 132, 199, 0.14)',
+  body: '#7C3AED',
+  bodyWash: 'rgba(124, 58, 237, 0.14)',
+  plan: '#059669',
+  planWash: 'rgba(5, 150, 105, 0.14)',
+  gold: '#D97706',
+  goldWash: 'rgba(217, 119, 6, 0.14)',
 
-  positive: '#12805A',
-  negative: '#C0392B',
+  positive: '#059669',
+  negative: '#DC2626',
 
-  heroFill: '#0B5F72',
+  heroFill: '#075985',
   onHero: '#FFFFFF',
-  heroTrack: 'rgba(255, 255, 255, 0.18)',
+  heroTrack: 'rgba(255, 255, 255, 0.22)',
 
-  dialTrack: '#E3E8EE',
+  dialTrack: '#E2E8F0',
 };
 
 export const Colors = { light, dark };

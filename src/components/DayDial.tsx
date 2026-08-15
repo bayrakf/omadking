@@ -12,8 +12,8 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
-import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
-import { Type, Font } from '@/constants/theme';
+import Svg, { Circle, G, Line, Path, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
+import { Type, Font, Radius } from '@/constants/theme';
 import { useTheme, useReducedMotion } from './ui';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -54,20 +54,15 @@ export default function DayDial({
   const c = useTheme();
   const reduced = useReducedMotion();
 
-  const stroke = 13;
-  // Inset leaves room for the hour labels outside the ring; at a smaller inset
-  // they fell outside the SVG viewport and were clipped.
+  const stroke = 14;
   const r = (size - stroke) / 2 - 27;
   const cx = size / 2;
   const cy = size / 2;
   const C = 2 * Math.PI * r;
 
-  const windowColor = isEating ? c.ember : c.accent;
   const arc = (mins: number) => (Math.min(mins, DAY) / DAY) * C;
   const at = (mins: number) => -(mod(mins) / DAY) * C;
 
-  // How far through the current phase we are, drawn as a dim arc so the ring
-  // carries progress as well as shape — otherwise it reads as a static diagram.
   const fastStart = mod(windowStartMin + windowLengthMin);
   const elapsed = isEating ? mod(nowMin - windowStartMin) : mod(nowMin - fastStart);
   const elapsedFrom = isEating ? windowStartMin : fastStart;
@@ -99,6 +94,17 @@ export default function DayDial({
   return (
     <View style={{ width: size, height: size, alignSelf: 'center' }}>
       <Svg width={size} height={size}>
+        <Defs>
+          <LinearGradient id="dialFastGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={c.accent} />
+            <Stop offset="100%" stopColor="#818CF8" />
+          </LinearGradient>
+          <LinearGradient id="dialEatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={c.ember} />
+            <Stop offset="100%" stopColor="#F59E0B" />
+          </LinearGradient>
+        </Defs>
+
         <G rotation={-90} origin={`${cx}, ${cy}`}>
           {/* The whole day. */}
           <Circle cx={cx} cy={cy} r={r} stroke={c.dialTrack} strokeWidth={stroke} fill="none" />
@@ -108,10 +114,10 @@ export default function DayDial({
             cx={cx}
             cy={cy}
             r={r}
-            stroke={isEating ? c.ember : c.accentDim}
+            stroke={isEating ? 'url(#dialEatGrad)' : 'url(#dialFastGrad)'}
             strokeWidth={stroke}
             fill="none"
-            opacity={0.32}
+            opacity={0.4}
             strokeDasharray={`${arc(elapsed)}, ${C}`}
             strokeDashoffset={at(elapsedFrom)}
           />
@@ -121,7 +127,7 @@ export default function DayDial({
             cx={cx}
             cy={cy}
             r={r}
-            stroke={windowColor}
+            stroke="url(#dialEatGrad)"
             strokeWidth={stroke}
             strokeLinecap="round"
             fill="none"
@@ -129,9 +135,9 @@ export default function DayDial({
             strokeDashoffset={at(windowStartMin)}
           />
 
-          {/* The session, on its own outer track so it never competes. */}
+          {/* The session, on its own outer track. */}
           {training && (
-            <Path d={training.d} stroke={c.textDim} strokeWidth={3.5} strokeLinecap="round" fill="none" opacity={0.85} />
+            <Path d={training.d} stroke={c.body} strokeWidth={3.5} strokeLinecap="round" fill="none" opacity={0.85} />
           )}
         </G>
 
@@ -150,17 +156,38 @@ export default function DayDial({
           );
         })}
 
-        {/* Now. Ringed so it stays visible on any arc beneath it. */}
-        <Circle cx={now.x} cy={now.y} r={7} fill={c.bg} />
-        <Circle cx={now.x} cy={now.y} r={4} fill={c.text} />
+        {/* Now marker with radiant ring. */}
+        <Circle cx={now.x} cy={now.y} r={9} fill={isEating ? c.emberWash : c.accentWash} />
+        <Circle cx={now.x} cy={now.y} r={6} fill={c.bg} />
+        <Circle cx={now.x} cy={now.y} r={3.5} fill={isEating ? c.ember : c.accent} />
       </Svg>
 
       <View style={styles.centre} pointerEvents="none">
-        {/* Mono: monospaced figures stop the digits shifting the layout each tick. */}
-        <Text style={[styles.headline, { color: windowColor }]} numberOfLines={1} adjustsFontSizeToFit>
+        <View
+          style={[
+            styles.badge,
+            {
+              backgroundColor: isEating ? c.emberWash : c.accentWash,
+              borderColor: isEating ? c.ember : c.accent,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.badgeText,
+              {
+                color: isEating ? c.ember : c.accent,
+              },
+            ]}
+          >
+            {isEating ? 'ESSENSFENSTER' : 'FASTENZEIT'}
+          </Text>
+        </View>
+
+        <Text style={[styles.headline, { color: isEating ? c.ember : c.text }]} numberOfLines={1} adjustsFontSizeToFit>
           {headline}
         </Text>
-        <Text style={[Type.small, { color: c.textDim, marginTop: 5, textAlign: 'center' }]} numberOfLines={2}>
+        <Text style={[Type.small, { color: c.textDim, marginTop: 4, textAlign: 'center' }]} numberOfLines={2}>
           {caption}
         </Text>
       </View>
@@ -177,8 +204,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    // Keeps the readout clear of the ring on every side.
-    paddingHorizontal: 56,
+    paddingHorizontal: 48,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  badgeText: {
+    fontFamily: Font.mono,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    fontWeight: '700',
   },
   headline: {
     fontFamily: Font.mono,

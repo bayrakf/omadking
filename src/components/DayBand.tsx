@@ -105,21 +105,12 @@ export function DayBand({
                 {
                   left: `${s.from * 100}%`,
                   width: `${(s.to - s.from) * 100}%`,
-                  backgroundColor: isEating ? c.ember : onHero ? c.onHero : c.accent,
+                  backgroundColor: isEating ? c.ember : onHero ? c.ember : c.accent,
                 },
               ]}
             />
           ))}
 
-          {/* Dimmer than the marker, deliberately. These are things that
-              happen and there are several of them; where you are is one thing
-              and it has to win. At equal weight the eye cannot find it.
-
-              Dimmer has a floor, though. A past mark was `lineStrong`, which
-              against the track in dark is about 1.5:1 — quiet enough to be
-              gone. A thin light line on a dark ground also reads thinner than
-              the same line inverted, so the width is set here rather than
-              inherited from what looked right in light mode. */}
           {marks.map((m, i) => (
             <View
               key={`${m.kind}-${i}`}
@@ -130,8 +121,8 @@ export function DayBand({
                   backgroundColor: m.done
                     ? c.positive
                     : onHero
-                      ? c.heroTrack.replace(/[\d.]+\)$/, '0.55)')
-                      : m.past ? c.textFaint : c.textDim,
+                      ? 'rgba(255,255,255,0.7)'
+                      : m.past ? c.textFaint : c.text,
                 },
               ]}
             />
@@ -145,8 +136,8 @@ export function DayBand({
           ]}
           pointerEvents="none"
         >
-          <View style={[styles.nowHead, { borderTopColor: onHero ? c.onHero : c.text }]} />
-          <View style={[styles.nowStem, { backgroundColor: onHero ? c.onHero : c.text }]} />
+          <View style={[styles.nowHead, { borderTopColor: isEating ? c.ember : onHero ? '#38BDF8' : c.accent }]} />
+          <View style={[styles.nowStem, { backgroundColor: isEating ? c.ember : onHero ? '#38BDF8' : c.accent }]} />
         </Animated.View>
       </View>
 
@@ -157,7 +148,7 @@ export function DayBand({
             style={[
               Type.eyebrow,
               styles.tick,
-              { color: onHero ? c.onHero : c.textFaint, opacity: onHero ? 0.55 : 1, left: `${(h / 24) * 100}%` },
+              { color: onHero ? c.onHero : c.textFaint, opacity: onHero ? 0.75 : 1, left: `${(h / 24) * 100}%` },
             ]}
           >
             {String(h).padStart(2, '0')}

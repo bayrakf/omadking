@@ -57,11 +57,25 @@ function TabBar({ state, navigation }: any) {
               accessibilityState={{ selected: focused }}
               accessibilityLabel={label}
             >
-              <Icon name={meta ? meta.icon : 'home'} size={21} color={focused ? hue : c.textFaint} />
+              <View
+                style={[
+                  styles.iconWrap,
+                  focused && {
+                    backgroundColor: route.name === 'index' ? c.emberWash : `${hue}22`,
+                  },
+                ]}
+              >
+                <Icon name={meta ? meta.icon : 'home'} size={21} color={focused ? hue : c.textFaint} />
+              </View>
               <Text
                 style={[
                   Type.eyebrow,
-                  { color: focused ? hue : c.textFaint, marginTop: 5, textTransform: 'uppercase' },
+                  {
+                    color: focused ? hue : c.textFaint,
+                    marginTop: 3,
+                    fontWeight: focused ? '700' : '500',
+                    fontSize: 10,
+                  },
                 ]}
               >
                 {label}
@@ -101,15 +115,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: Radius.xl,
     borderWidth: 1,
-    paddingVertical: Space.md,
-    paddingHorizontal: Space.sm,
+    paddingVertical: 8,
+    paddingHorizontal: Space.xs,
     width: '100%',
     maxWidth: MaxContentWidth,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
-      android: { elevation: 12 },
-      default: { boxShadow: '0 12px 32px rgba(0,0,0,0.28)' } as any,
+      ios: { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+      android: { elevation: 10 },
+      default: { boxShadow: '0 10px 30px rgba(0,0,0,0.22)' } as any,
     }),
   },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 48 },
+  iconWrap: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
