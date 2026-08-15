@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  View, TextInput, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Animated,
+  View, TextInput, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -235,6 +235,59 @@ export default function ChatScreen() {
               <Thinking color={c.textDim} />
             </View>
           )}
+          {messages.length === 0 && (
+            <View style={s.starterGrid}>
+              <Eyebrow style={{ marginBottom: Space.sm, marginTop: Space.sm }}>
+                {lang === 'de' ? 'Häufige Fragen an deinen Fasten-Coach' : 'Frequent Coach Questions'}
+              </Eyebrow>
+              <View style={s.starterCardsRow}>
+                {[
+                  {
+                    icon: 'drop' as const,
+                    title: lang === 'de' ? 'Elektrolyte im Fasten' : 'Electrolytes in Fasting',
+                    sub: lang === 'de' ? 'Wie viel Salz brauche ich wirklich?' : 'How much sodium do I need?',
+                    color: '#38BDF8',
+                  },
+                  {
+                    icon: 'plate' as const,
+                    title: lang === 'de' ? 'Proteinziel erreichen' : 'Hit Protein Target',
+                    sub: lang === 'de' ? '150g+ in einer OMAD-Mahlzeit?' : '150g+ in a single OMAD sitting?',
+                    color: '#10B981',
+                  },
+                  {
+                    icon: 'flame' as const,
+                    title: lang === 'de' ? 'Gefastetes Training' : 'Fasted Training',
+                    sub: lang === 'de' ? 'Wann ist der beste Zeitpunkt?' : 'When is the ideal window?',
+                    color: '#FF6B4A',
+                  },
+                  {
+                    icon: 'check' as const,
+                    title: lang === 'de' ? 'Fastenbrechen Taktik' : 'Fast Break Tactics',
+                    sub: lang === 'de' ? 'Was esse ich als Erstes?' : 'What should I eat first?',
+                    color: '#8B5CF6',
+                  },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.title}
+                    activeOpacity={0.7}
+                    onPress={() => send(`${item.title}: ${item.sub}`)}
+                    style={[s.starterCard, { backgroundColor: c.surface, borderColor: c.line }]}
+                  >
+                    <View style={[s.starterIconBadge, { backgroundColor: `${item.color}20` }]}>
+                      <Icon name={item.icon} size={15} color={item.color} />
+                    </View>
+                    <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: Space.xs }}>
+                      {item.title}
+                    </Txt>
+                    <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
+                      {item.sub}
+                    </Txt>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* The gate that used to be invisible. The chat is unlimited either
               way; what premium buys is what it reasons with. Withholding that
               quietly meant nobody could ask for it. */}
@@ -334,4 +387,26 @@ const s = StyleSheet.create({
     maxHeight: 120, marginRight: Space.sm,
   },
   send: { width: 48, height: 48, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+  starterGrid: {
+    marginVertical: Space.md,
+  },
+  starterCardsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Space.sm,
+  },
+  starterCard: {
+    width: '48%',
+    flexGrow: 1,
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  starterIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
