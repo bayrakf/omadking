@@ -5,7 +5,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { Space, Radius } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Divider, PageHeader, Bar, Empty, Tap,
-  PairedBars, NavRow, useTheme,
+  PairedBars, NavRow, Columns, useTheme,
 } from '@/components/ui';
 import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
@@ -272,7 +272,7 @@ export default function ProgressScreen() {
   const bigPlan = bigDay ? planAhead(dayKcal, intake, bigExtra, bigDay, floor) : null;
 
   return (
-    <Screen>
+    <Screen wide>
       <Enter index={0}>
         <PageHeader
           eyebrow={entries.length ? `${entries.length} entries logged` : 'No entries yet'}
@@ -358,6 +358,7 @@ export default function ProgressScreen() {
 
       {tab === 'week' && (
         <>
+        <Columns>
       {/* The week as a budget, not seven verdicts. Free: it is arithmetic on a
           target the user already has, and gating it would take away something
           they could do on paper. */}
@@ -585,10 +586,12 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
+        </Columns>
         </>
       )}
       {tab === 'body' && (
         <>
+        <Columns>
       {/* One line above the cards that each say what they cannot do yet.
           Counted across the three segments there were six or seven of those,
           and every segment opened on one — which reads as an app that cannot
@@ -855,10 +858,12 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
+        </Columns>
         </>
       )}
       {tab === 'history' && (
         <>
+        <Columns>
       <Enter index={3}>
         <Card tone="body">
           <View style={s.split}>
@@ -963,6 +968,7 @@ export default function ProgressScreen() {
         </Enter>
       )}
 
+        </Columns>
         </>
       )}
     </Screen>

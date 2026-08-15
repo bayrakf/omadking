@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import {
+  useWindowDimensions,
   PixelRatio,
   Dimensions,
   View,
@@ -21,7 +22,10 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { clampFontScale, scaleType } from '@/lib/typography';
-import { Colors, Type, Space, Radius, Motion, Font, MaxContentWidth, TabBarClearance, type ThemePalette } from '@/constants/theme';
+import {
+  Colors, Type, Space, Radius, Motion, Font, MaxContentWidth, MaxWideWidth, Breakpoint,
+  TabBarClearance, type ThemePalette,
+} from '@/constants/theme';
 import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
 import { Icon, type IconName } from './icons';
 
@@ -106,37 +110,93 @@ export function Enter({
   );
 }
 
+/**
+ * Whether this viewport has room for two columns.
+ *
+ * A hook rather than a media query because the layout has to work on native
+ * too — a tablet in landscape is the same situation as a laptop, and RN has no
+ * CSS to ask.
+ */
+export function useWide(): boolean {
+  const { width } = useWindowDimensions();
+  return width >= Breakpoint.wide;
+}
+
 /** Page shell: safe area, centred column, clearance for the floating tab bar. */
 export function Screen({
   children,
   scroll = true,
   edges = ['top'],
   tabBar = true,
+  wide = false,
   contentStyle,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   edges?: Edge[];
   tabBar?: boolean;
+  /**
+   * Opt in to the wider budget on a large screen.
+   *
+   * Only for screens that actually have parallel content. A form or a
+   * conversation reads worse wide — a line of prose past about 75 characters
+   * is harder to track back to the next line, and no amount of screen makes
+   * that untrue.
+   */
+  wide?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
+  const isWide = useWide();
   const pad = { paddingBottom: tabBar ? TabBarClearance : Space.xxl };
+  const width = { maxWidth: wide && isWide ? MaxWideWidth : MaxContentWidth };
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: c.bg }]} edges={edges}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[styles.column, pad, contentStyle]}
+          contentContainerStyle={[styles.column, width, pad, contentStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.flex, styles.column, pad, contentStyle]}>{children}</View>
+        <View style={[styles.flex, styles.column, width, pad, contentStyle]}>{children}</View>
       )}
     </SafeAreaView>
+  );
+}
+
+/**
+ * Two columns on a wide screen, one on a phone.
+ *
+ * Children are dealt alternately into a left and a right column rather than
+ * wrapped. Wrapping at 50% width lines cards up in rows, so a short card
+ * beside a tall one leaves a hole the height of the difference — and this app's
+ * cards differ a lot, a two-line notice next to a chart. Dealing them keeps
+ * both columns packed.
+ *
+ * Order therefore runs down the left and then down the right, which is how
+ * someone reads two columns anyway. Anything whose sequence carries meaning
+ * should not be in here — put it above the split.
+ *
+ * Margins, not `gap`: the README's standing constraint.
+ */
+export function Columns({ children }: { children: React.ReactNode }) {
+  const wide = useWide();
+  const items = React.Children.toArray(children).filter(Boolean);
+
+  if (!wide || items.length < 2) return <>{children}</>;
+
+  const left = items.filter((_, i) => i % 2 === 0);
+  const right = items.filter((_, i) => i % 2 === 1);
+
+  return (
+    <View style={styles.columns}>
+      <View style={[styles.columnHalf, styles.columnLeft]}>{left}</View>
+      <View style={styles.columnHalf}>{right}</View>
+    </View>
   );
 }
 
@@ -312,6 +372,26 @@ export function Card({
   );
 }
 
+/**
+ * Sizing lives on the pressable; everything else lives on the view that scales.
+ *
+ * `Tap` renders a `Pressable` wrapping an `Animated.View`, and the caller's
+ * style went entirely on the inner view — so `flex: 1` sized the *contents* of
+ * a pressable that was still `flex-grow: 0` and hugging its text. A row of
+ * three tabs written as three equal thirds rendered as three pills bunched at
+ * the left, and a one-item row collapsed to 9pt wide with the label spilling
+ * out of it. Twelve call sites across the app were quietly wrong this way.
+ *
+ * These keys are the ones a parent flex container reads off its child, so they
+ * have to be on the element the parent actually sees. They are removed from the
+ * inner view rather than duplicated: a `width: '48%'` applied twice would be
+ * 48% of 48%.
+ */
+const OUTER_KEYS = [
+  'flex', 'flexGrow', 'flexShrink', 'flexBasis',
+  'width', 'minWidth', 'maxWidth', 'alignSelf',
+] as const;
+
 /** Press feedback: a small spring scale. Applied once, everywhere tappable. */
 export function Tap({
   onPress,
@@ -338,8 +418,21 @@ export function Tap({
     Animated.spring(s, { toValue: v, useNativeDriver: true, speed: 40, bounciness: 4 }).start();
   };
 
+  const inner: ViewStyle = { ...(StyleSheet.flatten(style) as ViewStyle) };
+  const outer: ViewStyle = {};
+  for (const k of OUTER_KEYS) {
+    if (inner[k] === undefined) continue;
+    (outer as any)[k] = inner[k];
+    delete inner[k];
+  }
+  // Once the pressable carries the size, the inner view has to fill it —
+  // otherwise the padding and background it draws stay hugging the label
+  // inside a box that is now wider than they are.
+  const fills = Object.keys(outer).length > 0;
+
   return (
     <Pressable
+      style={outer}
       onPress={onPress}
       onPressIn={() => to(Motion.pressScale)}
       onPressOut={() => to(1)}
@@ -357,7 +450,9 @@ export function Tap({
         ? { 'aria-disabled': true }
         : null)}
     >
-      <Animated.View style={[{ transform: [{ scale: s }] }, style]}>{children}</Animated.View>
+      <Animated.View style={[{ transform: [{ scale: s }] }, fills && styles.tapFill, inner]}>
+        {children}
+      </Animated.View>
     </Pressable>
   );
 }
@@ -682,6 +777,8 @@ export function Notice({ tone, children }: { tone: 'error' | 'ok' | 'warn'; chil
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  /** See OUTER_KEYS: the inner view fills the pressable it no longer sizes. */
+  tapFill: { flexGrow: 1, alignSelf: 'stretch' },
   column: {
     paddingHorizontal: Space.lg,
     paddingTop: Space.sm,
@@ -690,6 +787,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   card: { borderRadius: Radius.lg, padding: Space.lg },
+  columns: { flexDirection: 'row', alignItems: 'flex-start' },
+  columnHalf: { flex: 1, minWidth: 0 },
+  columnLeft: { marginRight: Space.base },
   button: {
     minHeight: 54,
     paddingVertical: Space.sm,

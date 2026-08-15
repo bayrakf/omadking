@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Space, Radius } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Tap, Divider, Empty, PageHeader, Bar, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Columns, Tap, Divider, Empty, PageHeader, Bar, useTheme,
 } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { loadPlanHistory, loadPortions, KEYS } from '@/lib/store';
@@ -108,7 +108,7 @@ export default function GroceryScreen() {
   }
 
   return (
-    <Screen>
+    <Screen wide>
       <Enter index={0}>
         <PageHeader
           eyebrow={`${done} of ${total} in the basket${batch > 1 ? ` · ${batch} portions` : ''}`}
@@ -138,6 +138,10 @@ export default function GroceryScreen() {
         </View>
       </Enter>
 
+      {/* Category cards are parallel and similarly sized, which is the case
+          two columns suit best — a shopping list on a laptop was four short
+          cards down the middle of an empty screen. */}
+      <Columns>
       {categories.map((cat, catIdx) => (
         <Enter key={cat.name} index={2 + catIdx}>
           <Card style={{ marginBottom: Space.md, paddingVertical: Space.sm }}>
@@ -189,6 +193,7 @@ export default function GroceryScreen() {
           </Card>
         </Enter>
       ))}
+      </Columns>
     </Screen>
   );
 }

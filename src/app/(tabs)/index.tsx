@@ -3,7 +3,7 @@ import { View, TextInput, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, Columns, useTheme,
 } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 import { DayBand } from '@/components/DayBand';
@@ -221,7 +221,7 @@ export default function DashboardScreen() {
   const nextColor = nextMins <= 60 ? c.ember : c.accent;
 
   return (
-    <Screen>
+    <Screen wide>
       <Enter index={0}>
         <View style={s.head}>
           <Eyebrow>{dateLabel}</Eyebrow>
@@ -476,6 +476,11 @@ export default function DashboardScreen() {
       {/* Reference numbers, deliberately smaller than the actions above.
           Green because they are the plan's figures — the same hue the planner
           and the shopping list carry, so the three read as one subject. */}
+      {/* The hero, the stage and what happens next are a sequence and stay
+          in one column. From here down the cards are parallel — energy,
+          water, the streak, the rest — so on a wide screen they sit
+          beside each other instead of below the fold. */}
+      <Columns>
       <Enter index={4}>
         <Card style={{ marginTop: Space.base }} tone="plan">
           <View style={s.statRow}>
@@ -616,6 +621,7 @@ export default function DashboardScreen() {
         <NavRow icon="chart" tint={c.body} title="Progress" sub="Weight and trend over time" onPress={() => router.push('/progress')} />
         <NavRow icon="coach" title="Coach" sub="Fasting, electrolytes and fuelling" onPress={() => router.push('/chat')} />
       </Enter>
+      </Columns>
     </Screen>
   );
 }

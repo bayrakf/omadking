@@ -248,6 +248,22 @@ export const Motion = {
 
 export const MaxContentWidth = 560;
 
+/**
+ * Where the phone column stops being the right answer.
+ *
+ * Below this the app is a phone app and one column is correct. Above it, a
+ * 560pt strip stranded in a 1600pt window is not restraint, it is a phone app
+ * someone opened on a laptop — which is exactly how it read.
+ *
+ * 900 rather than a rounder number: two 520pt columns plus the gutter is the
+ * narrowest arrangement where neither column is cramped, and a card narrower
+ * than that starts wrapping its own figures.
+ */
+export const Breakpoint = { wide: 900 } as const;
+
+/** The column budget once there are two of them. */
+export const MaxWideWidth = 1080;
+
 /** Tab bar height + breathing room, so scroll views clear the floating bar. */
 export const TabBarClearance = 108;
 
