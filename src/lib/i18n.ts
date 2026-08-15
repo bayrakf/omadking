@@ -97,6 +97,16 @@ const EN = {
   'badge.workout1Desc': 'Completed your first fasted workout session.',
   'badge.workout10': 'Iron Consistency',
   'badge.workout10Desc': 'Completed 10 workouts aligned with OMAD timing.',
+  // Health Sync
+  'health.title': 'Apple Health & Google Fit',
+  'health.sub': 'Sync steps, active burn and smart scale weigh-ins.',
+  'health.connected': 'Connected',
+  'health.connect': 'Connect',
+  'health.syncNow': 'Sync now',
+  'health.steps': 'Daily Steps',
+  'health.activeBurn': 'Active Burn',
+  'health.scale': 'Smart Scale Weight',
+  'health.sleep': 'Sleep & Recovery',
 
   // You
   'you.title': 'You',
@@ -376,6 +386,16 @@ const DE: Record<Key, string> = {
   'badge.workout1Desc': 'Erstes gefastetes Workout erfolgreich absolviert.',
   'badge.workout10': 'Eiserne Routine',
   'badge.workout10Desc': '10 Workouts mit perfektem OMAD-Timing absolviert.',
+  // Health Sync
+  'health.title': 'Apple Health & Google Fit',
+  'health.sub': 'Schritte, Aktivität und smarte Waagen synchronisieren.',
+  'health.connected': 'Verbunden',
+  'health.connect': 'Verbinden',
+  'health.syncNow': 'Jetzt synchronisieren',
+  'health.steps': 'Tages-Schritte',
+  'health.activeBurn': 'Aktiv-Kalorien',
+  'health.scale': 'Smarte Waage',
+  'health.sleep': 'Schlaf & Erholung',
 
   'you.title': 'Du',
   'you.setup': 'Deine Einstellungen',

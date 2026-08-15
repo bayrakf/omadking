@@ -164,6 +164,13 @@ export default function ProfileScreen() {
       <Enter index={4} style={{ marginTop: Space.xl }}>
         <Eyebrow color={c.hydro} style={{ marginBottom: Space.md }}>{t('you.groupData')}</Eyebrow>
         <NavRow
+          icon="flame"
+          tone="ember"
+          title={t('health.title')}
+          sub="Schritte, Aktivität & Smarte Waage"
+          onPress={() => router.push('/health')}
+        />
+        <NavRow
           icon="sync"
           tone="hydro"
           title={t('you.sync')}
