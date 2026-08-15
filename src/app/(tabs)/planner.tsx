@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, StyleSheet, Switch, Share, Platform, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
@@ -13,7 +13,7 @@ import {
   dailyTargets, breakFastSteps, mealTiming, DEFAULT_PROFILE,
   type Intensity, type Training, type UserProfile,
 } from '@/lib/nutrition';
-import { generateMealPlan, QuotaError, type MealPlan } from '@/lib/ai';
+import { generateMealPlan, QuotaError, type MealPlan, type MealComplexity } from '@/lib/ai';
 import {
   loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
   loadLastSession, saveLastSession, loadPortions, savePortions,
@@ -40,6 +40,12 @@ const INTENSITIES: { id: Intensity; label: string; labelDe: string }[] = [
 ];
 const TIMES = ['06:00', '12:00', '17:00', '18:00', '19:00', '20:00'];
 
+const COMPLEXITY_OPTIONS: { id: MealComplexity; emoji: string; label: string; labelDe: string; sub: string; subDe: string; premiumOnly: boolean }[] = [
+  { id: 'quick',    emoji: '⚡', label: 'Quick',     labelDe: 'Schnell',    sub: '≤15 min · 1 pan',      subDe: '≤15 Min · 1 Pfanne',   premiumOnly: false },
+  { id: 'balanced', emoji: '🍽', label: 'Balanced',  labelDe: 'Ausgewogen', sub: '≤30 min · meal-prep',  subDe: '≤30 Min · Meal-Prep',   premiumOnly: false },
+  { id: 'chef',     emoji: '👨‍🍳', label: 'Chef-Level', labelDe: 'Chef-Level', sub: 'Gourmet · plating',   subDe: 'Gourmet · Anrichten', premiumOnly: true },
+];
+
 export default function PlannerScreen() {
   const c = useTheme();
   const { lang, t } = useLang();
@@ -48,6 +54,7 @@ export default function PlannerScreen() {
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [quota, setQuota] = useState<Quota | null>(null);
+  const [premium, setPremium] = useState(false);
   /** One rejection per paid build. See the comment on `generate`. */
   const [retryFree, setRetryFree] = useState(false);
 
@@ -56,6 +63,7 @@ export default function PlannerScreen() {
   const [duration, setDuration] = useState(60);
   const [intensity, setIntensity] = useState<Intensity>('medium');
   const [trainingTime, setTrainingTime] = useState('18:00');
+  const [complexity, setComplexity] = useState<MealComplexity>('balanced');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +102,7 @@ export default function PlannerScreen() {
         setTrainingTime(last.start_time);
         setHistory(h);
         setQuota(q);
+        setPremium(prem);
         setPortions(batch);
         setRotation(cooked);
         setFavorites(favs);
@@ -144,6 +153,7 @@ export default function PlannerScreen() {
       timing_pattern: t.pattern,
       training_start_time: training?.start_time ?? null,
       training_duration_min: training?.duration_min ?? 0,
+      complexity: 'balanced',
       recipe: { title: '', ingredients: [], instructions: '', reheat_instructions: '', prep_time_min: 0, is_meal_prep: true },
     };
   };
@@ -158,7 +168,7 @@ export default function PlannerScreen() {
     setLoading(true);
     setError(null);
     try {
-      const next = await generateMealPlan(profile, training, lang, measured);
+      const next = await generateMealPlan(profile, training, lang, measured, complexity);
       // Remembered only once a plan was actually built, so idly tapping through
       // the options does not overwrite what worked yesterday.
       await saveLastSession({
@@ -328,9 +338,7 @@ export default function PlannerScreen() {
                     <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line, marginHorizontal: Space.xs }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: '#38BDF8' }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>
-                          {lang === 'de' ? 'CARBS' : 'CARBS'}
-                        </Eyebrow>
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>KOHLENHYDRATE</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
                         <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
@@ -339,7 +347,7 @@ export default function PlannerScreen() {
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
                       <Txt variant="eyebrow" color="#38BDF8" style={{ fontSize: 10, marginTop: 2, fontWeight: '700' }}>
-                        {cPct}% · Refill
+                        {cPct}%
                       </Txt>
                     </View>
 
@@ -347,9 +355,7 @@ export default function PlannerScreen() {
                     <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: '#F59E0B' }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>
-                          {lang === 'de' ? 'FETT' : 'FAT'}
-                        </Eyebrow>
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>FETT</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
                         <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
@@ -358,450 +364,489 @@ export default function PlannerScreen() {
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
                       <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 10, marginTop: 2, fontWeight: '700' }}>
-                        {fPct}% · Hormone
+                        {fPct}%
                       </Txt>
                     </View>
                   </View>
-
-                  {preview.burn_kcal > 0 && (
-                    <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md, textAlign: 'center', fontSize: 12 }}>
-                      {lang === 'de'
-                        ? `Inklusive ca. ${preview.burn_kcal} kcal Zuschlag für dein heutiges Training.`
-                        : `Includes about ${preview.burn_kcal} kcal for today's session.`}
-                    </Txt>
-                  )}
                 </Card>
               );
             })()}
           </Enter>
 
-          {/* Session & Workouts */}
+          {/* Training session config */}
           <Enter index={3}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/workout')}
-              style={[s.workoutBanner, { backgroundColor: c.emberWash, borderColor: c.ember }]}
-            >
-              <Icon name="flame" size={18} color={c.ember} />
-              <View style={{ flex: 1, marginLeft: Space.sm }}>
-                <Txt variant="subheading" color={c.ember} style={{ fontSize: 14, fontWeight: '700' }}>
-                  Gefastete Workouts durchsuchen
-                </Txt>
-                <Txt variant="small" color={c.textDim} style={{ fontSize: 12 }}>
-                  Push, Pull, Beine, Zone-2 Cardio & HIIT mit automatischer Makro-Berechnung
-                </Txt>
-              </View>
-              <Icon name="chevronRight" size={16} color={c.ember} />
-            </TouchableOpacity>
-
             <Card style={{ marginTop: Space.base }}>
               <View style={s.restRow}>
-                <View style={s.rowCentre}>
-                  <Icon name="moon" size={18} color={isRestDay ? c.accent : c.textFaint} />
-                  <Txt variant="subheading" style={{ marginLeft: Space.sm }}>{t('plan.restDay')}</Txt>
-                </View>
+                <Eyebrow>{t('plan.restDay')}</Eyebrow>
                 <Switch
                   value={isRestDay}
                   onValueChange={setIsRestDay}
-                  trackColor={{ false: c.well, true: c.accentDim }}
-                  thumbColor={isRestDay ? c.accent : '#FFFFFF'}
+                  trackColor={{ false: c.line, true: c.plan }}
+                  thumbColor={c.surface}
+                  accessibilityLabel="Rest day toggle"
                 />
               </View>
 
               {!isRestDay && (
-                <View style={{ marginTop: Space.lg }}>
-                  <Field label={t('plan.sport')}>
-                    {SPORTS.map((x) => (
-                      <Chip
-                        key={x.id}
-                        label={lang === 'de' ? x.labelDe : x.label}
-                        selected={sport === x.id}
-                        onPress={() => setSport(x.id)}
-                        tone="plan"
-                        style={s.chip}
-                      />
-                    ))}
-                  </Field>
-                  <Field label={t('plan.duration')}>
-                    {DURATIONS.map((d) => (
-                      <Chip key={d} label={`${d} min`} selected={duration === d} onPress={() => setDuration(d)} tone="plan" style={s.chip} />
-                    ))}
-                  </Field>
-                  <Field label={t('plan.effort')}>
-                    {INTENSITIES.map((x) => (
-                      <Chip
-                        key={x.id}
-                        label={lang === 'de' ? x.labelDe : x.label}
-                        selected={intensity === x.id}
-                        onPress={() => setIntensity(x.id)}
-                        tone="plan"
-                        style={s.chip}
-                      />
-                    ))}
-                  </Field>
-                  <Field label={t('plan.startsAt')} last>
-                    {TIMES.map((t) => (
-                      <Chip key={t} label={t} selected={trainingTime === t} onPress={() => setTrainingTime(t)} tone="plan" style={s.chip} />
-                    ))}
-                  </Field>
-                </View>
+                <>
+                  <View style={s.chipSection}>
+                    <Eyebrow style={s.chipLabel}>{t('plan.sport')}</Eyebrow>
+                    <View style={s.chips}>
+                      {SPORTS.map((sp) => (
+                        <Chip
+                          key={sp.id}
+                          label={lang === 'de' ? sp.labelDe : sp.label}
+                          selected={sport === sp.id}
+                          tone="plan"
+                          onPress={() => setSport(sp.id)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={s.chipSection}>
+                    <Eyebrow style={s.chipLabel}>{t('plan.duration')}</Eyebrow>
+                    <View style={s.chips}>
+                      {DURATIONS.map((d) => (
+                        <Chip
+                          key={d}
+                          label={`${d}m`}
+                          selected={duration === d}
+                          tone="plan"
+                          onPress={() => setDuration(d)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={s.chipSection}>
+                    <Eyebrow style={s.chipLabel}>{lang === 'de' ? 'Intensität' : 'Intensity'}</Eyebrow>
+                    <View style={s.chips}>
+                      {INTENSITIES.map((it) => (
+                        <Chip
+                          key={it.id}
+                          label={lang === 'de' ? it.labelDe : it.label}
+                          selected={intensity === it.id}
+                          tone="plan"
+                          onPress={() => setIntensity(it.id)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={s.chipSection}>
+                    <Eyebrow style={s.chipLabel}>{lang === 'de' ? 'Trainingszeit' : 'Training Time'}</Eyebrow>
+                    <View style={s.chips}>
+                      {TIMES.map((tm) => (
+                        <Chip
+                          key={tm}
+                          label={tm}
+                          selected={trainingTime === tm}
+                          tone="plan"
+                          onPress={() => setTrainingTime(tm)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                </>
               )}
             </Card>
           </Enter>
 
+          {/* Complexity Selector */}
           <Enter index={4}>
-            <View style={{ marginTop: Space.base }}>
-              {loading ? (
-                <View style={[s.loading, { backgroundColor: c.well }]}>
-                  <ActivityIndicator color={c.accent} />
-                  <Txt variant="small" color={c.textDim} style={{ marginLeft: Space.md }}>
-                    {t('plan.building')}
-                  </Txt>
-                </View>
-              ) : (
-                <Button label={t('plan.build')} icon="plate" tone="plan" onPress={() => generate()} />
-              )}
-              {error && <Notice tone="error">{error}</Notice>}
-              {copied && <Notice tone="ok">Copied to clipboard.</Notice>}
-            </View>
+            <Card style={{ marginTop: Space.base }}>
+              <Eyebrow style={{ marginBottom: Space.md }}>
+                {lang === 'de' ? 'REZEPT-KOMPLEXITÄT' : 'RECIPE COMPLEXITY'}
+              </Eyebrow>
+              <View style={s.complexityGrid}>
+                {COMPLEXITY_OPTIONS.map((opt) => {
+                  const isSelected = complexity === opt.id;
+                  const locked = opt.premiumOnly && !premium;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      activeOpacity={0.75}
+                      onPress={() => {
+                        if (locked) {
+                          router.push('/paywall');
+                          return;
+                        }
+                        setComplexity(opt.id);
+                      }}
+                      style={[
+                        s.complexityCard,
+                        {
+                          borderColor: isSelected ? c.plan : c.line,
+                          backgroundColor: isSelected ? c.planWash : c.surface,
+                        },
+                      ]}
+                      accessibilityLabel={`${lang === 'de' ? opt.labelDe : opt.label}${locked ? ' – Premium' : ''}`}
+                      accessibilityState={{ selected: isSelected }}
+                    >
+                      {/* Lock overlay for premium */}
+                      {locked && (
+                        <View style={[s.premiumBadge, { backgroundColor: c.ember }]}>
+                          <Txt variant="eyebrow" color="#fff" style={{ fontSize: 9, fontWeight: '800' }}>
+                            PREMIUM
+                          </Txt>
+                        </View>
+                      )}
+                      <Txt style={{ fontSize: 24, textAlign: 'center' }}>{opt.emoji}</Txt>
+                      <Txt
+                        variant="subheading"
+                        color={isSelected ? c.plan : c.text}
+                        style={{ fontSize: 13, fontWeight: '700', marginTop: 6, textAlign: 'center' }}
+                      >
+                        {lang === 'de' ? opt.labelDe : opt.label}
+                      </Txt>
+                      <Txt
+                        variant="small"
+                        color={c.textDim}
+                        style={{ fontSize: 10, textAlign: 'center', marginTop: 2, lineHeight: 14 }}
+                      >
+                        {lang === 'de' ? opt.subDe : opt.sub}
+                      </Txt>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </Card>
           </Enter>
 
-          {plan ? (
-            <Enter index={5}>
-              <Timing plan={plan} />
+          {/* Generate button */}
+          <Enter index={5}>
+            {error && (
+              <View style={{ marginTop: Space.base }}>
+                <Notice tone="error">{error}</Notice>
+              </View>
+            )}
+            <View style={[s.generateRow, { marginTop: Space.base }]}>
+              <Button
+                label={loading
+                  ? (lang === 'de' ? 'Generiere...' : 'Generating...')
+                  : plan
+                  ? (lang === 'de' ? 'Neu generieren' : 'Generate new')
+                  : (lang === 'de' ? 'Plan generieren' : 'Generate plan')}
+                onPress={() => generate()}
+                disabled={loading}
+                tone="plan"
+                style={s.generateBtn}
+              />
+              {loading && <ActivityIndicator style={s.spinner} color={c.plan} />}
+            </View>
+
+            {plan && retryFree && (
+              <Button
+                label={lang === 'de' ? 'Anderes Rezept (kostenlos)' : 'Different recipe (free)'}
+                variant="ghost"
+                onPress={() => generate(true)}
+                style={{ marginTop: Space.sm }}
+              />
+            )}
+          </Enter>
+
+          {/* Cooked before shortcut */}
+          {rotation.length > 0 && !plan && (
+            <Enter index={6}>
+              <Card style={{ marginTop: Space.base }}>
+                <Eyebrow style={{ marginBottom: Space.md }}>
+                  {lang === 'de' ? 'Schon gekocht' : 'Cooked before'}
+                </Eyebrow>
+                {rotation.slice(0, 3).map((r) => (
+                  <Tap
+                    key={r.title}
+                    onPress={async () => {
+                      const shell = planShell();
+                      // CookedRecipe only has title/count/lastCooked/recipe (unknown)
+                      // so we just show the title and let user generate fresh
+                      setPlan({
+                        ...shell,
+                        recipe: {
+                          title: r.title,
+                          ingredients: [],
+                          instructions: '',
+                          reheat_instructions: null,
+                          prep_time_min: 30,
+                          is_meal_prep: true,
+                        },
+                        recipe_source: 'offline',
+                        recipe_note: null,
+                      });
+                    }}
+                  >
+                    <View style={[s.cookedRow, { borderColor: c.line }]}>
+                      <Txt variant="bodyMedium">{r.title}</Txt>
+                      <Icon name="plate" size={16} color={c.textDim} />
+                    </View>
+                  </Tap>
+                ))}
+              </Card>
+            </Enter>
+          )}
+
+          {/* The plan */}
+          {plan && (
+            <Enter index={7}>
+              {plan.timing_warning && (
+                <View style={{ marginTop: Space.base }}>
+                  <Notice tone="warn">{plan.timing_warning}</Notice>
+                </View>
+              )}
+              <Card style={{ marginTop: Space.base }}>
+                <View style={s.timingRow}>
+                  <View style={s.timingCell}>
+                    <Eyebrow color={c.textDim}>{lang === 'de' ? 'ESSFENSTER' : 'WINDOW'}</Eyebrow>
+                    <Txt variant="heading" style={{ marginTop: 2 }}>
+                      {plan.eating_window_start}–{plan.eating_window_end}
+                    </Txt>
+                  </View>
+                  {plan.pre_training_snack_time && (
+                    <View style={s.timingCell}>
+                      <Eyebrow color={c.textDim}>{lang === 'de' ? 'PRE-SNACK' : 'PRE-SNACK'}</Eyebrow>
+                      <Txt variant="heading" style={{ marginTop: 2 }}>{plan.pre_training_snack_time}</Txt>
+                    </View>
+                  )}
+                  <View style={s.timingCell}>
+                    <Eyebrow color={c.textDim}>{lang === 'de' ? 'MAHLZEIT' : 'MAIN MEAL'}</Eyebrow>
+                    <Txt variant="heading" style={{ marginTop: 2 }}>{plan.main_meal_time}</Txt>
+                  </View>
+                </View>
+                {plan.ai_reasoning ? (
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                    {plan.ai_reasoning}
+                  </Txt>
+                ) : null}
+              </Card>
               <RecipeCard
                 plan={plan}
                 portions={portions}
-                onPortions={(n) => { setPortions(n); savePortions(n); }}
+                onPortions={async (n) => {
+                  setPortions(n);
+                  await savePortions(n);
+                }}
               />
-              {/* A plate you cannot eat used to cost a third of your week. */}
-              {retryFree && (
+              <View style={s.planActions}>
                 <Button
-                  label="Not this one"
+                  label={copied ? (lang === 'de' ? 'Kopiert!' : 'Copied!') : (lang === 'de' ? 'Teilen' : 'Share')}
                   variant="secondary"
-                  onPress={() => generate(true)}
-                  style={{ marginTop: Space.md }}
+                  onPress={() => share(plan)}
+                  style={s.planAction}
                 />
-              )}
-              <Button
-                label={Platform.OS === 'web' ? 'Copy plan' : 'Share plan'}
-                icon="share"
-                variant="ghost"
-                onPress={() => share(plan)}
-                style={{ marginTop: Space.md }}
-              />
+              </View>
             </Enter>
-          ) : (
-            <Enter index={5}>
-              <Card style={{ marginTop: Space.base, alignItems: 'center', paddingVertical: Space.xxl }}>
-                <Icon name="clock" size={24} color={c.textFaint} />
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md, textAlign: 'center' }}>
-                  {t('plan.empty')}
-                </Txt>
+          )}
+
+          {/* Break-fast steps */}
+          {plan && (
+            <Enter index={8}>
+              <Card style={{ marginTop: Space.base }}>
+                <Eyebrow style={{ marginBottom: Space.md }}>
+                  {lang === 'de' ? 'Fasten brechen — in dieser Reihenfolge' : 'Break your fast — in this order'}
+                </Eyebrow>
+                {breakFastSteps(plan.timing_pattern).map((step, i) => (
+                  <View key={i} style={[s.breakStep, { borderColor: c.line }]}>
+                    <View style={[s.breakNum, { backgroundColor: c.plan }]}>
+                      <Txt variant="data" color={c.onAccent}>{i + 1}</Txt>
+                    </View>
+                    <View style={s.breakText}>
+                      <Txt variant="bodyMedium">{step}</Txt>
+                    </View>
+                  </View>
+                ))}
               </Card>
+            </Enter>
+          )}
+
+          {/* Weekly plan quota for free users — shown at bottom as soft upsell */}
+          {quota && !quota.premium && plan && (
+            <Enter index={9}>
+              <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade to Premium">
+                <View style={[s.upsellBanner, { borderColor: c.ember, backgroundColor: c.emberWash }]}>
+                  <View style={{ flex: 1 }}>
+                    <Eyebrow color={c.ember}>
+                      {lang === 'de' ? 'UNBEGRENZTE PLÄNE + CHEF-LEVEL REZEPTE' : 'UNLIMITED PLANS + CHEF-LEVEL RECIPES'}
+                    </Eyebrow>
+                    <Txt variant="small" color={c.textDim} style={{ marginTop: 3 }}>
+                      {lang === 'de'
+                        ? 'Hole dir Premium und generiere täglich neue Gourmet-Rezepte vom KI-Koch.'
+                        : 'Get Premium to generate daily gourmet recipes with the AI chef.'}
+                    </Txt>
+                  </View>
+                  <Txt variant="small" color={c.ember} style={{ fontWeight: '700', marginLeft: Space.sm }}>
+                    Upgrade
+                  </Txt>
+                </View>
+              </Tap>
             </Enter>
           )}
         </>
       ) : (
+        /* Saved plans tab */
         <>
-          {/* Saved & History Tab */}
           {favorites.length > 0 && (
             <Enter index={1}>
-              <View style={[s.rotationHead, { marginTop: Space.base }]}>
-                <Eyebrow color="#EF4444">⭐️ {lang === 'de' ? 'Gespeicherte Favoriten' : 'Saved Favorites'}</Eyebrow>
-                <Txt variant="data" color={c.textFaint}>{favorites.length} {lang === 'de' ? 'Rezepte' : 'recipes'}</Txt>
-              </View>
-              {favorites.map((f, i) => (
-                <Tap
-                  key={`fav-${f.recipe.title}-${i}`}
-                  onPress={() => {
-                    setPlan(f);
-                    setPlannerTab('today');
-                  }}
-                  accessibilityLabel={`Cook ${f.recipe.title}`}
-                >
-                  <View style={[s.histRow, { borderColor: '#EF4444', backgroundColor: c.surface }]}>
-                    <View style={{ flex: 1 }}>
-                      <Txt variant="bodyMedium" numberOfLines={2}>{f.recipe.title}</Txt>
-                      <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
-                        {f.total_kcal} kcal · {f.protein_g}g Protein
-                      </Txt>
+              <Card style={{ marginTop: Space.base }}>
+                <Eyebrow style={{ marginBottom: Space.md }}>
+                  {lang === 'de' ? 'Favoriten' : 'Favorites'}
+                </Eyebrow>
+                {favorites.map((p, i) => (
+                  <Tap
+                    key={`${p.recipe.title}-${i}`}
+                    onPress={() => { setPlan(p); setPlannerTab('today'); }}
+                    accessibilityLabel={`Load favorite: ${p.recipe.title}`}
+                  >
+                    <View style={[s.historyRow, { borderColor: c.line }]}>
+                      <View style={s.historyInfo}>
+                        <Txt variant="bodyMedium">{p.recipe.title}</Txt>
+                        <Txt variant="small" color={c.textDim}>{p.date} · {p.total_kcal} kcal</Txt>
+                      </View>
+                      <Icon name="plate" size={16} color={c.textDim} />
                     </View>
-                    <Icon name="chevronRight" size={16} color="#EF4444" />
-                  </View>
-                </Tap>
-              ))}
-            </Enter>
-          )}
-
-          {rotation.length > 0 && (
-            <Enter index={favorites.length > 0 ? 2 : 1} style={{ marginTop: favorites.length > 0 ? Space.xl : 0 }}>
-              <View style={[s.rotationHead, { marginTop: Space.base }]}>
-                <Eyebrow color={c.plan}>Zuletzt gekocht (Rotation)</Eyebrow>
-                <Txt variant="data" color={c.textFaint}>ohne Kontingent</Txt>
-              </View>
-              {rotation.slice(0, 6).map((r) => (
-                <Tap
-                  key={r.title}
-                  onPress={() => {
-                    if (r.recipe) {
-                      setPlan({ ...(plan ?? planShell()), recipe: r.recipe } as MealPlan);
-                      setPlannerTab('today');
-                    }
-                  }}
-                  accessibilityLabel={`Cook ${r.title} again`}
-                >
-                  <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>
-                    <View style={{ flex: 1 }}>
-                      <Txt variant="bodyMedium" numberOfLines={2}>{r.title}</Txt>
-                      <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
-                        gekocht {r.count}×{r.lastCooked ? ` · zuletzt ${r.lastCooked}` : ''}
-                      </Txt>
-                    </View>
-                    <Icon name="chevronRight" size={16} color={c.textFaint} />
-                  </View>
-                </Tap>
-              ))}
-            </Enter>
-          )}
-
-          {history.length > 0 && (
-            <Enter index={3} style={{ marginTop: Space.xl }}>
-              <Eyebrow color={c.plan} style={{ marginBottom: Space.md }}>{t('plan.recent')}</Eyebrow>
-              {history.map((h, i) => (
-                <Tap
-                  key={`${h.date}-${i}`}
-                  onPress={() => {
-                    setPlan(h);
-                    setPlannerTab('today');
-                  }}
-                  accessibilityLabel={h.recipe.title}
-                >
-                  <View style={[s.histRow, { borderColor: c.line, backgroundColor: c.surface }]}>
-                    <View style={{ flex: 1 }}>
-                      <Txt variant="bodyMedium" numberOfLines={2}>{h.recipe.title}</Txt>
-                      <Txt variant="data" color={c.textFaint} style={{ marginTop: 3 }}>
-                        {h.date} · {h.total_kcal} kcal · {h.protein_g}g P
-                      </Txt>
-                    </View>
-                    <Icon name="chevronRight" size={16} color={c.textFaint} />
-                  </View>
-                </Tap>
-              ))}
-            </Enter>
-          )}
-
-          {favorites.length === 0 && rotation.length === 0 && history.length === 0 && (
-            <Enter index={1}>
-              <Card style={{ marginTop: Space.base, alignItems: 'center', paddingVertical: Space.xxl }}>
-                <Icon name="plate" size={28} color={c.textFaint} />
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md, textAlign: 'center' }}>
-                  {t('plan.noHistory')}
-                </Txt>
+                  </Tap>
+                ))}
               </Card>
             </Enter>
           )}
+          <Enter index={2}>
+            <Card style={{ marginTop: Space.base }}>
+              <Eyebrow style={{ marginBottom: Space.md }}>
+                {lang === 'de' ? 'Verlauf' : 'History'}
+              </Eyebrow>
+              {history.length === 0 ? (
+                <Txt variant="small" color={c.textDim}>
+                  {lang === 'de' ? 'Noch kein Plan generiert.' : 'No plans yet.'}
+                </Txt>
+              ) : (
+                history.slice(0, 10).map((p, i) => (
+                  <Tap
+                    key={`${p.recipe.title}-${i}`}
+                    onPress={() => { setPlan(p); setPlannerTab('today'); }}
+                    accessibilityLabel={`Load plan: ${p.recipe.title}`}
+                  >
+                    <View style={[s.historyRow, { borderColor: c.line }]}>
+                      <View style={s.historyInfo}>
+                        <Txt variant="bodyMedium">{p.recipe.title}</Txt>
+                        <Txt variant="small" color={c.textDim}>{p.date} · {p.total_kcal} kcal</Txt>
+                      </View>
+                      <Icon name="plate" size={16} color={c.textDim} />
+                    </View>
+                  </Tap>
+                ))
+              )}
+            </Card>
+          </Enter>
         </>
       )}
     </Screen>
   );
 }
 
-function Field({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
-  return (
-    <View style={{ marginBottom: last ? 0 : Space.lg }}>
-      <Eyebrow style={{ marginBottom: Space.md }}>{label}</Eyebrow>
-      <View style={s.wrap}>{children}</View>
-    </View>
-  );
-}
-
-function Timing({ plan }: { plan: MealPlan }) {
-  const c = useTheme();
-  const rows: [string, string, boolean, string][] = [];
-  if (plan.pre_training_snack_time) rows.push(['Pre-training Snack', plan.pre_training_snack_time, false, 'Snack für Leistung']);
-  rows.push(['Hauptmahlzeit', plan.main_meal_time, true, `${plan.total_kcal} kcal · ${plan.protein_g}g Protein`]);
-  rows.push(['Fenster schließt', plan.eating_window_end, false, 'Fasten beginnt']);
-
-  return (
-    <Card style={{ marginTop: Space.lg }} tone="ember">
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Space.base }}>
-        <Icon name="clock" size={18} color={c.ember} />
-        <Eyebrow color={c.ember} style={{ marginLeft: 6 }}>Tages-Timing & Essensfenster</Eyebrow>
-      </View>
-
-      <View style={s.timingGrid}>
-        {rows.map(([label, time, primary, desc]) => (
-          <View
-            key={label}
-            style={[
-              s.timingTile,
-              {
-                backgroundColor: primary ? c.emberWash : c.well,
-                borderColor: primary ? c.ember : c.line,
-              },
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <Txt variant={primary ? 'subheading' : 'body'} color={primary ? c.text : c.textDim} style={{ fontWeight: '700' }}>
-                {label}
-              </Txt>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
-                {desc}
-              </Txt>
-            </View>
-            <View style={[s.timeBadge, { backgroundColor: primary ? c.ember : c.surface, borderColor: primary ? c.ember : c.line }]}>
-              <Txt
-                variant="heading"
-                color={primary ? c.onAccent : c.text}
-                style={{ fontSize: primary ? 20 : 16, fontWeight: '800' }}
-              >
-                {time}
-              </Txt>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      {plan.ai_reasoning ? (
-        <View style={[s.reasonBox, { backgroundColor: c.well, borderColor: c.line }]}>
-          <Txt variant="small" color={c.textDim}>{plan.ai_reasoning}</Txt>
-        </View>
-      ) : null}
-
-      {plan.timing_warning && <Notice tone="warn">{plan.timing_warning}</Notice>}
-
-      <View style={[s.breakCard, { backgroundColor: c.well, borderColor: c.line }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Space.md }}>
-          <Icon name="plate" size={16} color={c.ember} />
-          <Eyebrow color={c.ember} style={{ marginLeft: 6 }}>Fastenbrechen — Die richtige Reihenfolge</Eyebrow>
-        </View>
-        {breakFastSteps(plan.timing_pattern).map((step, i) => (
-          <View key={i} style={s.breakRow}>
-            <View style={[s.breakNumCircle, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
-              <Txt variant="data" color={c.ember} style={{ fontWeight: '700' }}>{i + 1}</Txt>
-            </View>
-            <Txt variant="small" color={c.text} style={{ flex: 1, marginLeft: Space.sm, marginTop: 2 }}>{step}</Txt>
-          </View>
-        ))}
-      </View>
-    </Card>
-  );
-}
-
 const s = StyleSheet.create({
   quota: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Space.base, height: 44, borderRadius: Radius.sm, borderWidth: 1,
+    borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Space.base,
+    paddingVertical: Space.md, marginTop: Space.base,
   },
-  macroHeader: {
+  restRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  chipSection: { marginTop: Space.base },
+  chipLabel: { marginBottom: Space.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.xs },
+
+  // Complexity Selector
+  complexityGrid: {
     flexDirection: 'row',
+    gap: Space.sm,
+  },
+  complexityCard: {
+    flex: 1,
+    paddingVertical: Space.base,
+    paddingHorizontal: Space.xs,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Space.base,
+    justifyContent: 'flex-start',
+    position: 'relative',
+    minHeight: 110,
+  },
+  premiumBadge: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderTopRightRadius: Radius.lg,
+    borderBottomLeftRadius: Radius.md,
+  },
+
+  // Macro Center
+  macroHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: Space.base,
   },
   calIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  workoutBonusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-  },
-  macroBarTrack: {
-    height: 8,
-    flexDirection: 'row',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: Space.base,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  macroBarSeg: {
-    height: 8,
-  },
-  macroTrioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  macroTrioCard: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  macroDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 5,
-  },
-  figureRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 5 },
-  vline: { width: 1, height: 34, marginHorizontal: Space.sm },
-  restRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rowCentre: { flexDirection: 'row', alignItems: 'center' },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', marginRight: -Space.sm },
-  chip: { marginRight: Space.sm, marginBottom: Space.sm },
-  loading: {
-    height: 54, borderRadius: Radius.md, flexDirection: 'row',
+    width: 40, height: 40, borderRadius: 20, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
-  timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rotationHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.md },
-  breakRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Space.md },
-  breakNum: { width: 20 },
-  histRow: {
-    flexDirection: 'row', alignItems: 'center', padding: Space.base,
-    borderRadius: Radius.md, borderWidth: 1, marginBottom: Space.sm,
+  workoutBonusPill: {
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: Radius.pill, borderWidth: 1,
   },
-  timingGrid: { marginBottom: Space.sm },
-  timingTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Space.base,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Space.sm,
+  macroBarTrack: {
+    flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden',
+    marginBottom: Space.base,
   },
-  timeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    marginLeft: Space.md,
+  macroBarSeg: { height: 8 },
+  macroTrioRow: { flexDirection: 'row', marginTop: Space.xs },
+  macroTrioCard: {
+    flex: 1, padding: Space.sm, borderRadius: Radius.md, borderWidth: 1,
   },
-  reasonBox: {
-    padding: Space.base,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    marginBottom: Space.md,
+  macroDot: {
+    width: 7, height: 7, borderRadius: 4, marginRight: 5,
   },
-  breakCard: {
-    padding: Space.base,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginTop: Space.sm,
+
+  generateRow: { flexDirection: 'row', alignItems: 'center' },
+  generateBtn: { flex: 1 },
+  spinner: { marginLeft: Space.sm },
+
+  timingRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
   },
-  breakNumCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  timingCell: { flex: 1 },
+
+  planActions: {
+    flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm,
   },
-  workoutBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Space.base,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginTop: Space.base,
+  planAction: { flex: 1, marginRight: Space.sm },
+
+  cookedRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: Space.md, borderBottomWidth: 1,
+  },
+
+  breakStep: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingVertical: Space.md, borderBottomWidth: 1,
+  },
+  breakNum: {
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: Space.md, marginTop: 1,
+  },
+  breakText: { flex: 1 },
+
+  historyRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: Space.md, borderBottomWidth: 1,
+  },
+  historyInfo: { flex: 1, marginRight: Space.sm },
+
+  upsellBanner: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderRadius: Radius.md,
+    paddingHorizontal: Space.base, paddingVertical: Space.md,
+    marginTop: Space.base, marginBottom: Space.xl,
   },
 });

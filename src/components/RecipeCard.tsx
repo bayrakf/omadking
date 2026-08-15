@@ -111,7 +111,25 @@ export default function RecipeCard({
           </Txt>
         </TouchableOpacity>
       </View>
-      <Eyebrow style={{ marginTop: Space.xs }}>{t('recipe.prep', { min: plan.recipe.prep_time_min ?? 30 })}</Eyebrow>
+      <View style={s.cardTopRow}>
+        <Eyebrow style={{ marginTop: Space.xs }}>{t('recipe.prep', { min: plan.recipe.prep_time_min ?? 30 })}</Eyebrow>
+        {plan.complexity && plan.complexity !== 'balanced' && (
+          <View style={[
+            s.complexityBadge,
+            plan.complexity === 'chef'
+              ? { backgroundColor: '#2D1F0E', borderColor: '#F59E0B' }
+              : { backgroundColor: c.well, borderColor: c.line },
+          ]}>
+            <Txt
+              variant="eyebrow"
+              style={{ fontSize: 10, fontWeight: '800' }}
+              color={plan.complexity === 'chef' ? '#F59E0B' : c.textDim}
+            >
+              {plan.complexity === 'quick' ? '⚡ BLITZ · ≤15 MIN' : '👨‍🍳 CHEF-LEVEL'}
+            </Txt>
+          </View>
+        )}
+      </View>
       <Txt variant="heading" style={s.recipeTitle}>{plan.recipe.title}</Txt>
 
       {/* Stated plainly rather than hidden: a generic plate with no explanation
@@ -243,6 +261,11 @@ const s = StyleSheet.create({
     marginTop: Space.base,
   },
   recipeTitle: { marginTop: Space.xs, fontSize: 22, fontWeight: '700' },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Space.xs },
+  complexityBadge: {
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: Radius.pill, borderWidth: 1,
+  },
   fallback: {
     flexDirection: 'row',
     alignItems: 'center',

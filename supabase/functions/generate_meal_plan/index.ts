@@ -74,6 +74,102 @@ function buildPrompt(p: Record<string, any>): string {
     ? `Write ALL prose — the title, every ingredient line, the method and the reheating steps — in German, using the informal "du" where a person is addressed. Use German culinary terms and German supermarket ingredient names. Keep units metric (g, ml, EL, TL) and keep the JSON keys exactly as given below, in English.`
     : 'Write all prose in English. Keep units metric (g, ml, tbsp, tsp).';
 
+  /**
+   * Complexity block — the single biggest driver of what Gemini actually cooks.
+   *
+   * Three levels, each a self-contained constraint set:
+   *   quick    = one-pan, ≤15 min, ≤5 ingredients, no oven
+   *   balanced = meal-prep, ≤30 min, 2-3 components (default)
+   *   chef     = premium gourmet, multistep, plating note (premium-gated on client)
+   *
+   * The client gates chef behind Premium; the server trusts it without a
+   * server-side check because the only damage from spoofing it is a fancier
+   * recipe — not a quota bypass or data leak.
+   */
+  const complexity = String(p.complexity ?? 'balanced');
+
+  const complexityBlock = complexity === 'quick'
+    ? (language === 'de'
+      ? `KOCHSTUFE: BLITZ-REZEPT
+- Maximale Zubereitungszeit: 15 Minuten.
+- Maximal 1 Pfanne oder 1 Topf. Kein Ofen, keine Grillplatte.
+- Maximal 5 Zutaten (Öl, Salz und Pfeffer zählen nicht).
+- Keine Marinierzeit, keine Saucen, keine Beilagenkomponenten.
+- Bevorzuge bei Makro-Zwang: Eier, Hüttenkäse, Avocado, Thunfisch aus der Dose, Edamame.
+- Zubereitungsschritte: maximal 3, sehr kurz formuliert.
+- Aufwärmanleitung: ausschließlich Mikrowelle, 2 Minuten, kein Skillet nötig.
+Das Rezept muss für jemanden funktionieren, der nach der Arbeit müde ist und keine Zeit hat.`
+      : `COOKING LEVEL: BLITZ RECIPE (ultra-quick, one-pan)
+- Maximum prep + cook time: 15 minutes total.
+- Maximum 1 pan or pot. No oven, no grill.
+- Maximum 5 ingredients (oil, salt, pepper don't count).
+- No marinating time, no sauces, no separate side components.
+- Prioritise when macros allow: eggs, cottage cheese, avocado, canned tuna, edamame.
+- Method: 3 steps maximum, very brief.
+- Reheat: microwave only, 2 minutes, no skillet needed.
+This recipe must work for someone who is tired after work and has no time.`)
+    : complexity === 'chef'
+    ? (language === 'de'
+      ? `KOCHSTUFE: CHEF-LEVEL MAHLZEIT-ARCHITEKTUR
+
+Du bist ein Michelin-ausgezeichneter Sternekoch, der gleichzeitig Sporternährung auf Leistungssport-Niveau beherrscht. Der Athlet hat Premium gebucht — er erwartet ein Rezept, das sich wirklich besonders anfühlt, nicht die übliche Hähnchenbrust mit Reis.
+
+Was erlaubt und erwünscht ist:
+- Schmoren, Niedrigtemperatur-Garen (60–65 °C Kerntemperatur), Miso-Glasuren
+- Fermentierte Komponenten (Kimchi, Joghurt-Marinaden, Miso)
+- Mehrere Garmethoden kombiniert (anbraten + backen + dampfgaren)
+- Strukturierte Textur-Kontraste: knusprig / cremig / zart
+- Spezialzutaten sind willkommen: Miso, Tahini, Za'atar, Harissa, Sumach, Ponzu, Gochujang, Misopaste, Granatapfelmelasse
+- Bis zu 12 Zutaten
+- Zubereitungszeit 35–60 Minuten ist ausdrücklich akzeptabel
+
+Pflichtformat in der instructions-Zeichenkette:
+1. Beginne mit einem Flavour-Profile-Satz in Kursiv-Stil (ohne echtes Markdown):
+   "Geschmacksprofil: [Adjektiv 1], [Adjektiv 2], [Adjektiv 3] — [ein kurzer, poetischer Satz]."
+2. Dann die nummerierten Kochschritte wie üblich.
+3. Schließe mit einem "Anrichte-Hinweis:" am Ende der instructions ab.
+
+Aufwärmanleitung: hochwertig, alle 3 Methoden mit Textur-Hinweis was wie bleibt.
+Der Athlet bezahlt für dieses Erlebnis. Mach es denkwürdig.`
+      : `COOKING LEVEL: CHEF-LEVEL MEAL ARCHITECTURE
+
+You are a Michelin-starred chef who also masters sports nutrition at elite athlete level.
+The athlete has purchased Premium — they expect a recipe that feels genuinely special,
+not the usual chicken breast and rice.
+
+What is allowed and encouraged:
+- Braising, low-temperature cooking (60–65°C core temp), miso glazes
+- Fermented components (kimchi, yoghurt marinades, miso)
+- Multiple cooking methods combined (sear + roast + steam)
+- Structured texture contrasts: crispy / creamy / tender
+- Specialty ingredients welcome: miso, tahini, za'atar, harissa, sumac, ponzu, gochujang,
+  pomegranate molasses, preserved lemon, truffle oil (small amounts)
+- Up to 12 ingredients
+- Prep time of 35–60 minutes is explicitly acceptable
+
+Required format within the instructions string:
+1. Open with a Flavour Profile sentence (italic-style, no actual markdown):
+   "Flavour profile: [adjective], [adjective], [adjective] — [one poetic descriptive sentence]."
+2. Then numbered cooking steps as usual.
+3. Close with a "Plating note:" at the end of the instructions.
+
+Reheat: premium-quality for all 3 methods with a note on which textures hold and which don't.
+The athlete is paying for this experience. Make it memorable.`)
+    // balanced (default)
+    : (language === 'de'
+      ? `KOCHSTUFE: AUSGEWOGENE ALLTAGSMAHLZEIT (Meal-Prep tauglich)
+- Maximale Zubereitungszeit: 30 Minuten.
+- 2–3 Komponenten erlaubt: Protein + Kohlenhydrat + Gemüse separat gegart.
+- Ofen für Kohlenhydrate erlaubt (22 Min bei 200 °C), Pfanne für Protein.
+- Meal-Prep-Design: Rezept so konzipieren, dass es sich für 2 Tage im Voraus kochen lässt.
+- Aufwärmanleitung: Pfanne, Airfryer und Mikrowelle vollständig beschreiben.`
+      : `COOKING LEVEL: BALANCED EVERYDAY MEAL (meal-prep ready)
+- Maximum prep + cook time: 30 minutes.
+- 2–3 components allowed: protein + carbohydrate + vegetable, cooked separately.
+- Oven for carbs is fine (22 min at 200°C), pan for protein.
+- Meal-prep design: build the recipe so it can be batch-cooked for 2 days ahead.
+- Reheat: full instructions for skillet, air fryer and microwave.`);
+
   return `You are a Michelin-trained sports nutritionist. Return ONLY valid JSON — no markdown fences, no prose outside the JSON.
 
 Design ONE meal that hits these exact targets (do not change them):
@@ -85,13 +181,14 @@ ${timingNote}
 
 ${windowNote}
 
+${complexityBlock}
+
 ${languageNote}
 
-${avoid ? `HARD CONSTRAINT — the athlete cannot or will not eat: ${avoid}\nNo ingredient may contain any of it, including as a garnish or a sauce. If a target is impossible without it, get as close as you can and choose something they can eat.\n` : ''}
-Rules:
+${avoid ? `HARD CONSTRAINT — the athlete cannot or will not eat: ${avoid}\nNo ingredient may contain any of it, including as a garnish or a sauce. If a target is impossible without it, get as close as you can and choose something they can eat.\n` : ''}Rules:
 - Every ingredient needs an exact gram or millilitre amount, and the amounts must plausibly add up to the macro targets above.
 - Instructions: numbered culinary steps ("1. ", "2. ", ...), specific temperatures and times.
-- Reheat instructions: numbered, covering skillet, air fryer and microwave, because this is cooked the day before.
+- Reheat instructions: as specified by the cooking level above.
 - Real, buyable ingredients. No supplements as a main component.
 
 Return exactly this shape:

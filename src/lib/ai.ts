@@ -22,6 +22,12 @@ export class QuotaError extends Error {
 export type RecipeSource = 'ai' | 'offline';
 
 /**
+ * How much effort and sophistication Gemini puts into the recipe.
+ * quick = 1-pan, ≤15 min; balanced = meal-prep, ≤30 min; chef = gourmet, premium only.
+ */
+export type MealComplexity = 'quick' | 'balanced' | 'chef';
+
+/**
  * Why the built-in recipe appeared instead of a generated one.
  *
  * Every message says the same two things: this is the standard plate, and the
@@ -105,6 +111,8 @@ export type MealPlan = {
   /** The session this plan was built around; null on a rest day. */
   training_start_time: string | null;
   training_duration_min: number;
+  /** Which complexity level was requested when this plan was built. */
+  complexity: MealComplexity;
   recipe: Recipe;
 };
 
@@ -157,7 +165,8 @@ export async function generateMealPlan(
    * recipes to every German who never opened the setting.
    */
   lang: Lang,
-  measuredMaintenance?: number
+  measuredMaintenance?: number,
+  complexity: MealComplexity = 'balanced'
 ): Promise<MealPlan> {
   const targets = dailyTargets(profile, training, measuredMaintenance);
   const timing = mealTiming(profile, training);
@@ -208,6 +217,8 @@ export async function generateMealPlan(
         // The one personal field that has to go: a recipe nobody can eat is
         // worse than no recipe, and rejecting one used to cost a weekly plan.
         avoid: profile.avoid || undefined,
+        // Drives which prompt block the edge function injects.
+        complexity,
       }, TIMEOUT_PLAN_MS);
 
       if (res.status === 402) {
@@ -247,6 +258,7 @@ export async function generateMealPlan(
     timing_pattern: timing.pattern,
     training_start_time: training?.start_time ?? null,
     training_duration_min: training?.duration_min ?? 0,
+    complexity,
     recipe_source: recipe ? 'ai' : 'offline',
     recipe_note: recipe ? null : describeRecipeFallback(reason, detail),
     recipe: recipe ?? offlineRecipe(profile, training, targets, lang),
