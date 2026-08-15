@@ -1,4 +1,5 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
 import { Txt, useTheme, Eyebrow } from './ui';
 import { Icon } from './icons';
@@ -9,6 +10,7 @@ interface MetabolicStageBarProps {
 
 export function MetabolicStageBar({ hoursFasted }: MetabolicStageBarProps) {
   const c = useTheme();
+  const router = useRouter();
 
   const stages = [
     {
@@ -61,14 +63,18 @@ export function MetabolicStageBar({ hoursFasted }: MetabolicStageBarProps) {
   const activeStage = stages[activeIndex];
 
   return (
-    <View style={[s.card, { backgroundColor: c.surface, borderColor: c.line }]}>
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => router.push('/timer')}
+      style={[s.card, { backgroundColor: c.surface, borderColor: c.line }]}
+    >
       <View style={s.headRow}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={[s.iconBox, { backgroundColor: activeStage.wash }]}>
             <Icon name="flame" size={16} color={activeStage.color} />
           </View>
           <View style={{ marginLeft: Space.sm }}>
-            <Eyebrow color={activeStage.color}>Aktuelle Phase</Eyebrow>
+            <Eyebrow color={activeStage.color}>Aktuelle Phase · Tap für Vollbild</Eyebrow>
             <Txt variant="subheading" style={{ fontSize: 16, fontWeight: '800', marginTop: 1 }}>
               {activeStage.label} ({hoursFasted.toFixed(1)}h gefastet)
             </Txt>
@@ -131,7 +137,7 @@ export function MetabolicStageBar({ hoursFasted }: MetabolicStageBarProps) {
           {activeStage.desc}
         </Txt>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
