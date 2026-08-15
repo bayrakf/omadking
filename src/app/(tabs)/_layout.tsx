@@ -1,16 +1,28 @@
 import { Tabs } from 'expo-router';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Type, Space, Radius, MaxContentWidth } from '@/constants/theme';
+import { Type, Space, Radius, MaxContentWidth, type ThemePalette } from '@/constants/theme';
 import { useTheme } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 
-const TABS: Record<string, { icon: IconName; label: string }> = {
-  index: { icon: 'home', label: 'Today' },
-  planner: { icon: 'plate', label: 'Plan' },
-  progress: { icon: 'chart', label: 'Progress' },
-  grocery: { icon: 'basket', label: 'Shop' },
-  profile: { icon: 'user', label: 'You' },
+/**
+ * Each tab carries the hue its screen is built from, so the bar doubles as the
+ * legend for the whole palette: green is food, violet is your body, teal is the
+ * fast. Learn it once at the bottom of the screen and every tinted card
+ * elsewhere is already labelled.
+ *
+ * Plan and Shop share green because they are one subject — the meal and the
+ * things it is made of. Giving them separate colours would invent a
+ * distinction the product does not have.
+ */
+type TabMeta = { icon: IconName; label: string; hue: (c: ThemePalette) => string };
+
+const TABS: Record<string, TabMeta> = {
+  index: { icon: 'home', label: 'Today', hue: (c) => c.accent },
+  planner: { icon: 'plate', label: 'Plan', hue: (c) => c.plan },
+  progress: { icon: 'chart', label: 'Progress', hue: (c) => c.body },
+  grocery: { icon: 'basket', label: 'Shop', hue: (c) => c.plan },
+  profile: { icon: 'user', label: 'You', hue: (c) => c.accent },
 };
 
 function TabBar({ state, navigation }: any) {
@@ -22,7 +34,8 @@ function TabBar({ state, navigation }: any) {
       <View style={[styles.bar, { backgroundColor: c.surface, borderColor: c.line }]}>
         {state.routes.map((route: any, index: number) => {
           const focused = state.index === index;
-          const meta = TABS[route.name] ?? { icon: 'home' as IconName, label: route.name };
+          const meta = TABS[route.name] ?? { icon: 'home' as IconName, label: route.name, hue: (t: ThemePalette) => t.accent };
+          const hue = meta.hue(c);
 
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -38,11 +51,11 @@ function TabBar({ state, navigation }: any) {
               accessibilityState={{ selected: focused }}
               accessibilityLabel={meta.label}
             >
-              <Icon name={meta.icon} size={21} color={focused ? c.accent : c.textFaint} />
+              <Icon name={meta.icon} size={21} color={focused ? hue : c.textFaint} />
               <Text
                 style={[
                   Type.eyebrow,
-                  { color: focused ? c.accent : c.textFaint, marginTop: 5, textTransform: 'uppercase' },
+                  { color: focused ? hue : c.textFaint, marginTop: 5, textTransform: 'uppercase' },
                 ]}
               >
                 {meta.label}

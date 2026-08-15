@@ -141,7 +141,14 @@ export default function GroceryScreen() {
       {categories.map((cat, catIdx) => (
         <Enter key={cat.name} index={2 + catIdx}>
           <Card style={{ marginBottom: Space.md, paddingVertical: Space.sm }}>
-            <Eyebrow style={{ paddingVertical: Space.md }}>{cat.name}</Eyebrow>
+            {/* The emoji has been on the category since `grocery.ts` was
+                written and was never rendered. A shopping list is scanned in a
+                shop, at arm's length, and a shape found before a word is read
+                is worth more here than anywhere else in the app. */}
+            <View style={s.catHead}>
+              <Txt variant="body" style={s.catEmoji}>{cat.emoji}</Txt>
+              <Eyebrow>{cat.name}</Eyebrow>
+            </View>
             {cat.items.map((item, i) => (
               <View key={item.id}>
                 {i > 0 && <Divider />}
@@ -187,6 +194,8 @@ export default function GroceryScreen() {
 }
 
 const s = StyleSheet.create({
+  catHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: Space.md },
+  catEmoji: { marginRight: Space.sm },
   tools: { flexDirection: 'row', marginBottom: Space.base },
   tool: {
     flexDirection: 'row', alignItems: 'center', minHeight: 34, paddingVertical: 4,

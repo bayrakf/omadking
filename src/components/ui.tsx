@@ -543,7 +543,10 @@ export function PairedBars({
                   style={[
                     styles.pairBar,
                     {
-                      backgroundColor: d.target === null ? c.well : c.lineStrong,
+                      // `textFaint`, not `lineStrong`: the same floor the day
+                      // band needed. lineStrong against a dark card is about
+                      // 1.6:1 — drawn, and gone.
+                      backgroundColor: d.target === null ? c.well : c.textFaint,
                       height: Math.max(2, ((d.target ?? 0) / peak) * height),
                     },
                   ]}
