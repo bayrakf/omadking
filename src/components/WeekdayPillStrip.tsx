@@ -7,12 +7,14 @@ import { useLang } from './lang';
 
 interface WeekdayPillStripProps {
   fastLog?: string[];
+  streak?: number;
   selectedDate?: string;
   onSelectDate?: (date: string) => void;
 }
 
 export function WeekdayPillStrip({
   fastLog = [],
+  streak = 0,
   selectedDate,
   onSelectDate,
 }: WeekdayPillStripProps) {
@@ -58,13 +60,23 @@ export function WeekdayPillStrip({
         <Txt variant="subheading" style={{ fontSize: 15, fontWeight: '700', color: c.text }}>
           {formatReadableDate(currentSelected, lang)}
         </Txt>
-        {currentSelected === today && (
-          <View style={[s.todayBadge, { backgroundColor: c.accentWash, borderColor: c.accent }]}>
-            <Txt variant="data" color={c.accent} style={{ fontSize: 10, fontWeight: '800' }}>
-              {lang === 'de' ? 'HEUTE' : 'TODAY'}
-            </Txt>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {streak > 0 && (
+            <View style={[s.todayBadge, { backgroundColor: c.emberWash, borderColor: c.ember, marginRight: 6, flexDirection: 'row', alignItems: 'center' }]}>
+              <Icon name="flame" size={10} color={c.ember} />
+              <Txt variant="data" color={c.ember} style={{ fontSize: 10, fontWeight: '800', marginLeft: 3 }}>
+                {streak} {lang === 'de' ? (streak === 1 ? 'TAG' : 'TAGE') : (streak === 1 ? 'DAY' : 'DAYS')}
+              </Txt>
+            </View>
+          )}
+          {currentSelected === today && (
+            <View style={[s.todayBadge, { backgroundColor: c.accentWash, borderColor: c.accent }]}>
+              <Txt variant="data" color={c.accent} style={{ fontSize: 10, fontWeight: '800' }}>
+                {lang === 'de' ? 'HEUTE' : 'TODAY'}
+              </Txt>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* 7-Day Pill Strip */}

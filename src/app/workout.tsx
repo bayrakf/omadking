@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
 import { Screen, Card, Txt, Eyebrow, Enter, Button, useTheme, PageHeader, SegmentedControl } from '@/components/ui';
@@ -184,6 +184,11 @@ export default function WorkoutScreen() {
           title={t('workout.title')}
           sub={t('workout.sub')}
         />
+        <Image
+          source={require('../../assets/images/fasted_workout_hero.jpg')}
+          style={s.heroImage}
+          resizeMode="cover"
+        />
 
         {/* Filter Chips */}
         <SegmentedControl
@@ -321,6 +326,12 @@ export default function WorkoutScreen() {
 }
 
 const s = StyleSheet.create({
+  heroImage: {
+    width: '100%',
+    height: 160,
+    borderRadius: Radius.lg,
+    marginBottom: Space.base,
+  },
   card: {
     borderRadius: Radius.lg,
     borderWidth: 1,

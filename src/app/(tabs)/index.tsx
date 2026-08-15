@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
@@ -9,9 +9,7 @@ import { useLang } from '@/components/lang';
 import { Icon, type IconName } from '@/components/icons';
 import { DayBand } from '@/components/DayBand';
 import { WeekdayPillStrip } from '@/components/WeekdayPillStrip';
-import { StreakBanner } from '@/components/StreakBanner';
 import { FastingFeelingBar } from '@/components/FastingFeelingBar';
-import { MetabolicStageBar } from '@/components/MetabolicStageBar';
 import { BentoGrid, BentoTile } from '@/components/BentoGrid';
 import {
   dailyTargets, fastingState, fastingStage, formatCountdown, hydrationTargetMl, toMinutes, DEFAULT_PROFILE,
@@ -220,7 +218,7 @@ export default function DashboardScreen() {
           eyebrow={dateLabel}
           title={fast.isEating ? t('today.windowOpen') : t('today.fasting')}
         />
-        <WeekdayPillStrip fastLog={fastLog} />
+        <WeekdayPillStrip fastLog={fastLog} streak={streak} />
       </Enter>
 
       <Enter index={1}>
@@ -264,14 +262,8 @@ export default function DashboardScreen() {
         <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
       </Enter>
 
-      <Enter index={2}>
-        <StreakBanner streak={streak} fastLog={fastLog} />
-        {!fast.isEating && <MetabolicStageBar hoursFasted={hoursFasted} />}
-        <FastingFeelingBar />
-      </Enter>
-
       {/* 2x2 Vibrant Bento Grid */}
-      <Enter index={3}>
+      <Enter index={2}>
         <BentoGrid>
           <BentoTile
             title={t('today.bentoPhase')}
@@ -340,6 +332,10 @@ export default function DashboardScreen() {
             onPress={() => router.push('/progress')}
           />
         </BentoGrid>
+      </Enter>
+
+      <Enter index={3}>
+        <FastingFeelingBar />
       </Enter>
 
       {/* Asked about the day the eating window belonged to */}
@@ -566,11 +562,65 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
+      {/* Visual Showcase Cards */}
+      <Enter index={8} style={{ marginTop: Space.xl }}>
+        <Eyebrow style={{ marginBottom: Space.md }}>OMAD Training & Rezepte</Eyebrow>
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={() => router.push('/workout')}
+          style={[s.showcaseCard, { borderColor: c.line }]}
+        >
+          <Image
+            source={require('../../../../assets/images/fasted_workout_hero.jpg')}
+            style={s.showcaseImage}
+            resizeMode="cover"
+          />
+          <View style={s.showcaseOverlay} />
+          <View style={s.showcaseContent}>
+            <View style={[s.badgePill, { backgroundColor: '#FF6B4A' }]}>
+              <Txt variant="eyebrow" color="#080C14" style={{ fontSize: 10, fontWeight: '800' }}>
+                OMAD TRAINING
+              </Txt>
+            </View>
+            <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 18, fontWeight: '800', marginTop: 4 }}>
+              Gefastetes Workout & Hypertrophie
+            </Txt>
+            <Txt variant="small" color="rgba(255, 255, 255, 0.85)" style={{ marginTop: 2 }}>
+              6 Einheiten mit automatischer Makro- & Kalorien-Synchronisation
+            </Txt>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={() => router.push('/planner')}
+          style={[s.showcaseCard, { borderColor: c.line, marginTop: Space.md }]}
+        >
+          <Image
+            source={require('../../../../assets/images/omad_plate_hero.jpg')}
+            style={s.showcaseImage}
+            resizeMode="cover"
+          />
+          <View style={s.showcaseOverlay} />
+          <View style={s.showcaseContent}>
+            <View style={[s.badgePill, { backgroundColor: '#F59E0B' }]}>
+              <Txt variant="eyebrow" color="#080C14" style={{ fontSize: 10, fontWeight: '800' }}>
+                {plan ? 'HEUTIGER OMAD TELLER' : 'MAHLZEIT PLANEN'}
+              </Txt>
+            </View>
+            <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 18, fontWeight: '800', marginTop: 4 }}>
+              {plan ? plan.recipe.title : 'Nährstoffreiche OMAD-Hauptmahlzeit'}
+            </Txt>
+            <Txt variant="small" color="rgba(255, 255, 255, 0.85)" style={{ marginTop: 2 }}>
+              {kcal} kcal · {protein}g Protein · Zeitfenster {fast.windowStart}–{fast.windowEnd}
+            </Txt>
+          </View>
+        </TouchableOpacity>
+      </Enter>
+
       <Enter index={9} style={{ marginTop: Space.xl }}>
-        <Eyebrow style={{ marginBottom: Space.md }}>Mehr Entdecken</Eyebrow>
-        <NavRow icon="flame" tone="ember" title={t('workout.title')} sub={t('workout.sub')} onPress={() => router.push('/workout')} />
-        {plan && <NavRow icon="plate" tone="plan" title="Heutiges Rezept" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
-        <NavRow icon="basket" tone="plan" title="Einkaufsliste" sub="Zutaten aus deinen Plänen" onPress={() => router.push('/grocery')} />
+        <Eyebrow style={{ marginBottom: Space.md }}>Schnellzugriff & Tools</Eyebrow>
+        <NavRow icon="basket" tone="plan" title="Einkaufsliste" sub="Zutaten aus deinen Plänen sortiert nach Regal" onPress={() => router.push('/grocery')} />
         <NavRow icon="chart" tone="body" title="Verlauf & Trend" sub="Gewicht, Kalibrierung & Historie" onPress={() => router.push('/progress')} />
         <NavRow icon="coach" title="Fasten-Coach" sub="KI-Beratung für Fasten & Makros" onPress={() => router.push('/chat')} />
       </Enter>
@@ -637,4 +687,36 @@ const s = StyleSheet.create({
   weighBtn: { width: 44, height: 44, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   bentoActions: { flexDirection: 'row', alignItems: 'center', marginTop: Space.xs },
   miniPill: { height: 26, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  showcaseCard: {
+    height: 140,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+  },
+  showcaseImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  showcaseOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(8, 12, 20, 0.65)',
+  },
+  showcaseContent: {
+    flex: 1,
+    padding: Space.base,
+    justifyContent: 'flex-end',
+  },
+  badgePill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    marginBottom: 2,
+  },
 });

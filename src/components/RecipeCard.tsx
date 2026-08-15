@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
 import { Card, Txt, Eyebrow, Tap, useTheme, useTone } from './ui';
 import { useT } from './lang';
@@ -76,7 +76,12 @@ export default function RecipeCard({
 
   return (
     <Card style={{ marginTop: Space.md }}>
-      <Eyebrow>{t('recipe.prep', { min: plan.recipe.prep_time_min ?? 30 })}</Eyebrow>
+      <Image
+        source={require('../../assets/images/omad_plate_hero.jpg')}
+        style={s.foodImage}
+        resizeMode="cover"
+      />
+      <Eyebrow style={{ marginTop: Space.xs }}>{t('recipe.prep', { min: plan.recipe.prep_time_min ?? 30 })}</Eyebrow>
       <Txt variant="heading" style={s.recipeTitle}>{plan.recipe.title}</Txt>
 
       {/* Stated plainly rather than hidden: a generic plate with no explanation
@@ -178,6 +183,12 @@ export default function RecipeCard({
 }
 
 const s = StyleSheet.create({
+  foodImage: {
+    width: '100%',
+    height: 170,
+    borderRadius: Radius.md,
+    marginBottom: Space.sm,
+  },
   subCard: {
     padding: Space.base,
     borderRadius: Radius.lg,
