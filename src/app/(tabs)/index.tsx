@@ -259,7 +259,7 @@ export default function DashboardScreen() {
             <View style={[s.heroBadge, { backgroundColor: fast.isEating ? c.emberWash : c.heroTrack }]}>
               <Icon name={fast.isEating ? 'plate' : 'flame'} size={14} color={fast.isEating ? c.ember : c.onHero} />
               <Txt variant="data" color={fast.isEating ? c.ember : c.onHero} style={{ marginLeft: 5, fontSize: 11, fontWeight: '700' }}>
-                {fast.isEating ? 'ESSENSFENSTER' : 'FASTEN LÄUFT'}
+                {fast.isEating ? t('today.windowEating') : t('today.windowRunning')}
               </Txt>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -305,13 +305,18 @@ export default function DashboardScreen() {
       {/* Vibrant Bento Grid */}
       <Enter index={2}>
         <BentoGrid>
+          {/* "approximate" in the subtitle is not decoration. The stage is
+              inferred from a clock, not measured from this person, and the
+              app's standing rule is that it states no figure it did not
+              compute from the user's own data without saying so. The word was
+              dropped when the dial became a bento tile. */}
           <BentoTile
             title={t('today.bentoPhase')}
             value={stage.label}
-            badge={hoursFasted >= 18 ? 'Autophagie' : hoursFasted >= 12 ? 'Ketose' : 'Glukose'}
+            badge={hoursFasted >= 18 ? t('phase.autophagy') : hoursFasted >= 12 ? t('phase.ketosis') : t('phase.glucose')}
             icon="flame"
             hue="body"
-            subtitle={`${hoursFasted.toFixed(1)}h gefastet · 24h Bio-Guide`}
+            subtitle={t('today.fastedFor', { hours: hoursFasted.toFixed(1) })}
             actionLabel="Guide"
             onPress={() => setShowMetabolic(true)}
           />
@@ -369,7 +374,7 @@ export default function DashboardScreen() {
             badge={weighedToday ? 'Gewogen ✓' : 'Offen'}
             icon="chart"
             hue="plan"
-            subtitle={weighedToday ? 'Tagesgewicht erfasst' : 'Noch wiegen für Trend'}
+            subtitle={weighedToday ? t('today.weighedToday') : t('today.notWeighed')}
             actionLabel="Verlauf"
             onPress={() => router.push('/progress')}
           />
@@ -408,7 +413,7 @@ export default function DashboardScreen() {
             badge="Food-Coma"
             icon="shield"
             hue="plan"
-            subtitle="1. Brühe → 2. Protein → 3. Carbs"
+            subtitle={t('today.breakProtocol')}
             actionLabel="Guide"
             onPress={() => setShowBreakFast(true)}
           />
@@ -545,7 +550,7 @@ export default function DashboardScreen() {
             {next && nextMins < 60 && (
               <View style={[s.badgePill, { backgroundColor: nextColor, paddingHorizontal: 8, paddingVertical: 3 }]}>
                 <Txt variant="eyebrow" color="#080C14" style={{ fontSize: 10, fontWeight: '800' }}>
-                  {nextMins <= 0 ? 'JETZT FÄLLIG' : `IN ${Math.round(nextMins)} MIN`}
+                  {nextMins <= 0 ? t('today.dueNow') : t('today.dueIn', { min: Math.round(nextMins) })}
                 </Txt>
               </View>
             )}
@@ -625,9 +630,9 @@ export default function DashboardScreen() {
       {!weighedToday && (
         <Enter index={6}>
           <Card style={{ marginTop: Space.base }} tone="body">
-            <Eyebrow style={{ marginBottom: Space.sm }}>Tages-Wägung</Eyebrow>
+            <Eyebrow style={{ marginBottom: Space.sm }}>{t('today.dailyWeighIn')}</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginBottom: Space.md }}>
-              Erfasse dein morgendliches Gewicht für die Stoffwechsel-Messung.
+              {t('today.dailyWeighInSub')}
             </Txt>
             <View style={s.weighRow}>
               <TextInput
@@ -720,7 +725,7 @@ export default function DashboardScreen() {
               </Txt>
             </View>
             <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 18, fontWeight: '800', marginTop: 4 }}>
-              {plan ? plan.recipe.title : 'Nährstoffreiche OMAD-Hauptmahlzeit'}
+              {plan ? plan.recipe.title : t('today.defaultMeal')}
             </Txt>
             <Txt variant="small" color="rgba(255, 255, 255, 0.85)" style={{ marginTop: 2 }}>
               {kcal} kcal · {protein}g Protein · Zeitfenster {fast.windowStart}–{fast.windowEnd}

@@ -358,14 +358,14 @@ export default function ProgressScreen() {
           <Card tone="body" style={{ marginBottom: Space.base }}>
             <View style={s.split}>
               <View style={{ flex: 1 }}>
-                <Eyebrow color={c.body}>Aktuelles Gewicht</Eyebrow>
+                <Eyebrow color={c.body}>{t('card.currentWeight')}</Eyebrow>
                 <View style={s.figRow}>
                   <Txt variant="display" style={{ fontSize: 36, fontWeight: '800' }}>{current.toFixed(1)}</Txt>
                   <Txt variant="data" color={c.textFaint} style={{ marginLeft: 4, fontSize: 16 }}>kg</Txt>
                 </View>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Eyebrow color={c.body}>Seit Beginn</Eyebrow>
+                <Eyebrow color={c.body}>{t('card.sinceStart')}</Eyebrow>
                 <View style={[s.changeBadge, { backgroundColor: good ? c.planWash : c.well }]}>
                   <Txt
                     variant="heading"
@@ -385,7 +385,7 @@ export default function ProgressScreen() {
                 </View>
                 <Divider style={{ marginVertical: Space.sm }} />
                 <View style={s.split}>
-                  <Txt variant="small" color={c.textDim}>Wöchentlicher Trend</Txt>
+                  <Txt variant="small" color={c.textDim}>{t('card.weeklyTrend')}</Txt>
                   <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
                     {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg / Woche`}
                   </Txt>
@@ -393,13 +393,13 @@ export default function ProgressScreen() {
               </>
             ) : (
               <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
-                Trage mindestens 2 Wägungen ein, um den Kurvenverlauf zu sehen.
+                {t('card.needTwoWeighIns')}
               </Txt>
             )}
 
             <View style={{ marginTop: Space.base }}>
               <View style={[s.split, { marginBottom: 6 }]}>
-                <Eyebrow>Ziel-Fortschritt ({profile.goal.replace('_', ' ')})</Eyebrow>
+                <Eyebrow>{t('card.goalProgress')} ({profile.goal.replace('_', ' ')})</Eyebrow>
                 <Txt variant="data" color={c.textDim}>{pct.toFixed(0)}% · BMI {bmi.toFixed(1)} ({bmiLabel})</Txt>
               </View>
               <Bar pct={pct} color={c.body} />
@@ -415,7 +415,7 @@ export default function ProgressScreen() {
           <Enter index={2}>
             <Card style={{ marginBottom: Space.base }}>
               <View style={s.split}>
-                <Eyebrow>Plan vs. Waage</Eyebrow>
+                <Eyebrow>{t('card.planVsScale')}</Eyebrow>
                 <Txt variant="data" color={c.textFaint}>{gap.gapKcal} kcal / Tag Differenz</Txt>
               </View>
               <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{gap.note}</Txt>
@@ -443,8 +443,8 @@ export default function ProgressScreen() {
         <Enter index={2}>
           <Card style={{ marginBottom: Space.base }}>
             <View style={s.split}>
-              <Eyebrow color={c.accent}>Kalorienbilanz diese Woche</Eyebrow>
-              <Txt variant="data" color={c.textFaint}>Plan vs. Tatsächlich</Txt>
+              <Eyebrow color={c.accent}>{t('card.calorieBalance')}</Eyebrow>
+              <Txt variant="data" color={c.textFaint}>{t('card.planVsActual')}</Txt>
             </View>
             <View style={{ marginTop: Space.sm }}>
               <PairedBars days={eaten} height={76} />
@@ -456,7 +456,7 @@ export default function ProgressScreen() {
           <Enter index={2}>
             <Card style={{ marginBottom: Space.base }}>
               <View style={s.split}>
-                <Eyebrow>Wochen-Kalorienbudget</Eyebrow>
+                <Eyebrow>{t('card.weekBudget')}</Eyebrow>
                 <Txt variant="data" color={budget.perDayLeft < 0 ? c.ember : c.textFaint}>
                   {budget.daysLeft > 0 ? `noch ${budget.daysLeft} Tage` : 'Woche beendet'}
                 </Txt>
@@ -473,9 +473,9 @@ export default function ProgressScreen() {
         {aheadDays.length > 0 && budget && (
           <Enter index={2}>
             <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>Besonderer Anlass / Schummeltag</Eyebrow>
+              <Eyebrow>{t('card.bigDay')}</Eyebrow>
               <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-                Wähle den Tag und wie viele Kalorien du voraussichtlich mehr benötigst.
+                {t('card.bigDayPick')}
               </Txt>
 
               <View style={s.segments as any}>
@@ -546,13 +546,13 @@ export default function ProgressScreen() {
                     </>
                   ) : (
                     <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                      Dieser Tag liegt außerhalb des aktuellen Wochenbudgets.
+                      {t('card.bigDayOutside')}
                     </Txt>
                   )
                 ) : (
                   <>
                     <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                      Premium berechnet die restlichen Tage automatisch neu, um den Überschuss auszugleichen.
+                      {t('card.bigDayPremium')}
                     </Txt>
                     {cards.sell === 'ahead' && (
                       <Button
@@ -571,7 +571,7 @@ export default function ProgressScreen() {
         {review && (
           <Enter index={3}>
             <Card style={{ marginBottom: Space.base }} tone={review.sparse ? 'default' : 'accent'}>
-              <Eyebrow>Rückblick letzte 7 Tage</Eyebrow>
+              <Eyebrow>{t('card.last7')}</Eyebrow>
               {review.sparse ? (
                 <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
                   {review.consequence}
@@ -581,17 +581,17 @@ export default function ProgressScreen() {
                   <View style={s.reviewRow}>
                     <View style={s.reviewCell}>
                       <Txt variant="heading" style={s.reviewFigure}>{review.fastDays}<Txt variant="small" color={c.textFaint}>/7</Txt></Txt>
-                      <Txt variant="small" color={c.textDim}>Fastentage</Txt>
+                      <Txt variant="small" color={c.textDim}>{t('card.fastDays')}</Txt>
                     </View>
                     <Divider style={s.reviewLine} />
                     <View style={s.reviewCell}>
                       <Txt variant="heading" style={s.reviewFigure}>{review.cookDays}</Txt>
-                      <Txt variant="small" color={c.textDim}>Gekocht</Txt>
+                      <Txt variant="small" color={c.textDim}>{t('card.cooked')}</Txt>
                     </View>
                     <Divider style={s.reviewLine} />
                     <View style={s.reviewCell}>
                       <Txt variant="heading" style={s.reviewFigure}>{review.weighIns}</Txt>
-                      <Txt variant="small" color={c.textDim}>Wägungen</Txt>
+                      <Txt variant="small" color={c.textDim}>{t('card.weighIns')}</Txt>
                     </View>
                   </View>
                   <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
@@ -622,7 +622,7 @@ export default function ProgressScreen() {
         {need && !need.ready && (
           <Enter index={1}>
             <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>Kalibrierung läuft</Eyebrow>
+              <Eyebrow>{t('card.calibrating')}</Eyebrow>
               <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{need.note}</Txt>
             </Card>
           </Enter>
@@ -632,11 +632,11 @@ export default function ProgressScreen() {
           <Enter index={1}>
             <Card style={{ marginBottom: Space.base }} tone="body">
               <View style={s.split}>
-                <Eyebrow color={measured.kcal ? c.body : undefined}>Tatsächlicher Energiebedarf</Eyebrow>
+                <Eyebrow color={measured.kcal ? c.body : undefined}>{t('card.actualNeed')}</Eyebrow>
                 {measured.kcal !== null && (
                   <View style={[s.changeBadge, { backgroundColor: c.bodyWash }]}>
                     <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
-                      {measured.confidence === 'good' ? 'Gemessen' : 'Frühe Messung'}
+                      {measured.confidence === 'good' ? t('card.measured') : t('card.earlyMeasure')}
                     </Txt>
                   </View>
                 )}
@@ -700,7 +700,7 @@ export default function ProgressScreen() {
         {cycle && (
           <Enter index={2}>
             <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow color={c.plan}>Kalorienverteilung Training vs. Pause</Eyebrow>
+              <Eyebrow color={c.plan}>{t('card.trainingSplit')}</Eyebrow>
               {premium ? (
                 <>
                   <View style={[s.split, { marginTop: Space.md }]}>
@@ -736,13 +736,13 @@ export default function ProgressScreen() {
         {pattern && (pattern.worst || pattern.note || pattern.missing) && (
           <Enter index={3}>
             <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>Wochentags-Muster</Eyebrow>
+              <Eyebrow>{t('card.weekdayPattern')}</Eyebrow>
               <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
                 {pattern.missing
-                  ? `Noch nicht genügend Tage für ein klares Muster erfasst.`
+                  ? t('card.noPatternYet')
                   : premium || !pattern.worst
                   ? pattern.note
-                  : 'Deine Tage unterscheiden sich — einer läuft regelmäßig aus dem Ruder. Premium analysiert den Unterschied.'}
+                  : t('card.patternPremium')}
               </Txt>
               {!pattern.missing && cards.sell === 'pattern' && (
                 <Button
@@ -759,7 +759,7 @@ export default function ProgressScreen() {
           <Enter index={4}>
             <Card style={{ marginBottom: Space.base }}>
               <View style={s.split}>
-                <Eyebrow>Ziel-Prognose</Eyebrow>
+                <Eyebrow>{t('card.forecast')}</Eyebrow>
                 {premium && outlook.weeks !== null && (
                   <Txt variant="data" color={c.accent}>{outlook.weeks} Wochen</Txt>
                 )}
@@ -767,7 +767,7 @@ export default function ProgressScreen() {
               <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
                 {premium
                   ? outlook.note
-                  : 'Premium berechnet, wie lange dein Ziel realistisch dauert, unter Berücksichtigung der Stoffwechselanpassung.'}
+                  : t('card.forecastPremium')}
               </Txt>
               {cards.sell === 'outlook' && (
                 <Button
@@ -789,7 +789,7 @@ export default function ProgressScreen() {
         {best && (
           <Enter index={1}>
             <Card style={{ marginBottom: Space.base }} tone="plan">
-              <Eyebrow color={c.plan}>Gemeinsamkeiten deiner besten Wochen</Eyebrow>
+              <Eyebrow color={c.plan}>{t('card.bestWeeks')}</Eyebrow>
               <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
                 {best.differences.length === 0 || premium
                   ? best.note
@@ -809,11 +809,11 @@ export default function ProgressScreen() {
         {months && (
           <Enter index={2}>
             <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>Monatlicher Vergleich</Eyebrow>
+              <Eyebrow>{t('card.monthly')}</Eyebrow>
               <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
                 {premium
                   ? months.note
-                  : 'Du hast genügend Daten für einen Monatsvergleich. Premium zeigt, wie sich dein Stoffwechsel verändert hat.'}
+                  : t('card.monthlyPremium')}
               </Txt>
               {cards.sell === 'months' && (
                 <Button
@@ -829,7 +829,7 @@ export default function ProgressScreen() {
         {entries.length > 0 ? (
           <Enter index={3}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.md, marginTop: Space.sm }}>
-              <Eyebrow color={c.body}>Wäge-Historie</Eyebrow>
+              <Eyebrow color={c.body}>{t('card.weighHistory')}</Eyebrow>
               <TouchableOpacity
                 onPress={() => {
                   if (Platform.OS === 'web' && typeof window !== 'undefined') {

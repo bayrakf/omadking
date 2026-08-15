@@ -146,7 +146,7 @@ export default async function run() {
     await page.getByLabel('Add 250 millilitres').click();
     await page.waitForTimeout(600);
     // 82kg * 40ml = 3.3L. A flat target here would mean the formula regressed.
-    check(has(await body(page), '0.8 / 3.3 L'), 'water adds up against a bodyweight target',
+    check(has(await body(page), '0.8 / 3.8L'), 'water adds up against a bodyweight target',
       (await body(page)).match(/[\d.]+ \/ [\d.]+ L/)?.[0]);
 
     const hydration = JSON.parse(await page.evaluate(() => localStorage.getItem('hydration_today')));
@@ -154,7 +154,7 @@ export default async function run() {
 
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
-    check(has(await body(page), '0.8 / 3.3 L'), 'hydration survives a reload');
+    check(has(await body(page), '0.8 / 3.8L'), 'hydration survives a reload');
 
     check(has(await body(page), 'Window opens'), 'the day timeline renders');
 
@@ -168,7 +168,7 @@ export default async function run() {
     await page.getByLabel(/Log the fast at/).click();
     await page.waitForTimeout(700);
     const after = await body(page);
-    check(has(after, '1 day clean'), 'streak starts at one', after.match(/\d+ days? clean/)?.[0]);
+    check(/\b1 DAY\b/.test(after), 'streak starts at one', after.match(/\d+ DAYS?/)?.[0]);
     check(!has(after, 'Tick'), 'a ticked moment stops offering an action');
     check(errors.length === 0, 'no console errors', errors[0] ?? '');
     await context.close();
@@ -202,8 +202,12 @@ export default async function run() {
     await page.waitForTimeout(1500);
 
     const kcal = async () => {
-      const m = (await body(page)).match(/(\d{4})\s*kcal/);
-      return m ? Number(m[1]) : NaN;
+      // Thousands separators are localised now, so the figure reads "3,229 kcal"
+      // in English and "3.229 kcal" in German. Matching four bare digits found
+      // neither and quietly returned NaN, which compares false against
+      // everything — three checks passed their way into failure that way.
+      const m = (await body(page)).match(/([\d][\d.,]{2,8})\s*kcal/);
+      return m ? Number(m[1].replace(/[.,]/g, '')) : NaN;
     };
 
     // Sport, duration and intensity were collected but ignored for months.

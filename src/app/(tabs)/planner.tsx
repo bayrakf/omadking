@@ -293,7 +293,12 @@ export default function PlannerScreen() {
                         </Eyebrow>
                         <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 2 }}>
                           <Txt variant="hero" color={c.text} style={{ fontSize: 28, lineHeight: 32, fontWeight: '800' }}>
-                            {totalKcal.toLocaleString('de-DE')}
+                            {/* The separator follows the language, not the author's keyboard.
+                                Hard-coded 'de-DE' printed "3.229 kcal" to an
+                                English reader, who reads that as three point
+                                two — the one number on the screen, rendered
+                                wrong by a factor of a thousand. */}
+                            {totalKcal.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')}
                           </Txt>
                           <Txt variant="subheading" color={c.textDim} style={{ marginLeft: 6, fontWeight: '600' }}>
                             kcal
@@ -341,7 +346,7 @@ export default function PlannerScreen() {
                     <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line, marginHorizontal: Space.xs }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: '#38BDF8' }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>KOHLENHYDRATE</Eyebrow>
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{t('macro.carbs')}</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
                         <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
@@ -358,7 +363,7 @@ export default function PlannerScreen() {
                     <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: '#F59E0B' }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>FETT</Eyebrow>
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{t('macro.fat')}</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
                         <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
