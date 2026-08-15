@@ -3,11 +3,16 @@ import { View, TextInput, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Bar, Divider, NavRow, Columns, PageHeader, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Divider, NavRow, PageHeader, useTheme,
 } from '@/components/ui';
 import { useLang } from '@/components/lang';
 import { Icon, type IconName } from '@/components/icons';
 import { DayBand } from '@/components/DayBand';
+import { WeekdayPillStrip } from '@/components/WeekdayPillStrip';
+import { StreakBanner } from '@/components/StreakBanner';
+import { FastingFeelingBar } from '@/components/FastingFeelingBar';
+import { MetabolicStageBar } from '@/components/MetabolicStageBar';
+import { BentoGrid, BentoTile } from '@/components/BentoGrid';
 import {
   dailyTargets, fastingState, fastingStage, formatCountdown, hydrationTargetMl, toMinutes, DEFAULT_PROFILE,
   type UserProfile, type FastingState,
@@ -47,6 +52,7 @@ export default function DashboardScreen() {
   const [now, setNow] = useState(() => new Date());
   const [hydration, setHydration] = useState<Hydration>({ date: todayISO(), ml: 0, electrolytes: false });
   const [streak, setStreak] = useState(0);
+  const [fastLog, setFastLog] = useState<string[]>([]);
   const [fastLogged, setFastLogged] = useState(false);
   const [cooked, setCooked] = useState(false);
   const [plan, setPlan] = useState<MealPlan | null>(null);
@@ -73,11 +79,6 @@ export default function DashboardScreen() {
       loadLastPlan<MealPlan>(), loadWeightLog(), loadIntakeLog(), isPremium(),
     ]);
     setQuestion(intakeQuestionFor(p, intake));
-    // Keep the answer visible instead of letting the card vanish: the measured
-    // maintenance is built on these, so a mistap has to be fixable.
-    // The most recent answer, whichever day it belongs to — asking about
-    // yesterday while showing today's answer would be two different days on
-    // one screen.
     const latest = [...(intake ?? [])].sort((a, b) => a.date.localeCompare(b.date)).pop();
     setAnswered(latest ? { date: latest.date, factor: latest.factor } : null);
     setTrend(readTrend(weights));
@@ -86,6 +87,7 @@ export default function DashboardScreen() {
     setMeasured(effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem));
     setProfile(p);
     setHydration(h);
+    setFastLog(fl);
     setStreak(currentStreak(fl));
     setFastLogged(fl.includes(todayISO()));
     setCooked(cl.includes(todayISO()));
@@ -118,15 +120,6 @@ export default function DashboardScreen() {
 
   const baseline = dailyTargets(profile, null, measured);
   const kcal = plan ? plan.total_kcal : baseline.kcal;
-  /**
-   * The target the evening question is actually about.
-   *
-   * The question can be about yesterday — the window has to close before it
-   * appears, so answering the morning after is normal — and the answer was
-   * being recorded against today's plan, which yesterday may not have had.
-   * Nothing stores past targets, so the rest-day baseline is the only figure
-   * for a past day that is not made up.
-   */
   const questionKcal = !question || question.date === todayISO() ? kcal : baseline.kcal;
   const protein = plan ? plan.protein_g : baseline.protein_g;
   const waterTarget = hydrationTargetMl(profile, plan?.training_start_time
@@ -146,19 +139,15 @@ export default function DashboardScreen() {
 
   const doAction = async (kind: AgendaItem['kind']) => {
     if (kind === 'log_fast') {
-      setStreak(currentStreak(await markFastComplete()));
+      const updatedFasts = await markFastComplete();
+      setFastLog(updatedFasts);
+      setStreak(currentStreak(updatedFasts));
       setFastLogged(true);
-      // The moment to raise reminders: the app has delivered a day and the
-      // person came back to log it. Asking at launch, before anything has been
-      // shown, is the fastest route to a permanent refusal — which is why
-      // nothing asked at all, and why nobody had reminders on.
       if (!(await remindersOffered())) setOfferReminders(true);
     } else if (kind === 'cook') {
-      // Pass the plan so the recipe joins the rotation, not just the date.
       await markCooked(todayISO(), plan);
       setCooked(true);
     }
-    // A completed step should stop reminding.
     await resync();
   };
 
@@ -225,23 +214,14 @@ export default function DashboardScreen() {
   return (
     <Screen wide>
       <Enter index={0}>
-        {/* The one badge in the app that changes colour, because the one
-            thing it reports changes: cold while the fast runs, ember the
-            moment the window opens. That is the whole product in a pill, and
-            it is the palette's own rule rather than an exception to it. */}
         <PageHeader
           tone={fast.isEating ? 'ember' : 'accent'}
           eyebrow={dateLabel}
           title={fast.isEating ? t('today.windowOpen') : t('today.fasting')}
         />
+        <WeekdayPillStrip fastLog={fastLog} />
       </Enter>
 
-      {/* The strip rather than the ring, for one reason: the ring had nowhere
-          to put the moments. Cooking, the meal and the log were listed as rows
-          below it, so the timeline and the instrument were two things saying
-          one thing. Here the moments are marks on the day itself, and the
-          countdown — which used to sit inside the ring, where it was the
-          smallest large number on the screen — leads instead. */}
       <Enter index={1}>
         <View style={[s.hero, { backgroundColor: c.heroFill }]}>
           <View style={s.heroTop}>
@@ -271,81 +251,90 @@ export default function DashboardScreen() {
           />
         </View>
         <Eyebrow style={{ textAlign: 'center', marginTop: Space.base }}>{windowLabel}</Eyebrow>
-
-        {/* Metabolic physiology stage card with rich icon and color */}
-        {!fast.isEating && (
-          <Card
-            style={{ marginTop: Space.lg }}
-            tone={
-              stage.id === 'deep'
-                ? 'accent'
-                : stage.id === 'ketosis-rising'
-                  ? 'body'
-                  : stage.id === 'glycogen-falling'
-                    ? 'ember'
-                    : 'plan'
-            }
-          >
-            <View style={s.stageHeader}>
-              <View
-                style={[
-                  s.stageIconBadge,
-                  {
-                    backgroundColor:
-                      stage.id === 'deep'
-                        ? c.accentWash
-                        : stage.id === 'ketosis-rising'
-                          ? c.bodyWash
-                          : stage.id === 'glycogen-falling'
-                            ? c.emberWash
-                            : c.planWash,
-                  },
-                ]}
-              >
-                <Icon
-                  name={
-                    stage.id === 'deep'
-                      ? 'coach'
-                      : stage.id === 'ketosis-rising'
-                        ? 'coach'
-                        : stage.id === 'glycogen-falling'
-                          ? 'flame'
-                          : 'drop'
-                  }
-                  size={18}
-                  color={
-                    stage.id === 'deep'
-                      ? c.accent
-                      : stage.id === 'ketosis-rising'
-                        ? c.body
-                        : stage.id === 'glycogen-falling'
-                          ? c.ember
-                          : c.plan
-                  }
-                />
-              </View>
-              <View style={{ flex: 1, marginLeft: Space.md }}>
-                <Eyebrow>Metabolische Phase</Eyebrow>
-                <Txt variant="subheading" style={{ marginTop: 2, fontWeight: '700' }}>
-                  {stage.label}
-                </Txt>
-              </View>
-            </View>
-            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm, lineHeight: 20 }}>
-              {stage.note}
-            </Txt>
-            <Eyebrow style={{ marginTop: Space.sm }}>{t('today.approximate')}</Eyebrow>
-          </Card>
-        )}
       </Enter>
 
-      {/* Asked about the day the eating window belonged to, and stays askable
-          until the next one closes. The first version only offered it for six
-          hours after the window shut, so anyone opening the app next morning
-          lost that day without ever being asked. */}
+      <Enter index={2}>
+        <StreakBanner streak={streak} fastLog={fastLog} />
+        {!fast.isEating && <MetabolicStageBar hoursFasted={hoursFasted} />}
+        <FastingFeelingBar />
+      </Enter>
+
+      {/* 2x2 Vibrant Bento Grid */}
+      <Enter index={3}>
+        <BentoGrid>
+          <BentoTile
+            title={t('today.bentoPhase')}
+            value={stage.label}
+            badge={hoursFasted >= 18 ? 'Autophagie' : hoursFasted >= 12 ? 'Ketose' : 'Glukose'}
+            icon="flame"
+            color="#8B5CF6"
+            wash="rgba(139, 92, 246, 0.18)"
+            subtitle={`${hoursFasted.toFixed(1)}h gefastet · Fettverbrennung`}
+          />
+
+          <BentoTile
+            title={t('today.bentoHydration')}
+            value={(hydration.ml / 1000).toFixed(1)}
+            unit={`/ ${(waterTarget / 1000).toFixed(1)}L`}
+            badge={hydration.electrolytes ? 'Salz ✓' : '+Salz'}
+            icon="drop"
+            color="#38BDF8"
+            wash="rgba(56, 189, 248, 0.18)"
+            subtitle={`${Math.round(waterPct)}% Tagesziel · Trinken`}
+          >
+            <View style={s.bentoActions}>
+              <Tap onPress={() => addWater(250)} style={{ flex: 1, marginRight: 4 }}>
+                <View style={[s.miniPill, { backgroundColor: c.well }]}>
+                  <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+250</Txt>
+                </View>
+              </Tap>
+              <Tap onPress={() => addWater(500)} style={{ flex: 1, marginRight: 4 }}>
+                <View style={[s.miniPill, { backgroundColor: c.well }]}>
+                  <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+500</Txt>
+                </View>
+              </Tap>
+              <Tap onPress={toggleSalt} style={{ flex: 1 }}>
+                <View style={[s.miniPill, { backgroundColor: hydration.electrolytes ? c.emberWash : c.well }]}>
+                  <Txt variant="eyebrow" color={hydration.electrolytes ? c.ember : c.textDim} style={{ fontSize: 9 }}>
+                    {hydration.electrolytes ? 'Salz ✓' : 'Salz'}
+                  </Txt>
+                </View>
+              </Tap>
+            </View>
+          </BentoTile>
+
+          <BentoTile
+            title={t('today.bentoMeal')}
+            value={`${kcal}`}
+            unit="kcal"
+            badge={plan ? 'Geplant' : 'Basis'}
+            icon="plate"
+            color="#EA580C"
+            wash="rgba(234, 88, 12, 0.18)"
+            subtitle={`${protein}g Protein · Fenster ${fast.windowStart}`}
+            actionLabel="Plan ansehen"
+            onPress={() => router.push('/planner')}
+          />
+
+          <BentoTile
+            title={t('today.bentoBody')}
+            value={`${profile.weight_kg.toFixed(1)}`}
+            unit="kg"
+            badge={weighedToday ? 'Gewogen ✓' : 'Offen'}
+            icon="chart"
+            color="#10B981"
+            wash="rgba(16, 185, 129, 0.18)"
+            subtitle={weighedToday ? 'Tagesgewicht erfasst' : 'Noch wiegen für Trend'}
+            actionLabel="Verlauf"
+            onPress={() => router.push('/progress')}
+          />
+        </BentoGrid>
+      </Enter>
+
+      {/* Asked about the day the eating window belonged to */}
       {question && (
-        <Enter index={2}>
-          <Card style={{ marginTop: Space.xl }} tone="accent">
+        <Enter index={4}>
+          <Card style={{ marginTop: Space.base }} tone="accent">
             <Eyebrow color={c.accent}>
               {question.date === todayISO() ? 'How did today go?' : 'How did yesterday go?'}
             </Eyebrow>
@@ -353,33 +342,20 @@ export default function DashboardScreen() {
               Roughly, against the {questionKcal} kcal target. This is what lets the app measure what your
               body actually costs.
             </Txt>
-            {/* Kilocalories, not percent. The target is two lines above in
-                kcal, so a percentage meant doing arithmetic at the one moment
-                that is supposed to be a single tap. Both ends of the scale are
-                open, because every closed end biases the measurement in one
-                direction: a capped top records a runaway day as less than it
-                was and pulls the measured maintenance down, a capped bottom
-                records a day barely eaten as more and pulls it up. The options
-                and the figures come from lib, not from here. */}
-            {/* The cell owns the width, not the Tap. `Tap` puts its style on
-                the view *inside* the Pressable, so a percentage width measured
-                against a Pressable that had already collapsed to its text —
-                every option came out as wide as its own label. Four options hid
-                it well enough; six did not. */}
             <View style={s.intakeGrid}>
               {INTAKE_OPTIONS.map((o) => (
                 <View key={o.label} style={s.intakeCell}>
-                <Tap
-                  onPress={() => answerIntake(o.factor)}
-                  accessibilityLabel={`${o.label}, about ${intakeKcal(o.factor, questionKcal)} kcal`}
-                >
-                  <View style={[s.intakeBtn, { borderColor: c.line, backgroundColor: c.well }]}>
-                    <Txt variant="small" style={{ textAlign: 'center' }}>{o.label}</Txt>
-                    <Eyebrow style={{ marginTop: 2 }}>
-                      {o.factor === 1 ? '' : '≈ '}{intakeKcal(o.factor, questionKcal)} kcal
-                    </Eyebrow>
-                  </View>
-                </Tap>
+                  <Tap
+                    onPress={() => answerIntake(o.factor)}
+                    accessibilityLabel={`${o.label}, about ${intakeKcal(o.factor, questionKcal)} kcal`}
+                  >
+                    <View style={[s.intakeBtn, { borderColor: c.line, backgroundColor: c.well }]}>
+                      <Txt variant="small" style={{ textAlign: 'center' }}>{o.label}</Txt>
+                      <Eyebrow style={{ marginTop: 2 }}>
+                        {o.factor === 1 ? '' : '≈ '}{intakeKcal(o.factor, questionKcal)} kcal
+                      </Eyebrow>
+                    </View>
+                  </Tap>
                 </View>
               ))}
             </View>
@@ -394,8 +370,8 @@ export default function DashboardScreen() {
 
       {/* Asked once, whatever the answer. */}
       {offerReminders && (
-        <Enter index={2}>
-          <Card style={{ marginTop: Space.xl }}>
+        <Enter index={4}>
+          <Card style={{ marginTop: Space.base }}>
             <Eyebrow>Want the app to tell you when?</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
               Window opening and closing, when to start cooking, and a nudge to weigh in — the
@@ -433,12 +409,8 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* One progress line, on the screen people actually land on. The
-          countdown existed only on Progress, spread across half a dozen cards
-          that each said what they could not do yet — which reads as an app
-          that cannot do anything rather than one that is still counting. */}
       {need && !need.ready && (
-        <Enter index={2}>
+        <Enter index={4}>
           <View style={[s.readiness, { borderColor: c.line }]}>
             <Eyebrow>Until your maintenance can be measured</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginTop: 4 }}>{need.note}</Txt>
@@ -446,10 +418,8 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* An answer that cannot be corrected is worse than none here: the
-          measured maintenance rests on these taps. */}
       {!question && answered && (
-        <Enter index={2}>
+        <Enter index={4}>
           <Tap onPress={reopenQuestion} accessibilityLabel="Change today's answer">
             <View style={[s.answered, { borderColor: c.line }]}>
               <Txt variant="small" color={c.textDim}>
@@ -462,10 +432,10 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* The one thing to do next, rather than a restatement of state. */}
+      {/* The one thing to do next */}
       {next && (
-        <Enter index={2}>
-          <Card style={{ marginTop: Space.xl }} tone={nextMins <= 60 ? 'ember' : 'accent'}>
+        <Enter index={5}>
+          <Card style={{ marginTop: Space.base }} tone={nextMins <= 60 ? 'ember' : 'accent'}>
             <View style={s.nextTop}>
               <Eyebrow color={nextColor}>
                 {nextMins <= 0 ? 'Now' : nextMins < 60 ? `In ${Math.round(nextMins)} min` : `At ${next.at}`}
@@ -491,8 +461,8 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* Full day, so the shape of it is visible at a glance. */}
-      <Enter index={3}>
+      {/* Full day agenda */}
+      <Enter index={6}>
         <Card style={{ marginTop: Space.base, paddingVertical: Space.sm }}>
           <Eyebrow style={{ paddingVertical: Space.md }}>{t('today.agenda')}</Eyebrow>
           {items.map((item, i) => {
@@ -533,155 +503,65 @@ export default function DashboardScreen() {
         </Card>
       </Enter>
 
-      {/* Reference numbers, deliberately smaller than the actions above.
-          Green because they are the plan's figures — the same hue the planner
-          and the shopping list carry, so the three read as one subject. */}
-      {/* The hero, the stage and what happens next are a sequence and stay
-          in one column. From here down the cards are parallel — energy,
-          water, the streak, the rest — so on a wide screen they sit
-          beside each other instead of below the fold. */}
-      <Columns>
-      <Enter index={4}>
-        <Card style={{ marginTop: Space.base }} tone="plan">
-          <View style={s.statRow}>
-            <View style={s.flex}>
-              <Eyebrow>{t('today.energy')}</Eyebrow>
-              <Txt variant="heading" style={s.figure}>{kcal}<Txt variant="small" color={c.textFaint}> kcal</Txt></Txt>
-            </View>
-            <Divider style={s.vline} />
-            <View style={s.flex}>
-              <Eyebrow>{t('today.protein')}</Eyebrow>
-              <Txt variant="heading" style={s.figure}>{protein}<Txt variant="small" color={c.textFaint}> g</Txt></Txt>
-            </View>
-          </View>
-          <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-            {plan
-              ? `From today's plan${plan.training_burn_kcal > 0 ? `, including ${plan.training_burn_kcal} kcal burned training` : ''}.`
-              : 'Rest-day baseline. Plan a session to fuel it properly.'}
-          </Txt>
-          {!plan && (
-            <Button label="Plan today's meal" icon="plate" onPress={() => router.push('/planner')} style={{ marginTop: Space.base }} />
-          )}
-        </Card>
-      </Enter>
-
-      <Enter index={5}>
-        <Card style={{ marginTop: Space.base }} tone="hydro">
-          <View style={s.cardHead}>
-            <View style={s.rowCentre}>
-              <Icon name="drop" size={18} color={c.hydro} />
-              <Txt variant="subheading" style={{ marginLeft: Space.sm }}>Hydration</Txt>
-            </View>
-            <Txt variant="data" color={c.textDim}>
-              {(hydration.ml / 1000).toFixed(1)} / {(waterTarget / 1000).toFixed(1)} L
+      {/* Weigh-in field if not weighed today */}
+      {!weighedToday && (
+        <Enter index={7}>
+          <Card style={{ marginTop: Space.base }} tone="body">
+            <Eyebrow style={{ marginBottom: Space.sm }}>Tages-Wägung</Eyebrow>
+            <Txt variant="small" color={c.textDim} style={{ marginBottom: Space.md }}>
+              Erfasse dein morgendliches Gewicht für die Stoffwechsel-Messung.
             </Txt>
-          </View>
-          <Bar pct={waterPct} color={c.hydro} />
-          <View style={s.actions}>
-            {[250, 500].map((ml) => (
-              <Tap key={ml} onPress={() => addWater(ml)} accessibilityLabel={`Add ${ml} millilitres`} style={s.action}>
-                <View style={[s.pill, { backgroundColor: c.well }]}>
-                  <Icon name="plus" size={14} color={c.textDim} />
-                  <Txt variant="small" color={c.text} style={{ marginLeft: 5 }}>{ml} ml</Txt>
+            <View style={s.weighRow}>
+              <TextInput
+                value={weightInput}
+                onChangeText={setWeightInput}
+                onSubmitEditing={logWeight}
+                placeholder={profile.weight_kg.toFixed(1)}
+                placeholderTextColor={c.textFaint}
+                keyboardType="numeric"
+                inputMode="decimal"
+                accessibilityLabel="Today's weight in kilograms"
+                style={[Type.data, s.weighInput, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
+              />
+              <Tap onPress={logWeight} disabled={!weightInput.trim()} accessibilityLabel="Save weight">
+                <View style={[s.weighBtn, { backgroundColor: weightInput.trim() ? c.accent : c.well }]}>
+                  <Icon name="check" size={16} color={weightInput.trim() ? c.onAccent : c.textFaint} strokeWidth={2.2} />
                 </View>
               </Tap>
-            ))}
-            <Tap onPress={toggleSalt} accessibilityLabel="Electrolytes taken" style={s.action}>
-              <View style={[s.pill, {
-                backgroundColor: hydration.electrolytes ? c.emberWash : c.well,
-                borderWidth: 1,
-                borderColor: hydration.electrolytes ? c.ember : 'transparent',
-              }]}>
-                <Icon name={hydration.electrolytes ? 'check' : 'salt'} size={14} color={hydration.electrolytes ? c.ember : c.textDim} />
-                <Txt variant="small" color={hydration.electrolytes ? c.ember : c.text} style={{ marginLeft: 5 }}>Salt</Txt>
-              </View>
-            </Tap>
-          </View>
-          {!hydration.electrolytes && !fast.isEating && (
-            <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
-              Water alone through a long fast thins your sodium. Add a pinch.
-            </Txt>
-          )}
-        </Card>
-      </Enter>
-
-      {/* Streak is now read-only: the logging action lives in the timeline. */}
-      <Enter index={6}>
-        <Card style={{ marginTop: Space.base }} tone={streak > 0 ? 'ember' : 'default'}>
-          <View style={s.rowCentre}>
-            <Icon name="flame" size={18} color={streak > 0 ? c.ember : c.textFaint} />
-            <View style={{ marginLeft: Space.sm, flex: 1 }}>
-              <Txt variant="subheading">
-                {streak > 0 ? `${streak} day${streak === 1 ? '' : 's'} clean` : 'No streak yet'}
-              </Txt>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
-                {streak > 0 ? 'Consecutive fasts completed' : 'Log your first completed fast'}
-              </Txt>
             </View>
-          </View>
+          </Card>
+        </Enter>
+      )}
 
-          {!weighedToday && (
-            <>
-              <Divider style={{ marginVertical: Space.base }} />
-              <Eyebrow style={{ marginBottom: Space.md }}>Weigh-in</Eyebrow>
-              <View style={s.weighRow}>
-                <TextInput
-                  value={weightInput}
-                  onChangeText={setWeightInput}
-                  onSubmitEditing={logWeight}
-                  placeholder={profile.weight_kg.toFixed(1)}
-                  placeholderTextColor={c.textFaint}
-                  keyboardType="numeric"
-                  inputMode="decimal"
-                  accessibilityLabel="Today's weight in kilograms"
-                  style={[Type.data, s.weighInput, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
-                />
-                <Tap onPress={logWeight} disabled={!weightInput.trim()} accessibilityLabel="Save weight">
-                  <View style={[s.weighBtn, { backgroundColor: weightInput.trim() ? c.accent : c.well }]}>
-                    <Icon name="check" size={16} color={weightInput.trim() ? c.onAccent : c.textFaint} strokeWidth={2.2} />
-                  </View>
-                </Tap>
-              </View>
-            </>
-          )}
+      {jump && (
+        <Enter index={8}>
+          <Card style={{ marginTop: Space.base }} tone="ember">
+            <Eyebrow color={c.ember}>Up {jump.kg} kg</Eyebrow>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+              {jump.note}
+            </Txt>
+          </Card>
+        </Enter>
+      )}
 
-          {/* The day someone deletes the app is the day the scale jumps. Every
-              soothing app says "it's just water", which is a claim about a body
-              it has not looked at. This says what that much fat would have
-              cost first — arithmetic, not comfort — and names the mechanism
-              second, hedged like the fasting bands. */}
-          {jump && (
-            <>
-              <Divider style={{ marginVertical: Space.base }} />
-              <Eyebrow color={c.ember}>Up {jump.kg} kg</Eyebrow>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-                {jump.note}
-              </Txt>
-            </>
-          )}
+      {trend && trend.state !== 'insufficient' && (
+        <Enter index={8}>
+          <Card style={{ marginTop: Space.base }} tone="body">
+            <Eyebrow color={c.body}>Gewichts-Trend</Eyebrow>
+            <Txt variant="small" color={trend.state === 'steady' ? c.textDim : c.text} style={{ marginTop: Space.sm }}>
+              {trend.note}
+            </Txt>
+          </Card>
+        </Enter>
+      )}
 
-          {/* The sentence a scale cannot produce. Someone weighing daily sees a
-              jump and concludes the week went wrong; the fitted line usually
-              has not moved at all. */}
-          {trend && trend.state !== 'insufficient' && (
-            <>
-              <Divider style={{ marginVertical: Space.base }} />
-              <Txt variant="small" color={trend.state === 'steady' ? c.textDim : c.text}>
-                {trend.note}
-              </Txt>
-            </>
-          )}
-        </Card>
+      <Enter index={9} style={{ marginTop: Space.xl }}>
+        <Eyebrow style={{ marginBottom: Space.md }}>Mehr Entdecken</Eyebrow>
+        {plan && <NavRow icon="plate" tone="plan" title="Heutiges Rezept" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
+        <NavRow icon="basket" tone="plan" title="Einkaufsliste" sub="Zutaten aus deinen Plänen" onPress={() => router.push('/grocery')} />
+        <NavRow icon="chart" tone="body" title="Verlauf & Trend" sub="Gewicht, Kalibrierung & Historie" onPress={() => router.push('/progress')} />
+        <NavRow icon="coach" title="Fasten-Coach" sub="KI-Beratung für Fasten & Makros" onPress={() => router.push('/chat')} />
       </Enter>
-
-      <Enter index={7} style={{ marginTop: Space.xl }}>
-        <Eyebrow style={{ marginBottom: Space.md }}>More</Eyebrow>
-        {plan && <NavRow icon="plate" tone="plan" title="Today's plan" sub={plan.recipe.title} onPress={() => router.push('/planner')} />}
-        <NavRow icon="basket" tone="plan" title="Shopping list" sub="Ingredients from your recent plans" onPress={() => router.push('/grocery')} />
-        <NavRow icon="chart" tone="body" title="Progress" sub="Weight and trend over time" onPress={() => router.push('/progress')} />
-        <NavRow icon="coach" title="Coach" sub="Fasting, electrolytes and fuelling" onPress={() => router.push('/chat')} />
-      </Enter>
-      </Columns>
     </Screen>
   );
 }
@@ -743,4 +623,6 @@ const s = StyleSheet.create({
   weighRow: { flexDirection: 'row', alignItems: 'center' },
   weighInput: { flex: 1, height: 44, borderRadius: Radius.sm, borderWidth: 1, paddingHorizontal: Space.md, fontSize: 14, marginRight: Space.sm },
   weighBtn: { width: 44, height: 44, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  bentoActions: { flexDirection: 'row', alignItems: 'center', marginTop: Space.xs },
+  miniPill: { height: 26, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
 });

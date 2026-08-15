@@ -61,11 +61,18 @@ function TabBar({ state, navigation }: any) {
                 style={[
                   styles.iconWrap,
                   focused && {
-                    backgroundColor: route.name === 'index' ? c.emberWash : `${hue}22`,
+                    backgroundColor: route.name === 'index' ? c.emberWash : `${hue}25`,
+                    borderColor: focused ? `${hue}40` : 'transparent',
+                    borderWidth: 1,
                   },
                 ]}
               >
-                <Icon name={meta ? meta.icon : 'home'} size={21} color={focused ? hue : c.textFaint} />
+                <Icon name={meta ? meta.icon : 'home'} size={20} color={focused ? hue : c.textFaint} />
+                {route.name === 'profile' && (
+                  <View style={[styles.proBadge, { backgroundColor: c.gold }]}>
+                    <Text style={styles.proText}>PRO</Text>
+                  </View>
+                )}
               </View>
               <Text
                 style={[
@@ -73,7 +80,7 @@ function TabBar({ state, navigation }: any) {
                   {
                     color: focused ? hue : c.textFaint,
                     marginTop: 3,
-                    fontWeight: focused ? '700' : '500',
+                    fontWeight: focused ? '800' : '500',
                     fontSize: 10,
                   },
                 ]}
@@ -132,5 +139,19 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  proBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  proText: {
+    fontSize: 7,
+    fontWeight: '900',
+    color: '#080C14',
   },
 });

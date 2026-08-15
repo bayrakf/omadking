@@ -59,6 +59,13 @@ const EN = {
   'today.energy': 'Energy',
   'today.protein': 'Protein',
   'today.hydration': 'Hydration',
+  'today.streakTitle': '{n}-day streak!',
+  'today.streakInfo': 'Fasting streaks measure consecutive days you logged your fast.',
+  'today.feelingTitle': 'How are you feeling today?',
+  'today.bentoPhase': 'Metabolic Phase',
+  'today.bentoHydration': 'Hydration',
+  'today.bentoMeal': 'Next Meal',
+  'today.bentoBody': 'Body & Weight',
 
   // You
   'you.title': 'You',
@@ -300,6 +307,13 @@ const DE: Record<Key, string> = {
   'today.energy': 'Energie',
   'today.protein': 'Protein',
   'today.hydration': 'Trinken',
+  'today.streakTitle': '{n}-Tage Fasten-Serie!',
+  'today.streakInfo': 'Die Serie zählt aufeinanderfolgende Tage, an denen du dein Fasten geloggt hast.',
+  'today.feelingTitle': 'Wie fühlst du dich heute im Fasten?',
+  'today.bentoPhase': 'Stoffwechsel-Phase',
+  'today.bentoHydration': 'Hydration',
+  'today.bentoMeal': 'Nächste Mahlzeit',
+  'today.bentoBody': 'Körper & Gewicht',
 
   'you.title': 'Du',
   'you.setup': 'Deine Einstellungen',
