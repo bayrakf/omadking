@@ -25,16 +25,19 @@ import { FREE_PLANS_PER_WEEK } from '@/lib/store';
  */
 const VALUE = [
   {
+    hue: 'body' as const,
     icon: 'flame' as const,
     title: 'It measures what you burn',
     body: 'Most apps hand you a formula on day one and never revisit it. This one reads your own eating and weigh-ins back and works out what your body actually costs — and says how many days it still needs before it will claim a figure.',
   },
   {
+    hue: 'accent' as const,
     icon: 'clock' as const,
     title: 'Timing, not guesswork',
     body: 'Tell it when you train. It decides whether you eat before, after, or split around the session, and gives you the clock times.',
   },
   {
+    hue: 'plan' as const,
     icon: 'dumbbell' as const,
     title: 'Macros that follow the work',
     body: 'Two hours all-out and a rest day are not the same target. Duration and intensity feed straight into the numbers.',
@@ -108,8 +111,8 @@ export default function LandingPage() {
               <View key={v.title}>
                 {i > 0 && <Divider style={{ marginVertical: Space.xl }} />}
                 <View style={s.valueRow}>
-                  <View style={[s.valueIcon, { borderColor: c.line }]}>
-                    <Icon name={v.icon} size={18} color={c.accent} />
+                  <View style={[s.valueIcon, { borderColor: c[v.hue], backgroundColor: c.surface }]}>
+                    <Icon name={v.icon} size={18} color={c[v.hue]} />
                   </View>
                   <View style={s.flex}>
                     <Txt variant="subheading" color={c.text}>{v.title}</Txt>
