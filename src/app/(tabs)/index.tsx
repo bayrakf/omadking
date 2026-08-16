@@ -32,7 +32,7 @@ import {
   readTrend, effectiveMaintenance, intakeQuestionFor, scaleJump, readiness,
   type IntakeQuestion, type ScaleJump, type Readiness,
 } from '@/lib/energy';
-import { INTAKE_OPTIONS, intakeKcal, intakeLabel } from '@/lib/review';
+import { INTAKE_OPTIONS, intakeKcal, intakeLabel, intakeOptionLabel } from '@/lib/review';
 import { haptic } from '@/lib/haptic';
 import type { MealPlan } from '@/lib/ai';
 import { resync, setEnabled as setRemindersEnabled } from '@/lib/notify';
@@ -225,8 +225,8 @@ export default function DashboardScreen() {
 
   const waterPct = Math.min(100, (hydration.ml / waterTarget) * 100);
   const windowLabel =
-    `${fast.windowStart}–${fast.windowEnd} · ${fast.fastingHours}H FAST` +
-    (plan?.training_start_time ? ` · SESSION ${plan.training_start_time}` : '');
+    `${fast.windowStart}–${fast.windowEnd} · ${fast.fastingHours}${lang === 'de' ? 'H FASTEN' : 'H FAST'}` +
+    (plan?.training_start_time ? ` · ${lang === 'de' ? 'TRAINING' : 'SESSION'} ${plan.training_start_time}` : '');
 
   // Imminent moments go warm; everything else stays in the resting palette.
   const nextMins = next ? minutesUntil(next, profile, now) : Infinity;
@@ -268,7 +268,9 @@ export default function DashboardScreen() {
               {formatCountdown(fast.remainingMs)}
             </Txt>
             <Txt variant="small" color={c.onHero} style={s.countCaption}>
-              {fast.isEating ? `left · closes ${fast.windowEnd}` : `until ${fast.windowStart}`}
+              {lang === 'de'
+                ? (fast.isEating ? `verbleibend · schließt ${fast.windowEnd}` : `bis ${fast.windowStart}`)
+                : (fast.isEating ? `left · closes ${fast.windowEnd}` : `until ${fast.windowStart}`)}
             </Txt>
           </View>
           <DayBand
@@ -427,21 +429,26 @@ export default function DashboardScreen() {
         <Enter index={4}>
           <Card style={{ marginTop: Space.base }} tone="accent">
             <Eyebrow color={c.accent}>
-              {question.date === todayISO() ? 'How did today go?' : 'How did yesterday go?'}
+              {lang === 'de'
+                ? (question.date === todayISO() ? 'WIE LIEF ES HEUTE?' : 'WIE LIEF ES GESTERN?')
+                : (question.date === todayISO() ? 'How did today go?' : 'How did yesterday go?')}
             </Eyebrow>
             <Txt variant="body" style={{ marginTop: Space.sm }}>
-              Roughly, against the {questionKcal} kcal target. This is what lets the app measure what your
-              body actually costs.
+              {lang === 'de'
+                ? `Grobe Schätzung gegen das Ziel von ${questionKcal} kcal. Damit wird dein echter Stoffwechsel-Verbrauch berechnet.`
+                : `Roughly, against the ${questionKcal} kcal target. This is what lets the app measure what your body actually costs.`}
             </Txt>
             <View style={s.intakeGrid}>
               {INTAKE_OPTIONS.map((o) => (
                 <View key={o.label} style={s.intakeCell}>
                   <Tap
                     onPress={() => answerIntake(o.factor)}
-                    accessibilityLabel={`${o.label}, about ${intakeKcal(o.factor, questionKcal)} kcal`}
+                    accessibilityLabel={`${intakeOptionLabel(o, lang)}, about ${intakeKcal(o.factor, questionKcal)} kcal`}
                   >
                     <View style={[s.intakeBtn, { borderColor: c.line, backgroundColor: c.well }]}>
-                      <Txt variant="small" style={{ textAlign: 'center' }}>{o.label}</Txt>
+                      <Txt variant="small" style={{ textAlign: 'center', fontWeight: '600' }}>
+                        {intakeOptionLabel(o, lang)}
+                      </Txt>
                       <Eyebrow style={{ marginTop: 2 }}>
                         {o.factor === 1 ? '' : '≈ '}{intakeKcal(o.factor, questionKcal)} kcal
                       </Eyebrow>
@@ -450,9 +457,9 @@ export default function DashboardScreen() {
                 </View>
               ))}
             </View>
-            <Tap onPress={() => answerIntake(null)} accessibilityLabel="Completely different">
+            <Tap onPress={() => answerIntake(null)} accessibilityLabel={lang === 'de' ? 'Völlig anders — Tag überspringen' : 'Completely different'}>
               <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md, textAlign: 'center' }}>
-                Completely different — skip today
+                {lang === 'de' ? 'Völlig anders — Tag überspringen' : 'Completely different — skip today'}
               </Txt>
             </Tap>
           </Card>
@@ -463,14 +470,15 @@ export default function DashboardScreen() {
       {offerReminders && (
         <Enter index={4}>
           <Card style={{ marginTop: Space.base }}>
-            <Eyebrow>Want the app to tell you when?</Eyebrow>
+            <Eyebrow>{lang === 'de' ? 'Erinnerungen aktivieren?' : 'Want the app to tell you when?'}</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-              Window opening and closing, when to start cooking, and a nudge to weigh in — the
-              measurement needs four weigh-ins across ten days.
+              {lang === 'de'
+                ? 'Benachrichtigungen für Start & Ende des Essensfensters, Kochbeginn und Wiege-Erinnerungen.'
+                : 'Window opening and closing, when to start cooking, and a nudge to weigh in — the measurement needs four weigh-ins across ten days.'}
             </Txt>
             <View style={s.offerRow}>
               <Button
-                label="Turn them on"
+                label={lang === 'de' ? 'Aktivieren' : 'Turn them on'}
                 onPress={async () => {
                   await markRemindersOffered();
                   setOfferReminders(false);
@@ -487,7 +495,7 @@ export default function DashboardScreen() {
                 style={s.offerBtn}
               />
               <Button
-                label="No thanks"
+                label={lang === 'de' ? 'Nein danke' : 'No thanks'}
                 variant="ghost"
                 onPress={async () => {
                   await markRemindersOffered();
@@ -524,13 +532,13 @@ export default function DashboardScreen() {
 
       {!question && answered && (
         <Enter index={4}>
-          <Tap onPress={reopenQuestion} accessibilityLabel="Change today's answer">
+          <Tap onPress={reopenQuestion} accessibilityLabel={lang === 'de' ? 'Heutige Antwort ändern' : "Change today's answer"}>
             <View style={[s.answered, { borderColor: c.line }]}>
               <Txt variant="small" color={c.textDim}>
-                {answered.date === todayISO() ? 'Today' : 'Yesterday'}:{' '}
-                {intakeLabel(answered.factor)}
+                {answered.date === todayISO() ? (lang === 'de' ? 'Heute' : 'Today') : (lang === 'de' ? 'Gestern' : 'Yesterday')}:{' '}
+                {intakeLabel(answered.factor, lang)}
               </Txt>
-              <Txt variant="small" color={c.accent}>change</Txt>
+              <Txt variant="small" color={c.accent}>{lang === 'de' ? 'ändern' : 'change'}</Txt>
             </View>
           </Tap>
         </Enter>

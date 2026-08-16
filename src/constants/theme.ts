@@ -182,29 +182,28 @@ export const Colors = { light, dark };
 
 /** Family names must match the keys passed to useFonts() in the root layout. */
 export const Font = {
-  display: 'Archivo-Bold',
-  displaySemi: 'Archivo-SemiBold',
+  display: 'HankenGrotesk-SemiBold',
+  displaySemi: 'HankenGrotesk-Medium',
   body: 'HankenGrotesk-Regular',
   bodyMedium: 'HankenGrotesk-Medium',
   bodySemi: 'HankenGrotesk-SemiBold',
-  mono: 'JetBrainsMono-Medium',
+  mono: 'HankenGrotesk-Medium',
 } as const;
 
 /**
- * Negative tracking on large display sizes only — it tightens headlines without
- * hurting small-text legibility.
+ * Balanced tracking and line heights for a soft, friendly and modern aesthetic.
  */
 export const Type = {
-  hero: { fontFamily: Font.display, fontSize: 56, lineHeight: 56, letterSpacing: -2 },
-  display: { fontFamily: Font.display, fontSize: 40, lineHeight: 42, letterSpacing: -1.4 },
-  title: { fontFamily: Font.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.8 },
-  heading: { fontFamily: Font.displaySemi, fontSize: 20, lineHeight: 25, letterSpacing: -0.4 },
-  subheading: { fontFamily: Font.bodySemi, fontSize: 16, lineHeight: 21, letterSpacing: -0.1 },
+  hero: { fontFamily: Font.display, fontSize: 48, lineHeight: 50, letterSpacing: -0.8 },
+  display: { fontFamily: Font.display, fontSize: 34, lineHeight: 38, letterSpacing: -0.5 },
+  title: { fontFamily: Font.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.3 },
+  heading: { fontFamily: Font.displaySemi, fontSize: 18, lineHeight: 23, letterSpacing: -0.2 },
+  subheading: { fontFamily: Font.bodySemi, fontSize: 15, lineHeight: 20, letterSpacing: 0 },
   body: { fontFamily: Font.body, fontSize: 15, lineHeight: 22 },
   bodyMedium: { fontFamily: Font.bodyMedium, fontSize: 15, lineHeight: 22 },
   small: { fontFamily: Font.body, fontSize: 13, lineHeight: 19 },
-  /** Uppercase micro-labels. The instrument-panel voice. */
-  eyebrow: { fontFamily: Font.mono, fontSize: 10, lineHeight: 14, letterSpacing: 1.4 },
+  /** Uppercase micro-labels. Soft, clear voice. */
+  eyebrow: { fontFamily: Font.mono, fontSize: 10.5, lineHeight: 14, letterSpacing: 0.8 },
   /** Clock times, units, tabular data. */
   data: { fontFamily: Font.mono, fontSize: 13, lineHeight: 18, letterSpacing: 0.2 },
 } as const;

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
 import { Card, Txt, Eyebrow, Tap, useTheme, useTone, washOf } from './ui';
-import { useT } from './lang';
+import { useLang } from './lang';
 import { Icon } from './icons';
 import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
 import { isFavoriteRecipe, toggleFavoriteRecipe } from '@/lib/store';
@@ -23,7 +23,7 @@ export default function RecipeCard({
   onPortions?: (n: number) => void;
 }) {
   const c = useTheme();
-  const t = useT();
+  const { lang, t } = useLang();
   const plan_ = useTone('plan');
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [favorite, setFavorite] = useState(false);
@@ -153,10 +153,10 @@ export default function RecipeCard({
 
       <View style={s.macros}>
         {[
-          { v: String(plan.total_kcal), label: 'kcal', color: c.gold, bg: c.goldWash },
-          { v: `${plan.protein_g}g`, label: 'protein', color: c.body, bg: c.bodyWash },
-          { v: `${plan.carbs_g}g`, label: 'carbs', color: c.plan, bg: c.planWash },
-          { v: `${plan.fat_g}g`, label: 'fat', color: c.hydro, bg: c.hydroWash },
+          { v: String(plan.total_kcal), label: 'KCAL', color: c.gold, bg: c.goldWash },
+          { v: `${plan.protein_g}g`, label: 'PROTEIN', color: c.body, bg: c.bodyWash },
+          { v: `${plan.carbs_g}g`, label: lang === 'de' ? 'CARBS' : 'CARBS', color: c.plan, bg: c.planWash },
+          { v: `${plan.fat_g}g`, label: lang === 'de' ? 'FETT' : 'FAT', color: c.hydro, bg: c.hydroWash },
         ].map((m) => (
           <View key={m.label} style={[s.macro, { backgroundColor: m.bg, borderColor: m.color }]}>
             <Txt variant="subheading" style={{ fontSize: 16, fontWeight: '700', color: m.color }}>{m.v}</Txt>

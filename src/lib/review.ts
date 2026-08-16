@@ -275,8 +275,25 @@ export const INTAKE_OPTIONS: IntakeOption[] = [
   { factor: 2.4, label: 'Well over double', glyph: '⁺⁺⁺' },
 ];
 
-/**
- * What an option means in kilocalories against a given target.
+export const INTAKE_LABELS_DE: Record<string, string> = {
+  'Ate the plan': 'Nach Plan gegessen',
+  'Ate less': 'Etwas weniger gegessen',
+  'Barely ate': 'Kaum gegessen',
+  'Ate more': 'Etwas mehr gegessen',
+  'A lot more': 'Deutlich mehr gegessen',
+  'Well over double': 'Mehr als das Doppelte gegessen',
+};
+
+export const INTAKE_LABELS_SHORT_DE: Record<string, string> = {
+  'Ate the plan': 'Nach Plan',
+  'Ate less': 'Weniger',
+  'Barely ate': 'Kaum',
+  'Ate more': 'Mehr',
+  'A lot more': 'Viel mehr',
+  'Well over double': '> Doppelt',
+};
+
+/** What an option means in kilocalories against a given target.
  *
  * Derived rather than written down: at a 2,500 target "a lot more" is a
  * different number than at 2,000, and a fixed string would be wrong for
@@ -304,20 +321,28 @@ export function nextIntakeFactor(current: number | null): number | null {
 }
 
 /** What a factor says, in the dashboard's words. */
-export function intakeLabel(factor: number | null): string {
-  if (factor === null) return 'not answered';
+export function intakeLabel(factor: number | null, lang: 'en' | 'de' = 'en'): string {
+  if (factor === null) return lang === 'de' ? 'nicht beantwortet' : 'not answered';
   // Nearest option rather than a ladder of thresholds: the options are the
   // definition, so a threshold list would be the second place to keep in step.
   const nearest = INTAKE_OPTIONS.reduce((best, o) =>
     Math.abs(o.factor - factor) < Math.abs(best.factor - factor) ? o : best
   );
+  if (lang === 'de') {
+    return INTAKE_LABELS_DE[nearest.label] ?? nearest.label.toLowerCase();
+  }
   return nearest.label.toLowerCase();
+}
+
+export function intakeOptionLabel(o: IntakeOption, lang: 'en' | 'de' = 'en'): string {
+  if (lang === 'de') return INTAKE_LABELS_SHORT_DE[o.label] ?? o.label;
+  return o.label;
 }
 
 /** The strip has one cell per day, so each answer needs one character. */
 export function intakeGlyph(factor: number | null): string {
   if (factor === null) return '';
-  return INTAKE_OPTIONS.find((o) => o.label.toLowerCase() === intakeLabel(factor))?.glyph ?? '?';
+  return INTAKE_OPTIONS.find((o) => o.label.toLowerCase() === intakeLabel(factor, 'en'))?.glyph ?? '?';
 }
 
 /**

@@ -315,14 +315,18 @@ export default function ProgressScreen() {
         <Enter index={1}>
           <Card style={{ marginBottom: Space.base }}>
             <View style={s.split}>
-              <Eyebrow>Consistency</Eyebrow>
+              <Eyebrow>{lang === 'de' ? 'KONSISTENZ' : 'CONSISTENCY'}</Eyebrow>
               {steady.streak > 0 && (
-                <Txt variant="data" color={c.textFaint}>{steady.streak} in a row</Txt>
+                <Txt variant="data" color={c.textFaint}>
+                  {lang === 'de' ? `${steady.streak} in Folge` : `${steady.streak} in a row`}
+                </Txt>
               )}
             </View>
             <Txt variant="heading" style={{ marginTop: Space.md }}>
               {steady.hit}
-              <Txt variant="small" color={c.textFaint}> of the last {steady.days} days</Txt>
+              <Txt variant="small" color={c.textFaint}>
+                {lang === 'de' ? ` von den letzten ${steady.days} Tagen` : ` of the last ${steady.days} days`}
+              </Txt>
             </Txt>
             <Bar pct={(steady.hit / steady.days) * 100} color={c.accent} />
             {protein && (

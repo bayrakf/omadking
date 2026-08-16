@@ -39,6 +39,13 @@ export default function Root({ children }: PropsWithChildren) {
           content="OMAD, one meal a day, intermittent fasting, sports nutrition, meal timing, macro calculator, fasting app"
         />
 
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+
         <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F7F9" />
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A0C10" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
