@@ -146,15 +146,15 @@ export default async function run() {
     await page.getByLabel('Add 250 millilitres').click();
     await page.waitForTimeout(600);
     // 82kg * 40ml = 3.3L. A flat target here would mean the formula regressed.
-    check(has(await body(page), '0.8 / 3.8L'), 'water adds up against a bodyweight target',
-      (await body(page)).match(/[\d.]+ \/ [\d.]+ L/)?.[0]);
+    check(has(await body(page), '0.8 / 3.3L'), 'water adds up against a bodyweight target',
+      (await body(page)).match(/[\d.]+ \/ [\d.]+\s?L/)?.[0]);
 
     const hydration = JSON.parse(await page.evaluate(() => localStorage.getItem('hydration_today')));
     check(hydration.ml === 750, 'hydration persisted', String(hydration.ml));
 
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
-    check(has(await body(page), '0.8 / 3.8L'), 'hydration survives a reload');
+    check(has(await body(page), '0.8 / 3.3L'), 'hydration survives a reload');
 
     check(has(await body(page), 'Window opens'), 'the day timeline renders');
 
@@ -234,16 +234,16 @@ export default async function run() {
     await page.waitForTimeout(6000);
 
     const plan = await body(page);
-    check(has(plan, 'Today’s timing'), 'a plan renders');
+    check(has(plan, 'WINDOW') && /\d\d:\d\d–\d\d:\d\d/.test(plan), 'a plan renders');
     check(has(plan, 'Charred Tenderstem'), 'the full title is shown, not a clipped prefix');
     // Titles used to be clipped to one line, turning them into riddles.
     check(!/\u2026|\.\.\./.test(plan), 'nothing on the planner is truncated with an ellipsis',
       plan.match(/\S*\u2026/)?.[0] ?? '');
     check(!has(plan, 'standard plate'), 'a generated recipe carries no fallback notice');
-    check(/Main meal\s*\d\d:\d\d/.test(plan), 'the main meal time is shown', plan.match(/Main meal\s*\d\d:\d\d/)?.[0]);
+    check(/MAIN MEAL\s*\d\d:\d\d/i.test(plan), 'the main meal time is shown', plan.match(/MAIN MEAL\s*\d\d:\d\d/i)?.[0]);
     check(has(plan, 'Ingredients'), 'ingredients render');
     // The app computed when to eat for weeks without ever saying how.
-    check(has(plan, 'Breaking the fast'), 'the plan says how to start eating');
+    check(has(plan, 'Break your fast'), 'the plan says how to start eating');
     check(has(plan, 'Start with protein'), 'and protein leads');
 
     // Cooking for two must not double the day's macro targets.
@@ -603,7 +603,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(2000);
-      const t = await bodyIn(page, 'Body & rate');
+      const t = await bodyIn(page, 'History');
       check(has(t, 'What your best weeks had in common'), 'the card is there');
       check(/sessions a week, against/.test(t), 'and names the difference as a count',
         t.match(/[\d.]+ sessions a week, against [\d.]+ in the others/)?.[0] ?? '');
@@ -620,7 +620,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, seed);
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(2000);
-      const t = await bodyIn(page, 'Body & rate');
+      const t = await bodyIn(page, 'History');
       check(has(t, 'What your best weeks had in common'), 'free users see the card exists');
       check(!/sessions a week, against/.test(t), 'but not what the difference was');
       await context.close();
@@ -637,7 +637,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(2000);
-      const t = await bodyIn(page, 'Body & rate');
+      const t = await bodyIn(page, 'History');
       check(/\d+ more weeks?/.test(t), 'thin data asks for weeks rather than comparing',
         t.match(/\d+ more weeks?[^.]*/)?.[0] ?? '');
       check(!/sessions a week, against/.test(t), 'and names no difference');
