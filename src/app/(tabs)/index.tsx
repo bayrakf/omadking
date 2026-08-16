@@ -12,20 +12,23 @@ import { WeekdayPillStrip } from '@/components/WeekdayPillStrip';
 import { FastingFeelingBar } from '@/components/FastingFeelingBar';
 import { BentoGrid, BentoTile } from '@/components/BentoGrid';
 import {
-  dailyTargets, fastingState, fastingStage, formatCountdown, hydrationTargetMl, toMinutes, DEFAULT_PROFILE,
+  dailyTargets, fastingState, fastingStage, formatCountdown, hydrationTargetMl, toMinutes, fromMinutes, DEFAULT_PROFILE,
   type UserProfile, type FastingState,
 } from '@/lib/nutrition';
 import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
 import { formatReadableDate } from '@/lib/dates';
 import { WindowShifterModal } from '@/components/WindowShifterModal';
 import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
+import { MetabolicProgressBar } from '@/components/MetabolicProgressBar';
 import { BreakFastGuideModal } from '@/components/BreakFastGuideModal';
 import { DailyFastingNote } from '@/components/DailyFastingNote';
+import { playZenChime } from '@/lib/sound';
 import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
   remindersOffered, markRemindersOffered,
   saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, loadTodayWindowShift,
+  saveTodayWindowShift,
   loadDailySteps, saveDailySteps, type Hydration,
 } from '@/lib/store';
 import {
@@ -75,6 +78,7 @@ export default function DashboardScreen() {
   const [showShifter, setShowShifter] = useState(false);
   const [showMetabolic, setShowMetabolic] = useState(false);
   const [showBreakFast, setShowBreakFast] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const [steps, setSteps] = useState(0);
 
   useEffect(() => {
@@ -161,7 +165,9 @@ export default function DashboardScreen() {
       setFastLog(updatedFasts);
       setStreak(currentStreak(updatedFasts));
       setFastLogged(true);
+      playZenChime();
       haptic('success');
+      setShowCelebration(true);
       if (!(await remindersOffered())) setOfferReminders(true);
     } else if (kind === 'cook') {
       await markCooked(todayISO(), plan);
@@ -169,6 +175,33 @@ export default function DashboardScreen() {
       haptic('medium');
     }
     await resync();
+  };
+
+  const quickShift = async (mins: number) => {
+    const curStartMin = toMinutes(profile.omad_window_start);
+    const nextStartMin = (curStartMin + mins + 1440) % 1440;
+    const nextStart = fromMinutes(nextStartMin);
+    const nextEndMin = (nextStartMin + profile.omad_window_hours * 60) % 1440;
+    const nextEnd = fromMinutes(nextEndMin);
+    await saveTodayWindowShift(nextStart, nextEnd);
+    haptic('medium');
+    await refresh();
+  };
+
+  const quickFinishFast = async () => {
+    const updatedFasts = await markFastComplete();
+    setFastLog(updatedFasts);
+    setStreak(currentStreak(updatedFasts));
+    setFastLogged(true);
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const nextStart = fromMinutes(nowMin);
+    const nextEndMin = (nowMin + profile.omad_window_hours * 60) % 1440;
+    const nextEnd = fromMinutes(nextEndMin);
+    await saveTodayWindowShift(nextStart, nextEnd);
+    playZenChime();
+    haptic('success');
+    setShowCelebration(true);
+    await refresh();
   };
 
   /**
@@ -260,6 +293,30 @@ export default function DashboardScreen() {
         <WeekdayPillStrip fastLog={fastLog} streak={streak} />
       </Enter>
 
+      {/* Celebration Notification */}
+      {showCelebration && (
+        <Enter index={0}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setShowCelebration(false)}
+            style={[s.celebrationCard, { backgroundColor: c.emberWash, borderColor: c.ember }]}
+          >
+            <Icon name="flame" size={18} color={c.ember} />
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Txt variant="subheading" color={c.ember} style={{ fontWeight: '800', fontSize: 14 }}>
+                {lang === 'de' ? 'Fasten erfolgreich abgeschlossen! 🎉' : 'Fast completed! 🎉'}
+              </Txt>
+              <Txt variant="small" color={c.textDim} style={{ marginTop: 2, fontSize: 12 }}>
+                {lang === 'de'
+                  ? `${streak} Tage Fasten-Serie aktiv. Großartige Leistung!`
+                  : `${streak}-day streak active. Great consistency!`}
+              </Txt>
+            </View>
+            <Icon name="check" size={16} color={c.ember} />
+          </TouchableOpacity>
+        </Enter>
+      )}
+
       <Enter index={1}>
         <TouchableOpacity
           activeOpacity={0.88}
@@ -311,20 +368,74 @@ export default function DashboardScreen() {
             items={items}
             isEating={fast.isEating}
           />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
+            <Eyebrow color={c.onHero} style={{ opacity: 0.75, fontSize: 10 }}>{windowLabel}</Eyebrow>
+          </View>
         </TouchableOpacity>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: Space.sm }}>
-          <Eyebrow style={{ fontSize: 11 }}>{windowLabel}</Eyebrow>
+
+        {/* 1-Tap Quick Fasting Adjustments Bar */}
+        <View style={s.quickAdjustRow}>
           <TouchableOpacity
-            onPress={() => setShowShifter(true)}
+            onPress={() => quickShift(30)}
             activeOpacity={0.7}
-            style={[s.shiftPill, { backgroundColor: c.well, borderColor: c.line }]}
+            style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line }]}
           >
-            <Icon name="clock" size={10} color={c.accent} />
-            <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 4, fontSize: 9, fontWeight: '700' }}>
-              {lang === 'de' ? 'VERSCHIEBEN' : 'SHIFT'}
+            <Icon name="plus" size={10} color={c.accent} />
+            <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 3, fontSize: 9.5, fontWeight: '700' }}>
+              +30m
             </Txt>
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => quickShift(60)}
+            activeOpacity={0.7}
+            style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: 4 }]}
+          >
+            <Icon name="plus" size={10} color={c.accent} />
+            <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 3, fontSize: 9.5, fontWeight: '700' }}>
+              +1h
+            </Txt>
+          </TouchableOpacity>
+          {!fast.isEating ? (
+            <TouchableOpacity
+              onPress={quickFinishFast}
+              activeOpacity={0.7}
+              style={[s.quickAdjustBtn, { backgroundColor: c.emberWash, borderColor: c.ember, flex: 1.4 }]}
+            >
+              <Icon name="plate" size={11} color={c.ember} />
+              <Txt variant="eyebrow" color={c.ember} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '800' }}>
+                {lang === 'de' ? 'FASTEN BEENDEN' : 'END FAST'}
+              </Txt>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setShowShifter(true)}
+              activeOpacity={0.7}
+              style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, flex: 1.2 }]}
+            >
+              <Icon name="clock" size={11} color={c.textDim} />
+              <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
+                {lang === 'de' ? 'VERSCHIEBEN' : 'SHIFT'}
+              </Txt>
+            </TouchableOpacity>
+          )}
+          {!fast.isEating && (
+            <TouchableOpacity
+              onPress={() => setShowShifter(true)}
+              activeOpacity={0.7}
+              style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, marginLeft: 4 }]}
+            >
+              <Icon name="clock" size={11} color={c.textDim} />
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Interactive Metabolic Phase Progress Bar */}
+        {!fast.isEating && (
+          <MetabolicProgressBar
+            hoursFasted={hoursFasted}
+            onPress={() => setShowMetabolic(true)}
+          />
+        )}
       </Enter>
 
       {/* Vibrant Bento Grid */}
@@ -355,11 +466,19 @@ export default function DashboardScreen() {
             hue="hydro"
             subtitle={`${Math.round(waterPct)}% Tagesziel · Trinken`}
           >
+            {/* Visual Smart Water Fill Bar */}
+            <View style={[s.waterFillTrack, { backgroundColor: c.well }]}>
+              <View
+                style={[
+                  s.waterFillBar,
+                  {
+                    width: `${waterPct}%`,
+                    backgroundColor: waterPct >= 100 ? '#10B981' : c.hydro,
+                  },
+                ]}
+              />
+            </View>
             <View style={s.bentoActions}>
-              {/* Labelled, because "+250" is what the button looks like, not
-                  what it does. A screen reader reads the label, and the two
-                  water buttons lost theirs when the dashboard moved into the
-                  bento — so they announced as "plus two five zero". */}
               <Tap onPress={() => addWater(250)} accessibilityLabel="Add 250 millilitres" style={{ flex: 1, marginRight: 4 }}>
                 <View style={[s.miniPill, { backgroundColor: c.well }]}>
                   <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+250</Txt>
@@ -964,5 +1083,40 @@ const s = StyleSheet.create({
     borderRadius: Radius.pill,
     borderWidth: 1,
     marginLeft: Space.sm,
+  },
+  celebrationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginBottom: Space.sm,
+  },
+  quickAdjustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Space.sm,
+    marginBottom: 2,
+  },
+  quickAdjustBtn: {
+    flex: 1,
+    height: 34,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  waterFillTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  waterFillBar: {
+    height: '100%',
+    borderRadius: 3,
   },
 });
