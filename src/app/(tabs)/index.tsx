@@ -232,13 +232,30 @@ export default function DashboardScreen() {
   const nextMins = next ? minutesUntil(next, profile, now) : Infinity;
   const nextColor = nextMins <= 60 ? c.ember : c.accent;
 
+  const hour = now.getHours();
+  const timeGreeting =
+    hour < 11
+      ? (lang === 'de' ? 'Guten Morgen' : 'Good morning')
+      : hour < 17
+      ? (lang === 'de' ? 'Guten Tag' : 'Good afternoon')
+      : (lang === 'de' ? 'Guten Abend' : 'Good evening');
+
+  const bioInsight = fast.isEating
+    ? (lang === 'de' ? 'Essensfenster geöffnet · Genieße deine Mahlzeit bewusst' : 'Eating window open · Enjoy your meal')
+    : hoursFasted >= 18
+    ? (lang === 'de' ? 'Tiefe Autophagie aktiv · Zellregeneration läuft auf Hochtouren' : 'Deep autophagy active · Cellular recovery at peak')
+    : hoursFasted >= 12
+    ? (lang === 'de' ? 'Ketose aktiv · Dein Körper greift reine Fettreserven an' : 'Ketosis active · Burning pure fat reserves')
+    : (lang === 'de' ? 'Verdauung ruht · Insulin sinkt für optimalen Fokus' : 'Digestion resting · Insulin dropping for optimal focus');
+
   return (
     <Screen contentStyle={{ maxWidth: 640, alignSelf: 'center', width: '100%' }}>
       <Enter index={0}>
         <PageHeader
           tone={fast.isEating ? 'ember' : 'accent'}
-          eyebrow={dateLabel}
+          eyebrow={`${timeGreeting} · ${dateLabel}`}
           title={fast.isEating ? t('today.windowOpen') : t('today.fasting')}
+          sub={bioInsight}
         />
         <WeekdayPillStrip fastLog={fastLog} streak={streak} />
       </Enter>
@@ -254,6 +271,18 @@ export default function DashboardScreen() {
               <Icon name={fast.isEating ? 'plate' : 'flame'} size={13} color={fast.isEating ? c.ember : c.onHero} />
               <Txt variant="data" color={fast.isEating ? c.ember : c.onHero} style={{ marginLeft: 5, fontSize: 10, fontWeight: '700' }}>
                 {fast.isEating ? t('today.windowEating') : t('today.windowRunning')}
+              </Txt>
+            </View>
+            <View style={[s.heroBioTag, { backgroundColor: 'rgba(255, 255, 255, 0.12)' }]}>
+              <Icon name={fast.isEating ? 'plate' : hoursFasted >= 12 ? 'flame' : 'shield'} size={10} color={c.onHero} />
+              <Txt variant="eyebrow" color={c.onHero} style={{ marginLeft: 4, fontSize: 9, fontWeight: '700' }}>
+                {fast.isEating
+                  ? (lang === 'de' ? 'ESSENSZEIT' : 'EATING')
+                  : hoursFasted >= 18
+                  ? (lang === 'de' ? 'AUTOPHAGIE' : 'AUTOPHAGY')
+                  : hoursFasted >= 12
+                  ? (lang === 'de' ? 'KETOSE' : 'KETOSIS')
+                  : (lang === 'de' ? 'BLUTZUCKER STABIL' : 'STABLE GLUCOSE')}
               </Txt>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -875,6 +904,7 @@ const s = StyleSheet.create({
   hero: { borderRadius: Radius.lg, padding: Space.base, paddingTop: Space.base },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.xs },
   heroBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.pill },
+  heroBioTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: Radius.pill },
   stageHeader: { flexDirection: 'row', alignItems: 'center' },
   stageIconBadge: { width: 32, height: 32, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   heroFigure: { marginRight: Space.sm, fontSize: 36, fontWeight: '800' },
