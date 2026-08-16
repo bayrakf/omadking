@@ -400,12 +400,17 @@ export default function ProgressScreen() {
             <View style={{ marginTop: Space.base }}>
               <View style={[s.split, { marginBottom: 6 }]}>
                 <Eyebrow>{t('card.goalProgress')} ({profile.goal.replace('_', ' ')})</Eyebrow>
-                <Txt variant="data" color={c.textDim}>{pct.toFixed(0)}% · BMI {bmi.toFixed(1)} ({bmiLabel})</Txt>
+                {/* The bar already shows the share travelled; printing it as
+                    a percentage as well spends the app's one wording rule —
+                    counted facts, not figures — on a number the reader can
+                    see. It also read "0%" on a muscle-gain goal, where the
+                    target is above the start and the share is meaningless. */}
+                <Txt variant="data" color={c.textDim}>BMI {bmi.toFixed(1)} ({bmiLabel})</Txt>
               </View>
               <Bar pct={pct} color={c.body} />
               <View style={[s.split, { marginTop: 6 }]}>
-                <Txt variant="data" color={c.textFaint}>Start {start.toFixed(1)} kg</Txt>
-                <Txt variant="data" color={c.textFaint}>Ziel {target.toFixed(1)} kg</Txt>
+                <Txt variant="data" color={c.textFaint}>{t('card.start', { kg: start.toFixed(1) })}</Txt>
+                <Txt variant="data" color={c.textFaint}>{t('card.target', { kg: target.toFixed(1) })}</Txt>
               </View>
             </View>
           </Card>
@@ -429,7 +434,7 @@ export default function ProgressScreen() {
               <View style={s.split}>
                 <Eyebrow>{adapt.label}</Eyebrow>
                 <Txt variant="data" color={c.textFaint}>
-                  {adapt.daysLogged} {adapt.daysLogged === 1 ? 'Tag' : 'Tage'} erfasst
+                  {adapt.daysLogged === 1 ? t('card.dayLogged') : t('card.daysLogged', { n: adapt.daysLogged })}
                 </Txt>
               </View>
               <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
@@ -596,6 +601,13 @@ export default function ProgressScreen() {
                   </View>
                   <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
                     {review.headline}
+                  </Txt>
+                  {/* The line that turns a week of counting into a statement
+                      about where it leads. It was dropped in the rewrite, and
+                      without it the card reports what happened and stops
+                      short of the one thing it exists to say. */}
+                  <Txt variant="bodyMedium" style={{ marginTop: Space.sm }}>
+                    {review.consequence}
                   </Txt>
                 </>
               )}

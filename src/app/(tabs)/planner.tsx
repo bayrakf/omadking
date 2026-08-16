@@ -584,11 +584,25 @@ export default function PlannerScreen() {
                     }}
                   >
                     <View style={[s.cookedRow, { borderColor: c.line }]}>
-                      <Txt variant="bodyMedium">{r.title}</Txt>
+                      <View style={{ flex: 1 }}>
+                        <Txt variant="bodyMedium">{r.title}</Txt>
+                        {/* How often it was cooked is the reason the rotation
+                            is sorted the way it is. Without it the list is
+                            three titles in an order nobody can account for. */}
+                        <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
+                          {t('rotation.cookedTimes', { n: r.count })}
+                        </Txt>
+                      </View>
                       <Icon name="plate" size={16} color={c.textDim} />
                     </View>
                   </Tap>
                 ))}
+                {/* Free users ration three plans a week. Re-cooking one costs
+                    nothing, and that is exactly the fact that makes the
+                    rotation worth having — it was not being said. */}
+                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                  {t('rotation.noQuota')}
+                </Txt>
               </Card>
             </Enter>
           )}

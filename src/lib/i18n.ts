@@ -381,7 +381,7 @@ const EN = {
   'today.defaultMeal': 'Nutrient-dense OMAD main meal',
   // The measured-maintenance card. English keeps the wording the suite pins,
   // and the approximation note is a standing honesty rule, not a caption.
-  'meas.stale': 'The measurement needs fresh data from the last 21 days — {missing}. Until then the formula applies.',
+  'meas.stale': 'Your measurement has lapsed. It reads the last 21 days, and {missing}. Until then the formula applies.',
   'meas.notEnough': 'Not enough to measure yet — {missing}.',
   'meas.perDay': ' kcal a day',
   'meas.spread': '± {n} kcal spread',
@@ -390,8 +390,14 @@ const EN = {
   'meas.sellShow': 'Show the measured figure',
   'meas.matchesFormula': 'Exactly what the formula says.',
   'meas.offBy': '{n} kcal away from the standard formula. Worked out from {days} days of eating and {weighIns} weigh-ins.',
-  'meas.basedOn': 'Worked out from {days} days of eating and {weighIns} weigh-ins.',
+  'meas.basedOn': 'Worked out from {days} days of eating and {weighIns} weigh-ins. Premium shows the figure and keeps it current.',
   'meas.approximation': 'Based on the standard approximation of 7,700 kcal per kilogram. It moves as you do.',
+  'card.daysLogged': '{n} days logged',
+  'card.dayLogged': '1 day logged',
+  'rotation.cookedTimes': 'cooked {n}×',
+  'rotation.noQuota': 'Re-cooking uses no plan — no plan used from your weekly three.',
+  'card.start': 'start {kg} kg',
+  'card.target': 'target {kg} kg',
 } as const;
 
 export type Key = keyof typeof EN;
@@ -719,7 +725,7 @@ const DE: Record<Key, string> = {
   'today.dailyWeighIn': 'Tages-Wägung',
   'today.dailyWeighInSub': 'Erfasse dein morgendliches Gewicht für die Stoffwechsel-Messung.',
   'today.defaultMeal': 'Nährstoffreiche OMAD-Hauptmahlzeit',
-  'meas.stale': 'Die Messung benötigt frische Daten der letzten 21 Tage — {missing}. Bis dahin gilt die Formel.',
+  'meas.stale': 'Deine Messung ist abgelaufen. Sie liest die letzten 21 Tage, und {missing}. Bis dahin gilt die Formel.',
   'meas.notEnough': 'Noch nicht genug Daten — {missing}.',
   'meas.perDay': ' kcal / Tag',
   'meas.spread': '± {n} kcal Schwankungsbereich',
@@ -728,8 +734,14 @@ const DE: Record<Key, string> = {
   'meas.sellShow': 'Messergebnis anzeigen',
   'meas.matchesFormula': 'Entspricht exakt der Formel.',
   'meas.offBy': 'Weicht um {n} kcal von der Standard-Formel ab. Ermittelt aus {days} Tagen Ernährung und {weighIns} Wägungen.',
-  'meas.basedOn': 'Ermittelt aus {days} Tagen Ernährung und {weighIns} Wägungen.',
+  'meas.basedOn': 'Ermittelt aus {days} Tagen Ernährung und {weighIns} Wägungen. Premium zeigt den Wert und hält ihn aktuell.',
   'meas.approximation': 'Beruht auf der üblichen Näherung von 7.700 kcal pro Kilogramm. Sie bewegt sich mit dir.',
+  'card.daysLogged': '{n} Tage erfasst',
+  'card.dayLogged': '1 Tag erfasst',
+  'rotation.cookedTimes': '{n}× gekocht',
+  'rotation.noQuota': 'Nachkochen verbraucht keinen Plan aus deinen drei pro Woche.',
+  'card.start': 'Start {kg} kg',
+  'card.target': 'Ziel {kg} kg',
 };
 
 const TABLES: Record<Lang, Record<Key, string>> = { en: EN, de: DE };

@@ -1391,7 +1391,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, { ...seed, user_premium: 'true' });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await bodyIn(page, 'Body & rate');
+      const t = await bodyIn(page, 'History');
       check(has(t, 'Month against month'), 'the comparison card is there');
       check(has(t, '2026-05') && has(t, '2026-07'), 'and names both months');
       check(/kg at \d{4} kcal a day/.test(t), 'with the weight change and what was eaten',
@@ -1406,7 +1406,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, seed);
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      const t = await bodyIn(page, 'Body & rate');
+      const t = await bodyIn(page, 'History');
       check(has(t, 'Month against month'), 'free users see that the comparison exists');
       check(!/maintenance is about \d+ kcal lower/.test(t), 'but not the figure itself');
     await context.close();
@@ -1420,7 +1420,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1800);
-      check(!has(await bodyIn(page, 'Body & rate'), 'Month against month'),
+      check(!has(await bodyIn(page, 'History'), 'Month against month'),
         'a single month produces no card at all');
       await context.close();
     }
@@ -2003,7 +2003,7 @@ export default async function run() {
     await page.waitForTimeout(6000);
 
     const after = await body(page);
-    check(has(after, 'Today’s timing'), 'a plan still renders without the service');
+    check(has(after, 'WINDOW') && /\d\d:\d\d–\d\d:\d\d/.test(after), 'a plan still renders without the service');
     check(has(after, 'standard plate'), 'the fallback says it is the standard plate');
     check(has(after, 'unaffected'), 'and that the numbers still hold');
 
@@ -2056,7 +2056,7 @@ export default async function run() {
       const { context, page } = await newPage(browser, { ...SEED, onboarding_profile: profileOf({}) });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
-      check(has(await bodyIn(page, 'History'), 'target 73.7'), 'an unset target still falls back to a healthy BMI');
+      check(has(await bodyIn(page, 'Week & trend'), 'target 73.7'), 'an unset target still falls back to a healthy BMI');
       await context.close();
     }
 
@@ -2066,7 +2066,7 @@ export default async function run() {
       });
       await page.goto(BASE + '/progress', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
-      const t = await bodyIn(page, 'History');
+      const t = await bodyIn(page, 'Week & trend');
       check(has(t, 'target 79.0'), 'a chosen target is what the bar aims at');
       check(!has(t, 'target 73.7'), 'and the formula no longer overrides it');
       await context.close();
