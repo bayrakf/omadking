@@ -55,15 +55,15 @@ export function BentoTile({
       <View style={[s.auraGlow, { backgroundColor: wash }]} />
 
       <View style={s.tileHead}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 4 }}>
           <View style={[s.iconBox, { backgroundColor: wash }]}>
-            <Icon name={icon} size={15} color={tint} />
+            <Icon name={icon} size={13} color={tint} />
           </View>
-          <Eyebrow color={c.textDim} style={{ marginLeft: 6 }}>{title}</Eyebrow>
+          <Eyebrow numberOfLines={1} color={c.textDim} style={{ marginLeft: 5, fontSize: 10 }}>{title}</Eyebrow>
         </View>
         {badge && (
           <View style={[s.badge, { backgroundColor: wash, borderColor: tint }]}>
-            <Txt variant="data" color={tint} style={{ fontSize: 10, fontWeight: '700' }}>
+            <Txt variant="data" color={tint} style={{ fontSize: 9, fontWeight: '700' }}>
               {badge}
             </Txt>
           </View>
@@ -71,30 +71,30 @@ export function BentoTile({
       </View>
 
       <View style={s.valueRow}>
-        <Txt variant="heading" style={{ fontSize: 24, fontWeight: '800', color: c.text }}>
+        <Txt variant="heading" style={{ fontSize: 20, fontWeight: '800', color: c.text }}>
           {value}
         </Txt>
         {unit && (
-          <Txt variant="data" color={c.textFaint} style={{ marginLeft: 4, fontSize: 14 }}>
+          <Txt variant="data" color={c.textFaint} style={{ marginLeft: 3, fontSize: 13 }}>
             {unit}
           </Txt>
         )}
       </View>
 
       {subtitle && (
-        <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
+        <Txt variant="small" numberOfLines={1} color={c.textDim} style={{ fontSize: 11, marginTop: 1 }}>
           {subtitle}
         </Txt>
       )}
 
-      {children && <View style={{ marginTop: Space.sm }}>{children}</View>}
+      {children && <View style={{ marginTop: 6 }}>{children}</View>}
 
       {actionLabel && (
         <View style={s.actionRow}>
-          <Txt variant="data" color={tint} style={{ fontSize: 11, fontWeight: '700' }}>
+          <Txt variant="data" color={tint} style={{ fontSize: 10, fontWeight: '700' }}>
             {actionLabel}
           </Txt>
-          <Icon name="chevronRight" size={12} color={tint} />
+          <Icon name="chevronRight" size={10} color={tint} />
         </View>
       )}
     </View>
@@ -119,59 +119,59 @@ const s = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -Space.xs,
+    marginHorizontal: -4,
     marginBottom: Space.base,
   },
   tileWrapper: {
     width: '50%',
-    paddingHorizontal: Space.xs,
-    marginBottom: Space.sm,
+    paddingHorizontal: 4,
+    marginBottom: 8,
   },
   tile: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Space.base,
-    minHeight: 140,
+    padding: 12,
+    minHeight: 116,
     overflow: 'hidden',
     position: 'relative',
     justifyContent: 'space-between',
   },
   auraGlow: {
     position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    opacity: 0.6,
+    top: -15,
+    right: -15,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    opacity: 0.45,
   },
   tileHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Space.xs,
+    marginBottom: 4,
   },
   iconBox: {
-    width: 26,
-    height: 26,
+    width: 22,
+    height: 22,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
     borderRadius: Radius.pill,
     borderWidth: 1,
   },
   valueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginTop: Space.xs,
+    marginTop: 2,
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Space.sm,
+    marginTop: 6,
   },
 });

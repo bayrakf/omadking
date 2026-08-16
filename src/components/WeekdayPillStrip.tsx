@@ -1,5 +1,5 @@
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Space, Radius } from '@/constants/theme';
+import { Radius } from '@/constants/theme';
 import { Txt, useTheme } from './ui';
 import { Icon } from './icons';
 import { todayISO, formatReadableDate, GERMAN_WEEKDAYS_SHORT, ENGLISH_WEEKDAYS_SHORT } from '@/lib/dates';
@@ -166,17 +166,17 @@ export function WeekdayPillStrip({
 
 const s = StyleSheet.create({
   wrapper: {
-    marginVertical: Space.sm,
+    marginVertical: 4,
   },
   dateHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Space.sm,
+    marginBottom: 6,
     paddingHorizontal: 2,
   },
   todayBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: Radius.pill,
     borderWidth: 1,
@@ -188,23 +188,23 @@ const s = StyleSheet.create({
   },
   pill: {
     flex: 1,
-    height: 68,
-    borderRadius: Radius.lg,
-    borderWidth: 1.2,
+    height: 56,
+    borderRadius: Radius.md,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 2,
-    paddingVertical: 4,
+    marginHorizontal: 1.5,
+    paddingVertical: 2,
   },
   tokenSlot: {
-    height: 14,
+    height: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   missedDot: {
-    width: 4,
-    height: 4,
+    width: 3.5,
+    height: 3.5,
     borderRadius: 2,
     opacity: 0.5,
   },

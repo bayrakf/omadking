@@ -233,7 +233,7 @@ export default function DashboardScreen() {
   const nextColor = nextMins <= 60 ? c.ember : c.accent;
 
   return (
-    <Screen wide>
+    <Screen contentStyle={{ maxWidth: 640, alignSelf: 'center', width: '100%' }}>
       <Enter index={0}>
         <PageHeader
           tone={fast.isEating ? 'ember' : 'accent'}
@@ -250,23 +250,17 @@ export default function DashboardScreen() {
           style={[s.hero, { backgroundColor: c.heroFill }]}
         >
           <View style={s.heroTop}>
-            {/* On the hero, not on the page. The page palette is built for
-                light-on-light and dark-on-dark; none of it has contrast
-                against the filled block, and the fasting chip drawn in `hydro`
-                came out as dark blue on dark teal. The hero carries its own
-                foreground, and ember is the one colour bright enough to keep
-                its meaning on top of it. */}
             <View style={[s.heroBadge, { backgroundColor: fast.isEating ? c.emberWash : c.heroTrack }]}>
-              <Icon name={fast.isEating ? 'plate' : 'flame'} size={14} color={fast.isEating ? c.ember : c.onHero} />
-              <Txt variant="data" color={fast.isEating ? c.ember : c.onHero} style={{ marginLeft: 5, fontSize: 11, fontWeight: '700' }}>
+              <Icon name={fast.isEating ? 'plate' : 'flame'} size={13} color={fast.isEating ? c.ember : c.onHero} />
+              <Txt variant="data" color={fast.isEating ? c.ember : c.onHero} style={{ marginLeft: 5, fontSize: 10, fontWeight: '700' }}>
                 {fast.isEating ? t('today.windowEating') : t('today.windowRunning')}
               </Txt>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Txt variant="eyebrow" color={c.onHero} style={{ opacity: 0.8, fontSize: 10, marginRight: 4 }}>
+              <Txt variant="eyebrow" color={c.onHero} style={{ opacity: 0.8, fontSize: 9, marginRight: 3 }}>
                 LIVE-TIMER
               </Txt>
-              <Icon name="chevronRight" size={12} color={c.onHero} />
+              <Icon name="chevronRight" size={11} color={c.onHero} />
             </View>
           </View>
           <View style={s.countRow}>
@@ -279,7 +273,7 @@ export default function DashboardScreen() {
           </View>
           <DayBand
             onHero
-            style={{ marginTop: Space.lg }}
+            style={{ marginTop: Space.md }}
             nowMin={now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60}
             windowStartMin={toMinutes(profile.omad_window_start)}
             windowLengthMin={profile.omad_window_hours * 60}
@@ -287,15 +281,15 @@ export default function DashboardScreen() {
             isEating={fast.isEating}
           />
         </TouchableOpacity>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: Space.base }}>
-          <Eyebrow>{windowLabel}</Eyebrow>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: Space.sm }}>
+          <Eyebrow style={{ fontSize: 11 }}>{windowLabel}</Eyebrow>
           <TouchableOpacity
             onPress={() => setShowShifter(true)}
             activeOpacity={0.7}
             style={[s.shiftPill, { backgroundColor: c.well, borderColor: c.line }]}
           >
-            <Icon name="clock" size={11} color={c.accent} />
-            <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 4, fontSize: 10, fontWeight: '700' }}>
+            <Icon name="clock" size={10} color={c.accent} />
+            <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 4, fontSize: 9, fontWeight: '700' }}>
               {lang === 'de' ? 'VERSCHIEBEN' : 'SHIFT'}
             </Txt>
           </TouchableOpacity>
@@ -870,16 +864,14 @@ const s = StyleSheet.create({
   time: { width: 54 },
   struck: { textDecorationLine: 'line-through' },
 
-  hero: { borderRadius: Radius.xl, padding: Space.lg, paddingTop: Space.lg },
-  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginBottom: Space.sm },
-  heroBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.pill },
+  hero: { borderRadius: Radius.lg, padding: Space.base, paddingTop: Space.base },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.xs },
+  heroBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.pill },
   stageHeader: { flexDirection: 'row', alignItems: 'center' },
-  stageIconBadge: { width: 36, height: 36, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  // The caption rides the baseline of a 56pt numeral, so it needs its own
-  // opacity rather than a dimmer token — there is no dim-on-hero colour.
-  heroFigure: { marginRight: Space.sm },
+  stageIconBadge: { width: 32, height: 32, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+  heroFigure: { marginRight: Space.sm, fontSize: 36, fontWeight: '800' },
   countRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
-  countCaption: { opacity: 0.7 },
+  countCaption: { opacity: 0.75, fontSize: 12 },
   statRow: { flexDirection: 'row', alignItems: 'center' },
   figure: { fontSize: 24, marginTop: 5 },
   vline: { width: 1, height: 34, marginHorizontal: Space.base },
@@ -895,8 +887,8 @@ const s = StyleSheet.create({
   bentoActions: { flexDirection: 'row', alignItems: 'center', marginTop: Space.xs },
   miniPill: { height: 26, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   showcaseCard: {
-    height: 140,
-    borderRadius: Radius.lg,
+    height: 108,
+    borderRadius: Radius.md,
     overflow: 'hidden',
     position: 'relative',
     borderWidth: 1,
