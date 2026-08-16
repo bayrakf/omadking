@@ -45,6 +45,33 @@ export function currentStreak(dates: string[], today = todayISO()): number {
   return streak;
 }
 
+/**
+ * Longest historical consecutive streak in the dates array.
+ */
+export function longestStreak(dates: string[]): number {
+  if (!dates || dates.length === 0) return 0;
+  const sorted = Array.from(new Set(dates.filter((d) => typeof d === 'string'))).sort();
+  if (sorted.length === 0) return 0;
+
+  let maxStreak = 1;
+  let current = 1;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = parseISO(sorted[i - 1]);
+    const curr = parseISO(sorted[i]);
+    const diffDays = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      current++;
+      if (current > maxStreak) maxStreak = current;
+    } else if (diffDays > 1) {
+      current = 1;
+    }
+  }
+
+  return maxStreak;
+}
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -123,6 +150,10 @@ export function demo() {
   assert(currentStreak(['2026-03-10', '2026-03-10', '2026-03-09'], '2026-03-10') === 2, 'duplicate dates counted once');
   // Across a month boundary.
   assert(currentStreak(['2026-03-01', '2026-02-28', '2026-02-27'], '2026-03-01') === 3, 'streak crosses a month end');
+
+  // Longest streak
+  assert(longestStreak(['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-10', '2026-01-11']) === 3, 'finds longest segment');
+  assert(longestStreak([]) === 0, 'longest streak of empty is 0');
 
   // Week key rolls over on Monday, not Sunday.
   const sunday = new Date(2026, 2, 8); // Sun 8 Mar 2026

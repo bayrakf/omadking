@@ -16,10 +16,11 @@ import {
   type UserProfile, type FastingState,
 } from '@/lib/nutrition';
 import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
-import { formatReadableDate } from '@/lib/dates';
+import { formatReadableDate, longestStreak } from '@/lib/dates';
 import { WindowShifterModal } from '@/components/WindowShifterModal';
 import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
 import { MetabolicProgressBar } from '@/components/MetabolicProgressBar';
+import { DailyBioHackCard } from '@/components/DailyBioHackCard';
 import { BreakFastGuideModal } from '@/components/BreakFastGuideModal';
 import { DailyFastingNote } from '@/components/DailyFastingNote';
 import { playZenChime } from '@/lib/sound';
@@ -290,7 +291,11 @@ export default function DashboardScreen() {
           title={fast.isEating ? t('today.windowOpen') : t('today.fasting')}
           sub={bioInsight}
         />
-        <WeekdayPillStrip fastLog={fastLog} streak={streak} />
+        <WeekdayPillStrip
+          fastLog={fastLog}
+          streak={streak}
+          longestStreakCount={longestStreak(fastLog)}
+        />
       </Enter>
 
       {/* Celebration Notification */}
@@ -564,7 +569,12 @@ export default function DashboardScreen() {
         </BentoGrid>
       </Enter>
 
+      {/* Scientific Evidence-Based Bio-Hack of the Day */}
       <Enter index={3}>
+        <DailyBioHackCard />
+      </Enter>
+
+      <Enter index={4}>
         <Card style={{ marginTop: Space.base, padding: Space.base }}>
           <FastingFeelingBar embedded />
           <Divider style={{ marginVertical: Space.base }} />

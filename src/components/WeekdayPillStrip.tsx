@@ -10,6 +10,7 @@ import { haptic } from '@/lib/haptic';
 interface WeekdayPillStripProps {
   fastLog?: string[];
   streak?: number;
+  longestStreakCount?: number;
   selectedDate?: string;
   onSelectDate?: (date: string) => void;
 }
@@ -17,6 +18,7 @@ interface WeekdayPillStripProps {
 export function WeekdayPillStrip({
   fastLog = [],
   streak = 0,
+  longestStreakCount = 0,
   selectedDate,
   onSelectDate,
 }: WeekdayPillStripProps) {
@@ -56,6 +58,8 @@ export function WeekdayPillStrip({
     };
   });
 
+  const isPersonalBest = streak > 0 && streak >= longestStreakCount;
+
   return (
     <View style={s.wrapper}>
       {/* Readable full date banner */}
@@ -71,12 +75,14 @@ export function WeekdayPillStrip({
                 haptic('light');
                 router.push('/achievements');
               }}
-              style={[s.todayBadge, { backgroundColor: c.emberWash, borderColor: c.ember, marginRight: 6, flexDirection: 'row', alignItems: 'center' }]}
-              accessibilityLabel={`Streak: ${streak} days. Tap to view achievements.`}
+              style={[s.todayBadge, { backgroundColor: isPersonalBest ? '#FEF3C7' : c.emberWash, borderColor: isPersonalBest ? '#F59E0B' : c.ember, marginRight: 6, flexDirection: 'row', alignItems: 'center' }]}
+              accessibilityLabel={`Streak: ${streak} days. Personal record: ${longestStreakCount}. Tap to view achievements.`}
             >
-              <Icon name="flame" size={10} color={c.ember} />
-              <Txt variant="data" color={c.ember} style={{ fontSize: 10, fontWeight: '800', marginLeft: 3 }}>
+              <Icon name={isPersonalBest ? 'crown' : 'flame'} size={10} color={isPersonalBest ? '#D97706' : c.ember} />
+              <Txt variant="data" color={isPersonalBest ? '#B45309' : c.ember} style={{ fontSize: 10, fontWeight: '800', marginLeft: 3 }}>
                 {streak} {lang === 'de' ? (streak === 1 ? 'TAG' : 'TAGE') : (streak === 1 ? 'DAY' : 'DAYS')}
+                {longestStreakCount > streak && ` · MAX ${longestStreakCount}`}
+                {isPersonalBest && streak >= 3 && ' · 👑 REKORD'}
               </Txt>
             </TouchableOpacity>
           )}

@@ -12,7 +12,7 @@ import { mkdtempSync, mkdirSync, rmSync, readdirSync, readFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const MODULES = ['nutrition', 'onboarding', 'dates', 'grocery', 'agenda', 'ai', 'review', 'markdown', 'typography', 'legal', 'crypto', 'sync-merge', 'energy', 'offer', 'achievements', 'i18n'];
+const MODULES = ['nutrition', 'onboarding', 'dates', 'grocery', 'agenda', 'ai', 'review', 'markdown', 'typography', 'legal', 'crypto', 'sync-merge', 'energy', 'offer', 'achievements', 'biohacks', 'i18n'];
 
 // Inside the project, not the system temp dir: the compiled modules import
 // real packages now (@noble/ciphers), and node resolves those by walking up
