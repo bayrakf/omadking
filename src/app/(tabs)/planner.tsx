@@ -47,6 +47,24 @@ const COMPLEXITY_OPTIONS: { id: MealComplexity; emoji: string; label: string; la
   { id: 'chef',     emoji: '👨‍🍳', label: 'Chef-Level', labelDe: 'Chef-Level', sub: 'Gourmet · plating',   subDe: 'Gourmet · Anrichten', premiumOnly: true },
 ];
 
+function localizeRecipeTitle(title: string, lang: 'de' | 'en'): string {
+  if (lang !== 'de') return title;
+  const t = title.trim();
+  if (/pan-seared.*chicken.*breast/i.test(t)) {
+    return 'Gebratene Honig-Zitronen Hähnchenbrust mit Jasminreis & Süßkartoffel';
+  }
+  if (/recovery plate/i.test(t)) return t.replace(/recovery plate/gi, 'Regenerations-Teller');
+  if (/maintenance plate/i.test(t)) return t.replace(/maintenance plate/gi, 'OMAD Hauptmahlzeit');
+  return t
+    .replace(/Pan-Seared/gi, 'Gebratene')
+    .replace(/Chicken Breast/gi, 'Hähnchenbrust')
+    .replace(/Steamed/gi, 'Gedämpfter')
+    .replace(/Jasmine Rice/gi, 'Jasminreis')
+    .replace(/Sweet Potato/gi, 'Süßkartoffel')
+    .replace(/Asparagus/gi, 'Spargel')
+    .replace(/with/gi, 'mit');
+}
+
 export default function PlannerScreen() {
   const c = useTheme();
   const { lang, t } = useLang();
@@ -267,6 +285,7 @@ export default function PlannerScreen() {
           )}
 
           {/* Live targets: High-End Macro & Calorie Center */}
+          {/* Live targets: High-End Macro & Calorie Center */}
           <Enter index={2}>
             {(() => {
               const totalKcal = preview.kcal;
@@ -280,24 +299,19 @@ export default function PlannerScreen() {
               const proteinPerKg = profile.weight_kg ? (preview.protein_g / profile.weight_kg).toFixed(1) : null;
 
               return (
-                <Card style={{ marginTop: Space.base }}>
+                <Card style={{ marginTop: Space.base, padding: Space.base, borderRadius: Radius.lg }}>
                   {/* Hero Calorie Header */}
                   <View style={s.macroHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={[s.calIconCircle, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
-                        <Icon name="flame" size={18} color={c.ember} />
+                        <Icon name="flame" size={20} color={c.ember} />
                       </View>
-                      <View style={{ marginLeft: Space.sm }}>
-                        <Eyebrow color={c.textDim}>
+                      <View style={{ marginLeft: Space.md }}>
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10, letterSpacing: 0.8 }}>
                           {lang === 'de' ? 'TAGESZIEL (OMAD)' : 'DAILY TARGET (OMAD)'}
                         </Eyebrow>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 2 }}>
-                          <Txt variant="hero" color={c.text} style={{ fontSize: 28, lineHeight: 32, fontWeight: '800' }}>
-                            {/* The separator follows the language, not the author's keyboard.
-                                Hard-coded 'de-DE' printed "3.229 kcal" to an
-                                English reader, who reads that as three point
-                                two — the one number on the screen, rendered
-                                wrong by a factor of a thousand. */}
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 1 }}>
+                          <Txt variant="hero" color={c.text} style={{ fontSize: 30, lineHeight: 34, fontWeight: '800' }}>
                             {totalKcal.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')}
                           </Txt>
                           <Txt variant="subheading" color={c.textDim} style={{ marginLeft: 6, fontWeight: '600' }}>
@@ -309,7 +323,7 @@ export default function PlannerScreen() {
 
                     {preview.burn_kcal > 0 && (
                       <View style={[s.workoutBonusPill, { backgroundColor: 'rgba(255, 107, 74, 0.12)', borderColor: 'rgba(255, 107, 74, 0.3)' }]}>
-                        <Txt variant="eyebrow" color="#FF6B4A" style={{ fontSize: 11, fontWeight: '800' }}>
+                        <Txt variant="eyebrow" color="#FF6B4A" style={{ fontSize: 10, fontWeight: '800' }}>
                           +{preview.burn_kcal} KCAL WORKOUT
                         </Txt>
                       </View>
@@ -318,60 +332,60 @@ export default function PlannerScreen() {
 
                   {/* Proportional Macro Distribution Bar */}
                   <View style={s.macroBarTrack}>
-                    <View style={[s.macroBarSeg, { flex: pPct, backgroundColor: '#10B981', borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }]} />
+                    <View style={[s.macroBarSeg, { flex: pPct, backgroundColor: '#10B981', borderTopLeftRadius: 5, borderBottomLeftRadius: 5 }]} />
                     <View style={[s.macroBarSeg, { flex: cPct, backgroundColor: '#38BDF8', marginLeft: 2 }]} />
-                    <View style={[s.macroBarSeg, { flex: fPct, backgroundColor: '#F59E0B', marginLeft: 2, borderTopRightRadius: 4, borderBottomRightRadius: 4 }]} />
+                    <View style={[s.macroBarSeg, { flex: fPct, backgroundColor: '#F59E0B', marginLeft: 2, borderTopRightRadius: 5, borderBottomRightRadius: 5 }]} />
                   </View>
 
                   {/* Macro Trio Cards */}
                   <View style={s.macroTrioRow}>
                     {/* Protein */}
-                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                    <View style={[s.macroTrioCard, { backgroundColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)' }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: '#10B981' }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>PROTEIN</Eyebrow>
+                        <Eyebrow color="#10B981" style={{ fontSize: 10, fontWeight: '800' }}>PROTEIN</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
+                        <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
                           {preview.protein_g}
                         </Txt>
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color="#10B981" style={{ fontSize: 10, marginTop: 2, fontWeight: '700' }}>
+                      <Txt variant="eyebrow" color="#10B981" style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
                         {pPct}% {proteinPerKg ? `· ${proteinPerKg}g/kg` : ''}
                       </Txt>
                     </View>
 
                     {/* Carbs */}
-                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line, marginHorizontal: Space.xs }]}>
+                    <View style={[s.macroTrioCard, { backgroundColor: 'rgba(56, 189, 248, 0.08)', borderColor: 'rgba(56, 189, 248, 0.25)', marginHorizontal: Space.xs }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: '#38BDF8' }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{t('macro.carbs')}</Eyebrow>
+                        <Eyebrow color="#38BDF8" style={{ fontSize: 10, fontWeight: '800' }}>{t('macro.carbs')}</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
+                        <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
                           {preview.carbs_g}
                         </Txt>
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color="#38BDF8" style={{ fontSize: 10, marginTop: 2, fontWeight: '700' }}>
+                      <Txt variant="eyebrow" color="#38BDF8" style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
                         {cPct}%
                       </Txt>
                     </View>
 
                     {/* Fat */}
-                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                    <View style={[s.macroTrioCard, { backgroundColor: 'rgba(245, 158, 11, 0.08)', borderColor: 'rgba(245, 158, 11, 0.25)' }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: '#F59E0B' }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{t('macro.fat')}</Eyebrow>
+                        <Eyebrow color="#F59E0B" style={{ fontSize: 10, fontWeight: '800' }}>{t('macro.fat')}</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800' }}>
+                        <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
                           {preview.fat_g}
                         </Txt>
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 10, marginTop: 2, fontWeight: '700' }}>
+                      <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
                         {fPct}%
                       </Txt>
                     </View>
@@ -601,7 +615,7 @@ export default function PlannerScreen() {
                       </View>
                       <View style={{ flex: 1, marginLeft: 10 }}>
                         <Txt variant="subheading" color={c.text} style={{ fontSize: 13.5, fontWeight: '700', lineHeight: 18 }}>
-                          {r.title}
+                          {localizeRecipeTitle(r.title, lang)}
                         </Txt>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                           <View style={[s.countBadge, { backgroundColor: c.emberWash }]}>
@@ -951,13 +965,13 @@ const s = StyleSheet.create({
     borderRadius: Radius.pill, borderWidth: 1,
   },
   macroBarTrack: {
-    flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden',
+    flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden',
     marginBottom: Space.base,
   },
-  macroBarSeg: { height: 8 },
+  macroBarSeg: { height: 10 },
   macroTrioRow: { flexDirection: 'row', marginTop: Space.xs },
   macroTrioCard: {
-    flex: 1, padding: Space.sm, borderRadius: Radius.md, borderWidth: 1,
+    flex: 1, padding: 10, borderRadius: Radius.lg, borderWidth: 1,
   },
   macroDot: {
     width: 7, height: 7, borderRadius: 4, marginRight: 5,

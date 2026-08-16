@@ -29,7 +29,7 @@ import {
   currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
   remindersOffered, markRemindersOffered,
   saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, loadTodayWindowShift,
-  saveTodayWindowShift,
+  saveTodayWindowShift, clearTodayWindowShift,
   loadDailySteps, saveDailySteps, type Hydration,
 } from '@/lib/store';
 import {
@@ -80,7 +80,8 @@ export default function DashboardScreen() {
   const [showMetabolic, setShowMetabolic] = useState(false);
   const [showBreakFast, setShowBreakFast] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [segment, setSegment] = useState<'fasting' | 'meal' | 'insights'>('fasting');
+  const [segment, setSegment] = useState<'fasting' | 'meal' | 'workout' | 'insights'>('fasting');
+  const [isShifted, setIsShifted] = useState(false);
   const [steps, setSteps] = useState(0);
 
   useEffect(() => {
@@ -100,6 +101,7 @@ export default function DashboardScreen() {
       loadLastPlan<MealPlan>(), loadWeightLog(), loadIntakeLog(), isPremium(),
       loadTodayWindowShift(), loadDailySteps(),
     ]);
+    setIsShifted(!!shift);
     const effectiveProfile = shift ? { ...p, omad_window_start: shift.window_start } : p;
     setQuestion(intakeQuestionFor(effectiveProfile, intake));
     const latest = [...(intake ?? [])].sort((a, b) => a.date.localeCompare(b.date)).pop();
@@ -186,6 +188,12 @@ export default function DashboardScreen() {
     const nextEndMin = (nextStartMin + profile.omad_window_hours * 60) % 1440;
     const nextEnd = fromMinutes(nextEndMin);
     await saveTodayWindowShift(nextStart, nextEnd);
+    haptic('medium');
+    await refresh();
+  };
+
+  const resetShift = async () => {
+    await clearTodayWindowShift();
     haptic('medium');
     await refresh();
   };
@@ -323,7 +331,7 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* 3-Segment Focus Switcher Bar */}
+      {/* 4-Segment Focus Switcher Bar */}
       <Enter index={1}>
         <View style={[s.segmentBar, { backgroundColor: c.well }]}>
           <TouchableOpacity
@@ -332,8 +340,8 @@ export default function DashboardScreen() {
             style={[s.segmentTab, segment === 'fasting' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
           >
             <Icon name="flame" size={13} color={segment === 'fasting' ? c.accent : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'fasting' ? c.text : c.textDim} style={{ marginLeft: 5, fontSize: 10.5, fontWeight: '800' }}>
-              {lang === 'de' ? 'Fasten & Körper' : 'Fast & Body'}
+            <Txt variant="eyebrow" color={segment === 'fasting' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}>
+              {lang === 'de' ? 'Fasten' : 'Fast'}
             </Txt>
           </TouchableOpacity>
 
@@ -343,8 +351,19 @@ export default function DashboardScreen() {
             style={[s.segmentTab, segment === 'meal' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
           >
             <Icon name="plate" size={13} color={segment === 'meal' ? c.ember : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'meal' ? c.text : c.textDim} style={{ marginLeft: 5, fontSize: 10.5, fontWeight: '800' }}>
-              {lang === 'de' ? 'Heutiger Teller' : "Today's Meal"}
+            <Txt variant="eyebrow" color={segment === 'meal' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}>
+              {lang === 'de' ? 'Teller' : 'Meal'}
+            </Txt>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => { setSegment('workout'); haptic('light'); }}
+            style={[s.segmentTab, segment === 'workout' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
+          >
+            <Icon name="dumbbell" size={13} color={segment === 'workout' ? '#FF6B4A' : c.textDim} />
+            <Txt variant="eyebrow" color={segment === 'workout' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}>
+              {lang === 'de' ? 'Sport' : 'Sport'}
             </Txt>
           </TouchableOpacity>
 
@@ -354,8 +373,8 @@ export default function DashboardScreen() {
             style={[s.segmentTab, segment === 'insights' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
           >
             <Icon name="coach" size={13} color={segment === 'insights' ? c.plan : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'insights' ? c.text : c.textDim} style={{ marginLeft: 5, fontSize: 10.5, fontWeight: '800' }}>
-              {lang === 'de' ? 'Wissen & Notiz' : 'Wisdom & Notes'}
+            <Txt variant="eyebrow" color={segment === 'insights' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}>
+              {lang === 'de' ? 'Wissen' : 'Wisdom'}
             </Txt>
           </TouchableOpacity>
         </View>
@@ -422,60 +441,85 @@ export default function DashboardScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* 1-Tap Quick Fasting Adjustments Bar */}
+            {/* 1-Tap Quick Fasting Adjustments Bar (+ / - / Reset / Shifter) */}
             <View style={s.quickAdjustRow}>
+              <TouchableOpacity
+                onPress={() => quickShift(-30)}
+                activeOpacity={0.7}
+                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line }]}
+                accessibilityLabel="30 Minuten früher essen"
+              >
+                <Txt variant="eyebrow" color={c.textDim} style={{ fontSize: 9.5, fontWeight: '800' }}>
+                  -30m
+                </Txt>
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => quickShift(30)}
                 activeOpacity={0.7}
-                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line }]}
+                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: 3 }]}
+                accessibilityLabel="30 Minuten länger fasten"
               >
-                <Icon name="plus" size={10} color={c.accent} />
-                <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 3, fontSize: 9.5, fontWeight: '700' }}>
+                <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9.5, fontWeight: '800' }}>
                   +30m
                 </Txt>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => quickShift(60)}
                 activeOpacity={0.7}
-                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: 4 }]}
+                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line }]}
+                accessibilityLabel="1 Stunde länger fasten"
               >
-                <Icon name="plus" size={10} color={c.accent} />
-                <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 3, fontSize: 9.5, fontWeight: '700' }}>
+                <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9.5, fontWeight: '800' }}>
                   +1h
                 </Txt>
               </TouchableOpacity>
+
+              {isShifted && (
+                <TouchableOpacity
+                  onPress={resetShift}
+                  activeOpacity={0.7}
+                  style={[s.quickAdjustBtn, { backgroundColor: c.well, borderColor: c.line, marginHorizontal: 3 }]}
+                  accessibilityLabel="Zurücksetzen"
+                >
+                  <Icon name="close" size={10} color={c.textDim} />
+                  <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 2, fontSize: 9, fontWeight: '700' }}>
+                    Reset
+                  </Txt>
+                </TouchableOpacity>
+              )}
+
               {!fast.isEating ? (
                 <TouchableOpacity
                   onPress={quickFinishFast}
                   activeOpacity={0.7}
-                  style={[s.quickAdjustBtn, { backgroundColor: c.emberWash, borderColor: c.ember, flex: 1.4 }]}
+                  style={[s.quickAdjustBtn, { backgroundColor: c.emberWash, borderColor: c.ember, flex: 1.2, marginLeft: 3 }]}
                 >
                   <Icon name="plate" size={11} color={c.ember} />
-                  <Txt variant="eyebrow" color={c.ember} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '800' }}>
-                    {lang === 'de' ? 'FASTEN BEENDEN' : 'END FAST'}
+                  <Txt variant="eyebrow" color={c.ember} style={{ marginLeft: 3, fontSize: 9, fontWeight: '800' }}>
+                    {lang === 'de' ? 'BEENDEN' : 'END FAST'}
                   </Txt>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   onPress={() => setShowShifter(true)}
                   activeOpacity={0.7}
-                  style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, flex: 1.2 }]}
+                  style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, flex: 1.1, marginLeft: 3 }]}
                 >
                   <Icon name="clock" size={11} color={c.textDim} />
-                  <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
-                    {lang === 'de' ? 'VERSCHIEBEN' : 'SHIFT'}
+                  <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 3, fontSize: 9, fontWeight: '700' }}>
+                    {lang === 'de' ? 'ZEIT' : 'TIME'}
                   </Txt>
                 </TouchableOpacity>
               )}
-              {!fast.isEating && (
-                <TouchableOpacity
-                  onPress={() => setShowShifter(true)}
-                  activeOpacity={0.7}
-                  style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, marginLeft: 4 }]}
-                >
-                  <Icon name="clock" size={11} color={c.textDim} />
-                </TouchableOpacity>
-              )}
+
+              <TouchableOpacity
+                onPress={() => setShowShifter(true)}
+                activeOpacity={0.7}
+                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, maxWidth: 34, marginLeft: 3 }]}
+                accessibilityLabel="Uhrzeit einstellen"
+              >
+                <Icon name="edit" size={11} color={c.textDim} />
+              </TouchableOpacity>
             </View>
 
             {/* Interactive Metabolic Phase Progress Bar */}
@@ -842,22 +886,12 @@ export default function DashboardScreen() {
       )}
 
       {/* =========================================================================
-          TAB 3: WISSEN, ROUTINE & TOOLS
+          TAB 3: WORKOUT & SPORT
           ========================================================================= */}
-      {segment === 'insights' && (
+      {segment === 'workout' && (
         <>
+          {/* Workout Hero Showcase */}
           <Enter index={2}>
-            <DailyBioHackCard />
-          </Enter>
-
-          <Enter index={3}>
-            <Card style={{ marginTop: Space.base, padding: Space.base }}>
-              <DailyFastingNote embedded />
-            </Card>
-          </Enter>
-
-          {/* Workout Showcase */}
-          <Enter index={4} style={{ marginTop: Space.base }}>
             <TouchableOpacity
               activeOpacity={0.88}
               onPress={() => router.push('/workout')}
@@ -875,19 +909,133 @@ export default function DashboardScreen() {
                     OMAD TRAINING
                   </Txt>
                 </View>
-                <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 18, fontWeight: '800', marginTop: 4 }}>
-                  Gefastetes Workout & Hypertrophie
+                <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 19, fontWeight: '800', marginTop: 4 }}>
+                  {lang === 'de' ? 'Gefastetes Training & Hypertrophie' : 'Fasted Training & Hypertrophy'}
                 </Txt>
-                <Txt variant="small" color="rgba(255, 255, 255, 0.85)" style={{ marginTop: 2 }}>
-                  6 Einheiten mit automatischer Makro- & Kalorien-Synchronisation
+                <Txt variant="small" color="rgba(255, 255, 255, 0.88)" style={{ marginTop: 3 }}>
+                  {lang === 'de'
+                    ? '6 Einheiten mit automatischer Makro- & Kalorien-Synchronisation'
+                    : '6 routines with automatic calorie & macro sync'}
                 </Txt>
               </View>
             </TouchableOpacity>
           </Enter>
 
-          {/* Modern 3-Column Quick Tools Widget Grid */}
+          {/* Steps & Active Calorie Hub */}
+          <Enter index={3}>
+            <Card style={{ marginTop: Space.base, padding: Space.base }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.15)', width: 34, height: 34, borderRadius: 17 }]}>
+                    <Icon name="chart" size={16} color="#38BDF8" />
+                  </View>
+                  <View style={{ marginLeft: 10 }}>
+                    <Eyebrow color={c.textDim}>{lang === 'de' ? 'TAGESSCHRITTE & AKTIVITÄT' : 'DAILY STEPS & ACTIVITY'}</Eyebrow>
+                    <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800', marginTop: 2 }}>
+                      {steps.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')} <Txt variant="small" color={c.textDim}>/ 10.000</Txt>
+                    </Txt>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TouchableOpacity
+                    onPress={() => addSteps(1000)}
+                    activeOpacity={0.7}
+                    style={[s.miniPill, { backgroundColor: c.well, marginRight: 6 }]}
+                  >
+                    <Txt variant="eyebrow" color={c.text} style={{ fontSize: 10, fontWeight: '700' }}>+1.000</Txt>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => addSteps(2500)}
+                    activeOpacity={0.7}
+                    style={[s.miniPill, { backgroundColor: c.well }]}
+                  >
+                    <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 10, fontWeight: '700' }}>+2.500</Txt>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Card>
+          </Enter>
+
+          {/* Quick Workout Routines Grid */}
+          <Enter index={4} style={{ marginTop: Space.base }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.sm }}>
+              <Eyebrow>{lang === 'de' ? 'Trainings-Einheiten' : 'Workout Sessions'}</Eyebrow>
+              <TouchableOpacity onPress={() => router.push('/workout')}>
+                <Txt variant="small" color={c.accent}>{lang === 'de' ? 'Alle öffnen ➔' : 'View all ➔'}</Txt>
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.workoutRoutineGrid}>
+              {[
+                { id: 'push', titleDe: 'Oberkörper Push', titleEn: 'Upper Push', emoji: '💪', time: '40 min', kcal: '~320 kcal', desc: 'Brust, Schultern, Trizeps' },
+                { id: 'pull', titleDe: 'Oberkörper Pull', titleEn: 'Upper Pull', emoji: '🏋️‍♂️', time: '40 min', kcal: '~300 kcal', desc: 'Rücken, Bizeps, Nacken' },
+                { id: 'legs', titleDe: 'Beine & Core', titleEn: 'Legs & Core', emoji: '🦵', time: '45 min', kcal: '~420 kcal', desc: 'Quads, Hamstrings, Bauch' },
+                { id: 'full', titleDe: 'Ganzkörper Kraft', titleEn: 'Full Body', emoji: '⚡', time: '50 min', kcal: '~460 kcal', desc: 'Kompakte Grundübungen' },
+                { id: 'zone2', titleDe: 'Zone 2 Cardio', titleEn: 'Zone 2 Cardio', emoji: '🏃‍♂️', time: '35 min', kcal: '~280 kcal', desc: 'Optimale Fettverbrennung' },
+                { id: 'hiit', titleDe: 'HIIT & Tabata', titleEn: 'HIIT & Tabata', emoji: '🔥', time: '20 min', kcal: '~250 kcal', desc: 'Maximaler Nachbrenneffekt' },
+              ].map((w) => (
+                <TouchableOpacity
+                  key={w.id}
+                  activeOpacity={0.75}
+                  onPress={() => router.push('/workout')}
+                  style={[s.workoutRoutineCard, { backgroundColor: c.surface, borderColor: c.line }]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Txt style={{ fontSize: 20 }}>{w.emoji}</Txt>
+                    <View style={[s.countBadge, { backgroundColor: 'rgba(255, 107, 74, 0.12)' }]}>
+                      <Txt variant="eyebrow" color="#FF6B4A" style={{ fontSize: 9, fontWeight: '800' }}>
+                        {w.kcal}
+                      </Txt>
+                    </View>
+                  </View>
+                  <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 6 }}>
+                    {lang === 'de' ? w.titleDe : w.titleEn}
+                  </Txt>
+                  <Txt variant="small" color={c.textDim} style={{ fontSize: 10.5, marginTop: 2 }}>
+                    {w.time} · {w.desc}
+                  </Txt>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Enter>
+
+          {/* Fasted Training Science Tip */}
           <Enter index={5} style={{ marginTop: Space.base }}>
-            <Eyebrow style={{ marginBottom: Space.sm }}>Schnellzugriff & Tools</Eyebrow>
+            <Card style={{ padding: Space.base, backgroundColor: c.well, borderColor: c.line }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Icon name="shield" size={16} color={c.accent} />
+                <Eyebrow color={c.accent} style={{ marginLeft: 6, fontSize: 10, fontWeight: '800' }}>
+                  {lang === 'de' ? 'OMAD SPORT-REGEL' : 'OMAD TRAINING RULE'}
+                </Eyebrow>
+              </View>
+              <Txt variant="bodyMedium" color={c.text} style={{ marginTop: Space.xs, fontSize: 13, lineHeight: 18 }}>
+                {lang === 'de'
+                  ? 'Trainiere idealerweise 1–2 Stunden vor deinem Essensfenster. Nimm 30 Min vor dem Workout 1 Glas Wasser mit einer Prise Meersalz (Elektrolyte), um Pump & Kraft aufrechtzuerhalten.'
+                  : 'Train 1–2 hours before your eating window. Take 1 glass of water with a pinch of sea salt (electrolytes) 30 min before to maintain pump & power.'}
+              </Txt>
+            </Card>
+          </Enter>
+        </>
+      )}
+
+      {/* =========================================================================
+          TAB 4: WISSEN, ROUTINE & TOOLS
+          ========================================================================= */}
+      {segment === 'insights' && (
+        <>
+          <Enter index={2}>
+            <DailyBioHackCard />
+          </Enter>
+
+          <Enter index={3}>
+            <Card style={{ marginTop: Space.base, padding: Space.base }}>
+              <DailyFastingNote embedded />
+            </Card>
+          </Enter>
+
+          {/* Modern 3-Column Quick Tools Widget Grid */}
+          <Enter index={4} style={{ marginTop: Space.base }}>
+            <Eyebrow style={{ marginBottom: Space.sm }}>{lang === 'de' ? 'Schnellzugriff & Tools' : 'Quick Tools'}</Eyebrow>
             <View style={s.quickToolGrid}>
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -898,10 +1046,10 @@ export default function DashboardScreen() {
                   <Icon name="basket" size={18} color={c.plan} />
                 </View>
                 <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
-                  Einkaufsliste
+                  {lang === 'de' ? 'Einkaufsliste' : 'Grocery'}
                 </Txt>
                 <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
-                  Zutaten sortiert
+                  {lang === 'de' ? 'Zutaten sortiert' : 'Sorted list'}
                 </Txt>
               </TouchableOpacity>
 
@@ -910,14 +1058,14 @@ export default function DashboardScreen() {
                 onPress={() => router.push('/progress')}
                 style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: Space.sm }]}
               >
-                <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
-                  <Icon name="chart" size={18} color={c.body} />
+                <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                  <Icon name="chart" size={18} color={c.positive} />
                 </View>
                 <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
-                  Verlauf & Trend
+                  {lang === 'de' ? 'Fortschritt' : 'Progress'}
                 </Txt>
                 <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
-                  Gewicht & Daten
+                  {lang === 'de' ? 'Gewicht & Trends' : 'Weight & trends'}
                 </Txt>
               </TouchableOpacity>
 
@@ -926,21 +1074,21 @@ export default function DashboardScreen() {
                 onPress={() => router.push('/chat')}
                 style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
               >
-                <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+                <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(255, 107, 74, 0.15)' }]}>
                   <Icon name="coach" size={18} color={c.accent} />
                 </View>
                 <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
-                  Fasten-Coach
+                  {lang === 'de' ? 'OMAD Coach' : 'OMAD Coach'}
                 </Txt>
                 <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
-                  KI-Beratung
+                  {lang === 'de' ? 'KI-Ernährung' : 'AI Advice'}
                 </Txt>
               </TouchableOpacity>
             </View>
           </Enter>
 
           {need && !need.ready && (
-            <Enter index={6}>
+            <Enter index={5}>
               <View style={[s.readiness, { borderColor: c.line, backgroundColor: c.surface, marginTop: Space.base }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Icon name="chart" size={13} color={c.accent} />
@@ -1215,5 +1363,21 @@ const s = StyleSheet.create({
   },
   segmentTabActive: {
     borderWidth: 1,
+  },
+  workoutRoutineGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Space.sm,
+  },
+  workoutRoutineCard: {
+    width: '48.5%',
+    padding: Space.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  countBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: Radius.pill,
   },
 });
