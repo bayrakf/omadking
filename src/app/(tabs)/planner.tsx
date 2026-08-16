@@ -557,17 +557,27 @@ export default function PlannerScreen() {
           {/* Cooked before shortcut */}
           {rotation.length > 0 && !plan && (
             <Enter index={6}>
-              <Card style={{ marginTop: Space.base }}>
-                <Eyebrow style={{ marginBottom: Space.md }}>
-                  {lang === 'de' ? 'Schon gekocht' : 'Cooked before'}
-                </Eyebrow>
+              <Card style={{ marginTop: Space.base, padding: Space.base }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Icon name="plate" size={14} color={c.plan} />
+                    <Eyebrow color={c.plan} style={{ marginLeft: 6, fontSize: 10, fontWeight: '800' }}>
+                      {lang === 'de' ? 'SCHON GEKOCHT & BEWÄHRT' : 'COOKED BEFORE & FAVORITES'}
+                    </Eyebrow>
+                  </View>
+                  <View style={[s.freeBadge, { backgroundColor: c.planWash }]}>
+                    <Txt variant="eyebrow" color={c.plan} style={{ fontSize: 8.5, fontWeight: '800' }}>
+                      {lang === 'de' ? '0 PLAN-KOSTEN' : 'FREE TO RE-COOK'}
+                    </Txt>
+                  </View>
+                </View>
+
                 {rotation.slice(0, 3).map((r) => (
-                  <Tap
+                  <TouchableOpacity
                     key={r.title}
+                    activeOpacity={0.8}
                     onPress={async () => {
                       const shell = planShell();
-                      // CookedRecipe only has title/count/lastCooked/recipe (unknown)
-                      // so we just show the title and let user generate fresh
                       setPlan({
                         ...shell,
                         recipe: {
@@ -581,28 +591,42 @@ export default function PlannerScreen() {
                         recipe_source: 'offline',
                         recipe_note: null,
                       });
+                      haptic('medium');
                     }}
+                    style={[s.cookedCard, { backgroundColor: c.well, borderColor: c.line }]}
                   >
-                    <View style={[s.cookedRow, { borderColor: c.line }]}>
-                      <View style={{ flex: 1 }}>
-                        <Txt variant="bodyMedium">{r.title}</Txt>
-                        {/* How often it was cooked is the reason the rotation
-                            is sorted the way it is. Without it the list is
-                            three titles in an order nobody can account for. */}
-                        <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
-                          {t('rotation.cookedTimes', { n: r.count })}
-                        </Txt>
+                    <View style={s.cookedCardHead}>
+                      <View style={[s.cookedIconCircle, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
+                        <Icon name="flame" size={14} color={c.ember} />
                       </View>
-                      <Icon name="plate" size={16} color={c.textDim} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Txt variant="subheading" color={c.text} style={{ fontSize: 13.5, fontWeight: '700', lineHeight: 18 }}>
+                          {r.title}
+                        </Txt>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                          <View style={[s.countBadge, { backgroundColor: c.emberWash }]}>
+                            <Txt variant="eyebrow" color={c.ember} style={{ fontSize: 9, fontWeight: '800' }}>
+                              {t('rotation.cookedTimes', { n: r.count })}
+                            </Txt>
+                          </View>
+                          <Txt variant="small" color={c.textFaint} style={{ marginLeft: 6, fontSize: 11 }}>
+                            {lang === 'de' ? 'Tippen zum Laden' : 'Tap to load'}
+                          </Txt>
+                        </View>
+                      </View>
+                      <View style={[s.cookedActionBtn, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
+                        <Icon name="chevronRight" size={13} color={c.textDim} />
+                      </View>
                     </View>
-                  </Tap>
+                  </TouchableOpacity>
                 ))}
-                {/* Free users ration three plans a week. Re-cooking one costs
-                    nothing, and that is exactly the fact that makes the
-                    rotation worth having — it was not being said. */}
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-                  {t('rotation.noQuota')}
-                </Txt>
+
+                <View style={[s.rotationFooter, { borderTopColor: c.line }]}>
+                  <Icon name="shield" size={12} color={c.textDim} />
+                  <Txt variant="small" color={c.textDim} style={{ marginLeft: 6, fontSize: 11, flex: 1 }}>
+                    {t('rotation.noQuota')}
+                  </Txt>
+                </View>
               </Card>
             </Enter>
           )}
@@ -1004,5 +1028,50 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 10, paddingVertical: 6,
     borderRadius: Radius.pill, borderWidth: 1,
+  },
+  freeBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  cookedCard: {
+    padding: Space.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginTop: Space.xs,
+    marginBottom: Space.xs,
+  },
+  cookedCardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cookedIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: Radius.pill,
+  },
+  cookedActionBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Space.xs,
+  },
+  rotationFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Space.sm,
+    paddingTop: Space.sm,
+    borderTopWidth: 1,
   },
 });
