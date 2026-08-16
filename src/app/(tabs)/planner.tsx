@@ -285,7 +285,6 @@ export default function PlannerScreen() {
           )}
 
           {/* Live targets: High-End Macro & Calorie Center */}
-          {/* Live targets: High-End Macro & Calorie Center */}
           <Enter index={2}>
             {(() => {
               const totalKcal = preview.kcal;

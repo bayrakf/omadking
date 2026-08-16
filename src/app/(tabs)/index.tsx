@@ -331,7 +331,7 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* 4-Segment Focus Switcher Bar */}
+      {/* 4-Segment Focus Switcher Bar with Live Indicators */}
       <Enter index={1}>
         <View style={[s.segmentBar, { backgroundColor: c.well }]}>
           <TouchableOpacity
@@ -339,8 +339,8 @@ export default function DashboardScreen() {
             onPress={() => { setSegment('fasting'); haptic('light'); }}
             style={[s.segmentTab, segment === 'fasting' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
           >
-            <Icon name="flame" size={13} color={segment === 'fasting' ? c.accent : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'fasting' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}>
+            <View style={[s.statusDot, { backgroundColor: fast.isEating ? c.ember : '#10B981' }]} />
+            <Txt variant="eyebrow" color={segment === 'fasting' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10.5, fontWeight: '800' }}>
               {lang === 'de' ? 'Fasten' : 'Fast'}
             </Txt>
           </TouchableOpacity>
@@ -350,10 +350,17 @@ export default function DashboardScreen() {
             onPress={() => { setSegment('meal'); haptic('light'); }}
             style={[s.segmentTab, segment === 'meal' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
           >
-            <Icon name="plate" size={13} color={segment === 'meal' ? c.ember : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'meal' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}>
+            <Icon name="plate" size={12} color={cooked ? '#10B981' : segment === 'meal' ? c.ember : c.textDim} />
+            <Txt variant="eyebrow" color={segment === 'meal' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10.5, fontWeight: '800' }}>
               {lang === 'de' ? 'Teller' : 'Meal'}
             </Txt>
+            {cooked ? (
+              <View style={[s.miniBadgeDot, { backgroundColor: '#10B981' }]}>
+                <Txt style={{ color: '#fff', fontSize: 7, fontWeight: '900' }}>✓</Txt>
+              </View>
+            ) : !plan ? (
+              <View style={[s.miniBadgeDot, { backgroundColor: c.ember }]} />
+            ) : null}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -361,10 +368,13 @@ export default function DashboardScreen() {
             onPress={() => { setSegment('workout'); haptic('light'); }}
             style={[s.segmentTab, segment === 'workout' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
           >
-            <Icon name="dumbbell" size={13} color={segment === 'workout' ? '#FF6B4A' : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'workout' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}>
+            <Icon name="dumbbell" size={12} color={segment === 'workout' ? '#FF6B4A' : c.textDim} />
+            <Txt variant="eyebrow" color={segment === 'workout' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10.5, fontWeight: '800' }}>
               {lang === 'de' ? 'Sport' : 'Sport'}
             </Txt>
+            {steps > 0 && (
+              <View style={[s.miniBadgeDot, { backgroundColor: '#38BDF8' }]} />
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -372,8 +382,8 @@ export default function DashboardScreen() {
             onPress={() => { setSegment('insights'); haptic('light'); }}
             style={[s.segmentTab, segment === 'insights' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
           >
-            <Icon name="coach" size={13} color={segment === 'insights' ? c.plan : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'insights' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}>
+            <Icon name="coach" size={12} color={segment === 'insights' ? c.plan : c.textDim} />
+            <Txt variant="eyebrow" color={segment === 'insights' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10.5, fontWeight: '800' }}>
               {lang === 'de' ? 'Wissen' : 'Wisdom'}
             </Txt>
           </TouchableOpacity>
@@ -675,6 +685,35 @@ export default function DashboardScreen() {
               </Card>
             </Enter>
           )}
+
+          {/* Direct Sport Quick-Link on Fasten Tab */}
+          <Enter index={7} style={{ marginTop: Space.base }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => { setSegment('workout'); haptic('light'); }}
+              style={[s.sportQuickBanner, { backgroundColor: c.surface, borderColor: c.line }]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View style={[s.sportIconBox, { backgroundColor: 'rgba(255, 107, 74, 0.15)' }]}>
+                  <Icon name="dumbbell" size={15} color="#FF6B4A" />
+                </View>
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Eyebrow color="#FF6B4A" style={{ fontSize: 9.5, fontWeight: '800' }}>
+                    {lang === 'de' ? 'GEFASTETES WORKOUT' : 'FASTED WORKOUT'}
+                  </Eyebrow>
+                  <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 1 }}>
+                    {steps > 0 ? `${steps.toLocaleString()} Schritte · 6 Routinen` : (lang === 'de' ? '6 Routinen & Schritt-Tracker' : '6 routines & steps')}
+                  </Txt>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Txt variant="small" color={c.accent} style={{ fontWeight: '700', fontSize: 12 }}>
+                  {lang === 'de' ? 'Öffnen' : 'Open'}
+                </Txt>
+                <Icon name="chevronRight" size={12} color={c.accent} />
+              </View>
+            </TouchableOpacity>
+          </Enter>
         </>
       )}
 
@@ -683,12 +722,50 @@ export default function DashboardScreen() {
           ========================================================================= */}
       {segment === 'meal' && (
         <>
+          {/* Interactive OMAD Daily Meal Journey Bar */}
+          <Enter index={1}>
+            <Card style={{ marginTop: Space.xs, padding: Space.sm, backgroundColor: c.well, borderColor: c.line }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={s.journeyStep}>
+                  <View style={[s.journeyDot, { backgroundColor: plan ? '#10B981' : c.ember }]}>
+                    <Txt style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>1</Txt>
+                  </View>
+                  <Txt variant="eyebrow" color={plan ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
+                    {lang === 'de' ? 'Planen' : 'Plan'}
+                  </Txt>
+                </View>
+
+                <Icon name="chevronRight" size={10} color={c.textFaint} />
+
+                <View style={s.journeyStep}>
+                  <View style={[s.journeyDot, { backgroundColor: cooked ? '#10B981' : c.textFaint }]}>
+                    <Txt style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>2</Txt>
+                  </View>
+                  <Txt variant="eyebrow" color={cooked ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
+                    {lang === 'de' ? 'Kochen' : 'Cook'}
+                  </Txt>
+                </View>
+
+                <Icon name="chevronRight" size={10} color={c.textFaint} />
+
+                <View style={s.journeyStep}>
+                  <View style={[s.journeyDot, { backgroundColor: answered ? '#10B981' : c.textFaint }]}>
+                    <Txt style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>3</Txt>
+                  </View>
+                  <Txt variant="eyebrow" color={answered ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
+                    {lang === 'de' ? '1-Tap Tracking' : 'Track'}
+                  </Txt>
+                </View>
+              </View>
+            </Card>
+          </Enter>
+
           <Enter index={2}>
             {/* Visual Dinner Showcase */}
             <TouchableOpacity
               activeOpacity={0.88}
               onPress={() => router.push('/planner')}
-              style={[s.showcaseCard, { borderColor: c.line, height: 160 }]}
+              style={[s.showcaseCard, { borderColor: c.line, height: 165 }]}
             >
               <Image
                 source={require('../../../assets/images/omad_plate_hero.jpg')}
@@ -699,18 +776,20 @@ export default function DashboardScreen() {
               <View style={s.showcaseContent}>
                 <View style={[s.badgePill, { backgroundColor: '#F59E0B' }]}>
                   <Txt variant="eyebrow" color="#080C14" style={{ fontSize: 10, fontWeight: '800' }}>
-                    {plan ? 'HEUTIGER OMAD TELLER' : 'MAHLZEIT PLANEN'}
+                    {plan ? (lang === 'de' ? 'HEUTIGER OMAD TELLER' : "TODAY'S OMAD PLATE") : (lang === 'de' ? 'MAHLZEIT PLANEN' : 'PLAN YOUR MEAL')}
                   </Txt>
                 </View>
-                <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 20, fontWeight: '800', marginTop: 4 }}>
+                <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 19, fontWeight: '800', marginTop: 4 }}>
                   {plan ? plan.recipe.title : t('today.defaultMeal')}
                 </Txt>
-                <Txt variant="small" color="rgba(255, 255, 255, 0.9)" style={{ marginTop: 4, fontSize: 13 }}>
+                <Txt variant="small" color="rgba(255, 255, 255, 0.9)" style={{ marginTop: 3, fontSize: 12.5 }}>
                   {kcal} kcal · {protein}g Protein · Zeitfenster {fast.windowStart}–{fast.windowEnd}
                 </Txt>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                   <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 10, fontWeight: '800' }}>
-                    {lang === 'de' ? 'REZEPT & ZUTATEN ÖFFNEN ➔' : 'VIEW RECIPE & INGREDIENTS ➔'}
+                    {plan
+                      ? (lang === 'de' ? 'REZEPT & ZUTATEN ÖFFNEN ➔' : 'VIEW RECIPE & INGREDIENTS ➔')
+                      : (lang === 'de' ? 'JETZT IM PLANER GENERIEREN ➔' : 'GENERATE IN PLANNER ➔')}
                   </Txt>
                 </View>
               </View>
@@ -748,11 +827,18 @@ export default function DashboardScreen() {
           {question && (
             <Enter index={4}>
               <Card style={{ marginTop: Space.base }} tone="accent">
-                <Eyebrow color={c.accent}>
-                  {lang === 'de'
-                    ? (question.date === todayISO() ? 'WIE LIEF ES HEUTE?' : 'WIE LIEF ES GESTERN?')
-                    : (question.date === todayISO() ? 'How did today go?' : 'How did yesterday go?')}
-                </Eyebrow>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Eyebrow color={c.accent}>
+                    {lang === 'de'
+                      ? (question.date === todayISO() ? '1-TAP TRACKING: WIE LIEF ES HEUTE?' : 'MORGEN-CHECK-IN: WIE LIEF ES GESTERN?')
+                      : (question.date === todayISO() ? '1-TAP TRACKING: TODAY' : 'CHECK-IN: YESTERDAY')}
+                  </Eyebrow>
+                  <View style={[s.countBadge, { backgroundColor: c.accentWash }]}>
+                    <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9, fontWeight: '800' }}>
+                      {lang === 'de' ? 'KEIN BARCODE-STRESS' : 'ZERO-FRICTION'}
+                    </Txt>
+                  </View>
+                </View>
                 <Txt variant="body" style={{ marginTop: Space.sm }}>
                   {lang === 'de'
                     ? `Grobe Schätzung gegen das Ziel von ${questionKcal} kcal. Damit wird dein echter Stoffwechsel-Verbrauch berechnet.`
@@ -1379,5 +1465,44 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: Radius.pill,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  miniBadgeDot: {
+    minWidth: 12,
+    height: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+    marginLeft: 3,
+  },
+  sportQuickBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Space.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  sportIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journeyStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  journeyDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
