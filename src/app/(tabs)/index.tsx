@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Divider, PageHeader, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, PageHeader, useTheme,
 } from '@/components/ui';
 import { useLang } from '@/components/lang';
-import { Icon, type IconName } from '@/components/icons';
+import { Icon } from '@/components/icons';
 import { DayBand } from '@/components/DayBand';
 import { WeekdayPillStrip } from '@/components/WeekdayPillStrip';
 import { FastingFeelingBar } from '@/components/FastingFeelingBar';
-import { BentoGrid, BentoTile } from '@/components/BentoGrid';
 import {
-  dailyTargets, fastingState, fastingStage, formatCountdown, hydrationTargetMl, toMinutes, fromMinutes, DEFAULT_PROFILE,
+  dailyTargets, fastingState, formatCountdown, hydrationTargetMl, toMinutes, fromMinutes, DEFAULT_PROFILE,
   type UserProfile, type FastingState,
 } from '@/lib/nutrition';
-import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
+import { dayAgenda } from '@/lib/agenda';
 import { formatReadableDate, longestStreak } from '@/lib/dates';
 import { WindowShifterModal } from '@/components/WindowShifterModal';
 import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
@@ -26,29 +25,20 @@ import { DailyFastingNote } from '@/components/DailyFastingNote';
 import { playZenChime } from '@/lib/sound';
 import {
   loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
-  currentStreak, loadLastPlan, loadCookLog, markCooked, loadWeightLog, saveWeightLog,
+  currentStreak, loadLastPlan, loadCookLog, loadWeightLog, saveWeightLog,
   remindersOffered, markRemindersOffered,
   saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, loadTodayWindowShift,
   saveTodayWindowShift, clearTodayWindowShift,
   loadDailySteps, saveDailySteps, type Hydration,
 } from '@/lib/store';
 import {
-  readTrend, effectiveMaintenance, intakeQuestionFor, scaleJump, readiness,
-  type IntakeQuestion, type ScaleJump, type Readiness,
+  effectiveMaintenance, intakeQuestionFor, scaleJump,
+  type IntakeQuestion, type ScaleJump,
 } from '@/lib/energy';
-import { INTAKE_OPTIONS, intakeKcal, intakeLabel, intakeOptionLabel } from '@/lib/review';
+import { INTAKE_OPTIONS, intakeOptionLabel } from '@/lib/review';
 import { haptic } from '@/lib/haptic';
 import type { MealPlan } from '@/lib/ai';
-import { resync, setEnabled as setRemindersEnabled } from '@/lib/notify';
-
-const ICONS: Record<AgendaItem['kind'], IconName> = {
-  cook: 'flame',
-  window_open: 'clock',
-  snack: 'plus',
-  meal: 'plate',
-  window_close: 'moon',
-  log_fast: 'check',
-};
+import { setEnabled as setRemindersEnabled } from '@/lib/notify';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -68,19 +58,16 @@ export default function DashboardScreen() {
   const [weighedToday, setWeighedToday] = useState(true);
   const [weightInput, setWeightInput] = useState('');
   const [jump, setJump] = useState<ScaleJump | null>(null);
-  const [need, setNeed] = useState<Readiness | null>(null);
   /** Shown once, after the app has delivered something. Never twice. */
   const [offerReminders, setOfferReminders] = useState(false);
   const [dateLabel, setDateLabel] = useState('');
   const [question, setQuestion] = useState<IntakeQuestion | null>(null);
   const [answered, setAnswered] = useState<{ date: string; factor: number } | null>(null);
-  const [trend, setTrend] = useState<ReturnType<typeof readTrend> | null>(null);
   const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [showShifter, setShowShifter] = useState(false);
   const [showMetabolic, setShowMetabolic] = useState(false);
   const [showBreakFast, setShowBreakFast] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [segment, setSegment] = useState<'fasting' | 'meal' | 'workout' | 'insights'>('fasting');
   const [isShifted, setIsShifted] = useState(false);
   const [steps, setSteps] = useState(0);
 
@@ -106,9 +93,7 @@ export default function DashboardScreen() {
     setQuestion(intakeQuestionFor(effectiveProfile, intake));
     const latest = [...(intake ?? [])].sort((a, b) => a.date.localeCompare(b.date)).pop();
     setAnswered(latest ? { date: latest.date, factor: latest.factor } : null);
-    setTrend(readTrend(weights));
     setJump(scaleJump(weights, intake));
-    setNeed(readiness(intake, weights));
     setMeasured(effectiveMaintenance(intake, weights, dailyTargets(effectiveProfile, null).maintenance_kcal, prem));
     setProfile(effectiveProfile);
     setHydration(h);
@@ -142,7 +127,7 @@ export default function DashboardScreen() {
 
   if (!mounted || !fast) return null;
 
-  const { items, next } = dayAgenda(profile, plan, { cooked, fastLogged }, now, lang);
+  const { items } = dayAgenda(profile, plan, { cooked, fastLogged }, now, lang);
 
   const baseline = dailyTargets(profile, null, measured);
   const kcal = plan ? plan.total_kcal : baseline.kcal;
@@ -161,35 +146,6 @@ export default function DashboardScreen() {
     const nextH = { ...hydration, electrolytes: !hydration.electrolytes };
     setHydration(nextH);
     await saveHydration(nextH);
-  };
-
-  const doAction = async (kind: AgendaItem['kind']) => {
-    if (kind === 'log_fast') {
-      const updatedFasts = await markFastComplete();
-      setFastLog(updatedFasts);
-      setStreak(currentStreak(updatedFasts));
-      setFastLogged(true);
-      playZenChime();
-      haptic('success');
-      setShowCelebration(true);
-      if (!(await remindersOffered())) setOfferReminders(true);
-    } else if (kind === 'cook') {
-      await markCooked(todayISO(), plan);
-      setCooked(true);
-      haptic('medium');
-    }
-    await resync();
-  };
-
-  const quickShift = async (mins: number) => {
-    const curStartMin = toMinutes(profile.omad_window_start);
-    const nextStartMin = (curStartMin + mins + 1440) % 1440;
-    const nextStart = fromMinutes(nextStartMin);
-    const nextEndMin = (nextStartMin + profile.omad_window_hours * 60) % 1440;
-    const nextEnd = fromMinutes(nextEndMin);
-    await saveTodayWindowShift(nextStart, nextEnd);
-    haptic('medium');
-    await refresh();
   };
 
   const resetShift = async () => {
@@ -211,6 +167,7 @@ export default function DashboardScreen() {
     playZenChime();
     haptic('success');
     setShowCelebration(true);
+    if (!(await remindersOffered())) setOfferReminders(true);
     await refresh();
   };
 
@@ -221,22 +178,11 @@ export default function DashboardScreen() {
    */
   const answerIntake = async (factor: number | null) => {
     if (!question) return;
-    // Recorded against the day the window belonged to, not against now — the
-    // answer is just as valid the morning after.
     if (factor !== null) {
       await recordIntake(factor, questionKcal, question.date);
       setAnswered({ date: question.date, factor });
     }
     setQuestion(null);
-  };
-
-  /** Puts the question back so a wrong tap can be replaced. */
-  const reopenQuestion = async () => {
-    if (!answered) return;
-    const intake = await loadIntakeLog();
-    setAnswered(null);
-    // Hide the day being corrected so the question comes back for exactly it.
-    setQuestion(intakeQuestionFor(profile, intake.filter((e) => e.date !== answered.date)));
   };
 
   const logWeight = async () => {
@@ -255,25 +201,14 @@ export default function DashboardScreen() {
     setWeightInput('');
     setWeighedToday(true);
     haptic('success');
-    // The jump is about the entry that was just made, so it has to be read
-    // from the log that now includes it.
     const freshIntake = await loadIntakeLog();
     setJump(scaleJump(updated, freshIntake));
-    setNeed(readiness(freshIntake, updated));
   };
 
   // Hours into the current fast, for the physiology band.
   const hoursFasted = fast.isEating ? 0 : fast.fastingHours * (fast.progressPct / 100);
-  const stage = fastingStage(hoursFasted);
 
   const waterPct = Math.min(100, (hydration.ml / waterTarget) * 100);
-  const windowLabel =
-    `${fast.windowStart}–${fast.windowEnd} · ${fast.fastingHours}${lang === 'de' ? 'H FASTEN' : 'H FAST'}` +
-    (plan?.training_start_time ? ` · ${lang === 'de' ? 'TRAINING' : 'SESSION'} ${plan.training_start_time}` : '');
-
-  // Imminent moments go warm; everything else stays in the resting palette.
-  const nextMins = next ? minutesUntil(next, profile, now) : Infinity;
-  const nextColor = nextMins <= 60 ? c.ember : c.accent;
 
   const hour = now.getHours();
   const timeGreeting =
@@ -293,6 +228,7 @@ export default function DashboardScreen() {
 
   return (
     <Screen contentStyle={{ maxWidth: 640, alignSelf: 'center', width: '100%' }}>
+      {/* 1. Header & Weekday Streak Record */}
       <Enter index={0}>
         <PageHeader
           tone={fast.isEating ? 'ember' : 'accent'}
@@ -309,7 +245,7 @@ export default function DashboardScreen() {
 
       {/* Celebration Notification */}
       {showCelebration && (
-        <Enter index={0}>
+        <Enter index={1}>
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => setShowCelebration(false)}
@@ -331,875 +267,382 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* 4-Segment Focus Switcher Bar with Live Indicators */}
-      <Enter index={1}>
-        <View style={[s.segmentBar, { backgroundColor: c.well }]}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => { setSegment('fasting'); haptic('light'); }}
-            style={[s.segmentTab, segment === 'fasting' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
-          >
-            <View style={[s.statusDot, { backgroundColor: fast.isEating ? c.ember : '#10B981' }]} />
-            <Txt variant="eyebrow" color={segment === 'fasting' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10.5, fontWeight: '800' }}>
-              {lang === 'de' ? 'Fasten' : 'Fast'}
-            </Txt>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => { setSegment('meal'); haptic('light'); }}
-            style={[s.segmentTab, segment === 'meal' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
-          >
-            <Icon name="plate" size={12} color={cooked ? '#10B981' : segment === 'meal' ? c.ember : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'meal' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10.5, fontWeight: '800' }}>
-              {lang === 'de' ? 'Teller' : 'Meal'}
-            </Txt>
-            {cooked ? (
-              <View style={[s.miniBadgeDot, { backgroundColor: '#10B981' }]}>
-                <Txt style={{ color: '#fff', fontSize: 7, fontWeight: '900' }}>✓</Txt>
+      {/* 2. THE MAJESTIC ZEN FASTING HERO */}
+      <Enter index={2}>
+        <View style={[s.zenHeroCard, { backgroundColor: c.heroFill }]}>
+          {/* Top Mini-Pill Header */}
+          <View style={s.zenHeroTop}>
+            <View style={[s.heroBadge, { backgroundColor: fast.isEating ? c.emberWash : 'rgba(255, 255, 255, 0.12)' }]}>
+              <Icon name={fast.isEating ? 'plate' : 'flame'} size={12} color={fast.isEating ? c.ember : c.onHero} />
+              <Txt variant="data" color={fast.isEating ? c.ember : c.onHero} style={{ marginLeft: 4, fontSize: 10, fontWeight: '700' }}>
+                {fast.isEating ? t('today.windowEating') : t('today.windowRunning')}
+              </Txt>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setShowShifter(true)}
+              style={[s.zenAdjustPill, { backgroundColor: 'rgba(255, 255, 255, 0.12)' }]}
+            >
+              <Icon name="clock" size={11} color={c.onHero} />
+              <Txt variant="eyebrow" color={c.onHero} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
+                {fast.windowStart}–{fast.windowEnd}
+              </Txt>
+              <View style={{ marginLeft: 4, opacity: 0.8 }}>
+                <Icon name="edit" size={10} color={c.onHero} />
               </View>
-            ) : !plan ? (
-              <View style={[s.miniBadgeDot, { backgroundColor: c.ember }]} />
-            ) : null}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => { setSegment('workout'); haptic('light'); }}
-            style={[s.segmentTab, segment === 'workout' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
-          >
-            <Icon name="dumbbell" size={12} color={segment === 'workout' ? '#FF6B4A' : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'workout' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10.5, fontWeight: '800' }}>
-              {lang === 'de' ? 'Sport' : 'Sport'}
+          {/* Hero Countdown */}
+          <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/timer')} style={s.zenCountContainer}>
+            <Txt variant="hero" color={c.onHero} style={s.zenHeroFigure}>
+              {formatCountdown(fast.remainingMs)}
             </Txt>
-            {steps > 0 && (
-              <View style={[s.miniBadgeDot, { backgroundColor: '#38BDF8' }]} />
+            <Txt variant="small" color={c.onHero} style={s.zenCountCaption}>
+              {lang === 'de'
+                ? (fast.isEating ? `verbleibend bis Essensfenster-Ende` : `gefastet · Essensfenster öffnet um ${fast.windowStart}`)
+                : (fast.isEating ? `remaining in eating window` : `fasted · opens at ${fast.windowStart}`)}
+            </Txt>
+          </TouchableOpacity>
+
+          {/* DayBand 24h timeline */}
+          <DayBand
+            onHero
+            style={{ marginTop: Space.md }}
+            nowMin={now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60}
+            windowStartMin={toMinutes(profile.omad_window_start)}
+            windowLengthMin={profile.omad_window_hours * 60}
+            items={items}
+            isEating={fast.isEating}
+          />
+
+          {/* 4-Stage Metabolic Progress Bar */}
+          {!fast.isEating && (
+            <View style={{ marginTop: Space.md }}>
+              <MetabolicProgressBar
+                hoursFasted={hoursFasted}
+                onPress={() => setShowMetabolic(true)}
+              />
+            </View>
+          )}
+
+          {/* Zen Hero Action Button */}
+          <View style={s.zenActionRow}>
+            {!fast.isEating ? (
+              <TouchableOpacity
+                onPress={quickFinishFast}
+                activeOpacity={0.8}
+                style={[s.zenPrimaryBtn, { backgroundColor: c.ember }]}
+              >
+                <Icon name="plate" size={14} color="#FFFFFF" />
+                <Txt variant="subheading" color="#FFFFFF" style={{ marginLeft: 6, fontSize: 13, fontWeight: '800' }}>
+                  {lang === 'de' ? 'Fasten beenden & Essen loggen' : 'End Fast & Log Plate'}
+                </Txt>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setShowBreakFast(true)}
+                activeOpacity={0.8}
+                style={[s.zenPrimaryBtn, { backgroundColor: c.plan }]}
+              >
+                <Icon name="shield" size={14} color="#FFFFFF" />
+                <Txt variant="subheading" color="#FFFFFF" style={{ marginLeft: 6, fontSize: 13, fontWeight: '800' }}>
+                  {lang === 'de' ? 'Fastenbrechen-Guide ansehen' : 'View Break-Fast Guide'}
+                </Txt>
+              </TouchableOpacity>
             )}
+
+            {isShifted && (
+              <TouchableOpacity
+                onPress={resetShift}
+                activeOpacity={0.7}
+                style={[s.zenResetBtn, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}
+                accessibilityLabel="Zeitfenster zurücksetzen"
+              >
+                <Txt variant="eyebrow" color={c.onHero} style={{ fontSize: 9.5, fontWeight: '700' }}>
+                  {lang === 'de' ? 'Standard-Zeit' : 'Reset'}
+                </Txt>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Enter>
+
+      {/* 3. FASTING FEELING 1-TAP (Subtle & clean) */}
+      <Enter index={3}>
+        <View style={{ marginTop: Space.sm, marginBottom: Space.xs }}>
+          <FastingFeelingBar embedded />
+        </View>
+      </Enter>
+
+      {/* 4. THE TWO CORE PILLARS: HYDRATION & HEUTIGER OMAD TELLER */}
+      <Enter index={4}>
+        <View style={s.corePillarsRow}>
+          {/* Hydration Pillar */}
+          <View style={[s.corePillarCard, { backgroundColor: c.surface, borderColor: c.line }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Icon name="drop" size={14} color={c.hydro} />
+                <Eyebrow color={c.hydro} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '800' }}>
+                  WASSER
+                </Eyebrow>
+              </View>
+              <Txt variant="data" color={c.text} style={{ fontSize: 12, fontWeight: '800' }}>
+                {(hydration.ml / 1000).toFixed(1)} <Txt variant="small" color={c.textDim}>/ {(waterTarget / 1000).toFixed(1)}L</Txt>
+              </Txt>
+            </View>
+
+            <View style={[s.waterFillTrack, { backgroundColor: c.well, marginVertical: 8 }]}>
+              <View
+                style={[
+                  s.waterFillBar,
+                  {
+                    width: `${waterPct}%`,
+                    backgroundColor: waterPct >= 100 ? '#10B981' : c.hydro,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+              <TouchableOpacity onPress={() => addWater(250)} style={[s.pillarMiniBtn, { backgroundColor: c.well }]}>
+                <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9.5 }}>+250</Txt>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => addWater(500)} style={[s.pillarMiniBtn, { backgroundColor: c.well }]}>
+                <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9.5 }}>+500</Txt>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={toggleSalt} style={[s.pillarMiniBtn, { backgroundColor: hydration.electrolytes ? c.emberWash : c.well }]}>
+                <Txt variant="eyebrow" color={hydration.electrolytes ? c.ember : c.textDim} style={{ fontSize: 9.5 }}>
+                  {hydration.electrolytes ? 'Salz ✓' : 'Salz'}
+                </Txt>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Dinner Plate Pillar */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/planner')}
+            style={[s.corePillarCard, { backgroundColor: c.surface, borderColor: c.line }]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Icon name="plate" size={14} color={c.ember} />
+                <Eyebrow color={c.ember} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '800' }}>
+                  OMAD TELLER
+                </Eyebrow>
+              </View>
+              <View style={[s.countBadge, { backgroundColor: plan ? 'rgba(16, 185, 129, 0.15)' : c.emberWash }]}>
+                <Txt variant="eyebrow" color={plan ? '#10B981' : c.ember} style={{ fontSize: 8, fontWeight: '800' }}>
+                  {plan ? 'BEREIT' : 'PLANEN'}
+                </Txt>
+              </View>
+            </View>
+
+            <Txt variant="subheading" color={c.text} numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', marginTop: 5 }}>
+              {plan ? plan.recipe.title : t('today.defaultMeal')}
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 1 }}>
+              {kcal} kcal · {protein}g Protein
+            </Txt>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+              <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9.5, fontWeight: '800' }}>
+                {plan ? (lang === 'de' ? 'Rezept ansehen ➔' : 'View recipe ➔') : (lang === 'de' ? '1 Tap Generieren ➔' : 'Generate ➔')}
+              </Txt>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </Enter>
+
+      {/* 5. WORKOUT & ACTIVITY (Sleek 1-line Card) */}
+      <Enter index={5}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push('/workout')}
+          style={[s.zenSecondaryCard, { backgroundColor: c.surface, borderColor: c.line }]}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View style={[s.sportIconBox, { backgroundColor: 'rgba(255, 107, 74, 0.12)' }]}>
+              <Icon name="dumbbell" size={15} color="#FF6B4A" />
+            </View>
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Eyebrow color="#FF6B4A" style={{ fontSize: 9.5, fontWeight: '800' }}>
+                {lang === 'de' ? 'GEFASTETES WORKOUT & AKTIVITÄT' : 'FASTED WORKOUT & ACTIVITY'}
+              </Eyebrow>
+              <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 1 }}>
+                {steps > 0 ? `${steps.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')} Schritte erfasst` : (lang === 'de' ? '6 Hypertrophie-Routinen verfügbar' : '6 routines available')}
+              </Txt>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => addSteps(1000)} style={[s.miniStepPill, { backgroundColor: c.well, marginRight: 6 }]}>
+              <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9.5 }}>+1k</Txt>
+            </TouchableOpacity>
+            <Icon name="chevronRight" size={14} color={c.textDim} />
+          </View>
+        </TouchableOpacity>
+      </Enter>
+
+      {/* 6. DAILY SCIENTIFIC BIO-HACK */}
+      <Enter index={6}>
+        <DailyBioHackCard />
+      </Enter>
+
+      {/* 7. MORNING INTAKE CHECK-IN (Only when question is active) */}
+      {question && (
+        <Enter index={7}>
+          <Card style={{ marginTop: Space.base }} tone="accent">
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Eyebrow color={c.accent}>
+                {lang === 'de'
+                  ? (question.date === todayISO() ? '1-TAP TRACKING: WIE LIEF ES HEUTE?' : 'MORGEN-CHECK-IN: WIE LIEF ES GESTERN?')
+                  : (question.date === todayISO() ? '1-TAP TRACKING: TODAY' : 'CHECK-IN: YESTERDAY')}
+              </Eyebrow>
+              <View style={[s.countBadge, { backgroundColor: c.accentWash }]}>
+                <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9, fontWeight: '800' }}>
+                  {lang === 'de' ? '1-TAP' : '1-TAP'}
+                </Txt>
+              </View>
+            </View>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: 4, fontSize: 12 }}>
+              {lang === 'de'
+                ? `Gegen das Ziel von ${questionKcal} kcal. Kalibriert deinen echten Stoffwechsel.`
+                : `Against ${questionKcal} kcal target to calibrate your real metabolism.`}
+            </Txt>
+            <View style={{ flexDirection: 'row', marginTop: Space.sm, gap: Space.xs }}>
+              {INTAKE_OPTIONS.map((opt) => {
+                const sel = answered?.date === question.date && answered?.factor === opt.factor;
+                return (
+                  <Tap
+                    key={String(opt.factor)}
+                    onPress={() => answerIntake(opt.factor)}
+                    accessibilityLabel={intakeOptionLabel(opt, lang)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: sel }}
+                    style={{ flex: 1 }}
+                  >
+                    <View
+                      style={[
+                        s.pill,
+                        {
+                          backgroundColor: sel ? c.accent : c.well,
+                          borderWidth: sel ? 0 : 1,
+                          borderColor: c.line,
+                          paddingHorizontal: 2,
+                        },
+                      ]}
+                    >
+                      <Txt
+                        variant="data"
+                        color={sel ? c.onAccent : c.text}
+                        style={{ fontSize: 11, fontWeight: '700', textAlign: 'center' }}
+                      >
+                        {opt.factor === 1 ? '100%' : `${Math.round(opt.factor * 100)}%`}
+                      </Txt>
+                    </View>
+                  </Tap>
+                );
+              })}
+            </View>
+          </Card>
+        </Enter>
+      )}
+
+      {/* 8. WEIGH-IN IF NOT YET LOGGED */}
+      {!weighedToday && (
+        <Enter index={8}>
+          <Card style={{ marginTop: Space.base }} tone="body">
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.xs }}>
+              <Eyebrow color={c.body}>{t('today.dailyWeighIn')}</Eyebrow>
+              <Txt variant="small" color={c.textDim}>{profile.weight_kg.toFixed(1)} kg Basis</Txt>
+            </View>
+            <View style={s.weighRow}>
+              <TextInput
+                value={weightInput}
+                onChangeText={setWeightInput}
+                onSubmitEditing={logWeight}
+                placeholder={profile.weight_kg.toFixed(1)}
+                placeholderTextColor={c.textFaint}
+                keyboardType="numeric"
+                inputMode="decimal"
+                accessibilityLabel="Today's weight in kilograms"
+                style={[Type.data, s.weighInput, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
+              />
+              <Tap onPress={logWeight} disabled={!weightInput.trim()} accessibilityLabel="Save weight">
+                <View style={[s.weighBtn, { backgroundColor: weightInput.trim() ? c.accent : c.well }]}>
+                  <Icon name="check" size={16} color={weightInput.trim() ? c.onAccent : c.textFaint} strokeWidth={2.2} />
+                </View>
+              </Tap>
+            </View>
+          </Card>
+        </Enter>
+      )}
+
+      {/* 9. FASTING JOURNAL NOTE */}
+      <Enter index={9}>
+        <Card style={{ marginTop: Space.base, padding: Space.base }}>
+          <DailyFastingNote embedded />
+        </Card>
+      </Enter>
+
+      {/* 10. QUICK TOOLS (Einkauf, Verlauf, Coach) */}
+      <Enter index={10} style={{ marginTop: Space.base, marginBottom: Space.xl }}>
+        <Eyebrow style={{ marginBottom: Space.sm }}>{lang === 'de' ? 'Schnellzugriff' : 'Quick Tools'}</Eyebrow>
+        <View style={s.quickToolGrid}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/grocery')}
+            style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
+          >
+            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(129, 140, 248, 0.15)' }]}>
+              <Icon name="basket" size={18} color={c.plan} />
+            </View>
+            <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
+              {lang === 'de' ? 'Einkauf' : 'Grocery'}
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
+              {lang === 'de' ? 'Zutatenliste' : 'Ingredients'}
+            </Txt>
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => { setSegment('insights'); haptic('light'); }}
-            style={[s.segmentTab, segment === 'insights' && [s.segmentTabActive, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]]}
+            activeOpacity={0.7}
+            onPress={() => router.push('/progress')}
+            style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: Space.sm }]}
           >
-            <Icon name="coach" size={12} color={segment === 'insights' ? c.plan : c.textDim} />
-            <Txt variant="eyebrow" color={segment === 'insights' ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 10.5, fontWeight: '800' }}>
-              {lang === 'de' ? 'Wissen' : 'Wisdom'}
+            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+              <Icon name="chart" size={18} color={c.positive} />
+            </View>
+            <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
+              {lang === 'de' ? 'Fortschritt' : 'Progress'}
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
+              {lang === 'de' ? 'Gewicht & Trend' : 'Weight'}
+            </Txt>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/chat')}
+            style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
+          >
+            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(255, 107, 74, 0.15)' }]}>
+              <Icon name="coach" size={18} color={c.accent} />
+            </View>
+            <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
+              {lang === 'de' ? 'Coach' : 'Coach'}
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
+              {lang === 'de' ? 'KI-Beratung' : 'AI Advice'}
             </Txt>
           </TouchableOpacity>
         </View>
       </Enter>
 
-      {/* =========================================================================
-          TAB 1: FASTEN & KÖRPER
-          ========================================================================= */}
-      {segment === 'fasting' && (
-        <>
-          <Enter index={2}>
-            <TouchableOpacity
-              activeOpacity={0.88}
-              onPress={() => router.push('/timer')}
-              style={[s.hero, { backgroundColor: c.heroFill }]}
-            >
-              <View style={s.heroTop}>
-                <View style={[s.heroBadge, { backgroundColor: fast.isEating ? c.emberWash : c.heroTrack }]}>
-                  <Icon name={fast.isEating ? 'plate' : 'flame'} size={13} color={fast.isEating ? c.ember : c.onHero} />
-                  <Txt variant="data" color={fast.isEating ? c.ember : c.onHero} style={{ marginLeft: 5, fontSize: 10, fontWeight: '700' }}>
-                    {fast.isEating ? t('today.windowEating') : t('today.windowRunning')}
-                  </Txt>
-                </View>
-                <View style={[s.heroBioTag, { backgroundColor: 'rgba(255, 255, 255, 0.12)' }]}>
-                  <Icon name={fast.isEating ? 'plate' : hoursFasted >= 12 ? 'flame' : 'shield'} size={10} color={c.onHero} />
-                  <Txt variant="eyebrow" color={c.onHero} style={{ marginLeft: 4, fontSize: 9, fontWeight: '700' }}>
-                    {fast.isEating
-                      ? (lang === 'de' ? 'ESSENSZEIT' : 'EATING')
-                      : hoursFasted >= 18
-                      ? (lang === 'de' ? 'AUTOPHAGIE' : 'AUTOPHAGY')
-                      : hoursFasted >= 12
-                      ? (lang === 'de' ? 'KETOSE' : 'KETOSIS')
-                      : (lang === 'de' ? 'BLUTZUCKER STABIL' : 'STABLE GLUCOSE')}
-                  </Txt>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Txt variant="eyebrow" color={c.onHero} style={{ opacity: 0.8, fontSize: 9, marginRight: 3 }}>
-                    LIVE-TIMER
-                  </Txt>
-                  <Icon name="chevronRight" size={11} color={c.onHero} />
-                </View>
-              </View>
-              <View style={s.countRow}>
-                <Txt variant="hero" color={c.onHero} style={s.heroFigure}>
-                  {formatCountdown(fast.remainingMs)}
-                </Txt>
-                <Txt variant="small" color={c.onHero} style={s.countCaption}>
-                  {lang === 'de'
-                    ? (fast.isEating ? `verbleibend · schließt ${fast.windowEnd}` : `bis ${fast.windowStart}`)
-                    : (fast.isEating ? `left · closes ${fast.windowEnd}` : `until ${fast.windowStart}`)}
-                </Txt>
-              </View>
-              <DayBand
-                onHero
-                style={{ marginTop: Space.md }}
-                nowMin={now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60}
-                windowStartMin={toMinutes(profile.omad_window_start)}
-                windowLengthMin={profile.omad_window_hours * 60}
-                items={items}
-                isEating={fast.isEating}
-              />
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
-                <Eyebrow color={c.onHero} style={{ opacity: 0.75, fontSize: 10 }}>{windowLabel}</Eyebrow>
-              </View>
-            </TouchableOpacity>
-
-            {/* 1-Tap Quick Fasting Adjustments Bar (+ / - / Reset / Shifter) */}
-            <View style={s.quickAdjustRow}>
-              <TouchableOpacity
-                onPress={() => quickShift(-30)}
-                activeOpacity={0.7}
-                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line }]}
-                accessibilityLabel="30 Minuten früher essen"
-              >
-                <Txt variant="eyebrow" color={c.textDim} style={{ fontSize: 9.5, fontWeight: '800' }}>
-                  -30m
-                </Txt>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => quickShift(30)}
-                activeOpacity={0.7}
-                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: 3 }]}
-                accessibilityLabel="30 Minuten länger fasten"
-              >
-                <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9.5, fontWeight: '800' }}>
-                  +30m
-                </Txt>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => quickShift(60)}
-                activeOpacity={0.7}
-                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line }]}
-                accessibilityLabel="1 Stunde länger fasten"
-              >
-                <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9.5, fontWeight: '800' }}>
-                  +1h
-                </Txt>
-              </TouchableOpacity>
-
-              {isShifted && (
-                <TouchableOpacity
-                  onPress={resetShift}
-                  activeOpacity={0.7}
-                  style={[s.quickAdjustBtn, { backgroundColor: c.well, borderColor: c.line, marginHorizontal: 3 }]}
-                  accessibilityLabel="Zurücksetzen"
-                >
-                  <Icon name="close" size={10} color={c.textDim} />
-                  <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 2, fontSize: 9, fontWeight: '700' }}>
-                    Reset
-                  </Txt>
-                </TouchableOpacity>
-              )}
-
-              {!fast.isEating ? (
-                <TouchableOpacity
-                  onPress={quickFinishFast}
-                  activeOpacity={0.7}
-                  style={[s.quickAdjustBtn, { backgroundColor: c.emberWash, borderColor: c.ember, flex: 1.2, marginLeft: 3 }]}
-                >
-                  <Icon name="plate" size={11} color={c.ember} />
-                  <Txt variant="eyebrow" color={c.ember} style={{ marginLeft: 3, fontSize: 9, fontWeight: '800' }}>
-                    {lang === 'de' ? 'BEENDEN' : 'END FAST'}
-                  </Txt>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  onPress={() => setShowShifter(true)}
-                  activeOpacity={0.7}
-                  style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, flex: 1.1, marginLeft: 3 }]}
-                >
-                  <Icon name="clock" size={11} color={c.textDim} />
-                  <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 3, fontSize: 9, fontWeight: '700' }}>
-                    {lang === 'de' ? 'ZEIT' : 'TIME'}
-                  </Txt>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                onPress={() => setShowShifter(true)}
-                activeOpacity={0.7}
-                style={[s.quickAdjustBtn, { backgroundColor: c.surface, borderColor: c.line, maxWidth: 34, marginLeft: 3 }]}
-                accessibilityLabel="Uhrzeit einstellen"
-              >
-                <Icon name="edit" size={11} color={c.textDim} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Interactive Metabolic Phase Progress Bar */}
-            {!fast.isEating && (
-              <MetabolicProgressBar
-                hoursFasted={hoursFasted}
-                onPress={() => setShowMetabolic(true)}
-              />
-            )}
-          </Enter>
-
-          {/* Fasting & Body Bento Grid */}
-          <Enter index={3}>
-            <BentoGrid>
-              <BentoTile
-                title={t('today.bentoHydration')}
-                value={(hydration.ml / 1000).toFixed(1)}
-                unit={`/ ${(waterTarget / 1000).toFixed(1)}L`}
-                badge={hydration.electrolytes ? 'Salz ✓' : '+Salz'}
-                icon="drop"
-                hue="hydro"
-                subtitle={`${Math.round(waterPct)}% Tagesziel · Trinken`}
-              >
-                <View style={[s.waterFillTrack, { backgroundColor: c.well }]}>
-                  <View
-                    style={[
-                      s.waterFillBar,
-                      {
-                        width: `${waterPct}%`,
-                        backgroundColor: waterPct >= 100 ? '#10B981' : c.hydro,
-                      },
-                    ]}
-                  />
-                </View>
-                <View style={s.bentoActions}>
-                  <Tap onPress={() => addWater(250)} accessibilityLabel="Add 250 millilitres" style={{ flex: 1, marginRight: 4 }}>
-                    <View style={[s.miniPill, { backgroundColor: c.well }]}>
-                      <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+250</Txt>
-                    </View>
-                  </Tap>
-                  <Tap onPress={() => addWater(500)} accessibilityLabel="Add 500 millilitres" style={{ flex: 1, marginRight: 4 }}>
-                    <View style={[s.miniPill, { backgroundColor: c.well }]}>
-                      <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+500</Txt>
-                    </View>
-                  </Tap>
-                  <Tap onPress={toggleSalt} accessibilityLabel="Electrolytes" accessibilityRole="checkbox" accessibilityState={{ checked: hydration.electrolytes }} style={{ flex: 1 }}>
-                    <View style={[s.miniPill, { backgroundColor: hydration.electrolytes ? c.emberWash : c.well }]}>
-                      <Txt variant="eyebrow" color={hydration.electrolytes ? c.ember : c.textDim} style={{ fontSize: 9 }}>
-                        {hydration.electrolytes ? 'Salz ✓' : 'Salz'}
-                      </Txt>
-                    </View>
-                  </Tap>
-                </View>
-              </BentoTile>
-
-              <BentoTile
-                title={t('today.bentoPhase')}
-                value={stage.label}
-                badge={hoursFasted >= 18 ? t('phase.autophagy') : hoursFasted >= 12 ? t('phase.ketosis') : t('phase.glucose')}
-                icon="flame"
-                hue="body"
-                subtitle={t('today.fastedFor', { hours: hoursFasted.toFixed(1) })}
-                actionLabel="Guide"
-                onPress={() => setShowMetabolic(true)}
-              />
-
-              <BentoTile
-                title={t('today.bentoBody')}
-                value={`${profile.weight_kg.toFixed(1)}`}
-                unit="kg"
-                badge={weighedToday ? 'Gewogen ✓' : 'Offen'}
-                icon="chart"
-                hue="plan"
-                subtitle={weighedToday ? t('today.weighedToday') : t('today.notWeighed')}
-                actionLabel="Verlauf"
-                onPress={() => router.push('/progress')}
-              />
-
-              <BentoTile
-                title={lang === 'de' ? 'Schritte & Aktivität' : 'Steps & Activity'}
-                value={steps > 0 ? `${steps.toLocaleString()}` : '0'}
-                unit={lang === 'de' ? 'Schritte' : 'steps'}
-                badge={steps >= 8000 ? 'Ziel ✓' : `${Math.round((steps / 8000) * 100)}%`}
-                icon="flame"
-                hue="gold"
-                subtitle={`~${Math.round(steps * 0.038)} kcal Bonus`}
-              >
-                <View style={s.bentoActions}>
-                  <Tap onPress={() => addSteps(1000)} style={{ flex: 1, marginRight: 4 }}>
-                    <View style={[s.miniPill, { backgroundColor: c.well }]}>
-                      <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+1k</Txt>
-                    </View>
-                  </Tap>
-                  <Tap onPress={() => addSteps(2500)} style={{ flex: 1, marginRight: 4 }}>
-                    <View style={[s.miniPill, { backgroundColor: c.well }]}>
-                      <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9 }}>+2.5k</Txt>
-                    </View>
-                  </Tap>
-                  <Tap onPress={() => router.push('/health')} style={{ flex: 1 }}>
-                    <View style={[s.miniPill, { backgroundColor: c.accentWash }]}>
-                      <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9 }}>Health</Txt>
-                    </View>
-                  </Tap>
-                </View>
-              </BentoTile>
-            </BentoGrid>
-          </Enter>
-
-          {/* 1-Tap Fasting Feeling Bar */}
-          <Enter index={4}>
-            <Card style={{ marginTop: Space.base, padding: Space.base }}>
-              <FastingFeelingBar embedded />
-            </Card>
-          </Enter>
-
-          {/* Weigh-in field if not weighed today */}
-          {!weighedToday && (
-            <Enter index={5}>
-              <Card style={{ marginTop: Space.base }} tone="body">
-                <Eyebrow style={{ marginBottom: Space.sm }}>{t('today.dailyWeighIn')}</Eyebrow>
-                <Txt variant="small" color={c.textDim} style={{ marginBottom: Space.md }}>
-                  {t('today.dailyWeighInSub')}
-                </Txt>
-                <View style={s.weighRow}>
-                  <TextInput
-                    value={weightInput}
-                    onChangeText={setWeightInput}
-                    onSubmitEditing={logWeight}
-                    placeholder={profile.weight_kg.toFixed(1)}
-                    placeholderTextColor={c.textFaint}
-                    keyboardType="numeric"
-                    inputMode="decimal"
-                    accessibilityLabel="Today's weight in kilograms"
-                    style={[Type.data, s.weighInput, { color: c.text, backgroundColor: c.well, borderColor: c.line }]}
-                  />
-                  <Tap onPress={logWeight} disabled={!weightInput.trim()} accessibilityLabel="Save weight">
-                    <View style={[s.weighBtn, { backgroundColor: weightInput.trim() ? c.accent : c.well }]}>
-                      <Icon name="check" size={16} color={weightInput.trim() ? c.onAccent : c.textFaint} strokeWidth={2.2} />
-                    </View>
-                  </Tap>
-                </View>
-              </Card>
-            </Enter>
-          )}
-
-          {trend && trend.state !== 'insufficient' && (
-            <Enter index={6}>
-              <Card style={{ marginTop: Space.base }} tone="body">
-                <Eyebrow color={c.body}>Gewichts-Trend</Eyebrow>
-                <Txt variant="small" color={trend.state === 'steady' ? c.textDim : c.text} style={{ marginTop: Space.sm }}>
-                  {trend.note}
-                </Txt>
-              </Card>
-            </Enter>
-          )}
-
-          {/* Direct Sport Quick-Link on Fasten Tab */}
-          <Enter index={7} style={{ marginTop: Space.base }}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => { setSegment('workout'); haptic('light'); }}
-              style={[s.sportQuickBanner, { backgroundColor: c.surface, borderColor: c.line }]}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <View style={[s.sportIconBox, { backgroundColor: 'rgba(255, 107, 74, 0.15)' }]}>
-                  <Icon name="dumbbell" size={15} color="#FF6B4A" />
-                </View>
-                <View style={{ marginLeft: 10, flex: 1 }}>
-                  <Eyebrow color="#FF6B4A" style={{ fontSize: 9.5, fontWeight: '800' }}>
-                    {lang === 'de' ? 'GEFASTETES WORKOUT' : 'FASTED WORKOUT'}
-                  </Eyebrow>
-                  <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 1 }}>
-                    {steps > 0 ? `${steps.toLocaleString()} Schritte · 6 Routinen` : (lang === 'de' ? '6 Routinen & Schritt-Tracker' : '6 routines & steps')}
-                  </Txt>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Txt variant="small" color={c.accent} style={{ fontWeight: '700', fontSize: 12 }}>
-                  {lang === 'de' ? 'Öffnen' : 'Open'}
-                </Txt>
-                <Icon name="chevronRight" size={12} color={c.accent} />
-              </View>
-            </TouchableOpacity>
-          </Enter>
-        </>
-      )}
-
-      {/* =========================================================================
-          TAB 2: HEUTIGER TELLER & KÜCHE
-          ========================================================================= */}
-      {segment === 'meal' && (
-        <>
-          {/* Interactive OMAD Daily Meal Journey Bar */}
-          <Enter index={1}>
-            <Card style={{ marginTop: Space.xs, padding: Space.sm, backgroundColor: c.well, borderColor: c.line }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={s.journeyStep}>
-                  <View style={[s.journeyDot, { backgroundColor: plan ? '#10B981' : c.ember }]}>
-                    <Txt style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>1</Txt>
-                  </View>
-                  <Txt variant="eyebrow" color={plan ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
-                    {lang === 'de' ? 'Planen' : 'Plan'}
-                  </Txt>
-                </View>
-
-                <Icon name="chevronRight" size={10} color={c.textFaint} />
-
-                <View style={s.journeyStep}>
-                  <View style={[s.journeyDot, { backgroundColor: cooked ? '#10B981' : c.textFaint }]}>
-                    <Txt style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>2</Txt>
-                  </View>
-                  <Txt variant="eyebrow" color={cooked ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
-                    {lang === 'de' ? 'Kochen' : 'Cook'}
-                  </Txt>
-                </View>
-
-                <Icon name="chevronRight" size={10} color={c.textFaint} />
-
-                <View style={s.journeyStep}>
-                  <View style={[s.journeyDot, { backgroundColor: answered ? '#10B981' : c.textFaint }]}>
-                    <Txt style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>3</Txt>
-                  </View>
-                  <Txt variant="eyebrow" color={answered ? c.text : c.textDim} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '700' }}>
-                    {lang === 'de' ? '1-Tap Tracking' : 'Track'}
-                  </Txt>
-                </View>
-              </View>
-            </Card>
-          </Enter>
-
-          <Enter index={2}>
-            {/* Visual Dinner Showcase */}
-            <TouchableOpacity
-              activeOpacity={0.88}
-              onPress={() => router.push('/planner')}
-              style={[s.showcaseCard, { borderColor: c.line, height: 165 }]}
-            >
-              <Image
-                source={require('../../../assets/images/omad_plate_hero.jpg')}
-                style={s.showcaseImage}
-                resizeMode="cover"
-              />
-              <View style={s.showcaseOverlay} />
-              <View style={s.showcaseContent}>
-                <View style={[s.badgePill, { backgroundColor: '#F59E0B' }]}>
-                  <Txt variant="eyebrow" color="#080C14" style={{ fontSize: 10, fontWeight: '800' }}>
-                    {plan ? (lang === 'de' ? 'HEUTIGER OMAD TELLER' : "TODAY'S OMAD PLATE") : (lang === 'de' ? 'MAHLZEIT PLANEN' : 'PLAN YOUR MEAL')}
-                  </Txt>
-                </View>
-                <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 19, fontWeight: '800', marginTop: 4 }}>
-                  {plan ? plan.recipe.title : t('today.defaultMeal')}
-                </Txt>
-                <Txt variant="small" color="rgba(255, 255, 255, 0.9)" style={{ marginTop: 3, fontSize: 12.5 }}>
-                  {kcal} kcal · {protein}g Protein · Zeitfenster {fast.windowStart}–{fast.windowEnd}
-                </Txt>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                  <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 10, fontWeight: '800' }}>
-                    {plan
-                      ? (lang === 'de' ? 'REZEPT & ZUTATEN ÖFFNEN ➔' : 'VIEW RECIPE & INGREDIENTS ➔')
-                      : (lang === 'de' ? 'JETZT IM PLANER GENERIEREN ➔' : 'GENERATE IN PLANNER ➔')}
-                  </Txt>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Enter>
-
-          <Enter index={3}>
-            <BentoGrid>
-              <BentoTile
-                title={t('today.bentoMeal')}
-                value={`${kcal}`}
-                unit="kcal"
-                badge={plan ? 'Geplant' : 'Basis'}
-                icon="plate"
-                hue="ember"
-                subtitle={`${protein}g Protein · Fenster ${fast.windowStart}`}
-                actionLabel="Plan ansehen"
-                onPress={() => router.push('/planner')}
-              />
-
-              <BentoTile
-                title={lang === 'de' ? 'Fastenbrechen-Guide' : 'Break-Fast Protocol'}
-                value="3 Stufen"
-                badge="Food-Coma"
-                icon="shield"
-                hue="plan"
-                subtitle={t('today.breakProtocol')}
-                actionLabel="Guide"
-                onPress={() => setShowBreakFast(true)}
-              />
-            </BentoGrid>
-          </Enter>
-
-          {/* Asked about the day the eating window belonged to */}
-          {question && (
-            <Enter index={4}>
-              <Card style={{ marginTop: Space.base }} tone="accent">
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Eyebrow color={c.accent}>
-                    {lang === 'de'
-                      ? (question.date === todayISO() ? '1-TAP TRACKING: WIE LIEF ES HEUTE?' : 'MORGEN-CHECK-IN: WIE LIEF ES GESTERN?')
-                      : (question.date === todayISO() ? '1-TAP TRACKING: TODAY' : 'CHECK-IN: YESTERDAY')}
-                  </Eyebrow>
-                  <View style={[s.countBadge, { backgroundColor: c.accentWash }]}>
-                    <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9, fontWeight: '800' }}>
-                      {lang === 'de' ? 'KEIN BARCODE-STRESS' : 'ZERO-FRICTION'}
-                    </Txt>
-                  </View>
-                </View>
-                <Txt variant="body" style={{ marginTop: Space.sm }}>
-                  {lang === 'de'
-                    ? `Grobe Schätzung gegen das Ziel von ${questionKcal} kcal. Damit wird dein echter Stoffwechsel-Verbrauch berechnet.`
-                    : `Roughly, against the ${questionKcal} kcal target. This is what lets the app measure what your body actually costs.`}
-                </Txt>
-                <View style={s.intakeGrid}>
-                  {INTAKE_OPTIONS.map((o) => (
-                    <View key={o.label} style={s.intakeCell}>
-                      <Tap
-                        onPress={() => answerIntake(o.factor)}
-                        accessibilityLabel={`${intakeOptionLabel(o, lang)}, about ${intakeKcal(o.factor, questionKcal)} kcal`}
-                      >
-                        <View style={[s.intakeBtn, { borderColor: c.line, backgroundColor: c.well }]}>
-                          <Txt variant="small" style={{ textAlign: 'center', fontWeight: '600' }}>
-                            {intakeOptionLabel(o, lang)}
-                          </Txt>
-                          <Eyebrow style={{ marginTop: 2 }}>
-                            {o.factor === 1 ? '' : '≈ '}{intakeKcal(o.factor, questionKcal)} kcal
-                          </Eyebrow>
-                        </View>
-                      </Tap>
-                    </View>
-                  ))}
-                </View>
-                <Tap onPress={() => answerIntake(null)} accessibilityLabel={lang === 'de' ? 'Völlig anders — Tag überspringen' : 'Completely different'}>
-                  <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md, textAlign: 'center' }}>
-                    {lang === 'de' ? 'Völlig anders — Tag überspringen' : 'Completely different — skip today'}
-                  </Txt>
-                </Tap>
-              </Card>
-            </Enter>
-          )}
-
-          {!question && answered && (
-            <Enter index={4}>
-              <Tap onPress={reopenQuestion} accessibilityLabel={lang === 'de' ? 'Heutige Antwort ändern' : "Change today's answer"}>
-                <View style={[s.answered, { borderColor: c.line }]}>
-                  <Txt variant="small" color={c.textDim}>
-                    {answered.date === todayISO() ? (lang === 'de' ? 'Heute' : 'Today') : (lang === 'de' ? 'Gestern' : 'Yesterday')}:{' '}
-                    {intakeLabel(answered.factor, lang)}
-                  </Txt>
-                  <Txt variant="small" color={c.accent}>{lang === 'de' ? 'ändern' : 'change'}</Txt>
-                </View>
-              </Tap>
-            </Enter>
-          )}
-
-          {/* Unified smart Agenda */}
-          <Enter index={5}>
-            <Card style={{ marginTop: Space.base, paddingVertical: Space.sm }}>
-              <View style={{ paddingHorizontal: Space.base, paddingVertical: Space.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Eyebrow>{t('today.agenda')}</Eyebrow>
-                {next && nextMins < 60 && (
-                  <View style={[s.badgePill, { backgroundColor: nextColor, paddingHorizontal: 8, paddingVertical: 3 }]}>
-                    <Txt variant="eyebrow" color="#080C14" style={{ fontSize: 10, fontWeight: '800' }}>
-                      {nextMins <= 0 ? t('today.dueNow') : t('today.dueIn', { min: Math.round(nextMins) })}
-                    </Txt>
-                  </View>
-                )}
-              </View>
-
-              {next && (
-                <View style={[s.activeNextBanner, { backgroundColor: nextMins <= 60 ? c.emberWash : c.accentWash, borderColor: nextColor }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                      <Icon name={ICONS[next.kind]} size={18} color={nextColor} />
-                      <View style={{ marginLeft: Space.sm, flex: 1 }}>
-                        <Txt variant="subheading" color={c.text} style={{ fontSize: 15, fontWeight: '700' }}>
-                          {next.title}
-                        </Txt>
-                        <Txt variant="small" color={c.textDim} style={{ marginTop: 2, fontSize: 12 }}>
-                          {next.body}
-                        </Txt>
-                      </View>
-                    </View>
-                    <Txt variant="data" color={nextColor} style={{ fontWeight: '700', marginLeft: Space.sm }}>
-                      {next.at}
-                    </Txt>
-                  </View>
-                  {next.actionable && (
-                    <Button
-                      label={next.kind === 'cook' ? (lang === 'de' ? 'Als gekocht markieren' : 'Mark as cooked') : (lang === 'de' ? 'Fasten eintragen' : 'Log it')}
-                      variant="secondary"
-                      onPress={() => doAction(next.kind)}
-                      style={{ marginTop: Space.sm }}
-                    />
-                  )}
-                </View>
-              )}
-
-              {items.map((item, i) => {
-                const dim = item.past || item.done;
-                return (
-                  <View key={item.kind}>
-                    {(i > 0 || next) && <Divider />}
-                    <Tap
-                      onPress={item.actionable && !item.done ? () => doAction(item.kind) : undefined}
-                      disabled={!item.actionable || item.done}
-                      accessibilityRole={item.actionable ? 'button' : 'text'}
-                      accessibilityLabel={`${item.title} at ${item.at}`}
-                    >
-                      <View style={s.row}>
-                        <Txt variant="data" color={dim ? c.textFaint : c.text} style={s.time}>{item.at}</Txt>
-                        <Icon
-                          name={item.done ? 'check' : ICONS[item.kind]}
-                          size={16}
-                          color={item.done ? c.positive : dim ? c.textFaint : item === next ? nextColor : c.textDim}
-                        />
-                        <View style={[s.flex, { marginLeft: Space.md }]}>
-                          <Txt
-                            variant="bodyMedium"
-                            color={dim ? c.textFaint : c.text}
-                            style={item.done ? s.struck : undefined}
-                          >
-                            {item.title}
-                          </Txt>
-                        </View>
-                        {item.actionable && !item.done && (
-                          <Txt variant="small" color={c.accent}>
-                            {lang === 'de' ? 'Erledigen' : 'Tick'}
-                          </Txt>
-                        )}
-                      </View>
-                    </Tap>
-                  </View>
-                );
-              })}
-            </Card>
-          </Enter>
-        </>
-      )}
-
-      {/* =========================================================================
-          TAB 3: WORKOUT & SPORT
-          ========================================================================= */}
-      {segment === 'workout' && (
-        <>
-          {/* Workout Hero Showcase */}
-          <Enter index={2}>
-            <TouchableOpacity
-              activeOpacity={0.88}
-              onPress={() => router.push('/workout')}
-              style={[s.showcaseCard, { borderColor: c.line }]}
-            >
-              <Image
-                source={require('../../../assets/images/fasted_workout_hero.jpg')}
-                style={s.showcaseImage}
-                resizeMode="cover"
-              />
-              <View style={s.showcaseOverlay} />
-              <View style={s.showcaseContent}>
-                <View style={[s.badgePill, { backgroundColor: '#FF6B4A' }]}>
-                  <Txt variant="eyebrow" color="#080C14" style={{ fontSize: 10, fontWeight: '800' }}>
-                    OMAD TRAINING
-                  </Txt>
-                </View>
-                <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 19, fontWeight: '800', marginTop: 4 }}>
-                  {lang === 'de' ? 'Gefastetes Training & Hypertrophie' : 'Fasted Training & Hypertrophy'}
-                </Txt>
-                <Txt variant="small" color="rgba(255, 255, 255, 0.88)" style={{ marginTop: 3 }}>
-                  {lang === 'de'
-                    ? '6 Einheiten mit automatischer Makro- & Kalorien-Synchronisation'
-                    : '6 routines with automatic calorie & macro sync'}
-                </Txt>
-              </View>
-            </TouchableOpacity>
-          </Enter>
-
-          {/* Steps & Active Calorie Hub */}
-          <Enter index={3}>
-            <Card style={{ marginTop: Space.base, padding: Space.base }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.15)', width: 34, height: 34, borderRadius: 17 }]}>
-                    <Icon name="chart" size={16} color="#38BDF8" />
-                  </View>
-                  <View style={{ marginLeft: 10 }}>
-                    <Eyebrow color={c.textDim}>{lang === 'de' ? 'TAGESSCHRITTE & AKTIVITÄT' : 'DAILY STEPS & ACTIVITY'}</Eyebrow>
-                    <Txt variant="heading" color={c.text} style={{ fontSize: 20, fontWeight: '800', marginTop: 2 }}>
-                      {steps.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')} <Txt variant="small" color={c.textDim}>/ 10.000</Txt>
-                    </Txt>
-                  </View>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <TouchableOpacity
-                    onPress={() => addSteps(1000)}
-                    activeOpacity={0.7}
-                    style={[s.miniPill, { backgroundColor: c.well, marginRight: 6 }]}
-                  >
-                    <Txt variant="eyebrow" color={c.text} style={{ fontSize: 10, fontWeight: '700' }}>+1.000</Txt>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => addSteps(2500)}
-                    activeOpacity={0.7}
-                    style={[s.miniPill, { backgroundColor: c.well }]}
-                  >
-                    <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 10, fontWeight: '700' }}>+2.500</Txt>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Card>
-          </Enter>
-
-          {/* Quick Workout Routines Grid */}
-          <Enter index={4} style={{ marginTop: Space.base }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.sm }}>
-              <Eyebrow>{lang === 'de' ? 'Trainings-Einheiten' : 'Workout Sessions'}</Eyebrow>
-              <TouchableOpacity onPress={() => router.push('/workout')}>
-                <Txt variant="small" color={c.accent}>{lang === 'de' ? 'Alle öffnen ➔' : 'View all ➔'}</Txt>
-              </TouchableOpacity>
-            </View>
-
-            <View style={s.workoutRoutineGrid}>
-              {[
-                { id: 'push', titleDe: 'Oberkörper Push', titleEn: 'Upper Push', emoji: '💪', time: '40 min', kcal: '~320 kcal', desc: 'Brust, Schultern, Trizeps' },
-                { id: 'pull', titleDe: 'Oberkörper Pull', titleEn: 'Upper Pull', emoji: '🏋️‍♂️', time: '40 min', kcal: '~300 kcal', desc: 'Rücken, Bizeps, Nacken' },
-                { id: 'legs', titleDe: 'Beine & Core', titleEn: 'Legs & Core', emoji: '🦵', time: '45 min', kcal: '~420 kcal', desc: 'Quads, Hamstrings, Bauch' },
-                { id: 'full', titleDe: 'Ganzkörper Kraft', titleEn: 'Full Body', emoji: '⚡', time: '50 min', kcal: '~460 kcal', desc: 'Kompakte Grundübungen' },
-                { id: 'zone2', titleDe: 'Zone 2 Cardio', titleEn: 'Zone 2 Cardio', emoji: '🏃‍♂️', time: '35 min', kcal: '~280 kcal', desc: 'Optimale Fettverbrennung' },
-                { id: 'hiit', titleDe: 'HIIT & Tabata', titleEn: 'HIIT & Tabata', emoji: '🔥', time: '20 min', kcal: '~250 kcal', desc: 'Maximaler Nachbrenneffekt' },
-              ].map((w) => (
-                <TouchableOpacity
-                  key={w.id}
-                  activeOpacity={0.75}
-                  onPress={() => router.push('/workout')}
-                  style={[s.workoutRoutineCard, { backgroundColor: c.surface, borderColor: c.line }]}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Txt style={{ fontSize: 20 }}>{w.emoji}</Txt>
-                    <View style={[s.countBadge, { backgroundColor: 'rgba(255, 107, 74, 0.12)' }]}>
-                      <Txt variant="eyebrow" color="#FF6B4A" style={{ fontSize: 9, fontWeight: '800' }}>
-                        {w.kcal}
-                      </Txt>
-                    </View>
-                  </View>
-                  <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 6 }}>
-                    {lang === 'de' ? w.titleDe : w.titleEn}
-                  </Txt>
-                  <Txt variant="small" color={c.textDim} style={{ fontSize: 10.5, marginTop: 2 }}>
-                    {w.time} · {w.desc}
-                  </Txt>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Enter>
-
-          {/* Fasted Training Science Tip */}
-          <Enter index={5} style={{ marginTop: Space.base }}>
-            <Card style={{ padding: Space.base, backgroundColor: c.well, borderColor: c.line }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon name="shield" size={16} color={c.accent} />
-                <Eyebrow color={c.accent} style={{ marginLeft: 6, fontSize: 10, fontWeight: '800' }}>
-                  {lang === 'de' ? 'OMAD SPORT-REGEL' : 'OMAD TRAINING RULE'}
-                </Eyebrow>
-              </View>
-              <Txt variant="bodyMedium" color={c.text} style={{ marginTop: Space.xs, fontSize: 13, lineHeight: 18 }}>
-                {lang === 'de'
-                  ? 'Trainiere idealerweise 1–2 Stunden vor deinem Essensfenster. Nimm 30 Min vor dem Workout 1 Glas Wasser mit einer Prise Meersalz (Elektrolyte), um Pump & Kraft aufrechtzuerhalten.'
-                  : 'Train 1–2 hours before your eating window. Take 1 glass of water with a pinch of sea salt (electrolytes) 30 min before to maintain pump & power.'}
-              </Txt>
-            </Card>
-          </Enter>
-        </>
-      )}
-
-      {/* =========================================================================
-          TAB 4: WISSEN, ROUTINE & TOOLS
-          ========================================================================= */}
-      {segment === 'insights' && (
-        <>
-          <Enter index={2}>
-            <DailyBioHackCard />
-          </Enter>
-
-          <Enter index={3}>
-            <Card style={{ marginTop: Space.base, padding: Space.base }}>
-              <DailyFastingNote embedded />
-            </Card>
-          </Enter>
-
-          {/* Modern 3-Column Quick Tools Widget Grid */}
-          <Enter index={4} style={{ marginTop: Space.base }}>
-            <Eyebrow style={{ marginBottom: Space.sm }}>{lang === 'de' ? 'Schnellzugriff & Tools' : 'Quick Tools'}</Eyebrow>
-            <View style={s.quickToolGrid}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => router.push('/grocery')}
-                style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
-              >
-                <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(129, 140, 248, 0.15)' }]}>
-                  <Icon name="basket" size={18} color={c.plan} />
-                </View>
-                <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
-                  {lang === 'de' ? 'Einkaufsliste' : 'Grocery'}
-                </Txt>
-                <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
-                  {lang === 'de' ? 'Zutaten sortiert' : 'Sorted list'}
-                </Txt>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => router.push('/progress')}
-                style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: Space.sm }]}
-              >
-                <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                  <Icon name="chart" size={18} color={c.positive} />
-                </View>
-                <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
-                  {lang === 'de' ? 'Fortschritt' : 'Progress'}
-                </Txt>
-                <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
-                  {lang === 'de' ? 'Gewicht & Trends' : 'Weight & trends'}
-                </Txt>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => router.push('/chat')}
-                style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
-              >
-                <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(255, 107, 74, 0.15)' }]}>
-                  <Icon name="coach" size={18} color={c.accent} />
-                </View>
-                <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
-                  {lang === 'de' ? 'OMAD Coach' : 'OMAD Coach'}
-                </Txt>
-                <Txt variant="small" color={c.textDim} style={{ fontSize: 11, textAlign: 'center', marginTop: 2 }}>
-                  {lang === 'de' ? 'KI-Ernährung' : 'AI Advice'}
-                </Txt>
-              </TouchableOpacity>
-            </View>
-          </Enter>
-
-          {need && !need.ready && (
-            <Enter index={5}>
-              <View style={[s.readiness, { borderColor: c.line, backgroundColor: c.surface, marginTop: Space.base }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Icon name="chart" size={13} color={c.accent} />
-                  <Eyebrow color={c.accent} style={{ marginLeft: 6 }}>
-                    {lang === 'de' ? 'STOFFWECHSEL-KALIBRIERUNG' : 'UNTIL YOUR MAINTENANCE CAN BE MEASURED'}
-                  </Eyebrow>
-                </View>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: 4 }}>
-                  {lang === 'de' && need.note.includes('evenings')
-                    ? need.note
-                        .replace('of 8 evenings', 'von 8 Abenden')
-                        .replace('of 4 weigh-ins', 'von 4 Wägungen')
-                        .replace('across', 'über')
-                        .replace('of 10 days', 'von 10 Tagen')
-                    : need.note}
-                </Txt>
-              </View>
-            </Enter>
-          )}
-        </>
-      )}
-
       {/* Asked once, whatever the answer. */}
       {offerReminders && (
-        <Enter index={7}>
+        <Enter index={11}>
           <Card style={{ marginTop: Space.base }}>
             <Eyebrow>{lang === 'de' ? 'Erinnerungen aktivieren?' : 'Want the app to tell you when?'}</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
@@ -1240,7 +683,7 @@ export default function DashboardScreen() {
       )}
 
       {jump && (
-        <Enter index={7}>
+        <Enter index={12}>
           <Card style={{ marginTop: Space.base }} tone="ember">
             <Eyebrow color={c.ember}>Up {jump.kg} kg</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
@@ -1273,39 +716,161 @@ export default function DashboardScreen() {
 }
 
 const s = StyleSheet.create({
-  stage: { marginTop: Space.lg, paddingHorizontal: Space.sm },
-  answered: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Space.base,
-    paddingVertical: Space.md, marginTop: Space.xl,
-  },
-  // Two by two. Four across left no room for a label and a figure under it.
-  offerRow: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm },
-  offerBtn: { flex: 1, marginRight: Space.sm },
-  readiness: {
-    borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed',
-    paddingHorizontal: Space.base, paddingVertical: Space.md, marginTop: Space.base,
-  },
-  intakeGrid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    marginTop: Space.base, marginRight: -Space.sm,
-  },
-  intakeCell: { width: '50%', paddingRight: Space.sm, marginBottom: Space.sm },
-  intakeBtn: {
-    minHeight: 56, borderRadius: Radius.md, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 8,
-  },
-  stageLabel: { textAlign: 'center' },
-  stageNote: { textAlign: 'center', marginTop: 4, lineHeight: 19 },
-  flex: { flex: 1 },
-  rowCentre: { flexDirection: 'row', alignItems: 'center' },
-
-  activeNextBanner: {
-    marginHorizontal: Space.base,
-    marginBottom: Space.sm,
+  celebrationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: Space.base,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
+    marginBottom: Space.sm,
+  },
+  zenHeroCard: {
+    borderRadius: Radius.xl,
+    padding: Space.base,
+    paddingTop: Space.base,
+    marginTop: Space.xs,
+  },
+  zenHeroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Space.xs,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+  },
+  zenAdjustPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+  },
+  zenCountContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Space.sm,
+  },
+  zenHeroFigure: {
+    fontSize: 42,
+    lineHeight: 46,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  zenCountCaption: {
+    opacity: 0.85,
+    fontSize: 12.5,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  zenActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Space.md,
+    gap: Space.xs,
+  },
+  zenPrimaryBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: Radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Space.base,
+  },
+  zenResetBtn: {
+    height: 42,
+    paddingHorizontal: Space.base,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  corePillarsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: Space.sm,
+    marginTop: Space.xs,
+  },
+  corePillarCard: {
+    flex: 1,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    padding: Space.base,
+    justifyContent: 'space-between',
+  },
+  pillarMiniBtn: {
+    flex: 1,
+    height: 28,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zenSecondaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginTop: Space.sm,
+  },
+  miniStepPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+  },
+  sportIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: Radius.pill,
+  },
+  waterFillTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  waterFillBar: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  weighRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weighInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: Space.md,
+    fontSize: 14,
+    marginRight: Space.sm,
+  },
+  weighBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pill: {
+    height: 38,
+    borderRadius: Radius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   quickToolGrid: {
     flexDirection: 'row',
@@ -1328,181 +893,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: Space.md },
-  time: { width: 54 },
-  struck: { textDecorationLine: 'line-through' },
-
-  hero: { borderRadius: Radius.lg, padding: Space.base, paddingTop: Space.base },
-  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.xs },
-  heroBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.pill },
-  heroBioTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: Radius.pill },
-  stageHeader: { flexDirection: 'row', alignItems: 'center' },
-  stageIconBadge: { width: 32, height: 32, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  heroFigure: { marginRight: Space.sm, fontSize: 36, fontWeight: '800' },
-  countRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
-  countCaption: { opacity: 0.75, fontSize: 12 },
-  statRow: { flexDirection: 'row', alignItems: 'center' },
-  figure: { fontSize: 24, marginTop: 5 },
-  vline: { width: 1, height: 34, marginHorizontal: Space.base },
-
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.base },
-  actions: { flexDirection: 'row', marginTop: Space.base, marginRight: -Space.sm },
-  action: { flex: 1, marginRight: Space.sm },
-  pill: { height: 40, borderRadius: Radius.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-
-  weighRow: { flexDirection: 'row', alignItems: 'center' },
-  weighInput: { flex: 1, height: 44, borderRadius: Radius.sm, borderWidth: 1, paddingHorizontal: Space.md, fontSize: 14, marginRight: Space.sm },
-  weighBtn: { width: 44, height: 44, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  bentoActions: { flexDirection: 'row', alignItems: 'center', marginTop: Space.xs },
-  miniPill: { height: 26, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  showcaseCard: {
-    height: 108,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-    position: 'relative',
-    borderWidth: 1,
+  offerRow: {
+    flexDirection: 'row',
+    marginTop: Space.base,
+    marginRight: -Space.sm,
   },
-  showcaseImage: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-  },
-  showcaseOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(8, 12, 20, 0.65)',
-  },
-  showcaseContent: {
+  offerBtn: {
     flex: 1,
-    padding: Space.base,
-    justifyContent: 'flex-end',
-  },
-  badgePill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-    marginBottom: 2,
-  },
-  shiftPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    marginLeft: Space.sm,
-  },
-  celebrationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Space.base,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Space.sm,
-  },
-  quickAdjustRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Space.sm,
-    marginBottom: 2,
-  },
-  quickAdjustBtn: {
-    flex: 1,
-    height: 34,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  waterFillTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  waterFillBar: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  segmentBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 3,
-    borderRadius: Radius.pill,
-    marginTop: Space.sm,
-    marginBottom: Space.sm,
-  },
-  segmentTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: Radius.pill,
-  },
-  segmentTabActive: {
-    borderWidth: 1,
-  },
-  workoutRoutineGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Space.sm,
-  },
-  workoutRoutineCard: {
-    width: '48.5%',
-    padding: Space.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  countBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: Radius.pill,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  miniBadgeDot: {
-    minWidth: 12,
-    height: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-    marginLeft: 3,
-  },
-  sportQuickBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Space.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  sportIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  journeyStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  journeyDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: Space.sm,
   },
 });
