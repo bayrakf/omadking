@@ -85,93 +85,91 @@ export type ThemePalette = {
  * framework rather than as a product. Same hue order, muted to sit together.
  */
 export const PhaseColors = {
-  sugarDrop: '#C9922F',
-  fatBurn: '#C4552A',
-  ketosis: '#7A5480',
-  autophagy: '#37789A',
-  deepFast: '#5B7A4B',
+  sugarDrop: '#F59E0B',
+  fatBurn: '#FF6B4A',
+  ketosis: '#A855F7',
+  autophagy: '#38BDF8',
+  deepFast: '#10B981',
 };
+
 const dark: ThemePalette = {
-  // Warm charcoal, not blue-black. The cold greys read as a framework default
-  // because they are one; a ground with a little brown in it reads as chosen.
-  bg: '#14110E',
-  surface: '#1D1915',
-  surfaceElevated: '#252019',
-  well: '#292219',
-  line: '#332B22',
-  lineStrong: '#4A4034',
+  // Deep Obsidian atmosphere with luxury micro-surfaces
+  bg: '#0A0D14',
+  surface: '#121824',
+  surfaceElevated: '#182030',
+  well: '#0E131E',
+  line: '#1F293D',
+  lineStrong: '#2E3D5B',
 
-  text: '#F6F0E7',
-  textDim: '#A99C8C',
-  textFaint: '#7A6E60',
+  text: '#F8FAFC',
+  textDim: '#94A3B8',
+  textFaint: '#64748B',
 
-  accent: '#6FB3D2',
-  accentDim: '#3F7B94',
-  accentWash: 'rgba(111, 179, 210, 0.16)',
-  onAccent: '#0B1A21',
+  accent: '#38BDF8',
+  accentDim: '#0284C7',
+  accentWash: 'rgba(56, 189, 248, 0.14)',
+  onAccent: '#031424',
 
-  ember: '#E8834F',
-  emberWash: 'rgba(232, 131, 79, 0.18)',
+  ember: '#FF6B4A',
+  emberWash: 'rgba(255, 107, 74, 0.15)',
 
-  hydro: '#7CBEDD',
-  hydroWash: 'rgba(124, 190, 221, 0.16)',
-  body: '#C4A0CB',
-  bodyWash: 'rgba(196, 160, 203, 0.16)',
-  plan: '#9DC482',
-  planWash: 'rgba(157, 196, 130, 0.16)',
-  gold: '#E0B25C',
-  goldWash: 'rgba(224, 178, 92, 0.16)',
+  hydro: '#38BDF8',
+  hydroWash: 'rgba(56, 189, 248, 0.14)',
+  body: '#C084FC',
+  bodyWash: 'rgba(192, 132, 252, 0.14)',
+  plan: '#10B981',
+  planWash: 'rgba(16, 185, 129, 0.14)',
+  gold: '#F59E0B',
+  goldWash: 'rgba(245, 158, 11, 0.15)',
 
-  positive: '#9DC482',
-  negative: '#E08267',
+  positive: '#10B981',
+  negative: '#EF4444',
 
-  heroFill: '#20303A',
-  onHero: '#F6F0E7',
-  heroTrack: 'rgba(246, 240, 231, 0.14)',
+  heroFill: '#162235',
+  onHero: '#FFFFFF',
+  heroTrack: 'rgba(255, 255, 255, 0.12)',
 
-  dialTrack: '#241E17',
+  dialTrack: '#0E1420',
 };
 
 const light: ThemePalette = {
-  // Sand rather than slate. This is the single change that takes the most
-  // "software" out of the screen: a warm ground makes every card on it read as
-  // paper instead of as a panel.
-  bg: '#F5F0E8',
-  surface: '#FFFCF7',
+  // Soft Pearl / Alabaster ground
+  bg: '#F8FAFC',
+  surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  well: '#EEE6DA',
-  line: '#E3D8C9',
-  lineStrong: '#C9BAA6',
+  well: '#F1F5F9',
+  line: '#E2E8F0',
+  lineStrong: '#CBD5E1',
 
-  text: '#1E1913',
-  textDim: '#6B6055',
-  textFaint: '#9A8D7E',
+  text: '#0F172A',
+  textDim: '#475569',
+  textFaint: '#94A3B8',
 
-  accent: '#2F6D8C',
-  accentDim: '#4F8AA6',
-  accentWash: 'rgba(47, 109, 140, 0.11)',
+  accent: '#0284C7',
+  accentDim: '#0369A1',
+  accentWash: 'rgba(2, 132, 199, 0.10)',
   onAccent: '#FFFFFF',
 
-  ember: '#C4552A',
-  emberWash: 'rgba(196, 85, 42, 0.12)',
+  ember: '#EA580C',
+  emberWash: 'rgba(234, 88, 12, 0.10)',
 
-  hydro: '#37789A',
-  hydroWash: 'rgba(55, 120, 154, 0.11)',
-  body: '#7A5480',
-  bodyWash: 'rgba(122, 84, 128, 0.11)',
-  plan: '#5B7A4B',
-  planWash: 'rgba(91, 122, 75, 0.12)',
-  gold: '#A8762B',
-  goldWash: 'rgba(168, 118, 43, 0.12)',
+  hydro: '#0284C7',
+  hydroWash: 'rgba(2, 132, 199, 0.10)',
+  body: '#7C3AED',
+  bodyWash: 'rgba(124, 58, 237, 0.10)',
+  plan: '#059669',
+  planWash: 'rgba(5, 150, 105, 0.10)',
+  gold: '#D97706',
+  goldWash: 'rgba(217, 119, 6, 0.10)',
 
-  positive: '#4E7A54',
-  negative: '#A8462F',
+  positive: '#059669',
+  negative: '#DC2626',
 
-  heroFill: '#25505F',
-  onHero: '#FFFCF7',
-  heroTrack: 'rgba(255, 252, 247, 0.20)',
+  heroFill: '#0C4A6E',
+  onHero: '#FFFFFF',
+  heroTrack: 'rgba(255, 255, 255, 0.20)',
 
-  dialTrack: '#E6DCCC',
+  dialTrack: '#E2E8F0',
 };
 
 export const Colors = { light, dark };
@@ -194,16 +192,16 @@ export const Font = {
  * Balanced tracking and line heights for a soft, friendly and modern aesthetic.
  */
 export const Type = {
-  hero: { fontFamily: Font.display, fontSize: 48, lineHeight: 50, letterSpacing: -0.8 },
-  display: { fontFamily: Font.display, fontSize: 34, lineHeight: 38, letterSpacing: -0.5 },
-  title: { fontFamily: Font.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.3 },
+  hero: { fontFamily: Font.display, fontSize: 48, lineHeight: 52, letterSpacing: -0.9 },
+  display: { fontFamily: Font.display, fontSize: 34, lineHeight: 38, letterSpacing: -0.6 },
+  title: { fontFamily: Font.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.4 },
   heading: { fontFamily: Font.displaySemi, fontSize: 18, lineHeight: 23, letterSpacing: -0.2 },
-  subheading: { fontFamily: Font.bodySemi, fontSize: 15, lineHeight: 20, letterSpacing: 0 },
+  subheading: { fontFamily: Font.bodySemi, fontSize: 15, lineHeight: 20, letterSpacing: -0.1 },
   body: { fontFamily: Font.body, fontSize: 15, lineHeight: 22 },
   bodyMedium: { fontFamily: Font.bodyMedium, fontSize: 15, lineHeight: 22 },
   small: { fontFamily: Font.body, fontSize: 13, lineHeight: 19 },
   /** Uppercase micro-labels. Soft, clear voice. */
-  eyebrow: { fontFamily: Font.mono, fontSize: 10.5, lineHeight: 14, letterSpacing: 0.8 },
+  eyebrow: { fontFamily: Font.mono, fontSize: 10.5, lineHeight: 14, letterSpacing: 0.9 },
   /** Clock times, units, tabular data. */
   data: { fontFamily: Font.mono, fontSize: 13, lineHeight: 18, letterSpacing: 0.2 },
 } as const;
@@ -224,47 +222,26 @@ export const Space = {
   hero: 56,
 } as const;
 
-/**
- * Corners, generous on purpose.
- *
- * A 14pt radius on a 340pt card is a rectangle that has been told to be
- * slightly polite about it — the eye still reads a box. The size where a corner
- * stops being a detail and starts being the shape of the thing is around 24,
- * which is where every app that gets called "soft" sits.
- */
 export const Radius = {
   sm: 12,
   md: 18,
   lg: 24,
-  xl: 32,
+  xl: 30,
   pill: 999,
 } as const;
 
-/**
- * Depth instead of outlines.
- *
- * Every panel was drawn with a hairline, which is the cheapest way to say
- * "this is a container" and also the most mechanical: a 1px rule is a drawing
- * instruction, and forty of them on a screen is a wireframe. A soft shadow
- * says the same thing the way paper does.
- *
- * Kept low and wide rather than tight and dark — a tight shadow reads as a
- * button pressed into the page, a wide one reads as a card resting on it. On
- * the dark scheme shadows are nearly invisible, which is why the surfaces
- * there are separated by lightness instead, and `surfaceElevated` exists.
- */
 export const Shadow = {
   card: {
-    shadowColor: '#2B1F12',
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 6 },
     elevation: 2,
   },
   lifted: {
-    shadowColor: '#2B1F12',
+    shadowColor: '#000000',
     shadowOpacity: 0.12,
-    shadowRadius: 28,
+    shadowRadius: 30,
     shadowOffset: { width: 0, height: 12 },
     elevation: 6,
   },
@@ -272,12 +249,12 @@ export const Shadow = {
 
 export const Motion = {
   /** Entrance of a single element. */
-  enter: 420,
+  enter: 380,
   /** Delay between staggered siblings. Small enough to read as one gesture. */
-  stagger: 55,
+  stagger: 45,
   /** Press feedback. */
-  press: 120,
-  pressScale: 0.975,
+  press: 100,
+  pressScale: 0.97,
 } as const;
 
 export const MaxContentWidth = 560;

@@ -422,25 +422,15 @@ export function Card({
   const c = useTheme();
   const scheme = useResolvedScheme();
   const t = tone === 'default' ? null : TONES[tone](c);
-  /**
-   * Lit from above in the light scheme, lifted by lightness in the dark one.
-   *
-   * A shadow on a near-black ground is invisible, so drawing one there costs a
-   * compositing layer and buys nothing; the dark scheme separates a card from
-   * the page by making it lighter instead. A plain card also drops its outline
-   * in light mode — the shadow already says "this is a thing" — while a toned
-   * card keeps a hairline, because its tint is what carries the meaning and a
-   * wash with no edge dissolves into the sand.
-   */
   const isDark = scheme === 'dark';
   return (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: t ? t.fill : isDark ? c.surfaceElevated : c.surface,
-          borderColor: t ? t.edge : c.line,
-          borderWidth: t ? 1 : isDark ? 1 : 0,
+          backgroundColor: t ? t.fill : isDark ? c.surface : c.surface,
+          borderColor: t ? t.edge : isDark ? 'rgba(255, 255, 255, 0.08)' : c.line,
+          borderWidth: 1,
         },
         !isDark && !t && Shadow.card,
         style,
@@ -453,18 +443,6 @@ export function Card({
 
 /**
  * Sizing lives on the pressable; everything else lives on the view that scales.
- *
- * `Tap` renders a `Pressable` wrapping an `Animated.View`, and the caller's
- * style went entirely on the inner view — so `flex: 1` sized the *contents* of
- * a pressable that was still `flex-grow: 0` and hugging its text. A row of
- * three tabs written as three equal thirds rendered as three pills bunched at
- * the left, and a one-item row collapsed to 9pt wide with the label spilling
- * out of it. Twelve call sites across the app were quietly wrong this way.
- *
- * These keys are the ones a parent flex container reads off its child, so they
- * have to be on the element the parent actually sees. They are removed from the
- * inner view rather than duplicated: a `width: '48%'` applied twice would be
- * 48% of 48%.
  */
 const OUTER_KEYS = [
   'flex', 'flexGrow', 'flexShrink', 'flexBasis',
@@ -494,7 +472,7 @@ export function Tap({
 
   const to = (v: number) => {
     if (reduced) return;
-    Animated.spring(s, { toValue: v, useNativeDriver: true, speed: 40, bounciness: 4 }).start();
+    Animated.spring(s, { toValue: v, useNativeDriver: true, speed: 50, bounciness: 3 }).start();
   };
 
   const inner: ViewStyle = { ...(StyleSheet.flatten(style) as ViewStyle) };
@@ -504,9 +482,6 @@ export function Tap({
     (outer as any)[k] = inner[k];
     delete inner[k];
   }
-  // Once the pressable carries the size, the inner view has to fill it —
-  // otherwise the padding and background it draws stay hugging the label
-  // inside a box that is now wider than they are.
   const fills = Object.keys(outer).length > 0;
 
   return (
@@ -519,9 +494,6 @@ export function Tap({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}
-      // This version of RN-Web does not translate accessibilityState into
-      // aria-checked, so a screen reader could not tell a ticked box from an
-      // empty one. Native ignores the extra prop.
       {...(accessibilityState && 'checked' in accessibilityState
         ? { 'aria-checked': !!accessibilityState.checked }
         : null)}
@@ -553,14 +525,6 @@ export function Button({
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
-  /**
-   * The domain the action belongs to.
-   *
-   * A teal button is the app's action colour and stays the default, but on a
-   * screen that is otherwise green the one thing you are meant to press was
-   * the only element arguing with it. The button follows the screen so that
-   * the accent still means "act" rather than "teal".
-   */
   tone?: Tone;
 }) {
   const c = useTheme();
@@ -579,11 +543,13 @@ export function Button({
             backgroundColor: bg,
             borderWidth: variant === 'ghost' ? 1 : 0,
             borderColor: c.line,
+            borderTopWidth: variant === 'primary' && !off ? 1 : 0,
+            borderTopColor: 'rgba(255, 255, 255, 0.22)',
           },
         ]}
       >
         {icon && <Icon name={icon} size={18} color={fg} />}
-        <Text style={[Type.subheading, { color: fg, marginLeft: icon ? Space.sm : 0 }]}>
+        <Text style={[Type.subheading, { color: fg, marginLeft: icon ? Space.sm : 0, fontWeight: '700' }]}>
           {loading ? 'Working…' : label}
         </Text>
       </View>
@@ -603,7 +569,6 @@ export function Chip({
   selected: boolean;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
-  /** The domain the choice belongs to, so a screen's chips match its header. */
   tone?: Tone;
 }) {
   const c = useTheme();
@@ -616,22 +581,17 @@ export function Chip({
       accessibilityLabel={label}
       style={style}
     >
-      {/* Filled rather than outlined when chosen. A wash behind a hued label
-          is the same weight as the unchosen pill beside it, and the Plan
-          screen is twenty of these — the answer to "what did I pick" should
-          not be a border. `onAccent` inverts with the scheme, which is what
-          keeps the label readable on a hue that is dark on white and bright
-          on black. */}
       <View
         style={[
           styles.chip,
           {
             backgroundColor: selected ? t.ink : c.well,
-            borderColor: selected ? t.ink : 'transparent',
+            borderColor: selected ? t.ink : 'rgba(255, 255, 255, 0.06)',
+            borderWidth: 1,
           },
         ]}
       >
-        <Text style={[Type.bodyMedium, { color: selected ? c.onAccent : c.textDim, fontSize: 14 }]}>
+        <Text style={[Type.bodyMedium, { color: selected ? c.onAccent : c.textDim, fontSize: 13.5, fontWeight: selected ? '700' : '500' }]}>
           {label}
         </Text>
       </View>

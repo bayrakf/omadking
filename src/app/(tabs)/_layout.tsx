@@ -33,14 +33,12 @@ function TabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 14) }]}>
-      <View style={[styles.bar, { backgroundColor: c.surface, borderColor: c.line }]}>
+    <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 16) }]}>
+      <View style={[styles.bar, { backgroundColor: c.surface, borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
         {state.routes.map((route: any, index: number) => {
           const focused = state.index === index;
           const meta = TABS[route.name];
           const hue = meta ? meta.hue(c) : c.accent;
-          // An unknown route is a routing bug, not a tab: name it after itself
-          // rather than inventing a phrase for it.
           const label = meta ? t(meta.key) : route.name;
 
           const onPress = () => {
@@ -61,13 +59,13 @@ function TabBar({ state, navigation }: any) {
                 style={[
                   styles.iconWrap,
                   focused && {
-                    backgroundColor: route.name === 'index' ? c.emberWash : `${hue}25`,
-                    borderColor: focused ? `${hue}40` : 'transparent',
+                    backgroundColor: route.name === 'index' ? c.emberWash : `${hue}20`,
+                    borderColor: focused ? `${hue}45` : 'transparent',
                     borderWidth: 1,
                   },
                 ]}
               >
-                <Icon name={meta ? meta.icon : 'home'} size={20} color={focused ? hue : c.textFaint} />
+                <Icon name={meta ? meta.icon : 'home'} size={19} color={focused ? hue : c.textFaint} />
                 {route.name === 'profile' && (
                   <View style={[styles.proBadge, { backgroundColor: c.gold }]}>
                     <Text style={styles.proText}>PRO</Text>
@@ -79,9 +77,10 @@ function TabBar({ state, navigation }: any) {
                   Type.eyebrow,
                   {
                     color: focused ? hue : c.textFaint,
-                    marginTop: 3,
-                    fontWeight: focused ? '800' : '500',
-                    fontSize: 10,
+                    marginTop: 2.5,
+                    fontWeight: focused ? '800' : '600',
+                    fontSize: 9.5,
+                    letterSpacing: 0.5,
                   },
                 ]}
               >
@@ -122,19 +121,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: Radius.xl,
     borderWidth: 1,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: Space.xs,
     width: '100%',
     maxWidth: MaxContentWidth,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
-      android: { elevation: 10 },
-      default: { boxShadow: '0 10px 30px rgba(0,0,0,0.22)' } as any,
+      ios: { shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
+      android: { elevation: 12 },
+      default: { boxShadow: '0 12px 36px rgba(0,0,0,0.35)' } as any,
     }),
   },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 48 },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 46 },
   iconWrap: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 4,
     borderRadius: Radius.pill,
     alignItems: 'center',
