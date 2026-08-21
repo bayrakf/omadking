@@ -12,6 +12,16 @@ import { mkdtempSync, mkdirSync, rmSync, readdirSync, readFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+function walk(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walk(full));
+    else if (entry.name.endsWith('.tsx')) out.push(full);
+  }
+  return out;
+}
+
 const MODULES = ['nutrition', 'onboarding', 'dates', 'grocery', 'agenda', 'ai', 'review', 'markdown', 'typography', 'legal', 'crypto', 'sync-merge', 'energy', 'offer', 'achievements', 'biohacks', 'i18n'];
 
 // Inside the project, not the system temp dir: the compiled modules import
@@ -312,6 +322,49 @@ try {
     console.log('✅ the recipe prompt is told the language and the length of the window');
   }
 }
+
+  // --- screens colour their own surfaces instead of asking the theme --------
+  //
+  // Card/NavRow/Chip already take a `tone` that resolves through theme.ts, but
+  // a screen can always reach past it for a literal `backgroundColor: 'rgba(...)'`
+  // or `'#10B981'`. That is how the planner's macro tiles ended up with six
+  // different hand-mixed alphas on one card, and how a card wash drawn in
+  // white-on-dark went invisible in light mode — a hand-rolled literal cannot
+  // resolve per theme the way a token does. `washOf()` exists for exactly the
+  // "a tint of some palette colour" case; a new literal almost never should.
+  //
+  // Pure black/white (any alpha) is left alone: modal scrims and hairline
+  // rings are legitimately theme-independent. So are specific third-party
+  // brand colours (e.g. WhatsApp's green on its share button) — allow-listed
+  // by hand rather than guessed at.
+  {
+    // WhatsApp green — src/app/(tabs)/grocery.tsx — matched as hex or as the
+    // rgb() triple the same colour gets written as for its wash.
+    const BRAND_ALLOW = ['25D366', '37, 211, 102'];
+    const COLOR = /(?:backgroundColor|borderColor|stroke|fill)\s*:\s*(['"])(#[0-9a-fA-F]{3,8}|rgba?\([^'")]+\))\1/g;
+    const isBlackOrWhite = (v) =>
+      /^#(000000|000|ffffff|fff)$/i.test(v) || /^rgba?\(\s*(0,\s*0,\s*0|255,\s*255,\s*255)/i.test(v);
+    const isAllowedBrand = (v) => BRAND_ALLOW.some((hex) => v.toUpperCase().includes(hex));
+
+    const hits = [];
+    for (const file of walk('src/app')) {
+      const source = readFileSync(file, 'utf8');
+      for (const m of source.matchAll(COLOR)) {
+        const value = m[2];
+        if (isBlackOrWhite(value) || isAllowedBrand(value)) continue;
+        const line = source.slice(0, m.index).split('\n').length;
+        hits.push(`${file}:${line} ${value}`);
+      }
+    }
+    if (hits.length > 0) {
+      failed = true;
+      console.error('❌ colour — screens set a surface colour by literal instead of a theme token:',
+        '\n   ' + hits.join('\n   '),
+        "\n   Use a Card/NavRow/Chip `tone`, a `c.*` token, or washOf(c.*) instead.");
+    } else {
+      console.log('✅ no screen colours a surface with a literal instead of a theme token');
+    }
+  }
 
 console.log('\nAll logic checks passed.');
 } finally {

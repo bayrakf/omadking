@@ -3,7 +3,7 @@ import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius, Type } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, PageHeader, useTheme,
+  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, PageHeader, useTheme, washOf,
 } from '@/components/ui';
 import { useLang } from '@/components/lang';
 import { Icon } from '@/components/icons';
@@ -463,11 +463,11 @@ export default function DashboardScreen() {
           style={[s.zenSecondaryCard, { backgroundColor: c.surface, borderColor: c.line }]}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <View style={[s.sportIconBox, { backgroundColor: 'rgba(255, 107, 74, 0.12)' }]}>
-              <Icon name="dumbbell" size={15} color="#FF6B4A" />
+            <View style={[s.sportIconBox, { backgroundColor: c.emberWash }]}>
+              <Icon name="dumbbell" size={15} color={c.ember} />
             </View>
             <View style={{ marginLeft: 10, flex: 1 }}>
-              <Eyebrow color="#FF6B4A" style={{ fontSize: 9.5, fontWeight: '800' }}>
+              <Eyebrow color={c.ember} style={{ fontSize: 9.5, fontWeight: '800' }}>
                 {lang === 'de' ? 'GEFASTETES WORKOUT & AKTIVITÄT' : 'FASTED WORKOUT & ACTIVITY'}
               </Eyebrow>
               <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 1 }}>
@@ -595,7 +595,7 @@ export default function DashboardScreen() {
             onPress={() => router.push('/grocery')}
             style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
           >
-            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(129, 140, 248, 0.15)' }]}>
+            <View style={[s.quickToolIconCircle, { backgroundColor: washOf(c.plan) }]}>
               <Icon name="basket" size={18} color={c.plan} />
             </View>
             <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
@@ -611,7 +611,7 @@ export default function DashboardScreen() {
             onPress={() => router.push('/progress')}
             style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line, marginHorizontal: Space.sm }]}
           >
-            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+            <View style={[s.quickToolIconCircle, { backgroundColor: washOf(c.positive) }]}>
               <Icon name="chart" size={18} color={c.positive} />
             </View>
             <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>
@@ -627,7 +627,7 @@ export default function DashboardScreen() {
             onPress={() => router.push('/chat')}
             style={[s.quickToolCard, { backgroundColor: c.surface, borderColor: c.line }]}
           >
-            <View style={[s.quickToolIconCircle, { backgroundColor: 'rgba(255, 107, 74, 0.15)' }]}>
+            <View style={[s.quickToolIconCircle, { backgroundColor: washOf(c.accent) }]}>
               <Icon name="coach" size={18} color={c.accent} />
             </View>
             <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 8 }}>

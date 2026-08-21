@@ -171,7 +171,6 @@ export default function GroceryScreen() {
                 label={f === 'all' ? t('shop.filterAll') : f === 'open' ? t('shop.filterOpen') : t('shop.filterDone')}
                 selected={filter === f}
                 onPress={() => setFilter(f)}
-                tone="plan"
                 style={{ marginRight: Space.xs }}
               />
             ))}

@@ -321,8 +321,8 @@ export default function PlannerScreen() {
                     </View>
 
                     {preview.burn_kcal > 0 && (
-                      <View style={[s.workoutBonusPill, { backgroundColor: 'rgba(255, 107, 74, 0.12)', borderColor: 'rgba(255, 107, 74, 0.3)' }]}>
-                        <Txt variant="eyebrow" color="#FF6B4A" style={{ fontSize: 10, fontWeight: '800' }}>
+                      <View style={[s.workoutBonusPill, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
+                        <Txt variant="eyebrow" color={c.ember} style={{ fontSize: 10, fontWeight: '800' }}>
                           +{preview.burn_kcal} KCAL WORKOUT
                         </Txt>
                       </View>
@@ -331,18 +331,18 @@ export default function PlannerScreen() {
 
                   {/* Proportional Macro Distribution Bar */}
                   <View style={s.macroBarTrack}>
-                    <View style={[s.macroBarSeg, { flex: pPct, backgroundColor: '#10B981', borderTopLeftRadius: 5, borderBottomLeftRadius: 5 }]} />
-                    <View style={[s.macroBarSeg, { flex: cPct, backgroundColor: '#38BDF8', marginLeft: 2 }]} />
-                    <View style={[s.macroBarSeg, { flex: fPct, backgroundColor: '#F59E0B', marginLeft: 2, borderTopRightRadius: 5, borderBottomRightRadius: 5 }]} />
+                    <View style={[s.macroBarSeg, { flex: pPct, backgroundColor: c.plan, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 }]} />
+                    <View style={[s.macroBarSeg, { flex: cPct, backgroundColor: c.hydro, marginLeft: 2 }]} />
+                    <View style={[s.macroBarSeg, { flex: fPct, backgroundColor: c.gold, marginLeft: 2, borderTopRightRadius: 5, borderBottomRightRadius: 5 }]} />
                   </View>
 
-                  {/* Macro Trio Cards */}
+                  {/* Macro Trio Cards — neutral wells; the dot + label carry the colour, not the box. */}
                   <View style={s.macroTrioRow}>
                     {/* Protein */}
-                    <View style={[s.macroTrioCard, { backgroundColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)' }]}>
+                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={[s.macroDot, { backgroundColor: '#10B981' }]} />
-                        <Eyebrow color="#10B981" style={{ fontSize: 10, fontWeight: '800' }}>PROTEIN</Eyebrow>
+                        <View style={[s.macroDot, { backgroundColor: c.plan }]} />
+                        <Eyebrow color={c.plan} style={{ fontSize: 10, fontWeight: '800' }}>PROTEIN</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
                         <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
@@ -350,16 +350,16 @@ export default function PlannerScreen() {
                         </Txt>
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color="#10B981" style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
+                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
                         {pPct}% {proteinPerKg ? `· ${proteinPerKg}g/kg` : ''}
                       </Txt>
                     </View>
 
                     {/* Carbs */}
-                    <View style={[s.macroTrioCard, { backgroundColor: 'rgba(56, 189, 248, 0.08)', borderColor: 'rgba(56, 189, 248, 0.25)', marginHorizontal: Space.xs }]}>
+                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line, marginHorizontal: Space.xs }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={[s.macroDot, { backgroundColor: '#38BDF8' }]} />
-                        <Eyebrow color="#38BDF8" style={{ fontSize: 10, fontWeight: '800' }}>{t('macro.carbs')}</Eyebrow>
+                        <View style={[s.macroDot, { backgroundColor: c.hydro }]} />
+                        <Eyebrow color={c.hydro} style={{ fontSize: 10, fontWeight: '800' }}>{t('macro.carbs')}</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
                         <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
@@ -367,16 +367,16 @@ export default function PlannerScreen() {
                         </Txt>
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color="#38BDF8" style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
+                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
                         {cPct}%
                       </Txt>
                     </View>
 
                     {/* Fat */}
-                    <View style={[s.macroTrioCard, { backgroundColor: 'rgba(245, 158, 11, 0.08)', borderColor: 'rgba(245, 158, 11, 0.25)' }]}>
+                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={[s.macroDot, { backgroundColor: '#F59E0B' }]} />
-                        <Eyebrow color="#F59E0B" style={{ fontSize: 10, fontWeight: '800' }}>{t('macro.fat')}</Eyebrow>
+                        <View style={[s.macroDot, { backgroundColor: c.gold }]} />
+                        <Eyebrow color={c.gold} style={{ fontSize: 10, fontWeight: '800' }}>{t('macro.fat')}</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
                         <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
@@ -384,7 +384,7 @@ export default function PlannerScreen() {
                         </Txt>
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
+                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
                         {fPct}%
                       </Txt>
                     </View>
@@ -418,7 +418,6 @@ export default function PlannerScreen() {
                           key={sp.id}
                           label={lang === 'de' ? sp.labelDe : sp.label}
                           selected={sport === sp.id}
-                          tone="plan"
                           onPress={() => setSport(sp.id)}
                         />
                       ))}
@@ -433,7 +432,6 @@ export default function PlannerScreen() {
                           key={d}
                           label={`${d}m`}
                           selected={duration === d}
-                          tone="plan"
                           onPress={() => setDuration(d)}
                         />
                       ))}
@@ -448,7 +446,6 @@ export default function PlannerScreen() {
                           key={it.id}
                           label={lang === 'de' ? it.labelDe : it.label}
                           selected={intensity === it.id}
-                          tone="plan"
                           onPress={() => setIntensity(it.id)}
                         />
                       ))}
@@ -463,7 +460,6 @@ export default function PlannerScreen() {
                           key={tm}
                           label={tm}
                           selected={trainingTime === tm}
-                          tone="plan"
                           onPress={() => setTrainingTime(tm)}
                         />
                       ))}
@@ -498,8 +494,8 @@ export default function PlannerScreen() {
                       style={[
                         s.complexityCard,
                         {
-                          borderColor: isSelected ? c.plan : c.line,
-                          backgroundColor: isSelected ? c.planWash : c.surface,
+                          borderColor: isSelected ? c.accent : c.line,
+                          backgroundColor: isSelected ? c.accentWash : c.surface,
                         },
                       ]}
                       accessibilityLabel={`${lang === 'de' ? opt.labelDe : opt.label}${locked ? ' – Premium' : ''}`}
@@ -507,7 +503,7 @@ export default function PlannerScreen() {
                     >
                       {/* Lock overlay for premium */}
                       {locked && (
-                        <View style={[s.premiumBadge, { backgroundColor: c.ember }]}>
+                        <View style={[s.premiumBadge, { backgroundColor: c.gold }]}>
                           <Txt variant="eyebrow" color="#fff" style={{ fontSize: 9, fontWeight: '800' }}>
                             PREMIUM
                           </Txt>
@@ -516,7 +512,7 @@ export default function PlannerScreen() {
                       <Txt style={{ fontSize: 24, textAlign: 'center' }}>{opt.emoji}</Txt>
                       <Txt
                         variant="subheading"
-                        color={isSelected ? c.plan : c.text}
+                        color={isSelected ? c.accent : c.text}
                         style={{ fontSize: 13, fontWeight: '700', marginTop: 6, textAlign: 'center' }}
                       >
                         {lang === 'de' ? opt.labelDe : opt.label}
@@ -800,7 +796,7 @@ export default function PlannerScreen() {
                   <Button
                     label={lang === 'de' ? 'Wochenplan freischalten' : 'Unlock Weekly Planner'}
                     onPress={() => router.push('/paywall')}
-                    tone="plan"
+                    tone="gold"
                     style={{ marginTop: Space.base }}
                   />
                 </>

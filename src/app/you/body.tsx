@@ -77,7 +77,6 @@ export default function BodyScreen() {
             label={text}
             selected={profile[field] === value}
             onPress={() => persist({ ...profile, [field]: value })}
-            tone="body"
             style={s.chip}
           />
         ))}

@@ -1,11 +1,12 @@
-import { Tabs } from 'expo-router';
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Type, Space, Radius, MaxContentWidth, type ThemePalette } from '@/constants/theme';
-import { useTheme } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 import { useT } from '@/components/lang';
+import { useResolvedScheme } from '@/components/ThemeProvider';
+import { useTheme } from '@/components/ui';
+import { MaxContentWidth, Radius, Space, Type, type ThemePalette } from '@/constants/theme';
 import type { Key } from '@/lib/i18n';
+import { Tabs } from 'expo-router';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
  * Each tab carries the hue its screen is built from, so the bar doubles as the
@@ -31,10 +32,21 @@ function TabBar({ state, navigation }: any) {
   const c = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
+  const isDark = useResolvedScheme() === 'dark';
 
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 16) }]}>
-      <View style={[styles.bar, { backgroundColor: c.surface, borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
+      <View
+        style={[
+          styles.bar,
+          {
+            backgroundColor: c.surface,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : c.line,
+            // Lit top edge — the same micro-surface trick as cards and buttons.
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.9)',
+          },
+        ]}
+      >
         {state.routes.map((route: any, index: number) => {
           const focused = state.index === index;
           const meta = TABS[route.name];
@@ -60,8 +72,15 @@ function TabBar({ state, navigation }: any) {
                   styles.iconWrap,
                   focused && {
                     backgroundColor: route.name === 'index' ? c.emberWash : `${hue}20`,
-                    borderColor: focused ? `${hue}45` : 'transparent',
+                    borderColor: focused ? `${hue}55` : 'transparent',
                     borderWidth: 1,
+                    // A soft glow in the tab's own hue lifts the active item
+                    // off the bar without moving it.
+                    ...Platform.select({
+                      ios: { shadowColor: hue, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+                      android: {},
+                      default: { boxShadow: `0 2px 14px ${hue}40` } as any,
+                    }),
                   },
                 ]}
               >

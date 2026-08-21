@@ -359,7 +359,7 @@ export default function ProgressScreen() {
         <Columns>
         {/* Weight & Trend Hero */}
         <Enter index={1}>
-          <Card tone="body" style={{ marginBottom: Space.base }}>
+          <Card style={{ marginBottom: Space.base }}>
             <View style={s.split}>
               <View style={{ flex: 1 }}>
                 <Eyebrow color={c.body}>{t('card.currentWeight')}</Eyebrow>
@@ -622,7 +622,6 @@ export default function ProgressScreen() {
         <Enter index={4}>
           <NavRow
             icon="edit"
-            tone="body"
             title={t('progress.corrections')}
             sub={t('progress.correctionsSub')}
             onPress={() => router.push('/week/corrections')}
@@ -646,7 +645,7 @@ export default function ProgressScreen() {
 
         {measured && (
           <Enter index={1}>
-            <Card style={{ marginBottom: Space.base }} tone="body">
+            <Card style={{ marginBottom: Space.base }}>
               <View style={s.split}>
                 <Eyebrow color={measured.kcal ? c.body : undefined}>{t('card.actualNeed')}</Eyebrow>
                 {measured.kcal !== null && (
@@ -817,8 +816,8 @@ export default function ProgressScreen() {
         <Columns>
         {best && (
           <Enter index={1}>
-            <Card style={{ marginBottom: Space.base }} tone="plan">
-              <Eyebrow color={c.plan}>{t('card.bestWeeks')}</Eyebrow>
+            <Card style={{ marginBottom: Space.base }}>
+              <Eyebrow>{t('card.bestWeeks')}</Eyebrow>
               <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
                 {best.differences.length === 0 || premium
                   ? best.note

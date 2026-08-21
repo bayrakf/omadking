@@ -3,31 +3,41 @@
  * scratch, which is what keeps nine screens looking like one product.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
 import {
-  useWindowDimensions,
-  PixelRatio,
-  Dimensions,
-  View,
-  Text,
-  Pressable,
-  Animated,
-  ScrollView,
-  StyleSheet,
-  AccessibilityInfo,
-  type StyleProp,
-  type ViewStyle,
-  type TextStyle,
-  type LayoutChangeEvent,
-} from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
-import { clampFontScale, scaleType } from '@/lib/typography';
-import {
-  Colors, Type, Space, Radius, Motion, Font, Shadow, MaxContentWidth, MaxWideWidth, Breakpoint,
-  TabBarClearance, type ThemePalette,
+  Breakpoint,
+  Colors,
+  Font,
+  MaxContentWidth, MaxWideWidth,
+  Motion,
+  Radius,
+  Shadow,
+  Space,
+  TabBarClearance,
+  Type,
+  type ThemePalette,
 } from '@/constants/theme';
 import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
+import { clampFontScale, scaleType } from '@/lib/typography';
 import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  PixelRatio,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { Icon, type IconName } from './icons';
 import { useLang } from './lang';
 import { useResolvedScheme } from './ThemeProvider';
@@ -410,6 +420,23 @@ export function useTone(tone: Tone) {
   return TONES[tone](useTheme());
 }
 
+/**
+ * Darken (`pct` < 0) or lighten (`pct` > 0) a hex colour. Used for the tactile
+ * bottom edge on primary buttons — a flat fill reads as a label, a fill with
+ * one lit top edge and one shaded bottom edge reads as something you press.
+ */
+export function shade(hex: string, pct: number): string {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const f = (v: number) =>
+    Math.max(0, Math.min(255, Math.round(pct >= 0 ? v + (255 - v) * pct : v * (1 + pct))));
+  const r = f((n >> 16) & 255);
+  const g = f((n >> 8) & 255);
+  const b = f(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
 export function Card({
   children,
   style,
@@ -428,9 +455,12 @@ export function Card({
       style={[
         styles.card,
         {
-          backgroundColor: t ? t.fill : isDark ? c.surface : c.surface,
+          backgroundColor: t ? t.fill : c.surface,
           borderColor: t ? t.edge : isDark ? 'rgba(255, 255, 255, 0.08)' : c.line,
           borderWidth: 1,
+          // A lit top edge gives the dark card its micro-surface depth — the
+          // same trick the buttons use, at whisper volume.
+          ...(isDark && !t ? { borderTopColor: 'rgba(255, 255, 255, 0.10)' } : null),
         },
         !isDark && !t && Shadow.card,
         style,
@@ -542,15 +572,32 @@ export function Button({
           {
             backgroundColor: bg,
             borderWidth: variant === 'ghost' ? 1 : 0,
-            borderColor: c.line,
+            borderColor: variant === 'ghost' ? c.line : 'transparent',
+            // Lit on top, shaded underneath: the button becomes a key cap.
             borderTopWidth: variant === 'primary' && !off ? 1 : 0,
-            borderTopColor: 'rgba(255, 255, 255, 0.22)',
+            borderTopColor: variant === 'primary' && !off ? 'rgba(255, 255, 255, 0.28)' : 'transparent',
+            borderBottomWidth: variant === 'primary' && !off ? 2 : 0,
+            borderBottomColor: variant === 'primary' && !off ? shade(t.ink, -0.3) : 'transparent',
           },
         ]}
       >
-        {icon && <Icon name={icon} size={18} color={fg} />}
-        <Text style={[Type.subheading, { color: fg, marginLeft: icon ? Space.sm : 0, fontWeight: '700' }]}>
-          {loading ? 'Working…' : label}
+        {loading ? (
+          <ActivityIndicator size="small" color={fg} />
+        ) : (
+          icon && <Icon name={icon} size={18} color={fg} />
+        )}
+        <Text
+          style={[
+            Type.subheading,
+            {
+              color: fg,
+              marginLeft: icon || loading ? Space.sm : 0,
+              fontWeight: '700',
+              letterSpacing: 0.2,
+            },
+          ]}
+        >
+          {label}
         </Text>
       </View>
     </Tap>
@@ -585,13 +632,16 @@ export function Chip({
         style={[
           styles.chip,
           {
-            backgroundColor: selected ? t.ink : c.well,
-            borderColor: selected ? t.ink : 'rgba(255, 255, 255, 0.06)',
+            // Selected is the domain wash with a solid tinted rim — the same
+            // language as the tinted cards, so a chosen option reads as "this
+            // belongs to that place" rather than as a hole punched in colour.
+            backgroundColor: selected ? t.fill : c.well,
+            borderColor: selected ? t.ink : c.lineStrong,
             borderWidth: 1,
           },
         ]}
       >
-        <Text style={[Type.bodyMedium, { color: selected ? c.onAccent : c.textDim, fontSize: 13.5, fontWeight: selected ? '700' : '500' }]}>
+        <Text style={[Type.bodyMedium, { color: selected ? t.ink : c.textDim, fontSize: 13.5, fontWeight: selected ? '700' : '500' }]}>
           {label}
         </Text>
       </View>
@@ -837,8 +887,10 @@ export function SegmentedControl<T extends string>({
               style={[
                 styles.segmentPill,
                 active && {
-                  backgroundColor: c.surface,
-                  borderColor: c.line,
+                  // The raised pill carries the segment's domain wash, so the
+                  // control keeps teaching the palette instead of going grey.
+                  backgroundColor: t.fill,
+                  borderColor: t.edge,
                   shadowColor: '#000',
                   shadowOpacity: 0.08,
                   shadowRadius: 4,
@@ -857,7 +909,7 @@ export function SegmentedControl<T extends string>({
                 style={[
                   Type.subheading,
                   {
-                    color: active ? c.text : c.textDim,
+                    color: active ? t.ink : c.textDim,
                     fontSize: 13,
                     fontWeight: active ? '700' : '500',
                     marginLeft: v.icon ? 6 : 0,
@@ -942,8 +994,8 @@ export function Empty({
   const c = useTheme();
   return (
     <View style={styles.empty}>
-      <View style={[styles.emptyIcon, { borderColor: c.line }]}>
-        <Icon name={icon} size={26} color={c.textFaint} />
+      <View style={[styles.emptyIcon, { borderColor: c.line, backgroundColor: c.well }]}>
+        <Icon name={icon} size={26} color={c.textDim} />
       </View>
       <Txt variant="heading" style={{ marginTop: Space.lg, textAlign: 'center' }}>
         {title}
@@ -960,7 +1012,9 @@ export function Empty({
 export function Notice({ tone, children }: { tone: 'error' | 'ok' | 'warn'; children: React.ReactNode }) {
   const c = useTheme();
   const color = tone === 'error' ? c.negative : tone === 'ok' ? c.positive : c.ember;
-  const wash = tone === 'ok' ? 'transparent' : tone === 'warn' ? c.emberWash : 'rgba(255,107,107,0.10)';
+  // Every state gets its own wash at the same weight — a bare "OK" line read
+  // as loose text, not as a status.
+  const wash = tone === 'ok' ? washOf(c.positive) : tone === 'warn' ? c.emberWash : washOf(c.negative);
   return (
     <View style={[styles.notice, { backgroundColor: wash, borderColor: color }]}>
       <Icon name={tone === 'ok' ? 'check' : 'alert'} size={16} color={color} />

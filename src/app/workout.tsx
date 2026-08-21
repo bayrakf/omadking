@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Space, Radius } from '@/constants/theme';
-import { Screen, Card, Txt, Eyebrow, Enter, Button, useTheme, PageHeader, SegmentedControl, washOf } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 import { useLang } from '@/components/lang';
-import { saveLastSession } from '@/lib/store';
+import { Button, Card, Enter, Eyebrow, PageHeader, Screen, SegmentedControl, Txt, useTheme, washOf } from '@/components/ui';
+import { Radius, Space } from '@/constants/theme';
 import type { SessionDraft } from '@/lib/nutrition';
+import { saveLastSession } from '@/lib/store';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export type WorkoutCategory = 'all' | 'strength' | 'cardio' | 'hiit' | 'mobility';
 
@@ -246,7 +246,7 @@ export default function WorkoutScreen() {
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <View style={s.expandedBody}>
+                  <View style={[s.expandedBody, { borderTopColor: c.line }]}>
                     {/* Fasting Note */}
                     <View style={[s.fastingBox, { backgroundColor: washOf(c[w.hue]), borderColor: c[w.hue] }]}>
                       <Eyebrow color={c[w.hue]}>💡 {t('workout.fastingNote')}</Eyebrow>
@@ -356,7 +356,6 @@ const s = StyleSheet.create({
     marginTop: Space.base,
     paddingTop: Space.base,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
   },
   fastingBox: {
     padding: Space.md,

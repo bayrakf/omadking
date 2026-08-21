@@ -94,27 +94,27 @@ export const PhaseColors = {
 
 const dark: ThemePalette = {
   // Deep Obsidian atmosphere with luxury micro-surfaces
-  bg: '#0A0D14',
-  surface: '#121824',
-  surfaceElevated: '#182030',
-  well: '#0E131E',
-  line: '#1F293D',
-  lineStrong: '#2E3D5B',
+  bg: '#070A11',
+  surface: '#101624',
+  surfaceElevated: '#161F31',
+  well: '#0C111D',
+  line: '#212C42',
+  lineStrong: '#35486C',
 
   text: '#F8FAFC',
-  textDim: '#94A3B8',
-  textFaint: '#64748B',
+  textDim: '#9BAABB',
+  textFaint: '#6E7F96',
 
-  accent: '#38BDF8',
-  accentDim: '#0284C7',
+  accent: '#3FC1FF',
+  accentDim: '#0B97DB',
   accentWash: 'rgba(56, 189, 248, 0.14)',
   onAccent: '#031424',
 
   ember: '#FF6B4A',
   emberWash: 'rgba(255, 107, 74, 0.15)',
 
-  hydro: '#38BDF8',
-  hydroWash: 'rgba(56, 189, 248, 0.14)',
+  hydro: '#3FC1FF',
+  hydroWash: 'rgba(63, 193, 255, 0.14)',
   body: '#C084FC',
   bodyWash: 'rgba(192, 132, 252, 0.14)',
   plan: '#10B981',
@@ -125,21 +125,21 @@ const dark: ThemePalette = {
   positive: '#10B981',
   negative: '#EF4444',
 
-  heroFill: '#162235',
+  heroFill: '#14233B',
   onHero: '#FFFFFF',
   heroTrack: 'rgba(255, 255, 255, 0.12)',
 
-  dialTrack: '#0E1420',
+  dialTrack: '#0C1322',
 };
 
 const light: ThemePalette = {
   // Soft Pearl / Alabaster ground
-  bg: '#F8FAFC',
+  bg: '#F4F6FB',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  well: '#F1F5F9',
-  line: '#E2E8F0',
-  lineStrong: '#CBD5E1',
+  well: '#EDF1F8',
+  line: '#DFE6F0',
+  lineStrong: '#C9D3E2',
 
   text: '#0F172A',
   textDim: '#475569',
@@ -169,7 +169,7 @@ const light: ThemePalette = {
   onHero: '#FFFFFF',
   heroTrack: 'rgba(255, 255, 255, 0.20)',
 
-  dialTrack: '#E2E8F0',
+  dialTrack: '#DFE6F0',
 };
 
 export const Colors = { light, dark };

@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-nat
 import { useRouter } from 'expo-router';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Space, Radius, Type } from '@/constants/theme';
-import { Screen, Txt, Eyebrow, Enter, Button, useTheme, PageHeader } from '@/components/ui';
+import { Screen, Txt, Eyebrow, Enter, Button, useTheme, PageHeader, washOf } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
 import {
@@ -126,7 +126,7 @@ export default function TimerScreen() {
               cx={DIAL_SIZE / 2}
               cy={DIAL_SIZE / 2}
               r={RADIUS}
-              stroke="rgba(255, 255, 255, 0.08)"
+              stroke={c.dialTrack}
               strokeWidth={STROKE_WIDTH}
               fill="transparent"
             />
@@ -268,8 +268,8 @@ export default function TimerScreen() {
           activeOpacity={0.75}
           style={[s.breakFastRow, { backgroundColor: c.surface, borderColor: c.positive }]}
         >
-          <View style={[s.breakIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-            <Icon name="shield" size={18} color="#10B981" />
+          <View style={[s.breakIcon, { backgroundColor: washOf(c.positive) }]}>
+            <Icon name="shield" size={18} color={c.positive} />
           </View>
           <View style={{ flex: 1, marginLeft: Space.sm }}>
             <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>
@@ -279,7 +279,7 @@ export default function TimerScreen() {
               {lang === 'de' ? '3-Stufen-Regel gegen das Food-Coma' : '3 steps to prevent food coma'}
             </Txt>
           </View>
-          <Icon name="chevronRight" size={16} color="#10B981" />
+          <Icon name="chevronRight" size={16} color={c.positive} />
         </TouchableOpacity>
       </Enter>
 

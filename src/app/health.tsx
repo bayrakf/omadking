@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, StyleSheet, Switch } from 'react-native';
 import { Space, Radius } from '@/constants/theme';
-import { Screen, Card, Txt, Eyebrow, Enter, Button, useTheme, PageHeader } from '@/components/ui';
+import { Screen, Card, Txt, Eyebrow, Enter, Button, useTheme, PageHeader, washOf } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
 
@@ -35,7 +35,7 @@ export default function HealthSyncScreen() {
         {/* Integration Status Card */}
         <Card style={[s.statusCard, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
           <View style={s.headRow}>
-            <View style={[s.iconBox, { backgroundColor: connected ? 'rgba(16, 185, 129, 0.18)' : c.well }]}>
+            <View style={[s.iconBox, { backgroundColor: connected ? washOf(c.positive) : c.well }]}>
               <Icon name="sync" size={20} color={connected ? c.positive : c.textFaint} />
             </View>
             <View style={{ flex: 1, marginLeft: Space.md }}>
@@ -49,7 +49,7 @@ export default function HealthSyncScreen() {
             <Switch
               value={connected}
               onValueChange={setConnected}
-              trackColor={{ false: c.well, true: 'rgba(16, 185, 129, 0.4)' }}
+              trackColor={{ false: c.well, true: c.positive }}
               thumbColor={connected ? c.positive : c.surface}
             />
           </View>
@@ -66,13 +66,13 @@ export default function HealthSyncScreen() {
               {/* Steps */}
               <View style={s.tileWrap}>
                 <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: c.hydroWash }]}>
-                    <Icon name="flame" size={18} color="#38BDF8" />
+                  <View style={[s.metricIcon, { backgroundColor: c.well }]}>
+                    <Icon name="flame" size={18} color={c.textDim} />
                   </View>
                   <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
                     8.420
                   </Txt>
-                  <Eyebrow color="#38BDF8">{t('health.steps')}</Eyebrow>
+                  <Eyebrow>{t('health.steps')}</Eyebrow>
                   <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 4 }}>
                     +320 kcal Aktiv-Verbrauch
                   </Txt>
@@ -82,13 +82,13 @@ export default function HealthSyncScreen() {
               {/* Active Burn */}
               <View style={s.tileWrap}>
                 <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: c.emberWash }]}>
-                    <Icon name="flame" size={18} color="#FF6B4A" />
+                  <View style={[s.metricIcon, { backgroundColor: c.well }]}>
+                    <Icon name="flame" size={18} color={c.textDim} />
                   </View>
                   <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
                     480 kcal
                   </Txt>
-                  <Eyebrow color="#FF6B4A">{t('health.activeBurn')}</Eyebrow>
+                  <Eyebrow>{t('health.activeBurn')}</Eyebrow>
                   <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 4 }}>
                     Herzfrequenz-Zone 2 & Training
                   </Txt>
@@ -98,13 +98,13 @@ export default function HealthSyncScreen() {
               {/* Scale Weight */}
               <View style={s.tileWrap}>
                 <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                    <Icon name="chart" size={18} color="#10B981" />
+                  <View style={[s.metricIcon, { backgroundColor: c.bodyWash }]}>
+                    <Icon name="chart" size={18} color={c.body} />
                   </View>
                   <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
                     78,4 kg
                   </Txt>
-                  <Eyebrow color="#10B981">{t('health.scale')}</Eyebrow>
+                  <Eyebrow color={c.body}>{t('health.scale')}</Eyebrow>
                   <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 4 }}>
                     Heute 07:15 Uhr importiert
                   </Txt>
@@ -114,13 +114,13 @@ export default function HealthSyncScreen() {
               {/* Sleep & Recovery */}
               <View style={s.tileWrap}>
                 <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
-                    <Icon name="moon" size={18} color="#8B5CF6" />
+                  <View style={[s.metricIcon, { backgroundColor: c.well }]}>
+                    <Icon name="moon" size={18} color={c.textDim} />
                   </View>
                   <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
                     7h 45m
                   </Txt>
-                  <Eyebrow color="#8B5CF6">{t('health.sleep')}</Eyebrow>
+                  <Eyebrow>{t('health.sleep')}</Eyebrow>
                   <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 4 }}>
                     92% Erholungs-Score
                   </Txt>
@@ -153,7 +153,6 @@ export default function HealthSyncScreen() {
             <Button
               label={syncing ? 'Synchronisiere Daten…' : t('health.syncNow')}
               icon="sync"
-              tone="plan"
               onPress={triggerSync}
             />
           </Enter>

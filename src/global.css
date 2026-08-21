@@ -1,10 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* Web font stack mirrors the native app exactly:
+   display/body = Hanken Grotesk, data/eyebrow = JetBrains Mono.
+   Loading them here means text rendered before RN styles apply
+   already sits in the right family instead of flashing a fallback. */
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --font-display:
-    'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', system-ui, sans-serif;
-  --font-mono:
-    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', system-ui, sans-serif;
-  --font-rounded: 'Plus Jakarta Sans', 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-rounded: 'Hanken Grotesk', 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
 }

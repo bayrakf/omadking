@@ -113,7 +113,7 @@ export default function ProfileScreen() {
 
       {/* Körper & Fasten-Ziele */}
       <Enter index={2} style={{ marginTop: Space.xl }}>
-        <Eyebrow color={c.body} style={{ marginBottom: Space.md }}>{t('you.groupBody')}</Eyebrow>
+        <Eyebrow style={{ marginBottom: Space.md }}>{t('you.groupBody')}</Eyebrow>
         <NavRow
           icon="user"
           tone="body"
@@ -123,7 +123,6 @@ export default function ProfileScreen() {
         />
         <NavRow
           icon="clock"
-          tone="accent"
           title={t('you.day')}
           sub={`${profile.omad_window_start}–${windowEnd} · ${24 - profile.omad_window_hours}h fast`}
           onPress={() => router.push('/you/day')}
@@ -146,10 +145,9 @@ export default function ProfileScreen() {
 
       {/* Erinnerungen */}
       <Enter index={3} style={{ marginTop: Space.xl }}>
-        <Eyebrow color={c.accent} style={{ marginBottom: Space.md }}>{t('you.groupNotifications')}</Eyebrow>
+        <Eyebrow style={{ marginBottom: Space.md }}>{t('you.groupNotifications')}</Eyebrow>
         <NavRow
           icon="bell"
-          tone="accent"
           title={t('you.reminders')}
           sub={
             !remindersSupported()
@@ -164,31 +162,27 @@ export default function ProfileScreen() {
 
       {/* Daten & Cloud */}
       <Enter index={4} style={{ marginTop: Space.xl }}>
-        <Eyebrow color={c.hydro} style={{ marginBottom: Space.md }}>{t('you.groupData')}</Eyebrow>
+        <Eyebrow style={{ marginBottom: Space.md }}>{t('you.groupData')}</Eyebrow>
         <NavRow
           icon="flame"
-          tone="ember"
           title={t('health.title')}
           sub="Schritte, Aktivität & Smarte Waage"
           onPress={() => router.push('/health')}
         />
         <NavRow
           icon="sync"
-          tone="hydro"
           title={t('you.sync')}
           sub={syncedAt ? `Last synced ${ago(syncedAt)}` : 'Not set up'}
           onPress={() => router.push('/you/sync')}
         />
         <NavRow
           icon="share"
-          tone="hydro"
           title={t('you.export')}
           sub={t('you.exportSub')}
           onPress={() => router.push('/you/data')}
         />
         <NavRow
           icon="coach"
-          tone="accent"
           title={t('you.language')}
           sub={chosen === null ? t('you.languageFollows') : (LANGS.find((l) => l.id === chosen)?.endonym ?? '')}
           onPress={() => router.push('/you/language')}
