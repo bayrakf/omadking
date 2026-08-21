@@ -45,6 +45,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Platform, Share, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, G } from 'react-native-svg';
 
 const SPORTS = [
   { id: 'running', label: 'Running', labelDe: 'Laufen' },
@@ -68,6 +69,52 @@ const COMPLEXITY_OPTIONS: { id: MealComplexity; emoji: string; label: string; la
   { id: 'balanced', emoji: '🍽', label: 'Balanced', labelDe: 'Ausgewogen', sub: '≤30 min · meal-prep', subDe: '≤30 Min · Meal-Prep', premiumOnly: false },
   { id: 'chef', emoji: '👨‍🍳', label: 'Chef-Level', labelDe: 'Chef-Level', sub: 'Gourmet · plating', subDe: 'Gourmet · Anrichten', premiumOnly: true },
 ];
+
+/**
+ * The day's energy split as one ring with the target at its centre. A bar
+ * reads like a progress meter that is always "full"; a ring reads like a
+ * composition — the same widget language as the fasting dial on Today.
+ */
+function MacroRing({ pPct, cPct, fPct }: { pPct: number; cPct: number; fPct: number }) {
+  const c = useTheme();
+  const size = 112;
+  const stroke = 10;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const gap = 5; // px of air between segments, so each macro reads on its own
+  const segs = [
+    { pct: pPct, color: c.plan },
+    { pct: cPct, color: c.hydro },
+    { pct: fPct, color: c.gold },
+  ];
+  let acc = 0;
+  return (
+    <Svg width={size} height={size}>
+      <G rotation={-90} originX={size / 2} originY={size / 2}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={c.well} strokeWidth={stroke} fill="none" />
+        {segs.map((seg, i) => {
+          const len = Math.max(0, (circ * seg.pct) / 100 - (i < segs.length - 1 ? gap : 0));
+          const offset = -acc;
+          acc += (circ * seg.pct) / 100;
+          return (
+            <Circle
+              key={i}
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              stroke={seg.color}
+              strokeWidth={stroke}
+              fill="none"
+              strokeDasharray={`${len} ${circ - len}`}
+              strokeDashoffset={offset}
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </G>
+    </Svg>
+  );
+}
 
 function localizeRecipeTitle(title: string, lang: 'de' | 'en'): string {
   if (lang !== 'de') return title;
@@ -326,27 +373,11 @@ export default function PlannerScreen() {
 
               return (
                 <Card style={{ marginTop: Space.base, padding: Space.base, borderRadius: Radius.lg }}>
-                  {/* Hero Calorie Header */}
+                  {/* Header: what this is, and what training added. */}
                   <View style={s.macroHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={[s.calIconCircle, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
-                        <Icon name="flame" size={20} color={c.ember} />
-                      </View>
-                      <View style={{ marginLeft: Space.md }}>
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10, letterSpacing: 0.8 }}>
-                          {lang === 'de' ? 'TAGESZIEL (OMAD)' : 'DAILY TARGET (OMAD)'}
-                        </Eyebrow>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 1 }}>
-                          <Txt variant="hero" color={c.text} style={{ fontSize: 30, lineHeight: 34, fontWeight: '800' }}>
-                            {totalKcal.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')}
-                          </Txt>
-                          <Txt variant="subheading" color={c.textDim} style={{ marginLeft: 6, fontWeight: '600' }}>
-                            kcal
-                          </Txt>
-                        </View>
-                      </View>
-                    </View>
-
+                    <Eyebrow color={c.textDim} style={{ fontSize: 10, letterSpacing: 0.8 }}>
+                      {lang === 'de' ? 'TAGESZIEL (OMAD)' : 'DAILY TARGET (OMAD)'}
+                    </Eyebrow>
                     {preview.burn_kcal > 0 && (
                       <View style={[s.workoutBonusPill, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
                         <Txt variant="eyebrow" color={c.ember} style={{ fontSize: 10, fontWeight: '800' }}>
@@ -356,58 +387,43 @@ export default function PlannerScreen() {
                     )}
                   </View>
 
-                  {/* One continuous ribbon: the day's energy split reads as a
-                      single shape, not three tiles glued together. */}
-                  <View style={s.macroRibbon}>
-                    <View style={[s.ribbonSeg, { flex: pPct, backgroundColor: c.plan }]} />
-                    <View style={[s.ribbonSeg, { flex: cPct, backgroundColor: c.hydro }]} />
-                    <View style={[s.ribbonSeg, { flex: fPct, backgroundColor: c.gold }]} />
-                  </View>
+                  {/* Ring left, legend right: the target lives at the centre
+                      of its own split, and the macros read as a list instead
+                      of three tiles. */}
+                  <View style={s.macroRow}>
+                    <View style={s.ringWrap}>
+                      <MacroRing pPct={pPct} cPct={cPct} fPct={fPct} />
+                      <View style={s.ringCenter} pointerEvents="none">
+                        <Txt variant="hero" style={{ fontSize: 23, lineHeight: 27, fontWeight: '800' }}>
+                          {totalKcal.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')}
+                        </Txt>
+                        <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9 }}>KCAL</Txt>
+                      </View>
+                    </View>
 
-                  {/* Stats without boxes-in-boxes: hairline dividers, the same
-                      pattern as the weekly review. The dot carries the colour
-                      mapping; the numbers stay quiet. */}
-                  <View style={s.macroStats}>
-                    <View style={s.macroStat}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={[s.macroDot, { backgroundColor: c.plan }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>PROTEIN</Eyebrow>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800' }}>{preview.protein_g}</Txt>
-                        <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
-                      </View>
-                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 2, fontWeight: '700' }}>
-                        {pPct}%{proteinPerKg ? ` · ${proteinPerKg}g/kg` : ''}
-                      </Txt>
-                    </View>
-                    <View style={[s.statDivider, { backgroundColor: c.line }]} />
-                    <View style={s.macroStat}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={[s.macroDot, { backgroundColor: c.hydro }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{t('macro.carbs')}</Eyebrow>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800' }}>{preview.carbs_g}</Txt>
-                        <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
-                      </View>
-                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 2, fontWeight: '700' }}>
-                        {cPct}%
-                      </Txt>
-                    </View>
-                    <View style={[s.statDivider, { backgroundColor: c.line }]} />
-                    <View style={s.macroStat}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={[s.macroDot, { backgroundColor: c.gold }]} />
-                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{t('macro.fat')}</Eyebrow>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800' }}>{preview.fat_g}</Txt>
-                        <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
-                      </View>
-                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 2, fontWeight: '700' }}>
-                        {fPct}%
-                      </Txt>
+                    <View style={{ flex: 1, marginLeft: Space.base }}>
+                      {[
+                        { label: 'PROTEIN', v: preview.protein_g, pct: pPct, color: c.plan, extra: proteinPerKg ? ` · ${proteinPerKg}g/kg` : '' },
+                        { label: t('macro.carbs'), v: preview.carbs_g, pct: cPct, color: c.hydro, extra: '' },
+                        { label: t('macro.fat'), v: preview.fat_g, pct: fPct, color: c.gold, extra: '' },
+                      ].map((m, i) => (
+                        <View key={m.label}>
+                          {i > 0 && <View style={[s.statDivider, { backgroundColor: c.line }]} />}
+                          <View style={s.macroLine}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <View style={[s.macroDot, { backgroundColor: m.color }]} />
+                              <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{m.label}</Eyebrow>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                              <Txt variant="heading" style={{ fontSize: 18, fontWeight: '800' }}>{m.v}</Txt>
+                              <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 11 }}>g</Txt>
+                              <Txt variant="eyebrow" color={c.textFaint} style={{ marginLeft: 6, fontSize: 9.5 }}>
+                                {m.pct}%{m.extra}
+                              </Txt>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
                     </View>
                   </View>
                 </Card>
@@ -990,14 +1006,21 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: Radius.pill, borderWidth: 1,
   },
-  macroRibbon: {
-    flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden',
-    marginBottom: Space.base,
+  macroRow: {
+    flexDirection: 'row', alignItems: 'center',
   },
-  ribbonSeg: { height: 8 },
-  macroStats: { flexDirection: 'row' },
-  macroStat: { flex: 1 },
-  statDivider: { width: 1, alignSelf: 'stretch' },
+  ringWrap: {
+    width: 112, height: 112,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ringCenter: {
+    position: 'absolute', alignItems: 'center',
+  },
+  macroLine: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: Space.md,
+  },
+  statDivider: { height: 1 },
   macroDot: {
     width: 7, height: 7, borderRadius: 4, marginRight: 5,
   },
