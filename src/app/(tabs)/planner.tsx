@@ -274,9 +274,9 @@ export default function PlannerScreen() {
         />
         <SegmentedControl
           values={[
-            { id: 'today', label: t('plan.tabToday'), icon: 'plate' },
-            { id: 'week', label: lang === 'de' ? '7-Tage-Woche' : '7-Day Week', icon: 'chart' },
-            { id: 'saved', label: t('plan.tabSaved'), icon: 'clock' },
+            { id: 'today', label: lang === 'de' ? 'Heute' : 'Today', icon: 'plate' },
+            { id: 'week', label: lang === 'de' ? 'Woche' : 'Week', icon: 'chart' },
+            { id: 'saved', label: lang === 'de' ? 'Rezepte' : 'Saved', icon: 'clock' },
           ]}
           selected={plannerTab}
           onSelect={(id) => setPlannerTab(id as any)}
@@ -302,7 +302,9 @@ export default function PlannerScreen() {
                           ? 'Wöchentliche Pläne aufgebraucht'
                           : 'Weekly plans used'}
                     </Eyebrow>
-                    <Txt variant="small" color={c.accent}>Upgrade</Txt>
+                    {/* Gold: the upgrade is premium's own hue, not the
+                        interactive cyan. */}
+                    <Txt variant="small" color={c.gold} style={{ fontWeight: '700' }}>Upgrade</Txt>
                   </View>
                 </Card>
               </Tap>
@@ -354,62 +356,56 @@ export default function PlannerScreen() {
                     )}
                   </View>
 
-                  {/* Proportional Macro Distribution Bar */}
-                  <View style={s.macroBarTrack}>
-                    <View style={[s.macroBarSeg, { flex: pPct, backgroundColor: c.plan, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 }]} />
-                    <View style={[s.macroBarSeg, { flex: cPct, backgroundColor: c.hydro, marginLeft: 2 }]} />
-                    <View style={[s.macroBarSeg, { flex: fPct, backgroundColor: c.gold, marginLeft: 2, borderTopRightRadius: 5, borderBottomRightRadius: 5 }]} />
+                  {/* One continuous ribbon: the day's energy split reads as a
+                      single shape, not three tiles glued together. */}
+                  <View style={s.macroRibbon}>
+                    <View style={[s.ribbonSeg, { flex: pPct, backgroundColor: c.plan }]} />
+                    <View style={[s.ribbonSeg, { flex: cPct, backgroundColor: c.hydro }]} />
+                    <View style={[s.ribbonSeg, { flex: fPct, backgroundColor: c.gold }]} />
                   </View>
 
-                  {/* Macro Trio Cards — neutral wells; the dot + label carry the colour, not the box. */}
-                  <View style={s.macroTrioRow}>
-                    {/* Protein */}
-                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                  {/* Stats without boxes-in-boxes: hairline dividers, the same
+                      pattern as the weekly review. The dot carries the colour
+                      mapping; the numbers stay quiet. */}
+                  <View style={s.macroStats}>
+                    <View style={s.macroStat}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: c.plan }]} />
-                        <Eyebrow color={c.plan} style={{ fontSize: 10, fontWeight: '800' }}>PROTEIN</Eyebrow>
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>PROTEIN</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
-                          {preview.protein_g}
-                        </Txt>
-                        <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
+                        <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800' }}>{preview.protein_g}</Txt>
+                        <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
-                        {pPct}% {proteinPerKg ? `· ${proteinPerKg}g/kg` : ''}
+                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 2, fontWeight: '700' }}>
+                        {pPct}%{proteinPerKg ? ` · ${proteinPerKg}g/kg` : ''}
                       </Txt>
                     </View>
-
-                    {/* Carbs */}
-                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line, marginHorizontal: Space.xs }]}>
+                    <View style={[s.statDivider, { backgroundColor: c.line }]} />
+                    <View style={s.macroStat}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: c.hydro }]} />
-                        <Eyebrow color={c.hydro} style={{ fontSize: 10, fontWeight: '800' }}>{t('macro.carbs')}</Eyebrow>
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{t('macro.carbs')}</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
-                          {preview.carbs_g}
-                        </Txt>
-                        <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
+                        <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800' }}>{preview.carbs_g}</Txt>
+                        <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
+                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 2, fontWeight: '700' }}>
                         {cPct}%
                       </Txt>
                     </View>
-
-                    {/* Fat */}
-                    <View style={[s.macroTrioCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                    <View style={[s.statDivider, { backgroundColor: c.line }]} />
+                    <View style={s.macroStat}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={[s.macroDot, { backgroundColor: c.gold }]} />
-                        <Eyebrow color={c.gold} style={{ fontSize: 10, fontWeight: '800' }}>{t('macro.fat')}</Eyebrow>
+                        <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{t('macro.fat')}</Eyebrow>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                        <Txt variant="heading" color={c.text} style={{ fontSize: 22, fontWeight: '800' }}>
-                          {preview.fat_g}
-                        </Txt>
-                        <Txt variant="small" color={c.textDim} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
+                        <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800' }}>{preview.fat_g}</Txt>
+                        <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                       </View>
-                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 3, fontWeight: '700' }}>
+                      <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9.5, marginTop: 2, fontWeight: '700' }}>
                         {fPct}%
                       </Txt>
                     </View>
@@ -994,15 +990,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: Radius.pill, borderWidth: 1,
   },
-  macroBarTrack: {
-    flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden',
+  macroRibbon: {
+    flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden',
     marginBottom: Space.base,
   },
-  macroBarSeg: { height: 10 },
-  macroTrioRow: { flexDirection: 'row', marginTop: Space.xs },
-  macroTrioCard: {
-    flex: 1, padding: 10, borderRadius: Radius.lg, borderWidth: 1,
-  },
+  ribbonSeg: { height: 8 },
+  macroStats: { flexDirection: 'row' },
+  macroStat: { flex: 1 },
+  statDivider: { width: 1, alignSelf: 'stretch' },
   macroDot: {
     width: 7, height: 7, borderRadius: 4, marginRight: 5,
   },

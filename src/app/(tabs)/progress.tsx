@@ -1,38 +1,84 @@
-import { useCallback, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
-import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { Space, Radius } from '@/constants/theme';
-import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Divider, PageHeader, Bar, Empty, Tap,
-  PairedBars, NavRow, Columns, SegmentedControl, useTheme,
-} from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
-import { DEFAULT_PROFILE, weeklyTrend, dailyTargets, suggestWindow, targetWeight, bmr, type UserProfile } from '@/lib/nutrition';
 import {
-  measuredMaintenance, readPlateau, forecast, deficitSpell, readTrend, weekdayPattern, weekBudget,
-  proteinAdherence, cycleWeek, trainingDaysPerWeek, monthlyComparison, planAhead, daysAheadThisWeek,
-  withoutOutliers, readiness, rateGap, effectiveMaintenance, type Readiness,
-  type Measurement, type Forecast, type WeekdayPattern, type WeekBudget, type ProteinAdherence,
-  type WeekCycle, type MonthlyComparison, type RateGap,
-} from '@/lib/energy';
+  Bar,
+  Button,
+  Card,
+  Columns,
+  Divider,
+  Empty,
+  Enter,
+  Eyebrow,
+  NavRow,
+  PageHeader,
+  PairedBars,
+  Screen,
+  SegmentedControl,
+  Tap,
+  Txt,
+  useTheme,
+} from '@/components/ui';
+import { Radius, Space } from '@/constants/theme';
 import { consistency, currentStreak, formatReadableDate } from '@/lib/dates';
 import {
-  loadProfileOrDefault, loadWeightLog,
-  loadFastLog, loadCookLog, loadPlanHistory,
-  loadIntakeLog, loadLastSession, isPremium,
-  loadOutliers, measurementPreviewed, markMeasurementPreviewed,
-  measurementAnnounced, markMeasurementAnnounced,
+  cycleWeek,
+  daysAheadThisWeek,
+  deficitSpell,
+  effectiveMaintenance,
+  forecast,
+  measuredMaintenance,
+  monthlyComparison, planAhead,
+  proteinAdherence,
+  rateGap,
+  readiness,
+  readPlateau,
+  readTrend,
+  trainingDaysPerWeek,
+  weekBudget,
+  weekdayPattern,
+  withoutOutliers,
+  type Forecast,
+  type Measurement,
+  type MonthlyComparison,
+  type ProteinAdherence,
+  type RateGap,
+  type Readiness,
+  type WeekBudget,
+  type WeekCycle,
+  type WeekdayPattern,
+} from '@/lib/energy';
+import { bmr, dailyTargets, DEFAULT_PROFILE, suggestWindow, targetWeight, weeklyTrend, type UserProfile } from '@/lib/nutrition';
+import {
+  adaptationStage,
+  bestWeeks,
+  intakeWeek,
+  progressCards,
+  weeklyDecision,
+  weeklyReview,
+  type AdaptationStage,
+  type BestWeeks,
+  type Decision, type IntakeDay,
+  type WeeklyReview,
+} from '@/lib/review';
+import {
+  isPremium,
   loadAllFastingNotes,
+  loadCookLog,
+  loadFastLog,
+  loadIntakeLog, loadLastSession,
+  loadOutliers,
+  loadPlanHistory,
+  loadProfileOrDefault, loadWeightLog,
+  markMeasurementAnnounced,
+  markMeasurementPreviewed,
+  measurementAnnounced,
+  measurementPreviewed,
   type WeightEntry,
 } from '@/lib/store';
-import {
-  weeklyReview, adaptationStage, weeklyDecision, progressCards,
-  intakeWeek, bestWeeks,
-  type WeeklyReview, type AdaptationStage, type Decision, type IntakeDay,
-  type BestWeeks,
-} from '@/lib/review';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 /**
  * A trend line, not bars. Bodyweight is a noisy continuous signal, and a line
@@ -294,8 +340,21 @@ export default function ProgressScreen() {
           noise is what stops being read. */}
       {decision && (
         <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }} tone={decision.headline === 'Carry on' ? undefined : 'accent'}>
-            <Eyebrow color={decision.headline === 'Carry on' ? undefined : c.accent}>This week</Eyebrow>
+          <Card style={{ marginBottom: Space.base }} tone={decision.headline === 'Carry on' ? undefined : 'body'}>
+            {/* Icon + eyebrow on one line: the instruction opens with a mark,
+                not a wall of prose. */}
+            <View style={s.split}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Icon
+                  name={decision.headline === 'Carry on' ? 'check' : 'alert'}
+                  size={14}
+                  color={decision.headline === 'Carry on' ? c.positive : c.body}
+                />
+                <Eyebrow color={decision.headline === 'Carry on' ? c.textDim : c.body} style={{ marginLeft: 6 }}>
+                  {lang === 'de' ? 'DIESE WOCHE' : 'THIS WEEK'}
+                </Eyebrow>
+              </View>
+            </View>
             <Txt variant="subheading" style={{ marginTop: Space.sm }}>{decision.headline}</Txt>
             <Txt variant="body" style={{ marginTop: Space.sm }}>
               {premium || !decision.premiumOnly
@@ -328,7 +387,9 @@ export default function ProgressScreen() {
                 {lang === 'de' ? ` von den letzten ${steady.days} Tagen` : ` of the last ${steady.days} days`}
               </Txt>
             </Txt>
-            <Bar pct={(steady.hit / steady.days) * 100} color={c.accent} />
+            {/* Body violet, not cyan: this whole screen speaks the body
+                domain's hue; colour is reserved for good/bad deltas. */}
+            <Bar pct={(steady.hit / steady.days) * 100} color={c.body} />
             {protein && (
               <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{protein.note}</Txt>
             )}
@@ -356,564 +417,564 @@ export default function ProgressScreen() {
 
       {tab === 'week' && (
         <>
-        <Columns>
-        {/* Weight & Trend Hero */}
-        <Enter index={1}>
-          <Card style={{ marginBottom: Space.base }}>
-            <View style={s.split}>
-              <View style={{ flex: 1 }}>
-                <Eyebrow color={c.body}>{t('card.currentWeight')}</Eyebrow>
-                <View style={s.figRow}>
-                  <Txt variant="display" style={{ fontSize: 36, fontWeight: '800' }}>{current.toFixed(1)}</Txt>
-                  <Txt variant="data" color={c.textFaint} style={{ marginLeft: 4, fontSize: 16 }}>kg</Txt>
-                </View>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Eyebrow color={c.body}>{t('card.sinceStart')}</Eyebrow>
-                <View style={[s.changeBadge, { backgroundColor: good ? c.planWash : c.well }]}>
-                  <Txt
-                    variant="heading"
-                    color={change === 0 ? c.textDim : good ? c.positive : c.negative}
-                    style={{ fontSize: 16, fontWeight: '800' }}
-                  >
-                    {change > 0 ? '+' : ''}{change.toFixed(1)} kg
-                  </Txt>
-                </View>
-              </View>
-            </View>
-
-            {entries.length >= 2 ? (
-              <>
-                <View style={{ marginVertical: Space.sm }}>
-                  <TrendChart entries={entries} />
-                </View>
-                <Divider style={{ marginVertical: Space.sm }} />
+          <Columns>
+            {/* Weight & Trend Hero */}
+            <Enter index={1}>
+              <Card style={{ marginBottom: Space.base }}>
                 <View style={s.split}>
-                  <Txt variant="small" color={c.textDim}>{t('card.weeklyTrend')}</Txt>
-                  <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
-                    {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg / Woche`}
-                  </Txt>
+                  <View style={{ flex: 1 }}>
+                    <Eyebrow color={c.body}>{t('card.currentWeight')}</Eyebrow>
+                    <View style={s.figRow}>
+                      <Txt variant="display" style={{ fontSize: 36, fontWeight: '800' }}>{current.toFixed(1)}</Txt>
+                      <Txt variant="data" color={c.textFaint} style={{ marginLeft: 4, fontSize: 16 }}>kg</Txt>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Eyebrow color={c.body}>{t('card.sinceStart')}</Eyebrow>
+                    <View style={[s.changeBadge, { backgroundColor: good ? c.planWash : c.well }]}>
+                      <Txt
+                        variant="heading"
+                        color={change === 0 ? c.textDim : good ? c.positive : c.negative}
+                        style={{ fontSize: 16, fontWeight: '800' }}
+                      >
+                        {change > 0 ? '+' : ''}{change.toFixed(1)} kg
+                      </Txt>
+                    </View>
+                  </View>
                 </View>
-              </>
-            ) : (
-              <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
-                {t('card.needTwoWeighIns')}
-              </Txt>
-            )}
 
-            <View style={{ marginTop: Space.base }}>
-              <View style={[s.split, { marginBottom: 6 }]}>
-                <Eyebrow>{t('card.goalProgress')} ({profile.goal.replace('_', ' ')})</Eyebrow>
-                {/* The bar already shows the share travelled; printing it as
+                {entries.length >= 2 ? (
+                  <>
+                    <View style={{ marginVertical: Space.sm }}>
+                      <TrendChart entries={entries} />
+                    </View>
+                    <Divider style={{ marginVertical: Space.sm }} />
+                    <View style={s.split}>
+                      <Txt variant="small" color={c.textDim}>{t('card.weeklyTrend')}</Txt>
+                      <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
+                        {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg / Woche`}
+                      </Txt>
+                    </View>
+                  </>
+                ) : (
+                  <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.md }}>
+                    {t('card.needTwoWeighIns')}
+                  </Txt>
+                )}
+
+                <View style={{ marginTop: Space.base }}>
+                  <View style={[s.split, { marginBottom: 6 }]}>
+                    <Eyebrow>{t('card.goalProgress')} ({profile.goal.replace('_', ' ')})</Eyebrow>
+                    {/* The bar already shows the share travelled; printing it as
                     a percentage as well spends the app's one wording rule —
                     counted facts, not figures — on a number the reader can
                     see. It also read "0%" on a muscle-gain goal, where the
                     target is above the start and the share is meaningless. */}
-                <Txt variant="data" color={c.textDim}>BMI {bmi.toFixed(1)} ({bmiLabel})</Txt>
-              </View>
-              <Bar pct={pct} color={c.body} />
-              <View style={[s.split, { marginTop: 6 }]}>
-                <Txt variant="data" color={c.textFaint}>{t('card.start', { kg: start.toFixed(1) })}</Txt>
-                <Txt variant="data" color={c.textFaint}>{t('card.target', { kg: target.toFixed(1) })}</Txt>
-              </View>
-            </View>
-          </Card>
-        </Enter>
-
-        {gap && (
-          <Enter index={2}>
-            <Card style={{ marginBottom: Space.base }}>
-              <View style={s.split}>
-                <Eyebrow>{t('card.planVsScale')}</Eyebrow>
-                <Txt variant="data" color={c.textFaint}>{gap.gapKcal} kcal / Tag Differenz</Txt>
-              </View>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{gap.note}</Txt>
-            </Card>
-          </Enter>
-        )}
-
-        {adapt && adapt.daysLogged > 0 && (
-          <Enter index={2}>
-            <Card style={{ marginBottom: Space.base }}>
-              <View style={s.split}>
-                <Eyebrow>{adapt.label}</Eyebrow>
-                <Txt variant="data" color={c.textFaint}>
-                  {adapt.daysLogged === 1 ? t('card.dayLogged') : t('card.daysLogged', { n: adapt.daysLogged })}
-                </Txt>
-              </View>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                {adapt.note}
-              </Txt>
-            </Card>
-          </Enter>
-        )}
-
-        {/* Calorie Balance & Paired Bars */}
-        <Enter index={2}>
-          <Card style={{ marginBottom: Space.base }}>
-            <View style={s.split}>
-              <Eyebrow color={c.accent}>{t('card.calorieBalance')}</Eyebrow>
-              <Txt variant="data" color={c.textFaint}>{t('card.planVsActual')}</Txt>
-            </View>
-            <View style={{ marginTop: Space.sm }}>
-              <PairedBars days={eaten} height={76} />
-            </View>
-          </Card>
-        </Enter>
-
-        {budget && (
-          <Enter index={2}>
-            <Card style={{ marginBottom: Space.base }}>
-              <View style={s.split}>
-                <Eyebrow>{t('card.weekBudget')}</Eyebrow>
-                <Txt variant="data" color={budget.perDayLeft < 0 ? c.ember : c.textFaint}>
-                  {budget.daysLeft > 0 ? `noch ${budget.daysLeft} Tage` : 'Woche beendet'}
-                </Txt>
-              </View>
-              <Bar
-                pct={Math.min(100, (budget.usedKcal / Math.max(1, budget.totalKcal)) * 100)}
-                color={budget.perDayLeft < 0 ? c.ember : c.accent}
-              />
-              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{budget.note}</Txt>
-            </Card>
-          </Enter>
-        )}
-
-        {aheadDays.length > 0 && budget && (
-          <Enter index={2}>
-            <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>{t('card.bigDay')}</Eyebrow>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-                {t('card.bigDayPick')}
-              </Txt>
-
-              <View style={s.segments as any}>
-                {aheadDays.map((d) => (
-                  <Tap
-                    key={d.date}
-                    onPress={() => setBigDay(bigDay === d.date ? null : d.date)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: bigDay === d.date }}
-                    accessibilityLabel={`Big day on ${d.date}`}
-                    style={s.segmentCell}
-                  >
-                    <View
-                      style={[
-                        s.segment,
-                        {
-                          borderColor: bigDay === d.date ? c.accent : c.line,
-                          backgroundColor: bigDay === d.date ? c.accent : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Txt variant="small" color={bigDay === d.date ? c.onAccent : c.textDim}>{d.label}</Txt>
-                    </View>
-                  </Tap>
-                ))}
-              </View>
-
-              {bigDay && (
-                <View style={s.segments as any}>
-                  {[500, 1000, 2000].map((x) => (
-                    <Tap
-                      key={x}
-                      onPress={() => setBigExtra(x)}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: bigExtra === x }}
-                      accessibilityLabel={`About ${x} kcal over`}
-                      style={s.segmentCell}
-                    >
-                      <View
-                        style={[
-                          s.segment,
-                          {
-                            borderColor: bigExtra === x ? c.accent : c.line,
-                            backgroundColor: bigExtra === x ? c.accent : 'transparent',
-                          },
-                        ]}
-                      >
-                        <Txt variant="small" color={bigExtra === x ? c.onAccent : c.textDim}>+{x}</Txt>
-                      </View>
-                    </Tap>
-                  ))}
-                </View>
-              )}
-
-              {bigDay && (
-                premium ? (
-                  bigPlan ? (
-                    <>
-                      {bigPlan.perDayKcal !== null && (
-                        <Txt variant="heading" style={{ marginTop: Space.md }}>
-                          {bigPlan.perDayKcal}
-                          <Txt variant="small" color={c.textFaint}> kcal an den anderen Tagen</Txt>
-                        </Txt>
-                      )}
-                      <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                        {bigPlan.note}
-                      </Txt>
-                    </>
-                  ) : (
-                    <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                      {t('card.bigDayOutside')}
-                    </Txt>
-                  )
-                ) : (
-                  <>
-                    <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                      {t('card.bigDayPremium')}
-                    </Txt>
-                    {cards.sell === 'ahead' && (
-                      <Button
-                        label="Woche ausbalancieren"
-                        onPress={() => router.push('/paywall')}
-                        style={{ marginTop: Space.md }}
-                      />
-                    )}
-                  </>
-                )
-              )}
-            </Card>
-          </Enter>
-        )}
-
-        {review && (
-          <Enter index={3}>
-            <Card style={{ marginBottom: Space.base }} tone={review.sparse ? 'default' : 'accent'}>
-              <Eyebrow>{t('card.last7')}</Eyebrow>
-              {review.sparse ? (
-                <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                  {review.consequence}
-                </Txt>
-              ) : (
-                <>
-                  <View style={s.reviewRow}>
-                    <View style={s.reviewCell}>
-                      <Txt variant="heading" style={s.reviewFigure}>{review.fastDays}<Txt variant="small" color={c.textFaint}>/7</Txt></Txt>
-                      <Txt variant="small" color={c.textDim}>{t('card.fastDays')}</Txt>
-                    </View>
-                    <Divider style={s.reviewLine} />
-                    <View style={s.reviewCell}>
-                      <Txt variant="heading" style={s.reviewFigure}>{review.cookDays}</Txt>
-                      <Txt variant="small" color={c.textDim}>{t('card.cooked')}</Txt>
-                    </View>
-                    <Divider style={s.reviewLine} />
-                    <View style={s.reviewCell}>
-                      <Txt variant="heading" style={s.reviewFigure}>{review.weighIns}</Txt>
-                      <Txt variant="small" color={c.textDim}>{t('card.weighIns')}</Txt>
-                    </View>
+                    <Txt variant="data" color={c.textDim}>BMI {bmi.toFixed(1)} ({bmiLabel})</Txt>
                   </View>
-                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
-                    {review.headline}
+                  <Bar pct={pct} color={c.body} />
+                  <View style={[s.split, { marginTop: 6 }]}>
+                    <Txt variant="data" color={c.textFaint}>{t('card.start', { kg: start.toFixed(1) })}</Txt>
+                    <Txt variant="data" color={c.textFaint}>{t('card.target', { kg: target.toFixed(1) })}</Txt>
+                  </View>
+                </View>
+              </Card>
+            </Enter>
+
+            {gap && (
+              <Enter index={2}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <View style={s.split}>
+                    <Eyebrow>{t('card.planVsScale')}</Eyebrow>
+                    <Txt variant="data" color={c.textFaint}>{gap.gapKcal} kcal / Tag Differenz</Txt>
+                  </View>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{gap.note}</Txt>
+                </Card>
+              </Enter>
+            )}
+
+            {adapt && adapt.daysLogged > 0 && (
+              <Enter index={2}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <View style={s.split}>
+                    <Eyebrow>{adapt.label}</Eyebrow>
+                    <Txt variant="data" color={c.textFaint}>
+                      {adapt.daysLogged === 1 ? t('card.dayLogged') : t('card.daysLogged', { n: adapt.daysLogged })}
+                    </Txt>
+                  </View>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                    {adapt.note}
                   </Txt>
-                  {/* The line that turns a week of counting into a statement
+                </Card>
+              </Enter>
+            )}
+
+            {/* Calorie Balance & Paired Bars */}
+            <Enter index={2}>
+              <Card style={{ marginBottom: Space.base }}>
+                <View style={s.split}>
+                  <Eyebrow color={c.body}>{t('card.calorieBalance')}</Eyebrow>
+                  <Txt variant="data" color={c.textFaint}>{t('card.planVsActual')}</Txt>
+                </View>
+                <View style={{ marginTop: Space.sm }}>
+                  <PairedBars days={eaten} height={76} />
+                </View>
+              </Card>
+            </Enter>
+
+            {budget && (
+              <Enter index={2}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <View style={s.split}>
+                    <Eyebrow>{t('card.weekBudget')}</Eyebrow>
+                    <Txt variant="data" color={budget.perDayLeft < 0 ? c.ember : c.textFaint}>
+                      {budget.daysLeft > 0 ? `noch ${budget.daysLeft} Tage` : 'Woche beendet'}
+                    </Txt>
+                  </View>
+                  <Bar
+                    pct={Math.min(100, (budget.usedKcal / Math.max(1, budget.totalKcal)) * 100)}
+                    color={budget.perDayLeft < 0 ? c.ember : c.body}
+                  />
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{budget.note}</Txt>
+                </Card>
+              </Enter>
+            )}
+
+            {aheadDays.length > 0 && budget && (
+              <Enter index={2}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <Eyebrow>{t('card.bigDay')}</Eyebrow>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                    {t('card.bigDayPick')}
+                  </Txt>
+
+                  <View style={s.segments as any}>
+                    {aheadDays.map((d) => (
+                      <Tap
+                        key={d.date}
+                        onPress={() => setBigDay(bigDay === d.date ? null : d.date)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: bigDay === d.date }}
+                        accessibilityLabel={`Big day on ${d.date}`}
+                        style={s.segmentCell}
+                      >
+                        <View
+                          style={[
+                            s.segment,
+                            {
+                              borderColor: bigDay === d.date ? c.body : c.line,
+                              backgroundColor: bigDay === d.date ? c.body : 'transparent',
+                            },
+                          ]}
+                        >
+                          <Txt variant="small" color={bigDay === d.date ? c.onAccent : c.textDim}>{d.label}</Txt>
+                        </View>
+                      </Tap>
+                    ))}
+                  </View>
+
+                  {bigDay && (
+                    <View style={s.segments as any}>
+                      {[500, 1000, 2000].map((x) => (
+                        <Tap
+                          key={x}
+                          onPress={() => setBigExtra(x)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: bigExtra === x }}
+                          accessibilityLabel={`About ${x} kcal over`}
+                          style={s.segmentCell}
+                        >
+                          <View
+                            style={[
+                              s.segment,
+                              {
+                                borderColor: bigExtra === x ? c.body : c.line,
+                                backgroundColor: bigExtra === x ? c.body : 'transparent',
+                              },
+                            ]}
+                          >
+                            <Txt variant="small" color={bigExtra === x ? c.onAccent : c.textDim}>+{x}</Txt>
+                          </View>
+                        </Tap>
+                      ))}
+                    </View>
+                  )}
+
+                  {bigDay && (
+                    premium ? (
+                      bigPlan ? (
+                        <>
+                          {bigPlan.perDayKcal !== null && (
+                            <Txt variant="heading" style={{ marginTop: Space.md }}>
+                              {bigPlan.perDayKcal}
+                              <Txt variant="small" color={c.textFaint}> kcal an den anderen Tagen</Txt>
+                            </Txt>
+                          )}
+                          <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                            {bigPlan.note}
+                          </Txt>
+                        </>
+                      ) : (
+                        <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                          {t('card.bigDayOutside')}
+                        </Txt>
+                      )
+                    ) : (
+                      <>
+                        <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                          {t('card.bigDayPremium')}
+                        </Txt>
+                        {cards.sell === 'ahead' && (
+                          <Button
+                            label="Woche ausbalancieren"
+                            onPress={() => router.push('/paywall')}
+                            style={{ marginTop: Space.md }}
+                          />
+                        )}
+                      </>
+                    )
+                  )}
+                </Card>
+              </Enter>
+            )}
+
+            {review && (
+              <Enter index={3}>
+                <Card style={{ marginBottom: Space.base }} tone={review.sparse ? 'default' : 'body'}>
+                  <Eyebrow>{t('card.last7')}</Eyebrow>
+                  {review.sparse ? (
+                    <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                      {review.consequence}
+                    </Txt>
+                  ) : (
+                    <>
+                      <View style={s.reviewRow}>
+                        <View style={s.reviewCell}>
+                          <Txt variant="heading" style={s.reviewFigure}>{review.fastDays}<Txt variant="small" color={c.textFaint}>/7</Txt></Txt>
+                          <Txt variant="small" color={c.textDim}>{t('card.fastDays')}</Txt>
+                        </View>
+                        <Divider style={s.reviewLine} />
+                        <View style={s.reviewCell}>
+                          <Txt variant="heading" style={s.reviewFigure}>{review.cookDays}</Txt>
+                          <Txt variant="small" color={c.textDim}>{t('card.cooked')}</Txt>
+                        </View>
+                        <Divider style={s.reviewLine} />
+                        <View style={s.reviewCell}>
+                          <Txt variant="heading" style={s.reviewFigure}>{review.weighIns}</Txt>
+                          <Txt variant="small" color={c.textDim}>{t('card.weighIns')}</Txt>
+                        </View>
+                      </View>
+                      <Txt variant="small" color={c.textDim} style={{ marginTop: Space.base }}>
+                        {review.headline}
+                      </Txt>
+                      {/* The line that turns a week of counting into a statement
                       about where it leads. It was dropped in the rewrite, and
                       without it the card reports what happened and stops
                       short of the one thing it exists to say. */}
-                  <Txt variant="bodyMedium" style={{ marginTop: Space.sm }}>
-                    {review.consequence}
-                  </Txt>
-                </>
-              )}
-            </Card>
-          </Enter>
-        )}
+                      <Txt variant="bodyMedium" style={{ marginTop: Space.sm }}>
+                        {review.consequence}
+                      </Txt>
+                    </>
+                  )}
+                </Card>
+              </Enter>
+            )}
 
-        <Enter index={4}>
-          <NavRow
-            icon="edit"
-            title={t('progress.corrections')}
-            sub={t('progress.correctionsSub')}
-            onPress={() => router.push('/week/corrections')}
-          />
-        </Enter>
-        </Columns>
+            <Enter index={4}>
+              <NavRow
+                icon="edit"
+                title={t('progress.corrections')}
+                sub={t('progress.correctionsSub')}
+                onPress={() => router.push('/week/corrections')}
+              />
+            </Enter>
+          </Columns>
         </>
       )}
 
       {tab === 'body' && (
         <>
-        <Columns>
-        {need && !need.ready && (
-          <Enter index={1}>
-            <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>{t('card.calibrating')}</Eyebrow>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{need.note}</Txt>
-            </Card>
-          </Enter>
-        )}
+          <Columns>
+            {need && !need.ready && (
+              <Enter index={1}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <Eyebrow>{t('card.calibrating')}</Eyebrow>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>{need.note}</Txt>
+                </Card>
+              </Enter>
+            )}
 
-        {measured && (
-          <Enter index={1}>
-            <Card style={{ marginBottom: Space.base }}>
-              <View style={s.split}>
-                <Eyebrow color={measured.kcal ? c.body : undefined}>{t('card.actualNeed')}</Eyebrow>
-                {measured.kcal !== null && (
-                  <View style={[s.changeBadge, { backgroundColor: c.bodyWash }]}>
-                    <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
-                      {measured.confidence === 'good' ? t('card.measured') : t('card.earlyMeasure')}
-                    </Txt>
+            {measured && (
+              <Enter index={1}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <View style={s.split}>
+                    <Eyebrow color={measured.kcal ? c.body : undefined}>{t('card.actualNeed')}</Eyebrow>
+                    {measured.kcal !== null && (
+                      <View style={[s.changeBadge, { backgroundColor: c.bodyWash }]}>
+                        <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
+                          {measured.confidence === 'good' ? t('card.measured') : t('card.earlyMeasure')}
+                        </Txt>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
 
-              {measured.kcal === null ? (
-                <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
-                  {everMeasured
-                    ? t('meas.stale', { missing: measured.missing ?? '' })
-                    : t('meas.notEnough', { missing: measured.missing ?? '' })}
-                </Txt>
-              ) : premium || preview ? (
-                <>
-                  <Txt variant="heading" style={{ marginTop: Space.md, fontSize: 26, fontWeight: '800' }}>
-                    {measured.kcal}
-                    <Txt variant="small" color={c.textFaint}>{t('meas.perDay')}</Txt>
-                  </Txt>
-                  {measured.plusMinus !== null && (
-                    <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
-                      {t('meas.spread', { n: measured.plusMinus })}
+                  {measured.kcal === null ? (
+                    <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
+                      {everMeasured
+                        ? t('meas.stale', { missing: measured.missing ?? '' })
+                        : t('meas.notEnough', { missing: measured.missing ?? '' })}
                     </Txt>
-                  )}
-                  {!premium && (
+                  ) : premium || preview ? (
                     <>
-                      <Txt variant="small" color={c.accent} style={{ marginTop: Space.sm }}>
-                        {t('meas.yoursNow')}
+                      <Txt variant="heading" style={{ marginTop: Space.md, fontSize: 26, fontWeight: '800' }}>
+                        {measured.kcal}
+                        <Txt variant="small" color={c.textFaint}>{t('meas.perDay')}</Txt>
+                      </Txt>
+                      {measured.plusMinus !== null && (
+                        <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
+                          {t('meas.spread', { n: measured.plusMinus })}
+                        </Txt>
+                      )}
+                      {!premium && (
+                        <>
+                          <Txt variant="small" color={c.body} style={{ marginTop: Space.sm }}>
+                            {t('meas.yoursNow')}
+                          </Txt>
+                          {cards.sell === 'measured' && (
+                            <Button
+                              label={t('meas.sellKeep')}
+                              onPress={() => router.push('/paywall')}
+                              style={{ marginTop: Space.md }}
+                            />
+                          )}
+                        </>
+                      )}
+                      <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+                        {measured.deltaToEstimate === null || measured.deltaToEstimate === 0
+                          ? t('meas.matchesFormula')
+                          : t('meas.offBy', {
+                            n: Math.abs(measured.deltaToEstimate),
+                            days: measured.intakeDays,
+                            weighIns: measured.weighIns,
+                          })}
+                      </Txt>
+                      {/* The measurement rests on 7,700 kcal per kilogram, which is
+                      an approximation of body tissue and not a fact about this
+                      person. Saying so is the same standing rule that keeps
+                      "approximate" on the fasting stage — it was lost in the
+                      rewrite, and without it the figure reads as measured to
+                      the calorie. */}
+                      <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
+                        {t('meas.approximation')}
+                      </Txt>
+                    </>
+                  ) : (
+                    <>
+                      <Txt variant="body" style={{ marginTop: Space.md }}>
+                        {t('meas.basedOn', { days: measured.intakeDays, weighIns: measured.weighIns })}
                       </Txt>
                       {cards.sell === 'measured' && (
                         <Button
-                          label={t('meas.sellKeep')}
+                          label={t('meas.sellShow')}
                           onPress={() => router.push('/paywall')}
                           style={{ marginTop: Space.md }}
                         />
                       )}
                     </>
                   )}
-                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
-                    {measured.deltaToEstimate === null || measured.deltaToEstimate === 0
-                      ? t('meas.matchesFormula')
-                      : t('meas.offBy', {
-                          n: Math.abs(measured.deltaToEstimate),
-                          days: measured.intakeDays,
-                          weighIns: measured.weighIns,
-                        })}
-                  </Txt>
-                  {/* The measurement rests on 7,700 kcal per kilogram, which is
-                      an approximation of body tissue and not a fact about this
-                      person. Saying so is the same standing rule that keeps
-                      "approximate" on the fasting stage — it was lost in the
-                      rewrite, and without it the figure reads as measured to
-                      the calorie. */}
-                  <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
-                    {t('meas.approximation')}
-                  </Txt>
-                </>
-              ) : (
-                <>
-                  <Txt variant="body" style={{ marginTop: Space.md }}>
-                    {t('meas.basedOn', { days: measured.intakeDays, weighIns: measured.weighIns })}
-                  </Txt>
-                  {cards.sell === 'measured' && (
-                    <Button
-                      label={t('meas.sellShow')}
-                      onPress={() => router.push('/paywall')}
-                      style={{ marginTop: Space.md }}
-                    />
-                  )}
-                </>
-              )}
-            </Card>
-          </Enter>
-        )}
+                </Card>
+              </Enter>
+            )}
 
-        {cycle && (
-          <Enter index={2}>
-            <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow color={c.plan}>{t('card.trainingSplit')}</Eyebrow>
-              {premium ? (
-                <>
-                  <View style={[s.split, { marginTop: Space.md }]}>
-                    <View style={{ flex: 1 }}>
-                      <Txt variant="heading" style={{ fontSize: 20 }}>{cycle.trainingKcal} kcal</Txt>
-                      <Eyebrow style={{ marginTop: 2 }}>{cycle.trainingDays} Trainingstage</Eyebrow>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Txt variant="heading" color={c.textDim} style={{ fontSize: 20 }}>{cycle.restKcal} kcal</Txt>
-                      <Eyebrow style={{ marginTop: 2 }}>{cycle.restDays} Ruhetage</Eyebrow>
-                    </View>
-                  </View>
-                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{cycle.note}</Txt>
-                </>
-              ) : (
-                <>
+            {cycle && (
+              <Enter index={2}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <Eyebrow color={c.plan}>{t('card.trainingSplit')}</Eyebrow>
+                  {premium ? (
+                    <>
+                      <View style={[s.split, { marginTop: Space.md }]}>
+                        <View style={{ flex: 1 }}>
+                          <Txt variant="heading" style={{ fontSize: 20 }}>{cycle.trainingKcal} kcal</Txt>
+                          <Eyebrow style={{ marginTop: 2 }}>{cycle.trainingDays} Trainingstage</Eyebrow>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Txt variant="heading" color={c.textDim} style={{ fontSize: 20 }}>{cycle.restKcal} kcal</Txt>
+                          <Eyebrow style={{ marginTop: 2 }}>{cycle.restDays} Ruhetage</Eyebrow>
+                        </View>
+                      </View>
+                      <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>{cycle.note}</Txt>
+                    </>
+                  ) : (
+                    <>
+                      <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                        Du trainierst {cycle.trainingDays} Tage pro Woche. Premium berechnet die optimale Kalorienaufteilung auf Trainings- und Ruhetage.
+                      </Txt>
+                      {cards.sell === 'cycle' && (
+                        <Button
+                          label="Aufteilung freischalten"
+                          onPress={() => router.push('/paywall')}
+                          style={{ marginTop: Space.md }}
+                        />
+                      )}
+                    </>
+                  )}
+                </Card>
+              </Enter>
+            )}
+
+            {pattern && (pattern.worst || pattern.note || pattern.missing) && (
+              <Enter index={3}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <Eyebrow>{t('card.weekdayPattern')}</Eyebrow>
                   <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                    Du trainierst {cycle.trainingDays} Tage pro Woche. Premium berechnet die optimale Kalorienaufteilung auf Trainings- und Ruhetage.
+                    {pattern.missing
+                      ? t('card.noPatternYet')
+                      : premium || !pattern.worst
+                        ? pattern.note
+                        : t('card.patternPremium')}
                   </Txt>
-                  {cards.sell === 'cycle' && (
+                  {!pattern.missing && cards.sell === 'pattern' && (
                     <Button
-                      label="Aufteilung freischalten"
+                      label="Muster anzeigen"
                       onPress={() => router.push('/paywall')}
                       style={{ marginTop: Space.md }}
                     />
                   )}
-                </>
-              )}
-            </Card>
-          </Enter>
-        )}
+                </Card>
+              </Enter>
+            )}
 
-        {pattern && (pattern.worst || pattern.note || pattern.missing) && (
-          <Enter index={3}>
-            <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>{t('card.weekdayPattern')}</Eyebrow>
-              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                {pattern.missing
-                  ? t('card.noPatternYet')
-                  : premium || !pattern.worst
-                  ? pattern.note
-                  : t('card.patternPremium')}
-              </Txt>
-              {!pattern.missing && cards.sell === 'pattern' && (
-                <Button
-                  label="Muster anzeigen"
-                  onPress={() => router.push('/paywall')}
-                  style={{ marginTop: Space.md }}
-                />
-              )}
-            </Card>
-          </Enter>
-        )}
-
-        {outlook && cards.outlook && (
-          <Enter index={4}>
-            <Card style={{ marginBottom: Space.base }}>
-              <View style={s.split}>
-                <Eyebrow>{t('card.forecast')}</Eyebrow>
-                {premium && outlook.weeks !== null && (
-                  <Txt variant="data" color={c.accent}>{outlook.weeks} Wochen</Txt>
-                )}
-              </View>
-              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                {premium
-                  ? outlook.note
-                  : t('card.forecastPremium')}
-              </Txt>
-              {cards.sell === 'outlook' && (
-                <Button
-                  label="Prognose freischalten"
-                  onPress={() => router.push('/paywall')}
-                  style={{ marginTop: Space.md }}
-                />
-              )}
-            </Card>
-          </Enter>
-        )}
-        </Columns>
+            {outlook && cards.outlook && (
+              <Enter index={4}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <View style={s.split}>
+                    <Eyebrow>{t('card.forecast')}</Eyebrow>
+                    {premium && outlook.weeks !== null && (
+                      <Txt variant="data" color={c.body}>{outlook.weeks} Wochen</Txt>
+                    )}
+                  </View>
+                  <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                    {premium
+                      ? outlook.note
+                      : t('card.forecastPremium')}
+                  </Txt>
+                  {cards.sell === 'outlook' && (
+                    <Button
+                      label="Prognose freischalten"
+                      onPress={() => router.push('/paywall')}
+                      style={{ marginTop: Space.md }}
+                    />
+                  )}
+                </Card>
+              </Enter>
+            )}
+          </Columns>
         </>
       )}
 
       {tab === 'history' && (
         <>
-        <Columns>
-        {best && (
-          <Enter index={1}>
-            <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>{t('card.bestWeeks')}</Eyebrow>
-              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                {best.differences.length === 0 || premium
-                  ? best.note
-                  : `Deine ${best.bestCount} besten Wochen unterschieden sich messbar. Premium zeigt die Erfolgsfaktoren.`}
-              </Txt>
-              {cards.sell === 'best' && (
-                <Button
-                  label="Erfolgsfaktoren ansehen"
-                  onPress={() => router.push('/paywall')}
-                  style={{ marginTop: Space.md }}
-                />
-              )}
-            </Card>
-          </Enter>
-        )}
+          <Columns>
+            {best && (
+              <Enter index={1}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <Eyebrow>{t('card.bestWeeks')}</Eyebrow>
+                  <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                    {best.differences.length === 0 || premium
+                      ? best.note
+                      : `Deine ${best.bestCount} besten Wochen unterschieden sich messbar. Premium zeigt die Erfolgsfaktoren.`}
+                  </Txt>
+                  {cards.sell === 'best' && (
+                    <Button
+                      label="Erfolgsfaktoren ansehen"
+                      onPress={() => router.push('/paywall')}
+                      style={{ marginTop: Space.md }}
+                    />
+                  )}
+                </Card>
+              </Enter>
+            )}
 
-        {months && (
-          <Enter index={2}>
-            <Card style={{ marginBottom: Space.base }}>
-              <Eyebrow>{t('card.monthly')}</Eyebrow>
-              <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
-                {premium
-                  ? months.note
-                  : t('card.monthlyPremium')}
-              </Txt>
-              {cards.sell === 'months' && (
-                <Button
-                  label="Monate vergleichen"
-                  onPress={() => router.push('/paywall')}
-                  style={{ marginTop: Space.md }}
-                />
-              )}
-            </Card>
-          </Enter>
-        )}
+            {months && (
+              <Enter index={2}>
+                <Card style={{ marginBottom: Space.base }}>
+                  <Eyebrow>{t('card.monthly')}</Eyebrow>
+                  <Txt variant="body" color={c.textDim} style={{ marginTop: Space.md }}>
+                    {premium
+                      ? months.note
+                      : t('card.monthlyPremium')}
+                  </Txt>
+                  {cards.sell === 'months' && (
+                    <Button
+                      label="Monate vergleichen"
+                      onPress={() => router.push('/paywall')}
+                      style={{ marginTop: Space.md }}
+                    />
+                  )}
+                </Card>
+              </Enter>
+            )}
 
-        {entries.length > 0 ? (
-          <Enter index={3}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.md, marginTop: Space.sm }}>
-              <Eyebrow color={c.body}>{t('card.weighHistory')}</Eyebrow>
-              <TouchableOpacity
-                onPress={() => {
-                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-                    window.print?.();
-                  }
-                }}
-                activeOpacity={0.7}
-                style={[s.reportBtn, { backgroundColor: c.well, borderColor: c.line }]}
-              >
-                <Icon name="share" size={12} color={c.accent} />
-                <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 4, fontSize: 10, fontWeight: '700' }}>
-                  {lang === 'de' ? 'BERICHT DRUCKEN / PDF' : 'PRINT REPORT / PDF'}
-                </Txt>
-              </TouchableOpacity>
-            </View>
-            <Card style={{ paddingVertical: Space.sm }}>
-              {entries.slice(0, 15).map((e, i) => {
-                const prev = entries[i + 1];
-                const delta = prev ? e.weight_kg - prev.weight_kg : null;
-                return (
-                  <View key={e.id}>
-                    {i > 0 && <Divider />}
-                    <View style={s.histRow}>
-                      <View style={{ flex: 1 }}>
-                        <Txt variant="data" color={c.text}>{formatReadableDate(e.date, lang)}</Txt>
-                        {fastingNotes[e.date] ? (
-                          <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
-                            📝 {fastingNotes[e.date]}
-                          </Txt>
-                        ) : null}
+            {entries.length > 0 ? (
+              <Enter index={3}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.md, marginTop: Space.sm }}>
+                  <Eyebrow color={c.body}>{t('card.weighHistory')}</Eyebrow>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                        window.print?.();
+                      }
+                    }}
+                    activeOpacity={0.7}
+                    style={[s.reportBtn, { backgroundColor: c.well, borderColor: c.line }]}
+                  >
+                    <Icon name="share" size={12} color={c.body} />
+                    <Txt variant="eyebrow" color={c.body} style={{ marginLeft: 4, fontSize: 10, fontWeight: '700' }}>
+                      {lang === 'de' ? 'BERICHT DRUCKEN / PDF' : 'PRINT REPORT / PDF'}
+                    </Txt>
+                  </TouchableOpacity>
+                </View>
+                <Card style={{ paddingVertical: Space.sm }}>
+                  {entries.slice(0, 15).map((e, i) => {
+                    const prev = entries[i + 1];
+                    const delta = prev ? e.weight_kg - prev.weight_kg : null;
+                    return (
+                      <View key={e.id}>
+                        {i > 0 && <Divider />}
+                        <View style={s.histRow}>
+                          <View style={{ flex: 1 }}>
+                            <Txt variant="data" color={c.text}>{formatReadableDate(e.date, lang)}</Txt>
+                            {fastingNotes[e.date] ? (
+                              <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
+                                📝 {fastingNotes[e.date]}
+                              </Txt>
+                            ) : null}
+                          </View>
+                          <View style={s.rowEnd}>
+                            {delta !== null && delta !== 0 && (
+                              <Txt variant="data" color={delta > 0 ? c.negative : c.positive} style={{ marginRight: Space.md }}>
+                                {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
+                              </Txt>
+                            )}
+                            <Txt variant="heading" style={{ fontSize: 16 }}>{e.weight_kg.toFixed(1)} kg</Txt>
+                          </View>
+                        </View>
                       </View>
-                      <View style={s.rowEnd}>
-                        {delta !== null && delta !== 0 && (
-                          <Txt variant="data" color={delta > 0 ? c.negative : c.positive} style={{ marginRight: Space.md }}>
-                            {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
-                          </Txt>
-                        )}
-                        <Txt variant="heading" style={{ fontSize: 16 }}>{e.weight_kg.toFixed(1)} kg</Txt>
-                      </View>
-                    </View>
-                  </View>
-                );
-              })}
-            </Card>
-          </Enter>
-        ) : (
-          <Enter index={3}>
-            <Empty
-              icon="chart"
-              title="Nothing logged yet"
-              body="Weigh in at the same time of day, ideally before your first drink. Consistency matters more than the number."
-            />
-          </Enter>
-        )}
+                    );
+                  })}
+                </Card>
+              </Enter>
+            ) : (
+              <Enter index={3}>
+                <Empty
+                  icon="chart"
+                  title="Nothing logged yet"
+                  body="Weigh in at the same time of day, ideally before your first drink. Consistency matters more than the number."
+                />
+              </Enter>
+            )}
 
-        </Columns>
+          </Columns>
         </>
       )}
     </Screen>
