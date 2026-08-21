@@ -1,23 +1,37 @@
-import { useState, useEffect, useRef } from 'react';
+import { Icon } from '@/components/icons';
+import { useLang } from '@/components/lang';
+import { Eyebrow, Markdown, Tap, Txt, useReducedMotion, useTheme, washOf, type PaletteHue } from '@/components/ui';
+import { MaxContentWidth, Radius, Space, Type } from '@/constants/theme';
+import { askCoach, conversationOf, type ChatTurn, type CoachState, type MealPlan } from '@/lib/ai';
+import { measuredMaintenance, readPlateau, readTrend, weekdayPattern } from '@/lib/energy';
+import type { Key } from '@/lib/i18n';
+import type { UserProfile } from '@/lib/nutrition';
+import { dailyTargets } from '@/lib/nutrition';
 import {
-  View, TextInput, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, TouchableOpacity,
+  clearChat,
+  isPremium,
+  loadChat,
+  loadCoachMemory,
+  loadIntakeLog,
+  loadLastPlan,
+  loadProfile,
+  loadWeightLog,
+  saveChat,
+  saveCoachMemoryEntry,
+  todayISO,
+} from '@/lib/store';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView, Platform,
+  ScrollView, StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
-import { Txt, Eyebrow, Tap, Markdown, useTheme, useReducedMotion, washOf, type PaletteHue } from '@/components/ui';
-import type { Key } from '@/lib/i18n';
-import { useLang } from '@/components/lang';
-import { Icon } from '@/components/icons';
-import { askCoach, conversationOf, type ChatTurn, type MealPlan, type CoachState } from '@/lib/ai';
-import {
-  loadProfile, loadLastPlan, loadChat, saveChat, clearChat,
-  loadIntakeLog, loadWeightLog, isPremium, todayISO,
-  loadCoachMemory, saveCoachMemoryEntry,
-} from '@/lib/store';
-import { dailyTargets } from '@/lib/nutrition';
-import { measuredMaintenance, readTrend, readPlateau, weekdayPattern } from '@/lib/energy';
-import type { UserProfile } from '@/lib/nutrition';
 
 type Message = { id: string; sender: 'user' | 'ai'; text: string; failed?: boolean };
 
@@ -143,7 +157,7 @@ export default function ChatScreen() {
         saveCoachMemoryEntry({
           date: todayISO(),
           summary: trimmed.slice(0, 100),
-        }).catch(() => {});
+        }).catch(() => { });
       }
     } catch (err: any) {
       // Previously this swallowed the error and printed a canned tip, so a broken
@@ -214,17 +228,17 @@ export default function ChatScreen() {
                   s.bubble,
                   ai
                     ? {
-                        backgroundColor: m.failed ? 'transparent' : c.surface,
-                        borderColor: m.failed ? c.negative : c.line,
-                        // The coach's own voice, attributed by an edge rather
-                        // than by a fill. Your messages keep the tint and the
-                        // right side, which is the convention every messaging
-                        // app has taught already — inverting it to add colour
-                        // would cost more than the colour is worth.
-                        borderLeftWidth: 3,
-                        borderLeftColor: m.failed ? c.negative : c.accent,
-                        alignSelf: 'flex-start',
-                      }
+                      backgroundColor: m.failed ? 'transparent' : c.surface,
+                      borderColor: m.failed ? c.negative : c.line,
+                      // The coach's own voice, attributed by an edge rather
+                      // than by a fill. Your messages keep the tint and the
+                      // right side, which is the convention every messaging
+                      // app has taught already — inverting it to add colour
+                      // would cost more than the colour is worth.
+                      borderLeftWidth: 3,
+                      borderLeftColor: m.failed ? c.negative : c.accent,
+                      alignSelf: 'flex-start',
+                    }
                     : { backgroundColor: c.accentWash, borderColor: c.accentDim, alignSelf: 'flex-end' },
                 ]}
               >
@@ -363,7 +377,7 @@ export default function ChatScreen() {
 const s = StyleSheet.create({
   flex: { flex: 1 },
   header: {
-    flexDirection: 'row', alignItems: 'center', gap: 0,
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Space.base, paddingBottom: Space.md, borderBottomWidth: 1,
   },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: Space.xs },
@@ -404,12 +418,13 @@ const s = StyleSheet.create({
   starterCardsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Space.sm,
+    justifyContent: 'space-between',
   },
   starterCard: {
     width: '48%',
     flexGrow: 1,
     padding: Space.base,
+    marginBottom: Space.sm,
     borderRadius: Radius.lg,
     borderWidth: 1,
   },

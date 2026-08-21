@@ -33,7 +33,8 @@ export type IconName =
   | 'alert'
   | 'bell'
   | 'shield'
-  | 'sync';
+  | 'sync'
+  | 'footprints';
 
 const PATHS: Record<IconName, string[]> = {
   home: ['M4 10.5 12 4l8 6.5', 'M6 9.5V20h12V9.5'],
@@ -61,7 +62,13 @@ const PATHS: Record<IconName, string[]> = {
   shield: ['M12 3.5 4 7v6c0 5.2 3.4 9.4 8 10.5 4.6-1.1 8-5.3 8-10.5V7l-8-3.5Z'],
   // Two arcs chasing each other: the blob goes up, the merge comes back.
   sync: ['M20.5 12a8.5 8.5 0 0 1-14.6 6', 'M3.5 12a8.5 8.5 0 0 1 14.6-6',
-         'M18.1 2.5v3.5h-3.5', 'M5.9 21.5V18h3.5'],
+    'M18.1 2.5v3.5h-3.5', 'M5.9 21.5V18h3.5'],
+  footprints: [
+    'M7.5 4.5c1.8 0 2.8 1.6 2.8 3.8 0 1.7-.5 2.6-.5 4 0 1 .8 1.7.8 3 0 1.6-1.3 2.7-3.1 2.7s-3.1-1.1-3.1-2.7c0-1.3.8-2 .8-3 0-1.4-.5-2.3-.5-4 0-2.2 1-3.8 2.8-3.8Z',
+    'M16.5 10.5c1.8 0 2.8 1.6 2.8 3.8 0 1.7-.5 2.6-.5 4 0 1 .8 1.7.8 3 0 1.6-1.3 2.7-3.1 2.7s-3.1-1.1-3.1-2.7c0-1.3.8-2 .8-3 0-1.4-.5-2.3-.5-4 0-2.2 1-3.8 2.8-3.8Z',
+    'M5.2 20.5h4.6',
+    'M14.2 21h4.6',
+  ],
 };
 
 /** Icons that read better filled than stroked. */

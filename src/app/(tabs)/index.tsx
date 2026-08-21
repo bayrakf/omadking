@@ -1,44 +1,74 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { Space, Radius, Type } from '@/constants/theme';
-import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Tap, PageHeader, useTheme, washOf,
-} from '@/components/ui';
-import { useLang } from '@/components/lang';
-import { Icon } from '@/components/icons';
-import { DayBand } from '@/components/DayBand';
-import { WeekdayPillStrip } from '@/components/WeekdayPillStrip';
-import { FastingFeelingBar } from '@/components/FastingFeelingBar';
-import {
-  dailyTargets, fastingState, formatCountdown, hydrationTargetMl, toMinutes, fromMinutes, DEFAULT_PROFILE,
-  type UserProfile, type FastingState,
-} from '@/lib/nutrition';
-import { dayAgenda } from '@/lib/agenda';
-import { formatReadableDate, longestStreak } from '@/lib/dates';
-import { WindowShifterModal } from '@/components/WindowShifterModal';
-import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
-import { MetabolicProgressBar } from '@/components/MetabolicProgressBar';
-import { DailyBioHackCard } from '@/components/DailyBioHackCard';
 import { BreakFastGuideModal } from '@/components/BreakFastGuideModal';
+import { DailyBioHackCard } from '@/components/DailyBioHackCard';
 import { DailyFastingNote } from '@/components/DailyFastingNote';
-import { playZenChime } from '@/lib/sound';
+import { DayBand } from '@/components/DayBand';
+import { FastingFeelingBar } from '@/components/FastingFeelingBar';
+import { Icon } from '@/components/icons';
+import { useLang } from '@/components/lang';
+import { MetabolicProgressBar } from '@/components/MetabolicProgressBar';
+import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
 import {
-  loadProfileOrDefault, loadHydration, saveHydration, loadFastLog, markFastComplete,
-  currentStreak, loadLastPlan, loadCookLog, loadWeightLog, saveWeightLog,
-  remindersOffered, markRemindersOffered,
-  saveProfile, recordIntake, loadIntakeLog, isPremium, todayISO, loadTodayWindowShift,
-  saveTodayWindowShift, clearTodayWindowShift,
-  loadDailySteps, saveDailySteps, type Hydration,
-} from '@/lib/store';
+  Button,
+  Card,
+  Enter,
+  Eyebrow,
+  PageHeader,
+  Screen,
+  Tap,
+  Txt,
+  useTheme, washOf,
+} from '@/components/ui';
+import { WeekdayPillStrip } from '@/components/WeekdayPillStrip';
+import { WindowShifterModal } from '@/components/WindowShifterModal';
+import { Radius, Space, Type } from '@/constants/theme';
+import { dayAgenda } from '@/lib/agenda';
+import type { MealPlan } from '@/lib/ai';
+import { formatReadableDate, longestStreak } from '@/lib/dates';
 import {
   effectiveMaintenance, intakeQuestionFor, scaleJump,
   type IntakeQuestion, type ScaleJump,
 } from '@/lib/energy';
-import { INTAKE_OPTIONS, intakeOptionLabel } from '@/lib/review';
 import { haptic } from '@/lib/haptic';
-import type { MealPlan } from '@/lib/ai';
 import { setEnabled as setRemindersEnabled } from '@/lib/notify';
+import {
+  dailyTargets,
+  DEFAULT_PROFILE,
+  fastingState, formatCountdown,
+  fromMinutes,
+  hydrationTargetMl, toMinutes,
+  type FastingState,
+  type UserProfile,
+} from '@/lib/nutrition';
+import { INTAKE_OPTIONS, intakeOptionLabel } from '@/lib/review';
+import { playZenChime } from '@/lib/sound';
+import {
+  clearTodayWindowShift,
+  currentStreak,
+  isPremium,
+  loadCookLog,
+  loadDailySteps,
+  loadFastLog,
+  loadHydration,
+  loadIntakeLog,
+  loadLastPlan,
+  loadProfileOrDefault,
+  loadTodayWindowShift,
+  loadWeightLog,
+  markFastComplete,
+  markRemindersOffered,
+  recordIntake,
+  remindersOffered,
+  saveDailySteps,
+  saveHydration,
+  saveProfile,
+  saveTodayWindowShift,
+  saveWeightLog,
+  todayISO,
+  type Hydration,
+} from '@/lib/store';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -79,6 +109,7 @@ export default function DashboardScreen() {
   const addSteps = async (count: number) => {
     const next = steps + count;
     setSteps(next);
+    haptic('light');
     await saveDailySteps(next);
   };
 
@@ -140,11 +171,13 @@ export default function DashboardScreen() {
   const addWater = async (ml: number) => {
     const nextH = { ...hydration, ml: Math.min(8000, hydration.ml + ml) };
     setHydration(nextH);
+    haptic('light');
     await saveHydration(nextH);
   };
   const toggleSalt = async () => {
     const nextH = { ...hydration, electrolytes: !hydration.electrolytes };
     setHydration(nextH);
+    haptic('light');
     await saveHydration(nextH);
   };
 
@@ -209,22 +242,25 @@ export default function DashboardScreen() {
   const hoursFasted = fast.isEating ? 0 : fast.fastingHours * (fast.progressPct / 100);
 
   const waterPct = Math.min(100, (hydration.ml / waterTarget) * 100);
+  /** Daily step goal. A round, reachable number to walk towards. */
+  const STEP_GOAL = 10000;
+  const stepsPct = Math.min(100, (steps / STEP_GOAL) * 100);
 
   const hour = now.getHours();
   const timeGreeting =
     hour < 11
       ? (lang === 'de' ? 'Guten Morgen' : 'Good morning')
       : hour < 17
-      ? (lang === 'de' ? 'Guten Tag' : 'Good afternoon')
-      : (lang === 'de' ? 'Guten Abend' : 'Good evening');
+        ? (lang === 'de' ? 'Guten Tag' : 'Good afternoon')
+        : (lang === 'de' ? 'Guten Abend' : 'Good evening');
 
   const bioInsight = fast.isEating
     ? (lang === 'de' ? 'Essensfenster geöffnet · Genieße deine Mahlzeit bewusst' : 'Eating window open · Enjoy your meal')
     : hoursFasted >= 18
-    ? (lang === 'de' ? 'Tiefe Autophagie aktiv · Zellregeneration läuft auf Hochtouren' : 'Deep autophagy active · Cellular recovery at peak')
-    : hoursFasted >= 12
-    ? (lang === 'de' ? 'Ketose aktiv · Dein Körper greift reine Fettreserven an' : 'Ketosis active · Burning pure fat reserves')
-    : (lang === 'de' ? 'Verdauung ruht · Insulin sinkt für optimalen Fokus' : 'Digestion resting · Insulin dropping for optimal focus');
+      ? (lang === 'de' ? 'Tiefe Autophagie aktiv · Zellregeneration läuft auf Hochtouren' : 'Deep autophagy active · Cellular recovery at peak')
+      : hoursFasted >= 12
+        ? (lang === 'de' ? 'Ketose aktiv · Dein Körper greift reine Fettreserven an' : 'Ketosis active · Burning pure fat reserves')
+        : (lang === 'de' ? 'Verdauung ruht · Insulin sinkt für optimalen Fokus' : 'Digestion resting · Insulin dropping for optimal focus');
 
   return (
     <Screen contentStyle={{ maxWidth: 640, alignSelf: 'center', width: '100%' }}>
@@ -375,111 +411,151 @@ export default function DashboardScreen() {
         </View>
       </Enter>
 
-      {/* 4. THE TWO CORE PILLARS: HYDRATION & HEUTIGER OMAD TELLER */}
+      {/* 4. DAILY TRACKING — Wasser & Schritte, großflächig und griffbereit.
+          Beides war vorher in winzigen Halbbreiten-Karten versteckt; die
+          häufigsten Aktionen des Tages verdienen volle Breite und echte
+          Tap-Targets. */}
       <Enter index={4}>
-        <View style={s.corePillarsRow}>
-          {/* Hydration Pillar */}
-          <View style={[s.corePillarCard, { backgroundColor: c.surface, borderColor: c.line }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon name="drop" size={14} color={c.hydro} />
-                <Eyebrow color={c.hydro} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '800' }}>
-                  WASSER
-                </Eyebrow>
-              </View>
-              <Txt variant="data" color={c.text} style={{ fontSize: 12, fontWeight: '800' }}>
-                {(hydration.ml / 1000).toFixed(1)} <Txt variant="small" color={c.textDim}>/ {(waterTarget / 1000).toFixed(1)}L</Txt>
+        <Eyebrow style={{ marginTop: Space.base, marginBottom: Space.sm }}>
+          {lang === 'de' ? 'Heute tracken' : 'Track today'}
+        </Eyebrow>
+
+        {/* Wasser */}
+        <View style={[s.trackCard, { backgroundColor: c.surface, borderColor: c.line }]}>
+          <View style={s.trackHead}>
+            <View style={[s.trackIcon, { backgroundColor: c.hydroWash }]}>
+              <Icon name="drop" size={16} color={c.hydro} />
+            </View>
+            <View style={s.trackMeta}>
+              <Eyebrow color={c.hydro}>{lang === 'de' ? 'Wasser' : 'Water'}</Eyebrow>
+              <Txt variant="heading" style={{ fontSize: 20, marginTop: 1 }}>
+                {(hydration.ml / 1000).toFixed(1)}
+                <Txt variant="small" color={c.textDim}> / {(waterTarget / 1000).toFixed(1)} L</Txt>
               </Txt>
             </View>
-
-            <View style={[s.waterFillTrack, { backgroundColor: c.well, marginVertical: 8 }]}>
-              <View
-                style={[
-                  s.waterFillBar,
-                  {
-                    width: `${waterPct}%`,
-                    backgroundColor: waterPct >= 100 ? '#10B981' : c.hydro,
-                  },
-                ]}
-              />
-            </View>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-              <TouchableOpacity onPress={() => addWater(250)} style={[s.pillarMiniBtn, { backgroundColor: c.well }]}>
-                <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9.5 }}>+250</Txt>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => addWater(500)} style={[s.pillarMiniBtn, { backgroundColor: c.well }]}>
-                <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9.5 }}>+500</Txt>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={toggleSalt} style={[s.pillarMiniBtn, { backgroundColor: hydration.electrolytes ? c.emberWash : c.well }]}>
-                <Txt variant="eyebrow" color={hydration.electrolytes ? c.ember : c.textDim} style={{ fontSize: 9.5 }}>
-                  {hydration.electrolytes ? 'Salz ✓' : 'Salz'}
-                </Txt>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={toggleSalt}
+              accessibilityLabel={lang === 'de' ? 'Elektrolyte umschalten' : 'Toggle electrolytes'}
+              style={[
+                s.trackSidePill,
+                {
+                  backgroundColor: hydration.electrolytes ? c.emberWash : c.well,
+                  borderColor: hydration.electrolytes ? c.ember : 'transparent',
+                },
+              ]}
+            >
+              <Icon name="salt" size={13} color={hydration.electrolytes ? c.ember : c.textDim} />
+              <Txt variant="eyebrow" color={hydration.electrolytes ? c.ember : c.textDim} style={{ marginLeft: 4 }}>
+                {lang === 'de' ? 'Salz' : 'Salt'}
+              </Txt>
+            </TouchableOpacity>
           </View>
 
-          {/* Dinner Plate Pillar */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => router.push('/planner')}
-            style={[s.corePillarCard, { backgroundColor: c.surface, borderColor: c.line }]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon name="plate" size={14} color={c.ember} />
-                <Eyebrow color={c.ember} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '800' }}>
-                  OMAD TELLER
-                </Eyebrow>
-              </View>
-              <View style={[s.countBadge, { backgroundColor: plan ? 'rgba(16, 185, 129, 0.15)' : c.emberWash }]}>
-                <Txt variant="eyebrow" color={plan ? '#10B981' : c.ember} style={{ fontSize: 8, fontWeight: '800' }}>
-                  {plan ? 'BEREIT' : 'PLANEN'}
+          <View style={[s.trackBar, { backgroundColor: c.well }]}>
+            <View
+              style={[
+                s.trackBarFill,
+                { width: `${waterPct}%`, backgroundColor: waterPct >= 100 ? c.positive : c.hydro },
+              ]}
+            />
+          </View>
+
+          <View style={s.trackBtnRow}>
+            {[250, 500, 750].map((ml, i) => (
+              <TouchableOpacity
+                key={ml}
+                onPress={() => addWater(ml)}
+                accessibilityLabel={`+${ml} ml Wasser`}
+                style={[s.trackBtn, { backgroundColor: c.well, marginRight: i < 2 ? Space.sm : 0 }]}
+              >
+                <Icon name="plus" size={12} color={c.hydro} strokeWidth={2.2} />
+                <Txt variant="data" color={c.text} style={{ marginLeft: 4, fontSize: 12.5, fontWeight: '700' }}>
+                  {ml}
                 </Txt>
-              </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Schritte */}
+        <View style={[s.trackCard, { backgroundColor: c.surface, borderColor: c.line, marginTop: Space.sm }]}>
+          <View style={s.trackHead}>
+            <View style={[s.trackIcon, { backgroundColor: c.accentWash }]}>
+              <Icon name="footprints" size={16} color={c.accent} />
             </View>
-
-            <Txt variant="subheading" color={c.text} numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', marginTop: 5 }}>
-              {plan ? plan.recipe.title : t('today.defaultMeal')}
-            </Txt>
-            <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 1 }}>
-              {kcal} kcal · {protein}g Protein
-            </Txt>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-              <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9.5, fontWeight: '800' }}>
-                {plan ? (lang === 'de' ? 'Rezept ansehen ➔' : 'View recipe ➔') : (lang === 'de' ? '1 Tap Generieren ➔' : 'Generate ➔')}
+            <View style={s.trackMeta}>
+              <Eyebrow color={c.accent}>{lang === 'de' ? 'Schritte' : 'Steps'}</Eyebrow>
+              <Txt variant="heading" style={{ fontSize: 20, marginTop: 1 }}>
+                {steps.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')}
+                <Txt variant="small" color={c.textDim}> / 10.000</Txt>
               </Txt>
             </View>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/workout')}
+              accessibilityLabel={lang === 'de' ? 'Zu den Workouts' : 'Open workouts'}
+              style={[s.trackSidePill, { backgroundColor: c.well }]}
+            >
+              <Icon name="dumbbell" size={13} color={c.textDim} />
+              <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 4 }}>
+                {lang === 'de' ? 'Workout' : 'Workout'}
+              </Txt>
+            </TouchableOpacity>
+          </View>
+
+          <View style={[s.trackBar, { backgroundColor: c.well }]}>
+            <View
+              style={[
+                s.trackBarFill,
+                { width: `${stepsPct}%`, backgroundColor: stepsPct >= 100 ? c.positive : c.accent },
+              ]}
+            />
+          </View>
+
+          <View style={s.trackBtnRow}>
+            {[500, 1000, 2500].map((n, i) => (
+              <TouchableOpacity
+                key={n}
+                onPress={() => addSteps(n)}
+                accessibilityLabel={`+${n} Schritte`}
+                style={[s.trackBtn, { backgroundColor: c.well, marginRight: i < 2 ? Space.sm : 0 }]}
+              >
+                <Icon name="plus" size={12} color={c.accent} strokeWidth={2.2} />
+                <Txt variant="data" color={c.text} style={{ marginLeft: 4, fontSize: 12.5, fontWeight: '700' }}>
+                  {n >= 1000 ? `${n / 1000}k` : n}
+                </Txt>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </Enter>
 
-      {/* 5. WORKOUT & ACTIVITY (Sleek 1-line Card) */}
+      {/* 5. HEUTIGER OMAD TELLER — volle Breite, das Herzstück des Tages */}
       <Enter index={5}>
         <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => router.push('/workout')}
-          style={[s.zenSecondaryCard, { backgroundColor: c.surface, borderColor: c.line }]}
+          activeOpacity={0.85}
+          onPress={() => router.push('/planner')}
+          style={[s.plateCard, { backgroundColor: c.surface, borderColor: plan ? c.plan : c.line }]}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <View style={[s.sportIconBox, { backgroundColor: c.emberWash }]}>
-              <Icon name="dumbbell" size={15} color={c.ember} />
-            </View>
-            <View style={{ marginLeft: 10, flex: 1 }}>
-              <Eyebrow color={c.ember} style={{ fontSize: 9.5, fontWeight: '800' }}>
-                {lang === 'de' ? 'GEFASTETES WORKOUT & AKTIVITÄT' : 'FASTED WORKOUT & ACTIVITY'}
-              </Eyebrow>
-              <Txt variant="subheading" color={c.text} style={{ fontSize: 13, fontWeight: '700', marginTop: 1 }}>
-                {steps > 0 ? `${steps.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')} Schritte erfasst` : (lang === 'de' ? '6 Hypertrophie-Routinen verfügbar' : '6 routines available')}
-              </Txt>
-            </View>
+          <View style={[s.plateIcon, { backgroundColor: plan ? c.planWash : c.emberWash }]}>
+            <Icon name="plate" size={20} color={plan ? c.plan : c.ember} />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => addSteps(1000)} style={[s.miniStepPill, { backgroundColor: c.well, marginRight: 6 }]}>
-              <Txt variant="eyebrow" color={c.text} style={{ fontSize: 9.5 }}>+1k</Txt>
-            </TouchableOpacity>
-            <Icon name="chevronRight" size={14} color={c.textDim} />
+          <View style={s.trackMeta}>
+            <Eyebrow color={plan ? c.plan : c.ember}>
+              {lang === 'de' ? 'Heutiger OMAD Teller' : "Today's OMAD plate"}
+            </Eyebrow>
+            <Txt variant="subheading" color={c.text} numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', marginTop: 2 }}>
+              {plan ? plan.recipe.title : t('today.defaultMeal')}
+            </Txt>
+            <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 1 }}>
+              {kcal} kcal · {protein}g Protein
+            </Txt>
+          </View>
+          <View style={[s.countBadge, { backgroundColor: plan ? c.planWash : c.emberWash }]}>
+            <Txt variant="eyebrow" color={plan ? c.plan : c.ember} style={{ fontSize: 8.5, fontWeight: '800' }}>
+              {plan
+                ? (lang === 'de' ? 'Rezept ➔' : 'Recipe ➔')
+                : (lang === 'de' ? 'Planen ➔' : 'Plan ➔')}
+            </Txt>
           </View>
         </TouchableOpacity>
       </Enter>
@@ -510,8 +586,8 @@ export default function DashboardScreen() {
                 ? `Gegen das Ziel von ${questionKcal} kcal. Kalibriert deinen echten Stoffwechsel.`
                 : `Against ${questionKcal} kcal target to calibrate your real metabolism.`}
             </Txt>
-            <View style={{ flexDirection: 'row', marginTop: Space.sm, gap: Space.xs }}>
-              {INTAKE_OPTIONS.map((opt) => {
+            <View style={{ flexDirection: 'row', marginTop: Space.sm }}>
+              {INTAKE_OPTIONS.map((opt, i) => {
                 const sel = answered?.date === question.date && answered?.factor === opt.factor;
                 return (
                   <Tap
@@ -520,7 +596,7 @@ export default function DashboardScreen() {
                     accessibilityLabel={intakeOptionLabel(opt, lang)}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: sel }}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, marginRight: i < INTAKE_OPTIONS.length - 1 ? Space.xs : 0 }}
                   >
                     <View
                       style={[
@@ -772,7 +848,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: Space.md,
-    gap: Space.xs,
   },
   zenPrimaryBtn: {
     flex: 1,
@@ -784,6 +859,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Space.base,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.25)',
+    marginRight: Space.xs,
   },
   zenResetBtn: {
     height: 44,
@@ -792,60 +868,79 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  corePillarsRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: Space.sm,
-    marginTop: Space.xs,
-  },
-  corePillarCard: {
-    flex: 1,
+  // --- Daily tracking cards (Wasser & Schritte) ---
+  trackCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
     padding: Space.base,
-    justifyContent: 'space-between',
   },
-  pillarMiniBtn: {
+  trackHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Space.md,
+  },
+  trackIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Space.md,
+  },
+  trackMeta: {
     flex: 1,
-    height: 28,
+    minWidth: 0,
+  },
+  trackSidePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Space.md,
+    paddingVertical: 7,
     borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  trackBar: {
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  trackBarFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  trackBtnRow: {
+    flexDirection: 'row',
+    marginTop: Space.md,
+  },
+  trackBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: Radius.pill,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  zenSecondaryCard: {
+  // --- OMAD plate card ---
+  plateCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Space.base,
     borderRadius: Radius.lg,
     borderWidth: 1,
+    padding: Space.base,
     marginTop: Space.sm,
   },
-  miniStepPill: {
+  plateIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Space.md,
+  },
+  countBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.pill,
-  },
-  sportIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: Radius.pill,
-  },
-  waterFillTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  waterFillBar: {
-    height: '100%',
-    borderRadius: 3,
   },
   weighRow: {
     flexDirection: 'row',

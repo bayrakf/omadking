@@ -1,10 +1,10 @@
+import { Radius, Space } from '@/constants/theme';
+import { loadFastingNote, saveFastingNote } from '@/lib/store';
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { Space, Radius } from '@/constants/theme';
-import { Txt, Eyebrow, useTheme } from './ui';
+import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Icon } from './icons';
 import { useLang } from './lang';
-import { loadFastingNote, saveFastingNote } from '@/lib/store';
+import { Eyebrow, Txt, useTheme } from './ui';
 
 const PRESET_TAGS = [
   '🎯 Starker Fokus',
@@ -46,7 +46,7 @@ export function DailyFastingNote({ embedded = false }: { embedded?: boolean }) {
           </Eyebrow>
         </View>
         {saved && (
-          <Txt variant="eyebrow" color="#10B981" style={{ fontSize: 10, fontWeight: '800' }}>
+          <Txt variant="eyebrow" color={c.positive} style={{ fontSize: 10, fontWeight: '800' }}>
             ✓ {lang === 'de' ? 'GESPEICHERT' : 'SAVED'}
           </Txt>
         )}
@@ -110,7 +110,6 @@ const s = StyleSheet.create({
   tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
     marginTop: Space.sm,
   },
   tagPill: {
@@ -118,5 +117,7 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: Radius.pill,
     borderWidth: 1,
+    marginRight: 6,
+    marginBottom: 6,
   },
 });

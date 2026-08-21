@@ -1,28 +1,50 @@
-import { useCallback, useState } from 'react';
-import { View, StyleSheet, Switch, Share, Platform, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { Space, Radius } from '@/constants/theme';
-import {
-  Screen, Card, Txt, Eyebrow, Enter, Button, Chip, Tap, Notice, PageHeader,
-  SegmentedControl, useTheme,
-} from '@/components/ui';
-import { useLang } from '@/components/lang';
 import { Icon } from '@/components/icons';
+import { useLang } from '@/components/lang';
 import RecipeCard from '@/components/RecipeCard';
 import {
-  dailyTargets, breakFastSteps, mealTiming, DEFAULT_PROFILE,
+  Button,
+  Card,
+  Chip,
+  Enter,
+  Eyebrow,
+  Notice, PageHeader,
+  Screen,
+  SegmentedControl,
+  Tap,
+  Txt,
+  useTheme,
+} from '@/components/ui';
+import { Radius, Space } from '@/constants/theme';
+import { generateMealPlan, QuotaError, type MealComplexity, type MealPlan } from '@/lib/ai';
+import { effectiveMaintenance } from '@/lib/energy';
+import type { CookedRecipe } from '@/lib/grocery';
+import { haptic } from '@/lib/haptic';
+import { resync } from '@/lib/notify';
+import {
+  breakFastSteps,
+  dailyTargets,
+  DEFAULT_PROFILE,
+  mealTiming,
   type Intensity, type Training, type UserProfile,
 } from '@/lib/nutrition';
-import { generateMealPlan, QuotaError, type MealPlan, type MealComplexity } from '@/lib/ai';
-import { haptic } from '@/lib/haptic';
 import {
-  loadProfileOrDefault, loadPlanHistory, savePlan, getQuota, consumeQuota,
-  loadLastSession, saveLastSession, loadPortions, savePortions,
-  loadIntakeLog, loadWeightLog, isPremium, loadCookedRecipes, loadFavoriteRecipes, todayISO, type Quota,
+  consumeQuota,
+  getQuota,
+  isPremium, loadCookedRecipes, loadFavoriteRecipes,
+  loadIntakeLog,
+  loadLastSession,
+  loadPlanHistory,
+  loadPortions,
+  loadProfileOrDefault,
+  loadWeightLog,
+  saveLastSession,
+  savePlan,
+  savePortions,
+  todayISO, type Quota,
 } from '@/lib/store';
-import type { CookedRecipe } from '@/lib/grocery';
-import { effectiveMaintenance } from '@/lib/energy';
-import { resync } from '@/lib/notify';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Platform, Share, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 
 const SPORTS = [
   { id: 'running', label: 'Running', labelDe: 'Laufen' },
@@ -42,9 +64,9 @@ const INTENSITIES: { id: Intensity; label: string; labelDe: string }[] = [
 const TIMES = ['06:00', '12:00', '17:00', '18:00', '19:00', '20:00'];
 
 const COMPLEXITY_OPTIONS: { id: MealComplexity; emoji: string; label: string; labelDe: string; sub: string; subDe: string; premiumOnly: boolean }[] = [
-  { id: 'quick',    emoji: '⚡', label: 'Quick',     labelDe: 'Schnell',    sub: '≤15 min · 1 pan',      subDe: '≤15 Min · 1 Pfanne',   premiumOnly: false },
-  { id: 'balanced', emoji: '🍽', label: 'Balanced',  labelDe: 'Ausgewogen', sub: '≤30 min · meal-prep',  subDe: '≤30 Min · Meal-Prep',   premiumOnly: false },
-  { id: 'chef',     emoji: '👨‍🍳', label: 'Chef-Level', labelDe: 'Chef-Level', sub: 'Gourmet · plating',   subDe: 'Gourmet · Anrichten', premiumOnly: true },
+  { id: 'quick', emoji: '⚡', label: 'Quick', labelDe: 'Schnell', sub: '≤15 min · 1 pan', subDe: '≤15 Min · 1 Pfanne', premiumOnly: false },
+  { id: 'balanced', emoji: '🍽', label: 'Balanced', labelDe: 'Ausgewogen', sub: '≤30 min · meal-prep', subDe: '≤30 Min · Meal-Prep', premiumOnly: false },
+  { id: 'chef', emoji: '👨‍🍳', label: 'Chef-Level', labelDe: 'Chef-Level', sub: 'Gourmet · plating', subDe: 'Gourmet · Anrichten', premiumOnly: true },
 ];
 
 function localizeRecipeTitle(title: string, lang: 'de' | 'en'): string {
@@ -275,8 +297,8 @@ export default function PlannerScreen() {
                         ? `${quota.remaining} von ${quota.limit} Plänen diese Woche verfügbar`
                         : `${quota.remaining} of ${quota.limit} plans left this week`
                       : lang === 'de'
-                      ? 'Wöchentliche Pläne aufgebraucht'
-                      : 'Weekly plans used'}
+                        ? 'Wöchentliche Pläne aufgebraucht'
+                        : 'Weekly plans used'}
                   </Eyebrow>
                   <Txt variant="small" color={c.accent}>Upgrade</Txt>
                 </View>
@@ -419,6 +441,7 @@ export default function PlannerScreen() {
                           label={lang === 'de' ? sp.labelDe : sp.label}
                           selected={sport === sp.id}
                           onPress={() => setSport(sp.id)}
+                          style={s.chipGap}
                         />
                       ))}
                     </View>
@@ -433,6 +456,7 @@ export default function PlannerScreen() {
                           label={`${d}m`}
                           selected={duration === d}
                           onPress={() => setDuration(d)}
+                          style={s.chipGap}
                         />
                       ))}
                     </View>
@@ -447,6 +471,7 @@ export default function PlannerScreen() {
                           label={lang === 'de' ? it.labelDe : it.label}
                           selected={intensity === it.id}
                           onPress={() => setIntensity(it.id)}
+                          style={s.chipGap}
                         />
                       ))}
                     </View>
@@ -461,6 +486,7 @@ export default function PlannerScreen() {
                           label={tm}
                           selected={trainingTime === tm}
                           onPress={() => setTrainingTime(tm)}
+                          style={s.chipGap}
                         />
                       ))}
                     </View>
@@ -477,7 +503,7 @@ export default function PlannerScreen() {
                 {lang === 'de' ? 'REZEPT-KOMPLEXITÄT' : 'RECIPE COMPLEXITY'}
               </Eyebrow>
               <View style={s.complexityGrid}>
-                {COMPLEXITY_OPTIONS.map((opt) => {
+                {COMPLEXITY_OPTIONS.map((opt, i) => {
                   const isSelected = complexity === opt.id;
                   const locked = opt.premiumOnly && !premium;
                   return (
@@ -496,6 +522,7 @@ export default function PlannerScreen() {
                         {
                           borderColor: isSelected ? c.accent : c.line,
                           backgroundColor: isSelected ? c.accentWash : c.surface,
+                          marginRight: i < COMPLEXITY_OPTIONS.length - 1 ? Space.sm : 0,
                         },
                       ]}
                       accessibilityLabel={`${lang === 'de' ? opt.labelDe : opt.label}${locked ? ' – Premium' : ''}`}
@@ -543,8 +570,8 @@ export default function PlannerScreen() {
                 label={loading
                   ? (lang === 'de' ? 'Generiere...' : 'Generating...')
                   : plan
-                  ? (lang === 'de' ? 'Neu generieren' : 'Generate new')
-                  : (lang === 'de' ? 'Plan generieren' : 'Generate plan')}
+                    ? (lang === 'de' ? 'Neu generieren' : 'Generate new')
+                    : (lang === 'de' ? 'Plan generieren' : 'Generate plan')}
                 onPress={() => generate()}
                 disabled={loading}
                 tone="plan"
@@ -764,7 +791,7 @@ export default function PlannerScreen() {
                   </Txt>
 
                   <View style={[s.weekFeatureGrid, { marginTop: Space.base }]}>
-                    <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                    <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line, marginRight: Space.sm }]}>
                       <Txt style={{ fontSize: 20 }}>🗓</Txt>
                       <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 4 }}>
                         {lang === 'de' ? '7-Tage-Vorschau' : '7-Day Overview'}
@@ -773,7 +800,7 @@ export default function PlannerScreen() {
                         {lang === 'de' ? 'Mo–So Mahlzeiten im Blick' : 'Mon–Sun meals organized'}
                       </Txt>
                     </View>
-                    <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                    <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line, marginRight: Space.sm }]}>
                       <Txt style={{ fontSize: 20 }}>⚡</Txt>
                       <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 4 }}>
                         {lang === 'de' ? 'Makro-Periodisierung' : 'Macro Periodisation'}
@@ -918,12 +945,12 @@ const s = StyleSheet.create({
   },
   chipSection: { marginTop: Space.base },
   chipLabel: { marginBottom: Space.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.xs },
+  chips: { flexDirection: 'row', flexWrap: 'wrap' },
+  chipGap: { marginRight: Space.xs, marginBottom: Space.xs },
 
   // Complexity Selector
   complexityGrid: {
     flexDirection: 'row',
-    gap: Space.sm,
   },
   complexityCard: {
     flex: 1,
@@ -1019,7 +1046,7 @@ const s = StyleSheet.create({
     borderRadius: Radius.pill, borderWidth: 1,
   },
   weekFeatureGrid: {
-    flexDirection: 'row', gap: Space.sm,
+    flexDirection: 'row',
   },
   weekFeatureCard: {
     flex: 1, padding: Space.sm,
