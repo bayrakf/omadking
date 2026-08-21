@@ -264,11 +264,30 @@ export default function DashboardScreen() {
 
   return (
     <Screen contentStyle={{ maxWidth: 640, alignSelf: 'center', width: '100%' }}>
-      {/* 1. Header & Weekday Streak Record */}
+      {/* 1. Greeting row — avatar, salutation, date; the PulseUp opener. */}
       <Enter index={0}>
+        <View style={s.greetRow}>
+          <View style={[s.avatar, { backgroundColor: c.accentWash, borderColor: c.accent }]}>
+            <Icon name="flame" size={20} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Txt variant="small" color={c.textDim}>{timeGreeting}!</Txt>
+            <Txt variant="title" style={{ fontWeight: '800', letterSpacing: -0.4 }}>{dateLabel}</Txt>
+          </View>
+          <Tap onPress={() => router.push('/you/reminders')} accessibilityLabel={t('you.reminders')}>
+            <View style={[s.bellBtn, { backgroundColor: c.surface, borderColor: c.line }]}>
+              <Icon name="bell" size={18} color={c.text} />
+              {streak > 0 && <View style={[s.bellDot, { backgroundColor: c.ember }]} />}
+            </View>
+          </Tap>
+        </View>
         <PageHeader
           tone={fast.isEating ? 'ember' : 'accent'}
-          eyebrow={`${timeGreeting} · ${dateLabel}`}
+          eyebrow={
+            streak > 0
+              ? (lang === 'de' ? `${streak} TAGE FASTEN-SERIE` : `${streak}-DAY FAST STREAK`)
+              : undefined
+          }
           title={fast.isEating ? t('today.windowOpen') : t('today.fasting')}
           sub={bioInsight}
         />
@@ -784,6 +803,36 @@ export default function DashboardScreen() {
 }
 
 const s = StyleSheet.create({
+  greetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Space.base,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Space.md,
+  },
+  bellBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellDot: {
+    position: 'absolute',
+    top: 9,
+    right: 10,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
   celebrationCard: {
     flexDirection: 'row',
     alignItems: 'center',

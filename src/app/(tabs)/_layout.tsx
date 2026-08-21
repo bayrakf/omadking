@@ -71,20 +71,22 @@ function TabBar({ state, navigation }: any) {
                 style={[
                   styles.iconWrap,
                   focused && {
-                    backgroundColor: route.name === 'index' ? c.emberWash : `${hue}20`,
-                    borderColor: focused ? `${hue}55` : 'transparent',
-                    borderWidth: 1,
-                    // A soft glow in the tab's own hue lifts the active item
-                    // off the bar without moving it.
+                    // Solid disc in the tab's own hue — the PulseUp pattern:
+                    // the active item is a filled circle, not an outline.
+                    backgroundColor: hue,
                     ...Platform.select({
-                      ios: { shadowColor: hue, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+                      ios: { shadowColor: hue, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 3 } },
                       android: {},
-                      default: { boxShadow: `0 2px 14px ${hue}40` } as any,
+                      default: { boxShadow: `0 3px 16px ${hue}55` } as any,
                     }),
                   },
                 ]}
               >
-                <Icon name={meta ? meta.icon : 'home'} size={19} color={focused ? hue : c.textFaint} />
+                <Icon
+                  name={meta ? meta.icon : 'home'}
+                  size={19}
+                  color={focused ? c.onAccent : c.textFaint}
+                />
                 {route.name === 'profile' && (
                   <View style={[styles.proBadge, { backgroundColor: c.gold }]}>
                     <Text style={styles.proText}>PRO</Text>
@@ -152,9 +154,9 @@ const styles = StyleSheet.create({
   },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 46 },
   iconWrap: {
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    borderRadius: Radius.pill,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
