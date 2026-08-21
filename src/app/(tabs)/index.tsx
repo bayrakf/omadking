@@ -282,24 +282,22 @@ export default function DashboardScreen() {
       {/* Celebration Notification */}
       {showCelebration && (
         <Enter index={1}>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => setShowCelebration(false)}
-            style={[s.celebrationCard, { backgroundColor: c.emberWash, borderColor: c.ember }]}
-          >
-            <Icon name="flame" size={18} color={c.ember} />
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <Txt variant="subheading" color={c.ember} style={{ fontWeight: '800', fontSize: 14 }}>
-                {lang === 'de' ? 'Fasten erfolgreich abgeschlossen! 🎉' : 'Fast completed! 🎉'}
-              </Txt>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: 2, fontSize: 12 }}>
-                {lang === 'de'
-                  ? `${streak} Tage Fasten-Serie aktiv. Großartige Leistung!`
-                  : `${streak}-day streak active. Great consistency!`}
-              </Txt>
-            </View>
-            <Icon name="check" size={16} color={c.ember} />
-          </TouchableOpacity>
+          <Tap onPress={() => setShowCelebration(false)} accessibilityLabel="Dismiss">
+            <Card tone="ember" style={s.celebrationCard}>
+              <Icon name="flame" size={18} color={c.ember} />
+              <View style={{ flex: 1, marginLeft: Space.sm }}>
+                <Txt variant="subheading" color={c.ember} style={{ fontWeight: '800', fontSize: 14 }}>
+                  {lang === 'de' ? 'Fasten erfolgreich abgeschlossen! 🎉' : 'Fast completed! 🎉'}
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 2, fontSize: 12 }}>
+                  {lang === 'de'
+                    ? `${streak} Tage Fasten-Serie aktiv. Großartige Leistung!`
+                    : `${streak}-day streak active. Great consistency!`}
+                </Txt>
+              </View>
+              <Icon name="close" size={16} color={c.ember} />
+            </Card>
+          </Tap>
         </Enter>
       )}
 
@@ -421,7 +419,7 @@ export default function DashboardScreen() {
         </Eyebrow>
 
         {/* Wasser */}
-        <View style={[s.trackCard, { backgroundColor: c.surface, borderColor: c.line }]}>
+        <Card>
           <View style={s.trackHead}>
             <View style={[s.trackIcon, { backgroundColor: c.hydroWash }]}>
               <Icon name="drop" size={16} color={c.hydro} />
@@ -475,10 +473,10 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </Card>
 
         {/* Schritte */}
-        <View style={[s.trackCard, { backgroundColor: c.surface, borderColor: c.line, marginTop: Space.sm }]}>
+        <Card style={{ marginTop: Space.sm }}>
           <View style={s.trackHead}>
             <View style={[s.trackIcon, { backgroundColor: c.accentWash }]}>
               <Icon name="footprints" size={16} color={c.accent} />
@@ -526,38 +524,32 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </Card>
       </Enter>
 
       {/* 5. HEUTIGER OMAD TELLER — volle Breite, das Herzstück des Tages */}
       <Enter index={5}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => router.push('/planner')}
-          style={[s.plateCard, { backgroundColor: c.surface, borderColor: plan ? c.plan : c.line }]}
-        >
-          <View style={[s.plateIcon, { backgroundColor: plan ? c.planWash : c.emberWash }]}>
-            <Icon name="plate" size={20} color={plan ? c.plan : c.ember} />
-          </View>
-          <View style={s.trackMeta}>
-            <Eyebrow color={plan ? c.plan : c.ember}>
-              {lang === 'de' ? 'Heutiger OMAD Teller' : "Today's OMAD plate"}
-            </Eyebrow>
-            <Txt variant="subheading" color={c.text} numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', marginTop: 2 }}>
-              {plan ? plan.recipe.title : t('today.defaultMeal')}
-            </Txt>
-            <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 1 }}>
-              {kcal} kcal · {protein}g Protein
-            </Txt>
-          </View>
-          <View style={[s.countBadge, { backgroundColor: plan ? c.planWash : c.emberWash }]}>
-            <Txt variant="eyebrow" color={plan ? c.plan : c.ember} style={{ fontSize: 8.5, fontWeight: '800' }}>
-              {plan
-                ? (lang === 'de' ? 'Rezept ➔' : 'Recipe ➔')
-                : (lang === 'de' ? 'Planen ➔' : 'Plan ➔')}
-            </Txt>
-          </View>
-        </TouchableOpacity>
+        <Tap onPress={() => router.push('/planner')} accessibilityLabel="Open meal planner">
+          <Card style={{ marginTop: Space.sm }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[s.plateIcon, { backgroundColor: plan ? c.planWash : c.emberWash }]}>
+                <Icon name="plate" size={20} color={plan ? c.plan : c.ember} />
+              </View>
+              <View style={s.trackMeta}>
+                <Eyebrow color={plan ? c.plan : c.ember}>
+                  {lang === 'de' ? 'Heutiger OMAD Teller' : "Today's OMAD plate"}
+                </Eyebrow>
+                <Txt variant="subheading" color={c.text} numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', marginTop: 2 }}>
+                  {plan ? plan.recipe.title : t('today.defaultMeal')}
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 1 }}>
+                  {kcal} kcal · {protein}g Protein
+                </Txt>
+              </View>
+              <Icon name="chevronRight" size={18} color={c.textFaint} />
+            </View>
+          </Card>
+        </Tap>
       </Enter>
 
       {/* 6. DAILY SCIENTIFIC BIO-HACK */}
@@ -795,9 +787,6 @@ const s = StyleSheet.create({
   celebrationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Space.base,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
     marginBottom: Space.sm,
   },
   zenHeroCard: {
@@ -869,11 +858,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   // --- Daily tracking cards (Wasser & Schritte) ---
-  trackCard: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Space.base,
-  },
   trackHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -921,14 +905,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   // --- OMAD plate card ---
-  plateCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Space.base,
-    marginTop: Space.sm,
-  },
   plateIcon: {
     width: 46,
     height: 46,

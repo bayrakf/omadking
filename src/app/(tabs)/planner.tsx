@@ -493,12 +493,11 @@ export default function PlannerScreen() {
                   </View>
                 </>
               )}
-            </Card>
-          </Enter>
 
-          {/* Complexity Selector */}
-          <Enter index={4}>
-            <Card style={{ marginTop: Space.base }}>
+              {/* One card for the whole session: training above the line,
+                  recipe character below it. Two cards for one decision made
+                  the form read longer than it is. */}
+              <View style={[s.complexityDivider, { backgroundColor: c.line }]} />
               <Eyebrow style={{ marginBottom: Space.md }}>
                 {lang === 'de' ? 'REZEPT-KOMPLEXITÄT' : 'RECIPE COMPLEXITY'}
               </Eyebrow>
@@ -943,12 +942,17 @@ const s = StyleSheet.create({
   restRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  chipSection: { marginTop: Space.base },
+  chipSection: { marginTop: Space.md },
   chipLabel: { marginBottom: Space.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap' },
   chipGap: { marginRight: Space.xs, marginBottom: Space.xs },
 
   // Complexity Selector
+  complexityDivider: {
+    height: 1,
+    marginTop: Space.lg,
+    marginBottom: Space.lg,
+  },
   complexityGrid: {
     flexDirection: 'row',
   },
