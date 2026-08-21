@@ -44,7 +44,7 @@ import {
 } from '@/lib/store';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Platform, Share, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
+import { Platform, Share, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 
 const SPORTS = [
   { id: 'running', label: 'Running', labelDe: 'Laufen' },
@@ -290,18 +290,21 @@ export default function PlannerScreen() {
           {quota && !quota.premium && (
             <Enter index={1}>
               <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade">
-                <View style={[s.quota, { borderColor: c.line, backgroundColor: c.surface }]}>
-                  <Eyebrow color={quota.remaining > 0 ? c.textDim : c.ember}>
-                    {quota.remaining > 0
-                      ? lang === 'de'
-                        ? `${quota.remaining} von ${quota.limit} Plänen diese Woche verfügbar`
-                        : `${quota.remaining} of ${quota.limit} plans left this week`
-                      : lang === 'de'
-                        ? 'Wöchentliche Pläne aufgebraucht'
-                        : 'Weekly plans used'}
-                  </Eyebrow>
-                  <Txt variant="small" color={c.accent}>Upgrade</Txt>
-                </View>
+                <Card style={{ marginTop: Space.base }}>
+                  <View style={s.quotaRow}>
+                    {/* Exhausted is an error state, not a sales colour. */}
+                    <Eyebrow color={quota.remaining > 0 ? c.textDim : c.negative}>
+                      {quota.remaining > 0
+                        ? lang === 'de'
+                          ? `${quota.remaining} von ${quota.limit} Plänen diese Woche verfügbar`
+                          : `${quota.remaining} of ${quota.limit} plans left this week`
+                        : lang === 'de'
+                          ? 'Wöchentliche Pläne aufgebraucht'
+                          : 'Weekly plans used'}
+                    </Eyebrow>
+                    <Txt variant="small" color={c.accent}>Upgrade</Txt>
+                  </View>
+                </Card>
               </Tap>
             </Enter>
           )}
@@ -519,8 +522,10 @@ export default function PlannerScreen() {
                       style={[
                         s.complexityCard,
                         {
-                          borderColor: isSelected ? c.accent : c.line,
-                          backgroundColor: isSelected ? c.accentWash : c.surface,
+                          // The plan's own green, not the global cyan: inside
+                          // the planner every selection speaks the same hue.
+                          borderColor: isSelected ? c.plan : c.line,
+                          backgroundColor: isSelected ? c.planWash : c.surface,
                           marginRight: i < COMPLEXITY_OPTIONS.length - 1 ? Space.sm : 0,
                         },
                       ]}
@@ -538,7 +543,7 @@ export default function PlannerScreen() {
                       <Txt style={{ fontSize: 24, textAlign: 'center' }}>{opt.emoji}</Txt>
                       <Txt
                         variant="subheading"
-                        color={isSelected ? c.accent : c.text}
+                        color={isSelected ? c.plan : c.text}
                         style={{ fontSize: 13, fontWeight: '700', marginTop: 6, textAlign: 'center' }}
                       >
                         {lang === 'de' ? opt.labelDe : opt.label}
@@ -566,17 +571,15 @@ export default function PlannerScreen() {
             )}
             <View style={[s.generateRow, { marginTop: Space.base }]}>
               <Button
-                label={loading
-                  ? (lang === 'de' ? 'Generiere...' : 'Generating...')
-                  : plan
-                    ? (lang === 'de' ? 'Neu generieren' : 'Generate new')
-                    : (lang === 'de' ? 'Plan generieren' : 'Generate plan')}
+                label={plan
+                  ? (lang === 'de' ? 'Neu generieren' : 'Generate new')
+                  : (lang === 'de' ? 'Plan generieren' : 'Generate plan')}
                 onPress={() => generate()}
                 disabled={loading}
+                loading={loading}
                 tone="plan"
                 style={s.generateBtn}
               />
-              {loading && <ActivityIndicator style={s.spinner} color={c.plan} />}
             </View>
 
             {plan && retryFree && (
@@ -743,9 +746,12 @@ export default function PlannerScreen() {
           {quota && !quota.premium && plan && (
             <Enter index={9}>
               <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade to Premium">
-                <View style={[s.upsellBanner, { borderColor: c.ember, backgroundColor: c.emberWash }]}>
+                {/* Gold, not ember: the palette's warm colour means "eat now",
+                    and a sales banner is exactly what that must never be spent
+                    on. Gold is premium's own hue. */}
+                <View style={[s.upsellBanner, { borderColor: c.gold, backgroundColor: c.goldWash }]}>
                   <View style={{ flex: 1 }}>
-                    <Eyebrow color={c.ember}>
+                    <Eyebrow color={c.gold}>
                       {lang === 'de' ? 'UNBEGRENZTE PLÄNE + CHEF-LEVEL REZEPTE' : 'UNLIMITED PLANS + CHEF-LEVEL RECIPES'}
                     </Eyebrow>
                     <Txt variant="small" color={c.textDim} style={{ marginTop: 3 }}>
@@ -754,7 +760,7 @@ export default function PlannerScreen() {
                         : 'Get Premium to generate daily gourmet recipes with the AI chef.'}
                     </Txt>
                   </View>
-                  <Txt variant="small" color={c.ember} style={{ fontWeight: '700', marginLeft: Space.sm }}>
+                  <Txt variant="small" color={c.gold} style={{ fontWeight: '700', marginLeft: Space.sm }}>
                     Upgrade
                   </Txt>
                 </View>
@@ -934,10 +940,8 @@ export default function PlannerScreen() {
 }
 
 const s = StyleSheet.create({
-  quota: {
+  quotaRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Space.base,
-    paddingVertical: Space.md, marginTop: Space.base,
   },
   restRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

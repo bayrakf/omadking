@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { Space, Radius } from '@/constants/theme';
-import { Card, Txt, Eyebrow, Tap, useTheme, useTone, washOf } from './ui';
-import { useLang } from './lang';
-import { Icon } from './icons';
-import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
-import { isFavoriteRecipe, toggleFavoriteRecipe } from '@/lib/store';
+import { Radius, Space } from '@/constants/theme';
 import type { MealPlan } from '@/lib/ai';
+import { scaleIngredients, splitAmount, splitSteps } from '@/lib/grocery';
+import { isFavoriteRecipe, toggleFavoriteRecipe } from '@/lib/store';
+import { useEffect, useState } from 'react';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Icon } from './icons';
+import { useLang } from './lang';
+import { Card, Eyebrow, Tap, Txt, useTheme, useTone, washOf } from './ui';
 
 /**
  * Steps are checkable because this is read standing at a hob with one hand
@@ -95,8 +95,8 @@ export default function RecipeCard({
         />
         {plan.complexity === 'chef' && (
           <View style={[s.chefImageBadge, { backgroundColor: 'rgba(20, 17, 14, 0.82)', borderColor: c.gold }]}>
-            <Icon name="crown" size={11} color="#F59E0B" />
-            <Txt variant="eyebrow" color="#F59E0B" style={{ fontSize: 9, fontWeight: '800', marginLeft: 4 }}>
+            <Icon name="crown" size={11} color={c.gold} />
+            <Txt variant="eyebrow" color={c.gold} style={{ fontSize: 9, fontWeight: '800', marginLeft: 4 }}>
               GOURMET PLATING ARCHITEKTUR
             </Txt>
           </View>
@@ -107,14 +107,16 @@ export default function RecipeCard({
           style={[
             s.favBtn,
             {
-              backgroundColor: favorite ? c.negative : 'rgba(20, 17, 14, 0.72)',
-              borderColor: favorite ? c.negative : 'rgba(255, 252, 247, 0.28)',
+              // Gold, not red: a favourite is something kept, and red here
+              // read as "remove". Gold is the palette's "worth keeping".
+              backgroundColor: favorite ? c.gold : 'rgba(20, 17, 14, 0.72)',
+              borderColor: favorite ? c.gold : 'rgba(255, 252, 247, 0.28)',
             },
           ]}
           accessibilityLabel={favorite ? 'Favorit' : 'Als Favorit speichern'}
         >
-          <Icon name="check" size={13} color="#FFFFFF" strokeWidth={2.4} />
-          <Txt variant="eyebrow" color="#FFFFFF" style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
+          <Icon name="check" size={13} color={favorite ? '#231303' : '#FFFFFF'} strokeWidth={2.4} />
+          <Txt variant="eyebrow" color={favorite ? '#231303' : '#FFFFFF'} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
             {favorite ? 'FAVORIT' : '+FAVORIT'}
           </Txt>
         </TouchableOpacity>
@@ -151,16 +153,21 @@ export default function RecipeCard({
         </View>
       )}
 
+      {/* Same macro language as the planner's daily-target card: neutral
+          wells, one coloured dot each. Four full-colour boxes here fought the
+          card photo and the ingredient badges for attention; the dot keeps
+          the mapping legible without shouting. */}
       <View style={s.macros}>
         {[
-          { v: String(plan.total_kcal), label: 'KCAL', color: c.gold, bg: c.goldWash },
-          { v: `${plan.protein_g}g`, label: 'PROTEIN', color: c.body, bg: c.bodyWash },
-          { v: `${plan.carbs_g}g`, label: lang === 'de' ? 'CARBS' : 'CARBS', color: c.plan, bg: c.planWash },
-          { v: `${plan.fat_g}g`, label: lang === 'de' ? 'FETT' : 'FAT', color: c.hydro, bg: c.hydroWash },
+          { v: String(plan.total_kcal), label: 'KCAL', color: c.ember },
+          { v: `${plan.protein_g}g`, label: 'PROTEIN', color: c.plan },
+          { v: `${plan.carbs_g}g`, label: 'CARBS', color: c.hydro },
+          { v: `${plan.fat_g}g`, label: lang === 'de' ? 'FETT' : 'FAT', color: c.gold },
         ].map((m) => (
-          <View key={m.label} style={[s.macro, { backgroundColor: m.bg, borderColor: m.color }]}>
-            <Txt variant="subheading" style={{ fontSize: 16, fontWeight: '700', color: m.color }}>{m.v}</Txt>
-            <Eyebrow style={{ marginTop: 2 }} color={m.color}>{m.label}</Eyebrow>
+          <View key={m.label} style={[s.macro, { backgroundColor: c.well, borderColor: c.line }]}>
+            <View style={[s.macroDot, { backgroundColor: m.color }]} />
+            <Txt variant="subheading" style={{ fontSize: 16, fontWeight: '700', color: c.text }}>{m.v}</Txt>
+            <Eyebrow style={{ marginTop: 2 }} color={c.textDim}>{m.label}</Eyebrow>
           </View>
         ))}
       </View>
@@ -315,6 +322,12 @@ const s = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
     marginRight: Space.xs,
+  },
+  macroDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginBottom: 4,
   },
   ingredientHead: {
     flexDirection: 'row',
