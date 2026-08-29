@@ -1304,7 +1304,7 @@ export default async function run() {
   {
     // Fourteen days at 1800 kcal while losing ~0.5 kg/week → about 2350.
     const day = (back) => {
-      const d = new Date('2026-08-20T12:00:00Z');
+      const d = new Date();
       d.setDate(d.getDate() - back);
       return localISO(d);
     };

@@ -1,6 +1,7 @@
 import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
 import RecipeCard from '@/components/RecipeCard';
+import { CookingModeModal } from '@/components/CookingModeModal';
 import {
   Button,
   Card,
@@ -158,6 +159,7 @@ export default function PlannerScreen() {
   const [copied, setCopied] = useState(false);
   const [plan, setPlan] = useState<MealPlan | null>(null);
   const [portions, setPortions] = useState(1);
+  const [showCookingMode, setShowCookingMode] = useState(false);
   // Undefined until measured — dailyTargets then behaves exactly as before.
   const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [rotation, setRotation] = useState<CookedRecipe[]>([]);
@@ -394,10 +396,9 @@ export default function PlannerScreen() {
                     <View style={s.ringWrap}>
                       <MacroRing pPct={pPct} cPct={cPct} fPct={fPct} />
                       <View style={s.ringCenter} pointerEvents="none">
-                        <Txt variant="hero" style={{ fontSize: 23, lineHeight: 27, fontWeight: '800' }}>
-                          {totalKcal.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')}
+                        <Txt variant="hero" style={{ fontSize: 20, lineHeight: 24, fontWeight: '800', textAlign: 'center' }}>
+                          {totalKcal.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')} kcal
                         </Txt>
-                        <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9 }}>KCAL</Txt>
                       </View>
                     </View>
 
@@ -714,6 +715,14 @@ export default function PlannerScreen() {
                   </Txt>
                 ) : null}
               </Card>
+              <View style={{ marginTop: Space.base }}>
+                <Button
+                  label={lang === 'de' ? '👨‍🍳 Kochmodus starten (Hands-Free)' : '👨‍🍳 Start Cooking Mode'}
+                  onPress={() => setShowCookingMode(true)}
+                  tone="plan"
+                />
+              </View>
+
               <RecipeCard
                 plan={plan}
                 portions={portions}
@@ -730,6 +739,13 @@ export default function PlannerScreen() {
                   style={s.planAction}
                 />
               </View>
+
+              <CookingModeModal
+                visible={showCookingMode}
+                onClose={() => setShowCookingMode(false)}
+                plan={plan}
+                portions={portions}
+              />
             </Enter>
           )}
 

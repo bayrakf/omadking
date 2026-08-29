@@ -404,9 +404,9 @@ export default function ProgressScreen() {
       <Enter index={2}>
         <SegmentedControl
           values={[
-            { id: 'week', label: t('progress.tabWeek'), icon: 'chart' },
-            { id: 'body', label: t('progress.tabBody'), icon: 'user' },
-            { id: 'history', label: t('progress.tabHistory'), icon: 'clock' },
+            { id: 'week', label: t('progress.tabWeek'), accessibilityLabel: 'Week & trend', icon: 'chart' },
+            { id: 'body', label: t('progress.tabBody'), accessibilityLabel: 'Body & rate', icon: 'user' },
+            { id: 'history', label: t('progress.tabHistory'), accessibilityLabel: 'History', icon: 'clock' },
           ]}
           selected={tab}
           onSelect={setTab}

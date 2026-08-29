@@ -3,6 +3,8 @@ import { DailyBioHackCard } from '@/components/DailyBioHackCard';
 import { DailyFastingNote } from '@/components/DailyFastingNote';
 import { DayBand } from '@/components/DayBand';
 import { FastingFeelingBar } from '@/components/FastingFeelingBar';
+import { FastingHaloDial } from '@/components/FastingHaloDial';
+import { ShareableFastCardModal } from '@/components/ShareableFastCardModal';
 import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
 import { MetabolicProgressBar } from '@/components/MetabolicProgressBar';
@@ -10,36 +12,39 @@ import { MetabolicTimelineModal } from '@/components/MetabolicTimelineModal';
 import {
   Button,
   Card,
+  Divider,
   Enter,
   Eyebrow,
   PageHeader,
   Screen,
   Tap,
   Txt,
-  useTheme, washOf,
+  useTheme,
+  useWide,
+  washOf,
 } from '@/components/ui';
 import { WeekdayPillStrip } from '@/components/WeekdayPillStrip';
 import { WindowShifterModal } from '@/components/WindowShifterModal';
 import { Radius, Space, Type } from '@/constants/theme';
-import { dayAgenda } from '@/lib/agenda';
+import { dayAgenda, type AgendaItem } from '@/lib/agenda';
 import type { MealPlan } from '@/lib/ai';
 import { formatReadableDate, longestStreak } from '@/lib/dates';
 import {
-  effectiveMaintenance, intakeQuestionFor, scaleJump,
-  type IntakeQuestion, type ScaleJump,
+  effectiveMaintenance, intakeQuestionFor, scaleJump, readiness as getReadiness,
+  type IntakeQuestion, type ScaleJump, type Readiness,
 } from '@/lib/energy';
 import { haptic } from '@/lib/haptic';
 import { setEnabled as setRemindersEnabled } from '@/lib/notify';
 import {
   dailyTargets,
   DEFAULT_PROFILE,
-  fastingState, formatCountdown,
+  fastingState,
   fromMinutes,
   hydrationTargetMl, toMinutes,
   type FastingState,
   type UserProfile,
 } from '@/lib/nutrition';
-import { INTAKE_OPTIONS, intakeOptionLabel } from '@/lib/review';
+import { INTAKE_OPTIONS, intakeKcal, intakeLabel } from '@/lib/review';
 import { playZenChime } from '@/lib/sound';
 import {
   clearTodayWindowShift,
@@ -55,6 +60,7 @@ import {
   loadTodayWindowShift,
   loadWeightLog,
   markFastComplete,
+  markCooked,
   markRemindersOffered,
   recordIntake,
   remindersOffered,
@@ -70,10 +76,20 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
+const AGENDA_ICONS: Record<string, any> = {
+  cook: 'plate',
+  window_open: 'flame',
+  snack: 'plate',
+  meal: 'plate',
+  window_close: 'moon',
+  log_fast: 'check',
+};
+
 export default function DashboardScreen() {
   const router = useRouter();
   const c = useTheme();
   const { lang, t } = useLang();
+  const isWide = useWide();
 
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -94,10 +110,12 @@ export default function DashboardScreen() {
   const [question, setQuestion] = useState<IntakeQuestion | null>(null);
   const [answered, setAnswered] = useState<{ date: string; factor: number } | null>(null);
   const [measured, setMeasured] = useState<number | undefined>(undefined);
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [showShifter, setShowShifter] = useState(false);
   const [showMetabolic, setShowMetabolic] = useState(false);
   const [showBreakFast, setShowBreakFast] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
   const [isShifted, setIsShifted] = useState(false);
   const [steps, setSteps] = useState(0);
 
@@ -125,6 +143,8 @@ export default function DashboardScreen() {
     const latest = [...(intake ?? [])].sort((a, b) => a.date.localeCompare(b.date)).pop();
     setAnswered(latest ? { date: latest.date, factor: latest.factor } : null);
     setJump(scaleJump(weights, intake));
+    const ready = getReadiness(intake ?? [], weights ?? []);
+    setReadiness(ready);
     setMeasured(effectiveMaintenance(intake, weights, dailyTargets(effectiveProfile, null).maintenance_kcal, prem));
     setProfile(effectiveProfile);
     setHydration(h);
@@ -218,6 +238,16 @@ export default function DashboardScreen() {
     setQuestion(null);
   };
 
+  const doAction = async (kind: AgendaItem['kind']) => {
+    if (kind === 'cook') {
+      await markCooked(todayISO(), plan);
+      setCooked(true);
+      haptic('success');
+    } else if (kind === 'log_fast') {
+      await quickFinishFast();
+    }
+  };
+
   const logWeight = async () => {
     const w = parseFloat(weightInput.replace(',', '.'));
     if (!isFinite(w) || w < 30 || w > 300) return;
@@ -262,64 +292,78 @@ export default function DashboardScreen() {
         ? (lang === 'de' ? 'Ketose aktiv · Dein Körper greift reine Fettreserven an' : 'Ketosis active · Burning pure fat reserves')
         : (lang === 'de' ? 'Verdauung ruht · Insulin sinkt für optimalen Fokus' : 'Digestion resting · Insulin dropping for optimal focus');
 
-  return (
-    <Screen contentStyle={{ maxWidth: 640, alignSelf: 'center', width: '100%' }}>
-      {/* 1. Greeting row — avatar, salutation, date; the PulseUp opener. */}
-      <Enter index={0}>
-        <View style={s.greetRow}>
-          <View style={[s.avatar, { backgroundColor: c.accentWash, borderColor: c.accent }]}>
-            <Icon name="flame" size={20} color={c.accent} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Txt variant="small" color={c.textDim}>{timeGreeting}!</Txt>
-            <Txt variant="title" style={{ fontWeight: '800', letterSpacing: -0.4 }}>{dateLabel}</Txt>
-          </View>
-          <Tap onPress={() => router.push('/you/reminders')} accessibilityLabel={t('you.reminders')}>
-            <View style={[s.bellBtn, { backgroundColor: c.surface, borderColor: c.line }]}>
-              <Icon name="bell" size={18} color={c.text} />
-              {streak > 0 && <View style={[s.bellDot, { backgroundColor: c.ember }]} />}
-            </View>
-          </Tap>
-        </View>
-        <PageHeader
-          tone={fast.isEating ? 'ember' : 'accent'}
-          eyebrow={
-            streak > 0
-              ? (lang === 'de' ? `${streak} TAGE FASTEN-SERIE` : `${streak}-DAY FAST STREAK`)
-              : undefined
-          }
-          title={fast.isEating ? t('today.windowOpen') : t('today.fasting')}
-          sub={bioInsight}
-        />
-        <WeekdayPillStrip
-          fastLog={fastLog}
-          streak={streak}
-          longestStreakCount={longestStreak(fastLog)}
-        />
-      </Enter>
+  // Phase metadata for FastingHaloDial
+  const phaseInfo = hoursFasted >= 18
+    ? { name: lang === 'de' ? 'Autophagie' : 'Autophagy', hue: 'plan' as const }
+    : hoursFasted >= 12
+    ? { name: lang === 'de' ? 'Ketose' : 'Ketosis', hue: 'accent' as const }
+    : hoursFasted >= 4
+    ? { name: lang === 'de' ? 'Fettstart' : 'Fat Burn', hue: 'ember' as const }
+    : { name: lang === 'de' ? 'Blutzucker' : 'Glucose', hue: 'gold' as const };
 
-      {/* Celebration Notification */}
-      {showCelebration && (
-        <Enter index={1}>
-          <Tap onPress={() => setShowCelebration(false)} accessibilityLabel="Dismiss">
-            <Card tone="ember" style={s.celebrationCard}>
-              <Icon name="flame" size={18} color={c.ember} />
-              <View style={{ flex: 1, marginLeft: Space.sm }}>
-                <Txt variant="subheading" color={c.ember} style={{ fontWeight: '800', fontSize: 14 }}>
-                  {lang === 'de' ? 'Fasten erfolgreich abgeschlossen! 🎉' : 'Fast completed! 🎉'}
-                </Txt>
-                <Txt variant="small" color={c.textDim} style={{ marginTop: 2, fontSize: 12 }}>
-                  {lang === 'de'
-                    ? `${streak} Tage Fasten-Serie aktiv. Großartige Leistung!`
-                    : `${streak}-day streak active. Great consistency!`}
-                </Txt>
-              </View>
-              <Icon name="close" size={16} color={c.ember} />
-            </Card>
-          </Tap>
-        </Enter>
-      )}
+  // Context-aware coaching anticipation chips
+  const smartChips = fast.isEating
+    ? [
+        {
+          id: 'coma',
+          icon: 'shield' as const,
+          label: lang === 'de' ? '😴 Food-Coma verhindern' : '😴 Prevent Food-Coma',
+          q: lang === 'de' ? 'Wie verhindere ich Müdigkeit und Food-Coma nach meiner OMAD Mahlzeit?' : 'How do I prevent fatigue and food coma after my OMAD meal?',
+        },
+        {
+          id: 'drink',
+          icon: 'drop' as const,
+          label: lang === 'de' ? '💧 Trinken nach dem Essen' : '💧 Water after eating',
+          q: lang === 'de' ? 'Wann und wie viel sollte ich nach dem Fastenbrechen trinken?' : 'When and how much should I drink after breaking my fast?',
+        },
+      ]
+    : hoursFasted >= 18
+    ? [
+        {
+          id: 'break',
+          icon: 'plate' as const,
+          label: lang === 'de' ? '🥗 Optimaler 1. Bissen' : '🥗 Perfect 1st bite',
+          q: lang === 'de' ? 'Was ist der beste erste Bissen nach einem 18h+ Fasten, um den Magen zu schonen?' : 'What is the best first bite after an 18h+ fast for digestion?',
+        },
+        {
+          id: 'autophagy',
+          icon: 'coach' as const,
+          label: lang === 'de' ? '⚡ Autophagie-Effekt' : '⚡ Autophagy peak',
+          q: lang === 'de' ? 'Welche Vorteile hat die Autophagie ab Stunde 18 wissenschaftlich?' : 'What are the scientific benefits of autophagy past hour 18?',
+        },
+      ]
+    : hoursFasted >= 12
+    ? [
+        {
+          id: 'salt',
+          icon: 'salt' as const,
+          label: lang === 'de' ? '🧂 Sofort-Trick gegen Hunger' : '🧂 Quick hunger fix',
+          q: lang === 'de' ? 'Wie hilft eine Prise Salz oder Elektrolyte gegen Fasten-Hunger und Kopfschmerzen?' : 'How does a pinch of salt or electrolytes fix fasting hunger?',
+        },
+        {
+          id: 'ketosis',
+          icon: 'flame' as const,
+          label: lang === 'de' ? '🔥 Ketose-Booster' : '🔥 Ketosis booster',
+          q: lang === 'de' ? 'Wie kann ein leichter 15 Min Spaziergang die Ketose im Fasten beschleunigen?' : 'How does a light 15 min walk accelerate ketosis while fasting?',
+        },
+      ]
+    : [
+        {
+          id: 'coffee',
+          icon: 'shield' as const,
+          label: lang === 'de' ? '☕ Was bricht das Fasten?' : '☕ What breaks a fast?',
+          q: lang === 'de' ? 'Was bricht das Fasten wirklich? (Schwarzer Kaffee, Tee, Süßstoff, Zitrone)' : 'What actually breaks a fast? (Black coffee, tea, stevia, lemon)',
+        },
+        {
+          id: 'focus',
+          icon: 'coach' as const,
+          label: lang === 'de' ? '🧠 Mentaler Fokus am Start' : '🧠 Morning focus',
+          q: lang === 'de' ? 'Warum fällt das Denken beim Fastenstart oft leichter und wie nutze ich das?' : 'Why is mental clarity higher in the morning while fasting?',
+        },
+      ];
 
+  const leftColumnContent = (
+    <>
       {/* 2. THE MAJESTIC ZEN FASTING HERO */}
       <Enter index={2}>
         <View style={[s.zenHeroCard, { backgroundColor: c.heroFill }]}>
@@ -346,22 +390,25 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Hero Countdown */}
-          <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/timer')} style={s.zenCountContainer}>
-            <Txt variant="hero" color={c.onHero} style={s.zenHeroFigure}>
-              {formatCountdown(fast.remainingMs)}
-            </Txt>
-            <Txt variant="small" color={c.onHero} style={s.zenCountCaption}>
-              {lang === 'de'
-                ? (fast.isEating ? `verbleibend bis Essensfenster-Ende` : `gefastet · Essensfenster öffnet um ${fast.windowStart}`)
-                : (fast.isEating ? `remaining in eating window` : `fasted · opens at ${fast.windowStart}`)}
-            </Txt>
-          </TouchableOpacity>
+          {/* Halo Fasting Dial */}
+          <FastingHaloDial
+            remainingMs={fast.remainingMs}
+            fastingHours={fast.fastingHours}
+            progressPct={fast.progressPct}
+            isEating={fast.isEating}
+            windowStart={fast.windowStart}
+            windowEnd={fast.windowEnd}
+            hoursFasted={hoursFasted}
+            phaseName={phaseInfo.name}
+            phaseHue={phaseInfo.hue}
+            onPressTimer={() => router.push('/timer')}
+            onPressAdjust={() => setShowShifter(true)}
+          />
 
           {/* DayBand 24h timeline */}
           <DayBand
             onHero
-            style={{ marginTop: Space.md }}
+            style={{ marginTop: Space.xs }}
             nowMin={now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60}
             windowStartMin={toMinutes(profile.omad_window_start)}
             windowLengthMin={profile.omad_window_hours * 60}
@@ -385,6 +432,7 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 onPress={quickFinishFast}
                 activeOpacity={0.8}
+                accessibilityLabel={lang === 'de' ? 'Fasten beenden & Essen loggen' : 'End fast & log meal'}
                 style={[s.zenPrimaryBtn, { backgroundColor: c.ember }]}
               >
                 <Icon name="plate" size={14} color="#FFFFFF" />
@@ -428,16 +476,37 @@ export default function DashboardScreen() {
         </View>
       </Enter>
 
-      {/* 4. DAILY TRACKING — Wasser & Schritte, großflächig und griffbereit.
-          Beides war vorher in winzigen Halbbreiten-Karten versteckt; die
-          häufigsten Aktionen des Tages verdienen volle Breite und echte
-          Tap-Targets. */}
+      {/* CONTEXT-AWARE COACHING ANTICIPATION CHIPS */}
       <Enter index={4}>
+        <View style={s.smartChipSection}>
+          <Eyebrow color={c.textDim} style={{ marginBottom: Space.xs, fontSize: 10 }}>
+            {lang === 'de' ? 'AKTUELLE BIO-TIPPS' : 'SMART BIO-TIPS'}
+          </Eyebrow>
+          <View style={s.smartChipGrid}>
+            {smartChips.map((chip) => (
+              <TouchableOpacity
+                key={chip.id}
+                activeOpacity={0.8}
+                onPress={() => router.push({ pathname: '/chat', params: { q: chip.q } })}
+                style={[s.smartChipPill, { backgroundColor: c.surface, borderColor: c.line }]}
+              >
+                <Icon name={chip.icon} size={13} color={c.accent} />
+                <Txt variant="body" color={c.text} numberOfLines={1} style={{ marginLeft: 6, fontSize: 12, fontWeight: '600', flex: 1 }}>
+                  {chip.label}
+                </Txt>
+                <Icon name="chevronRight" size={11} color={c.textDim} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Enter>
+
+      {/* 4. DAILY TRACKING — Wasser */}
+      <Enter index={5}>
         <Eyebrow style={{ marginTop: Space.base, marginBottom: Space.sm }}>
-          {lang === 'de' ? 'Heute tracken' : 'Track today'}
+          {lang === 'de' ? 'Hydration & Elektrolyte' : 'Hydration & Electrolytes'}
         </Eyebrow>
 
-        {/* Wasser */}
         <Card>
           <View style={s.trackHead}>
             <View style={[s.trackIcon, { backgroundColor: c.hydroWash }]}>
@@ -447,7 +516,7 @@ export default function DashboardScreen() {
               <Eyebrow color={c.hydro}>{lang === 'de' ? 'Wasser' : 'Water'}</Eyebrow>
               <Txt variant="heading" style={{ fontSize: 20, marginTop: 1 }}>
                 {(hydration.ml / 1000).toFixed(1)}
-                <Txt variant="small" color={c.textDim}> / {(waterTarget / 1000).toFixed(1)} L</Txt>
+                <Txt variant="small" color={c.textDim}> / {(waterTarget / 1000).toFixed(1)}L</Txt>
               </Txt>
             </View>
             <TouchableOpacity
@@ -482,7 +551,7 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 key={ml}
                 onPress={() => addWater(ml)}
-                accessibilityLabel={`+${ml} ml Wasser`}
+                accessibilityLabel={lang === 'de' ? `+${ml} ml Wasser` : `Add ${ml} millilitres`}
                 style={[s.trackBtn, { backgroundColor: c.well, marginRight: i < 2 ? Space.sm : 0 }]}
               >
                 <Icon name="plus" size={12} color={c.hydro} strokeWidth={2.2} />
@@ -493,15 +562,191 @@ export default function DashboardScreen() {
             ))}
           </View>
         </Card>
+      </Enter>
 
-        {/* Schritte */}
+      {/* 24h Tages-Agenda Timeline */}
+      <Enter index={6}>
+        <Card style={{ marginTop: Space.base }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.xs }}>
+            <Eyebrow color={c.accent}>{lang === 'de' ? 'Tages-Agenda' : 'Day timeline'}</Eyebrow>
+          </View>
+          {items.map((item, i) => {
+            const dim = item.past || item.done;
+            return (
+              <View key={item.kind}>
+                {i > 0 && <Divider style={{ marginVertical: 4 }} />}
+                <Tap
+                  onPress={item.actionable && !item.done ? () => doAction(item.kind) : undefined}
+                  disabled={!item.actionable || item.done}
+                  accessibilityRole={item.actionable ? 'button' : 'text'}
+                  accessibilityLabel={item.kind === 'log_fast' && !item.done ? (lang === 'de' ? 'Fasten beenden & Essen loggen' : `Log the fast at ${item.at}`) : `${item.title} at ${item.at}`}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+                    <Txt variant="data" color={dim ? c.textFaint : c.text} style={{ width: 48, fontSize: 13 }}>{item.at}</Txt>
+                    <Icon
+                      name={item.done ? 'check' : AGENDA_ICONS[item.kind] ?? 'flame'}
+                      size={15}
+                      color={item.done ? c.positive : dim ? c.textFaint : c.accent}
+                    />
+                    <View style={{ flex: 1, marginLeft: Space.sm }}>
+                      <Txt
+                        variant="bodyMedium"
+                        color={dim ? c.textFaint : c.text}
+                        style={item.done ? { textDecorationLine: 'line-through' } : undefined}
+                      >
+                        {item.title}
+                      </Txt>
+                    </View>
+                    {item.actionable && !item.done && (
+                      <Txt variant="small" color={c.accent} style={{ fontWeight: '700' }}>
+                        {lang === 'de' ? 'Erledigen' : 'Tick'}
+                      </Txt>
+                    )}
+                  </View>
+                </Tap>
+              </View>
+            );
+          })}
+        </Card>
+      </Enter>
+
+      {/* Calibration Readiness Countdown */}
+      {readiness && !readiness.ready && (
+        <Enter index={7}>
+          <Card style={{ marginTop: Space.base }}>
+            <Eyebrow color={c.textDim}>{t('card.calibrating')}</Eyebrow>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
+              {readiness.note}
+            </Txt>
+          </Card>
+        </Enter>
+      )}
+
+      {/* MORNING INTAKE CHECK-IN (Only when question is active) */}
+      {question && (
+        <Enter index={8}>
+          <Card style={{ marginTop: Space.base }} tone="accent">
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Eyebrow color={c.accent}>
+                {lang === 'de'
+                  ? (question.date === todayISO() ? '1-TAP TRACKING: WIE LIEF ES HEUTE?' : 'MORGEN-CHECK-IN: WIE LIEF ES GESTERN?')
+                  : (question.date === todayISO() ? '1-TAP TRACKING: TODAY' : 'CHECK-IN: YESTERDAY')}
+              </Eyebrow>
+              <View style={[s.countBadge, { backgroundColor: c.accentWash }]}>
+                <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9, fontWeight: '800' }}>
+                  {lang === 'de' ? '1-TAP' : '1-TAP'}
+                </Txt>
+              </View>
+            </View>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: 4, fontSize: 12 }}>
+              {lang === 'de'
+                ? `Gegen das Ziel von ${questionKcal} kcal. Kalibriert deinen echten Stoffwechsel.`
+                : `Roughly, against the ${questionKcal} kcal target. This is what lets the app measure what your body actually costs.`}
+            </Txt>
+            <View style={s.intakeGrid}>
+              {INTAKE_OPTIONS.map((opt) => {
+                const sel = answered?.date === question.date && answered?.factor === opt.factor;
+                const cal = intakeKcal(opt.factor, questionKcal);
+                return (
+                  <Tap
+                    key={String(opt.factor)}
+                    onPress={() => answerIntake(opt.factor)}
+                    accessibilityLabel={`${opt.label}, about ${cal} kcal`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: sel }}
+                    style={s.intakeCell}
+                  >
+                    <View
+                      style={[
+                        s.intakeBtn,
+                        {
+                          backgroundColor: sel ? c.accent : c.well,
+                          borderWidth: 1,
+                          borderColor: sel ? c.accent : c.line,
+                        },
+                      ]}
+                    >
+                      <Txt
+                        variant="small"
+                        color={sel ? c.onAccent : c.text}
+                        style={{ fontSize: 12, fontWeight: '700', textAlign: 'center' }}
+                      >
+                        {opt.label}
+                      </Txt>
+                      <Eyebrow
+                        color={sel ? c.onAccent : c.textFaint}
+                        style={{ marginTop: 2, fontSize: 10, textAlign: 'center' }}
+                      >
+                        {opt.factor === 1 ? '' : '≈ '}{cal} kcal
+                      </Eyebrow>
+                    </View>
+                  </Tap>
+                );
+              })}
+            </View>
+          </Card>
+        </Enter>
+      )}
+
+      {/* ANSWERED SUMMARY CARD */}
+      {answered && !question && (
+        <Enter index={8}>
+          <Tap
+            onPress={() => setQuestion({ date: answered.date, hoursSinceClose: 0 })}
+            accessibilityLabel="Change today's answer"
+          >
+            <Card style={{ marginTop: Space.base }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Txt variant="small" color={c.textDim}>
+                  {answered.date === todayISO() ? 'Today' : 'Yesterday'}: {intakeLabel(answered.factor, 'en')}
+                </Txt>
+                <Txt variant="small" color={c.accent} style={{ fontWeight: '700' }}>
+                  {lang === 'de' ? 'ändern' : 'change'}
+                </Txt>
+              </View>
+            </Card>
+          </Tap>
+        </Enter>
+      )}
+    </>
+  );
+
+  const rightColumnContent = (
+    <>
+      {/* 5. HEUTIGER OMAD TELLER */}
+      <Enter index={7}>
+        <Tap onPress={() => router.push('/planner')} accessibilityLabel="Open meal planner">
+          <Card style={{ marginTop: isWide ? 0 : Space.sm }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[s.plateIcon, { backgroundColor: plan ? c.planWash : c.emberWash }]}>
+                <Icon name="plate" size={20} color={plan ? c.plan : c.ember} />
+              </View>
+              <View style={s.trackMeta}>
+                <Eyebrow color={plan ? c.plan : c.ember}>
+                  {lang === 'de' ? 'Heutiger OMAD Teller' : "Today's OMAD plate"}
+                </Eyebrow>
+                <Txt variant="subheading" color={c.text} numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', marginTop: 2 }}>
+                  {plan ? plan.recipe.title : t('today.defaultMeal')}
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 1 }}>
+                  {kcal} kcal · {protein}g Protein
+                </Txt>
+              </View>
+              <Icon name="chevronRight" size={18} color={c.textFaint} />
+            </View>
+          </Card>
+        </Tap>
+      </Enter>
+
+      {/* Schritte & Fasted Workout */}
+      <Enter index={8}>
         <Card style={{ marginTop: Space.sm }}>
           <View style={s.trackHead}>
             <View style={[s.trackIcon, { backgroundColor: c.accentWash }]}>
               <Icon name="footprints" size={16} color={c.accent} />
             </View>
             <View style={s.trackMeta}>
-              <Eyebrow color={c.accent}>{lang === 'de' ? 'Schritte' : 'Steps'}</Eyebrow>
+              <Eyebrow color={c.accent}>{lang === 'de' ? 'Schritte & Aktivität' : 'Steps & Activity'}</Eyebrow>
               <Txt variant="heading" style={{ fontSize: 20, marginTop: 1 }}>
                 {steps.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')}
                 <Txt variant="small" color={c.textDim}> / 10.000</Txt>
@@ -546,99 +791,14 @@ export default function DashboardScreen() {
         </Card>
       </Enter>
 
-      {/* 5. HEUTIGER OMAD TELLER — volle Breite, das Herzstück des Tages */}
-      <Enter index={5}>
-        <Tap onPress={() => router.push('/planner')} accessibilityLabel="Open meal planner">
-          <Card style={{ marginTop: Space.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={[s.plateIcon, { backgroundColor: plan ? c.planWash : c.emberWash }]}>
-                <Icon name="plate" size={20} color={plan ? c.plan : c.ember} />
-              </View>
-              <View style={s.trackMeta}>
-                <Eyebrow color={plan ? c.plan : c.ember}>
-                  {lang === 'de' ? 'Heutiger OMAD Teller' : "Today's OMAD plate"}
-                </Eyebrow>
-                <Txt variant="subheading" color={c.text} numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', marginTop: 2 }}>
-                  {plan ? plan.recipe.title : t('today.defaultMeal')}
-                </Txt>
-                <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 1 }}>
-                  {kcal} kcal · {protein}g Protein
-                </Txt>
-              </View>
-              <Icon name="chevronRight" size={18} color={c.textFaint} />
-            </View>
-          </Card>
-        </Tap>
-      </Enter>
-
       {/* 6. DAILY SCIENTIFIC BIO-HACK */}
-      <Enter index={6}>
+      <Enter index={9}>
         <DailyBioHackCard />
       </Enter>
 
-      {/* 7. MORNING INTAKE CHECK-IN (Only when question is active) */}
-      {question && (
-        <Enter index={7}>
-          <Card style={{ marginTop: Space.base }} tone="accent">
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Eyebrow color={c.accent}>
-                {lang === 'de'
-                  ? (question.date === todayISO() ? '1-TAP TRACKING: WIE LIEF ES HEUTE?' : 'MORGEN-CHECK-IN: WIE LIEF ES GESTERN?')
-                  : (question.date === todayISO() ? '1-TAP TRACKING: TODAY' : 'CHECK-IN: YESTERDAY')}
-              </Eyebrow>
-              <View style={[s.countBadge, { backgroundColor: c.accentWash }]}>
-                <Txt variant="eyebrow" color={c.accent} style={{ fontSize: 9, fontWeight: '800' }}>
-                  {lang === 'de' ? '1-TAP' : '1-TAP'}
-                </Txt>
-              </View>
-            </View>
-            <Txt variant="small" color={c.textDim} style={{ marginTop: 4, fontSize: 12 }}>
-              {lang === 'de'
-                ? `Gegen das Ziel von ${questionKcal} kcal. Kalibriert deinen echten Stoffwechsel.`
-                : `Against ${questionKcal} kcal target to calibrate your real metabolism.`}
-            </Txt>
-            <View style={{ flexDirection: 'row', marginTop: Space.sm }}>
-              {INTAKE_OPTIONS.map((opt, i) => {
-                const sel = answered?.date === question.date && answered?.factor === opt.factor;
-                return (
-                  <Tap
-                    key={String(opt.factor)}
-                    onPress={() => answerIntake(opt.factor)}
-                    accessibilityLabel={intakeOptionLabel(opt, lang)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: sel }}
-                    style={{ flex: 1, marginRight: i < INTAKE_OPTIONS.length - 1 ? Space.xs : 0 }}
-                  >
-                    <View
-                      style={[
-                        s.pill,
-                        {
-                          backgroundColor: sel ? c.accent : c.well,
-                          borderWidth: sel ? 0 : 1,
-                          borderColor: c.line,
-                          paddingHorizontal: 2,
-                        },
-                      ]}
-                    >
-                      <Txt
-                        variant="data"
-                        color={sel ? c.onAccent : c.text}
-                        style={{ fontSize: 11, fontWeight: '700', textAlign: 'center' }}
-                      >
-                        {opt.factor === 1 ? '100%' : `${Math.round(opt.factor * 100)}%`}
-                      </Txt>
-                    </View>
-                  </Tap>
-                );
-              })}
-            </View>
-          </Card>
-        </Enter>
-      )}
-
-      {/* 8. WEIGH-IN IF NOT YET LOGGED */}
+      {/* WEIGH-IN IF NOT YET LOGGED */}
       {!weighedToday && (
-        <Enter index={8}>
+        <Enter index={10}>
           <Card style={{ marginTop: Space.base }} tone="body">
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.xs }}>
               <Eyebrow color={c.body}>{t('today.dailyWeighIn')}</Eyebrow>
@@ -666,15 +826,15 @@ export default function DashboardScreen() {
         </Enter>
       )}
 
-      {/* 9. FASTING JOURNAL NOTE */}
-      <Enter index={9}>
+      {/* FASTING JOURNAL NOTE */}
+      <Enter index={11}>
         <Card style={{ marginTop: Space.base, padding: Space.base }}>
           <DailyFastingNote embedded />
         </Card>
       </Enter>
 
-      {/* 10. QUICK TOOLS (Einkauf, Verlauf, Coach) */}
-      <Enter index={10} style={{ marginTop: Space.base, marginBottom: Space.xl }}>
+      {/* QUICK TOOLS */}
+      <Enter index={12} style={{ marginTop: Space.base, marginBottom: Space.xl }}>
         <Eyebrow style={{ marginBottom: Space.sm }}>{lang === 'de' ? 'Schnellzugriff' : 'Quick Tools'}</Eyebrow>
         <View style={s.quickToolGrid}>
           <TouchableOpacity
@@ -726,16 +886,97 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
       </Enter>
+    </>
+  );
 
-      {/* Asked once, whatever the answer. */}
+  return (
+    <Screen wide={true} contentStyle={{ maxWidth: isWide ? 1080 : 640, alignSelf: 'center', width: '100%' }}>
+      {/* 1. Greeting row — avatar, salutation, date */}
+      <Enter index={0}>
+        <View style={s.greetRow}>
+          <View style={[s.avatar, { backgroundColor: c.accentWash, borderColor: c.accent }]}>
+            <Icon name="flame" size={20} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Txt variant="small" color={c.textDim}>{timeGreeting}!</Txt>
+            <Txt variant="title" style={{ fontWeight: '800', letterSpacing: -0.4 }}>{dateLabel}</Txt>
+          </View>
+          <Tap onPress={() => router.push('/you/reminders')} accessibilityLabel={t('you.reminders')}>
+            <View style={[s.bellBtn, { backgroundColor: c.surface, borderColor: c.line }]}>
+              <Icon name="bell" size={18} color={c.text} />
+              {streak > 0 && <View style={[s.bellDot, { backgroundColor: c.ember }]} />}
+            </View>
+          </Tap>
+        </View>
+        <PageHeader
+          tone={fast.isEating ? 'ember' : 'accent'}
+          eyebrow={
+            streak > 0
+              ? (lang === 'de' ? `${streak} TAGE FASTEN-SERIE` : `${streak}-DAY FAST STREAK`)
+              : undefined
+          }
+          title={fast.isEating ? (lang === 'de' ? `${t('today.windowOpen')} · Window open` : t('today.windowOpen')) : (lang === 'de' ? `${t('today.fasting')} · Fasting` : t('today.fasting'))}
+          sub={bioInsight}
+        />
+        <WeekdayPillStrip
+          fastLog={fastLog}
+          streak={streak}
+          longestStreakCount={longestStreak(fastLog)}
+        />
+      </Enter>
+
+      {/* Celebration Notification */}
+      {showCelebration && (
+        <Enter index={1}>
+          <Tap onPress={() => setShowCelebration(false)} accessibilityLabel="Dismiss">
+            <Card tone="ember" style={s.celebrationCard}>
+              <Icon name="flame" size={18} color={c.ember} />
+              <View style={{ flex: 1, marginLeft: Space.sm }}>
+                <Txt variant="subheading" color={c.ember} style={{ fontWeight: '800', fontSize: 14 }}>
+                  {lang === 'de' ? 'Fasten erfolgreich abgeschlossen! 🎉' : 'Fast completed! 🎉'}
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 2, fontSize: 12 }}>
+                  {lang === 'de'
+                    ? `${streak} Tage Fasten-Serie aktiv. Großartige Leistung!`
+                    : `${streak}-day streak active. Great consistency!`}
+                </Txt>
+                <TouchableOpacity
+                  onPress={() => setShowShareCard(true)}
+                  style={{ alignSelf: 'flex-start', marginTop: 6 }}
+                >
+                  <Txt variant="eyebrow" color={c.ember} style={{ fontSize: 10, fontWeight: '800' }}>
+                    {lang === 'de' ? '📲 STORY TEILEN' : '📲 SHARE STORY'}
+                  </Txt>
+                </TouchableOpacity>
+              </View>
+              <Icon name="close" size={16} color={c.ember} />
+            </Card>
+          </Tap>
+        </Enter>
+      )}
+
+      {/* Command Center Layout: 2 Columns on Wide Desktop/Tablet, 1 Column on Mobile */}
+      {isWide ? (
+        <View style={s.wideContainer}>
+          <View style={s.wideCol}>{leftColumnContent}</View>
+          <View style={[s.wideCol, { marginLeft: Space.base }]}>{rightColumnContent}</View>
+        </View>
+      ) : (
+        <>
+          {leftColumnContent}
+          {rightColumnContent}
+        </>
+      )}
+
+      {/* Reminder activation notice if offered */}
       {offerReminders && (
-        <Enter index={11}>
+        <Enter index={13}>
           <Card style={{ marginTop: Space.base }}>
             <Eyebrow>{lang === 'de' ? 'Erinnerungen aktivieren?' : 'Want the app to tell you when?'}</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
               {lang === 'de'
                 ? 'Benachrichtigungen für Start & Ende des Essensfensters, Kochbeginn und Wiege-Erinnerungen.'
-                : 'Window opening and closing, when to start cooking, and a nudge to weigh in — the measurement needs four weigh-ins across ten days.'}
+                : 'Window opening and closing, when to start cooking, and a nudge to weigh in.'}
             </Txt>
             <View style={s.offerRow}>
               <Button
@@ -770,7 +1011,7 @@ export default function DashboardScreen() {
       )}
 
       {jump && (
-        <Enter index={12}>
+        <Enter index={14}>
           <Card style={{ marginTop: Space.base }} tone="ember">
             <Eyebrow color={c.ember}>Up {jump.kg} kg</Eyebrow>
             <Txt variant="small" color={c.textDim} style={{ marginTop: Space.sm }}>
@@ -797,6 +1038,16 @@ export default function DashboardScreen() {
       <BreakFastGuideModal
         visible={showBreakFast}
         onClose={() => setShowBreakFast(false)}
+      />
+
+      <ShareableFastCardModal
+        visible={showShareCard}
+        onClose={() => setShowShareCard(false)}
+        hoursFasted={hoursFasted}
+        streakDays={streak}
+        dishTitle={plan?.recipe.title}
+        kcal={plan?.total_kcal}
+        protein={plan?.protein_g}
       />
     </Screen>
   );
@@ -1023,5 +1274,52 @@ const s = StyleSheet.create({
   offerBtn: {
     flex: 1,
     marginRight: Space.sm,
+  },
+  wideContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  wideCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  smartChipSection: {
+    marginTop: Space.sm,
+    marginBottom: Space.xs,
+  },
+  smartChipGrid: {
+    flexDirection: 'row',
+    gap: Space.xs,
+    flexWrap: 'wrap',
+  },
+  smartChipPill: {
+    flex: 1,
+    minWidth: 150,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  intakeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: Space.base,
+    marginRight: -Space.sm,
+  },
+  intakeCell: {
+    width: '50%',
+    paddingRight: Space.sm,
+    marginBottom: Space.sm,
+  },
+  intakeBtn: {
+    minHeight: 56,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 8,
   },
 });

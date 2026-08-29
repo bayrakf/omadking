@@ -862,7 +862,7 @@ export function SegmentedControl<T extends string>({
   tone = 'accent',
   style,
 }: {
-  values: { id: T; label: string; icon?: IconName }[];
+  values: { id: T; label: string; accessibilityLabel?: string; icon?: IconName }[];
   selected: T;
   onSelect: (id: T) => void;
   tone?: Tone;
@@ -881,7 +881,7 @@ export function SegmentedControl<T extends string>({
             style={styles.segmentItem}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={v.label}
+            accessibilityLabel={v.accessibilityLabel ?? v.label}
           >
             <View
               style={[

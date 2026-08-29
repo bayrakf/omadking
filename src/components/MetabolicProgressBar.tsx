@@ -10,10 +10,11 @@ interface MetabolicProgressBarProps {
 }
 
 const PHASES = [
-  { id: 'glucose', from: 0, to: 4, label: '0–4h', nameDe: 'Blutzucker', nameEn: 'Glucose', hue: 'gold' as const },
-  { id: 'fatburn', from: 4, to: 12, label: '4–12h', nameDe: 'Fettstart', nameEn: 'Fat Burn', hue: 'ember' as const },
-  { id: 'ketosis', from: 12, to: 18, label: '12–18h', nameDe: 'Ketose', nameEn: 'Ketosis', hue: 'accent' as const },
-  { id: 'autophagy', from: 18, to: 24, label: '18h+', nameDe: 'Autophagie', nameEn: 'Autophagy', hue: 'plan' as const },
+  { id: 'fed', from: 0, to: 4, label: '0–4h', nameDe: 'Verdauung', nameEn: 'Fed', hue: 'gold' as const },
+  { id: 'post-absorptive', from: 4, to: 12, label: '4–12h', nameDe: 'Post-absorptiv', nameEn: 'Post-absorptive', hue: 'ember' as const },
+  { id: 'glycogen-falling', from: 12, to: 16, label: '12–16h', nameDe: 'Glykogen sinkt', nameEn: 'Glycogen falling', hue: 'accent' as const },
+  { id: 'ketosis-rising', from: 16, to: 20, label: '16–20h', nameDe: 'Ketose steigt', nameEn: 'Ketones rising', hue: 'plan' as const },
+  { id: 'deep', from: 20, to: 24, label: '20h+', nameDe: 'Tiefe Autophagie', nameEn: 'Deep fast', hue: 'body' as const },
 ];
 
 export function MetabolicProgressBar({ hoursFasted, onPress }: MetabolicProgressBarProps) {
@@ -41,13 +42,13 @@ export function MetabolicProgressBar({ hoursFasted, onPress }: MetabolicProgress
       activeOpacity={0.85}
       onPress={onPress}
       style={[s.container, { backgroundColor: c.surface, borderColor: c.line }]}
-      accessibilityLabel={`Metabolische Phase: ${lang === 'de' ? activePhase.nameDe : activePhase.nameEn}`}
+      accessibilityLabel={`Metabolische Phase: ${lang === 'de' ? activePhase.nameDe : activePhase.nameEn} (approximate)`}
     >
       <View style={s.headRow}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Icon name="flame" size={13} color={c[activePhase.hue]} />
           <Eyebrow color={c[activePhase.hue]} style={{ marginLeft: 5, fontSize: 10, fontWeight: '700' }}>
-            {lang === 'de' ? activePhase.nameDe.toUpperCase() : activePhase.nameEn.toUpperCase()} ({hoursFasted.toFixed(1)}h)
+            {lang === 'de' ? activePhase.nameDe.toUpperCase() : activePhase.nameEn.toUpperCase()} ({hoursFasted.toFixed(1)}h · {lang === 'de' ? 'ungefähr' : 'approximate'})
           </Eyebrow>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
