@@ -146,9 +146,9 @@ const light: ThemePalette = {
   textDim: '#475569',
   textFaint: '#94A3B8',
 
-  accent: '#0284C7',
-  accentDim: '#0369A1',
-  accentWash: 'rgba(2, 132, 199, 0.10)',
+  accent: '#15803D',
+  accentDim: '#166534',
+  accentWash: 'rgba(21, 128, 61, 0.10)',
   onAccent: '#FFFFFF',
 
   ember: '#EA580C',
