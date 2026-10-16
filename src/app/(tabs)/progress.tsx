@@ -60,6 +60,7 @@ import {
   type Decision, type IntakeDay,
   type WeeklyReview,
 } from '@/lib/review';
+import { haptic } from '@/lib/haptic';
 import {
   isPremium,
   loadAllFastingNotes,
@@ -73,11 +74,14 @@ import {
   markMeasurementPreviewed,
   measurementAnnounced,
   measurementPreviewed,
+  saveProfile,
+  saveWeightLog,
+  todayISO,
   type WeightEntry,
 } from '@/lib/store';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 /**
@@ -173,6 +177,28 @@ export default function ProgressScreen() {
   const [premium, setPremium] = useState(false);
   /** The plan against the scale, when the two have drifted apart. */
   const [gap, setGap] = useState<RateGap | null>(null);
+  const [weightInput, setWeightInput] = useState('');
+  const [weighedToday, setWeighedToday] = useState(false);
+
+  const logWeight = async () => {
+    const w = parseFloat(weightInput.replace(',', '.'));
+    if (!isFinite(w) || w < 30 || w > 300) return;
+    const log = await loadWeightLog();
+    const updated = [
+      { id: `${todayISO()}-${Date.now()}`, date: todayISO(), weight_kg: w },
+      ...log.filter((e) => e.date !== todayISO()),
+    ].sort((a, b) => b.date.localeCompare(a.date));
+    await saveWeightLog(updated);
+    if (profile) {
+      const nextProfile = { ...profile, weight_kg: w };
+      await saveProfile(nextProfile);
+      setProfile(nextProfile);
+    }
+    setEntries(updated);
+    setWeightInput('');
+    setWeighedToday(true);
+    haptic('success');
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -188,6 +214,7 @@ export default function ProgressScreen() {
         if (!active) return;
         setProfile(p);
         setEntries(log);
+        setWeighedToday(log.some((e) => e.date === todayISO()));
         setFastingNotes(notes);
         setPremium(prem);
 
@@ -335,11 +362,71 @@ export default function ProgressScreen() {
         />
       </Enter>
 
+      {/* QUICK DAILY WEIGH-IN */}
+      <Enter index={1}>
+        <Card style={{ marginBottom: Space.base }} tone="body">
+          <View style={s.split}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Icon name="chart" size={14} color={c.body} />
+              <Eyebrow color={c.body} style={{ marginLeft: 6 }}>
+                {lang === 'de' ? 'TÄGLICHES WIEGEN' : 'DAILY WEIGH-IN'}
+              </Eyebrow>
+            </View>
+            {entries.length > 0 && (
+              <Txt variant="small" color={c.textDim}>
+                {lang === 'de' ? 'Zuletzt: ' : 'Latest: '}{entries[0].weight_kg.toFixed(1)} kg
+              </Txt>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Space.sm }}>
+            <TextInput
+              value={weightInput}
+              onChangeText={setWeightInput}
+              onSubmitEditing={logWeight}
+              placeholder={profile ? profile.weight_kg.toFixed(1) : '75.0'}
+              placeholderTextColor={c.textFaint}
+              keyboardType="numeric"
+              inputMode="decimal"
+              accessibilityLabel="Today's weight in kilograms"
+              style={[
+                s.input,
+                {
+                  flex: 1,
+                  color: c.text,
+                  backgroundColor: c.well,
+                  borderColor: c.line,
+                  marginRight: Space.sm,
+                },
+              ]}
+            />
+            <Tap onPress={logWeight} disabled={!weightInput.trim()} accessibilityLabel="Save weight">
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: Radius.sm,
+                  backgroundColor: weightInput.trim() ? c.accent : c.well,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name="check" size={18} color={weightInput.trim() ? c.onAccent : c.textFaint} strokeWidth={2.4} />
+              </View>
+            </Tap>
+          </View>
+          {weighedToday && (
+            <Txt variant="small" color={c.positive} style={{ marginTop: Space.xs }}>
+              {lang === 'de' ? '✓ Heute bereits eingetragen' : '✓ Logged for today'}
+            </Txt>
+          )}
+        </Card>
+      </Enter>
+
       {/* The only card on this screen that tells anyone to do anything. The
           rest are read-outs; several true statements at once is noise, and
           noise is what stops being read. */}
       {decision && (
-        <Enter index={1}>
+        <Enter index={2}>
           <Card style={{ marginBottom: Space.base }} tone={decision.headline === 'Carry on' ? undefined : 'body'}>
             {/* Icon + eyebrow on one line: the instruction opens with a mark,
                 not a wall of prose. */}
