@@ -31,7 +31,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Message = { id: string; sender: 'user' | 'ai'; text: string; failed?: boolean };
 

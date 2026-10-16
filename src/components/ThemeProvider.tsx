@@ -6,7 +6,6 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
 import { loadThemeMode, saveThemeMode, type ThemeMode } from '@/lib/store';
 
 type ThemeContextValue = {
@@ -24,11 +23,13 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const os = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>('system');
+  const [mode, setModeState] = useState<ThemeMode>('dark');
 
   useEffect(() => {
-    loadThemeMode().then(setModeState);
+    loadThemeMode().then((m) => {
+      if (m === 'light') setModeState('light');
+      else setModeState('dark');
+    });
   }, []);
 
   const setMode = useCallback(async (m: ThemeMode) => {
@@ -36,8 +37,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setModeState(m);
   }, []);
 
-  const resolved: 'dark' | 'light' =
-    mode === 'dark' ? 'dark' : mode === 'light' ? 'light' : os === 'dark' ? 'dark' : 'light';
+  const resolved: 'dark' | 'light' = mode === 'light' ? 'light' : 'dark';
 
   return (
     <ThemeContext.Provider value={{ resolved, mode, setMode }}>

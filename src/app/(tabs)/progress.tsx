@@ -300,6 +300,7 @@ export default function ProgressScreen() {
             windowStart: winFix?.start ?? null,
             ready,
             trendNote: readTrend(log).note,
+            lang,
           })
         );
         setReview(weeklyReview(fasts, cooks, log, plans));

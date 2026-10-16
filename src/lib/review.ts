@@ -456,26 +456,31 @@ export function weeklyDecision(input: {
     need: 'intake' | 'weighins' | 'span' | null;
   };
   trendNote?: string;
+  lang?: 'de' | 'en';
 }): Decision {
   const {
     stalled, direction = 'held', stalledDays = 0, newTarget, breakDue, deficitWeeks = 0, maintenanceKcal,
-    windowStart, ready, trendNote = '',
+    windowStart, ready, trendNote = '', lang = 'en',
   } = input;
+  const isDe = lang === 'de';
 
-  // A stall outranks everything: it is the thing that makes people quit. A
-  // rise outranks it for the same reason and used to be ranked nowhere at all —
-  // the screen said "Carry on" with a rising trend line printed underneath.
+  // A stall outranks everything: it is the thing that makes people quit.
   if (stalled) {
     const rising = direction === 'rising';
     return {
-      headline: rising ? RISE_HEADLINE : STALL_HEADLINE,
-      action: newTarget ? `Eat ${newTarget} kcal this week.` : 'Answer a few more days so the new figure can be worked out.',
-      why: stalledDays > 0
+      headline: isDe
+        ? rising ? 'Gewichtstrend steigt leicht' : 'Gewichtsplateau erkannt'
+        : rising ? RISE_HEADLINE : STALL_HEADLINE,
+      action: isDe
+        ? newTarget ? `Ziele diese Woche auf ${newTarget} kcal.` : 'Trage noch ein paar Tage ein, um den neuen Zielwert zu berechnen.'
+        : newTarget ? `Eat ${newTarget} kcal this week.` : 'Answer a few more days so the new figure can be worked out.',
+      why: isDe
+        ? 'Dein Körper hat sich angepasst. Wir justieren das Defizit.'
+        : stalledDays > 0
         ? `${stalledDays} days ${rising ? 'climbing' : 'holding'} at this intake means the deficit has `
           + `${rising ? 'gone the other way' : 'closed'}. The number changed, not your effort.`
         : `${rising ? 'Gaining' : 'Holding'} weight at this intake means the deficit has `
           + `${rising ? 'gone the other way' : 'closed'}. The number changed, not your effort.`,
-      // Only the figure is measured; a stall without one is just a request.
       premiumOnly: newTarget !== null && newTarget !== undefined,
     };
   }
@@ -483,9 +488,13 @@ export function weeklyDecision(input: {
   // Then the thing that is about to make them quit.
   if (breakDue) {
     return {
-      headline: 'Take a week at maintenance',
-      action: maintenanceKcal ? `Eat ${maintenanceKcal} kcal for seven days, then go back down.` : 'Eat at maintenance for seven days.',
-      why: `${deficitWeeks} weeks without a break. Planning the week off is what keeps it from happening by accident.`,
+      headline: isDe ? 'Eine Woche Erhaltungskalorien einlegen' : 'Take a week at maintenance',
+      action: isDe
+        ? maintenanceKcal ? `${maintenanceKcal} kcal für 7 Tage essen, danach wieder ins Defizit.` : '7 Tage auf Erhalt essen.'
+        : maintenanceKcal ? `Eat ${maintenanceKcal} kcal for seven days, then go back down.` : 'Eat at maintenance for seven days.',
+      why: isDe
+        ? `${deficitWeeks} Wochen im Defizit. Eine geplante Pause schützt den Stoffwechsel.`
+        : `${deficitWeeks} weeks without a break. Planning the week off is what keeps it from happening by accident.`,
       premiumOnly: maintenanceKcal !== null && maintenanceKcal !== undefined,
     };
   }
@@ -493,26 +502,28 @@ export function weeklyDecision(input: {
   // Then a fixable mismatch that costs a little every single session.
   if (windowStart) {
     return {
-      headline: 'Move your eating window',
-      action: `Open it at ${windowStart} instead.`,
-      why: 'Your session currently runs into the window, so the meal lands mid-workout.',
-      // Clock arithmetic, not a measurement. It was free before and stays free.
+      headline: isDe ? 'Essensfenster anpassen' : 'Move your eating window',
+      action: isDe ? `Öffne es stattdessen um ${windowStart}.` : `Open it at ${windowStart} instead.`,
+      why: isDe
+        ? 'Dein Training überschneidet sich mit dem Fastenfenster, sodass die Mahlzeit mitten ins Workout fällt.'
+        : 'Your session currently runs into the window, so the meal lands mid-workout.',
       premiumOnly: false,
     };
   }
 
-  // Then the thing that unlocks everything else — whichever part of it is
-  // actually missing, rather than the one part the old version knew about.
+  // Then the thing that unlocks everything else
   if (ready && !ready.ready) {
     const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
     if (ready.need === 'weighins') {
       const short = 4 - ready.weighIns;
       return {
-        headline: `${short} more ${plural(short, 'weigh-in', 'weigh-ins')}`,
-        action: 'Step on the scale at the same time of day, before your first drink.',
-        why: `You have ${Math.min(ready.intakeDays, 8)} of 8 evenings. The measurement also needs `
-          + `4 weigh-ins across 10 days — you have ${ready.weighIns} across ${ready.spanDays}.`,
+        headline: isDe ? `${short} weitere ${short === 1 ? 'Wägung' : 'Wägungen'}` : `${short} more ${plural(short, 'weigh-in', 'weigh-ins')}`,
+        action: isDe ? 'Wiege dich zur gleichen Tageszeit vor dem ersten Trinken.' : 'Step on the scale at the same time of day, before your first drink.',
+        why: isDe
+          ? `Du hast ${Math.min(ready.intakeDays, 8)} von 8 Abenden eingetragen. Für die Stoffwechsel-Messung werden noch ${short} Wägungen benötigt.`
+          : `You have ${Math.min(ready.intakeDays, 8)} of 8 evenings. The measurement also needs `
+            + `4 weigh-ins across 10 days — you have ${ready.weighIns} across ${ready.spanDays}.`,
         premiumOnly: false,
       };
     }
@@ -520,27 +531,29 @@ export function weeklyDecision(input: {
     if (ready.need === 'span') {
       const short = 10 - ready.spanDays;
       return {
-        headline: 'Keep weighing for another week',
-        action: `${short} more ${plural(short, 'day', 'days')} between your first weigh-in and your last.`,
-        why: `${ready.weighIns} weigh-ins in ${ready.spanDays} days is ${ready.weighIns} readings `
-          + 'of roughly the same day. A body needs time to show a direction.',
+        headline: isDe ? 'Noch eine Woche wiegen' : 'Keep weighing for another week',
+        action: isDe ? `Noch ${short} ${short === 1 ? 'Tag' : 'Tage'} bis zur ersten Auswertung.` : `${short} more ${plural(short, 'day', 'days')} between your first weigh-in and your last.`,
+        why: isDe
+          ? 'Dein Körper braucht etwas Zeit, um einen verlässlichen Trend zu zeigen.'
+          : `${ready.weighIns} weigh-ins in ${ready.spanDays} days is ${ready.weighIns} readings `
+            + 'of roughly the same day. A body needs time to show a direction.',
         premiumOnly: false,
       };
     }
 
     const short = 8 - ready.intakeDays;
     return {
-      headline: 'Answer the evening question',
-      action: `${short} more ${plural(short, 'day', 'days')} and the app can measure what your body costs.`,
-      why: 'One tap a day is the whole signal. Without it the target stays a formula.',
+      headline: isDe ? 'Abendlichen Check-in beantworten' : 'Answer the evening question',
+      action: isDe ? `Noch ${short} ${short === 1 ? 'Tag' : 'Tage'}, dann ermittelt die App deinen Stoffwechsel-Umsatz.` : `${short} more ${plural(short, 'day', 'days')} and the app can measure what your body costs.`,
+      why: isDe ? 'Ein kurzer Tipp pro Tag genügt für die dynamische Berechnung.' : 'One tap a day is the whole signal. Without it the target stays a formula.',
       premiumOnly: false,
     };
   }
 
   return {
-    headline: 'Carry on',
-    action: 'Nothing to change this week.',
-    why: trendNote || 'The plan is working as set.',
+    headline: isDe ? 'Weiter so' : 'Carry on',
+    action: isDe ? 'Diese Woche keine Änderungen nötig.' : 'Nothing to change this week.',
+    why: trendNote || (isDe ? 'Dein Plan funktioniert wie vorgesehen.' : 'The plan is working as set.'),
     premiumOnly: false,
   };
 }

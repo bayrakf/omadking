@@ -540,8 +540,8 @@ export type ThemeMode = 'system' | 'dark' | 'light';
 
 export async function loadThemeMode(): Promise<ThemeMode> {
   const v = await AsyncStorage.getItem(KEYS.themeMode);
-  if (v === 'dark' || v === 'light') return v;
-  return 'system';
+  if (v === 'light') return 'light';
+  return 'dark';
 }
 
 export async function saveThemeMode(mode: ThemeMode): Promise<void> {

@@ -10,14 +10,13 @@ const DESCRIPTION =
  * flash while the JS bundle loads.
  */
 const PRELOAD_THEME = `
-:root { color-scheme: light dark; }
+:root { color-scheme: dark; }
 
-/* Exactly the palette's own bg. These were #FAFAFA and #0F0F1A, close enough
-   to look right and different enough to leave a faint seam where the app's
-   column met the page behind it. */
-body { background-color: #F6F7F9; }
-@media (prefers-color-scheme: dark) { body { background-color: #0A0C10; } }
-
+/* Titanium Carbon ground: eliminates any white canvas flash */
+html, body {
+  background-color: #08090C !important;
+  color: #F8FAFC !important;
+}
 `;
 
 export default function Root({ children }: PropsWithChildren) {
@@ -46,8 +45,7 @@ export default function Root({ children }: PropsWithChildren) {
           rel="stylesheet"
         />
 
-        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F7F9" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A0C10" />
+        <meta name="theme-color" content="#08090C" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="OMADCoach" />
         <meta name="mobile-web-app-capable" content="yes" />

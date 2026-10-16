@@ -1,8 +1,7 @@
 import { Icon, type IconName } from '@/components/icons';
 import { useT } from '@/components/lang';
-import { useResolvedScheme } from '@/components/ThemeProvider';
 import { useTheme } from '@/components/ui';
-import { MaxContentWidth, Radius, Space, Type, type ThemePalette } from '@/constants/theme';
+import { MaxContentWidth, Radius, Space, Type } from '@/constants/theme';
 import type { Key } from '@/lib/i18n';
 import { Tabs } from 'expo-router';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -32,7 +31,6 @@ function TabBar({ state, navigation }: any) {
   const c = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
-  const isDark = useResolvedScheme() === 'dark';
 
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 16) }]}>
@@ -40,9 +38,9 @@ function TabBar({ state, navigation }: any) {
         style={[
           styles.bar,
           {
-            backgroundColor: isDark ? 'rgba(14, 17, 23, 0.92)' : 'rgba(255, 255, 255, 0.96)',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : c.line,
-            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.9)',
+            backgroundColor: c.heroFill,
+            borderColor: 'rgba(255, 255, 255, 0.08)',
+            borderTopColor: 'rgba(255, 255, 255, 0.16)',
           },
           Platform.OS === 'web' && ({ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any),
         ]}
@@ -94,7 +92,7 @@ function TabBar({ state, navigation }: any) {
                 style={[
                   Type.eyebrow,
                   {
-                    color: focused ? (isDark ? '#FFFFFF' : c.text) : c.textFaint,
+                    color: focused ? '#FFFFFF' : c.textFaint,
                     marginTop: 3,
                     fontWeight: focused ? '800' : '600',
                     fontSize: 9.5,

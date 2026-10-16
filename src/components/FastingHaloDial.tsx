@@ -38,7 +38,7 @@ export function FastingHaloDial({
   onPressAdjust,
 }: FastingHaloDialProps) {
   const c = useTheme();
-  const { lang, t } = useLang();
+  const { lang } = useLang();
   const reduced = useReducedMotion();
 
   const strokeWidth = 12;
@@ -89,12 +89,12 @@ export function FastingHaloDial({
           </LinearGradient>
         </Defs>
 
-        {/* Untravelled Track */}
+        {/* Untravelled Track - Crisp subtle border */}
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={c.well}
+          stroke="rgba(255, 255, 255, 0.08)"
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
@@ -117,51 +117,37 @@ export function FastingHaloDial({
 
       {/* Center Readout Card */}
       <TouchableOpacity
-        activeOpacity={0.9}
+        activeOpacity={0.85}
         onPress={onPressTimer}
         style={s.centerContent}
         accessibilityRole="button"
         accessibilityLabel={`Fasten Timer: ${formatCountdown(remainingMs)}`}
       >
         {/* Phase Pill Badge */}
-        <View style={[s.phasePill, { backgroundColor: isEating ? c.emberWash : `${phaseColor}22` }]}>
+        <View style={[s.phasePill, { backgroundColor: isEating ? c.emberWash : `${phaseColor}20` }]}>
           <Icon name={isEating ? 'plate' : 'flame'} size={11} color={phaseColor} />
-          <Eyebrow color={phaseColor} style={{ marginLeft: 4, fontSize: 9.5, fontWeight: '800' }}>
-            {isEating ? t('today.windowEating') : `${phaseName.toUpperCase()} · FASTING`}
+          <Eyebrow color={phaseColor} style={{ marginLeft: 5, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 }}>
+            {isEating
+              ? (lang === 'de' ? 'ESSENSFENSTER' : 'EATING WINDOW')
+              : `${phaseName.toUpperCase()} · ${hoursFasted.toFixed(1)}H`}
           </Eyebrow>
         </View>
 
-        {/* Hero Countdown Figures */}
-        <Txt variant="hero" color={c.text} style={s.countdownNumber}>
+        {/* Hero Countdown Figures - Guaranteed 100% Crisp White */}
+        <Txt variant="hero" color="#FFFFFF" style={s.countdownNumber}>
           {formatCountdown(remainingMs)}
         </Txt>
 
         {/* Subtitle Information */}
-        <Txt variant="small" color={c.textDim} style={s.subCaption}>
+        <Txt variant="small" color="rgba(255, 255, 255, 0.70)" style={s.subCaption}>
           {lang === 'de'
             ? isEating
-              ? `schließt um ${windowEnd}`
-              : `${hoursFasted.toFixed(1)}h · öffnet ${windowStart}`
+              ? `Schließt um ${windowEnd} Uhr`
+              : `Öffnet um ${windowStart} Uhr`
             : isEating
-            ? `closes at ${windowEnd}`
-            : `${hoursFasted.toFixed(1)}h · opens ${windowStart}`}
+            ? `Closes at ${windowEnd}`
+            : `Opens at ${windowStart}`}
         </Txt>
-
-        {/* Adjust Hint Icon */}
-        <TouchableOpacity
-          onPress={onPressAdjust}
-          activeOpacity={0.7}
-          style={[s.adjustPill, { backgroundColor: c.well, borderColor: c.line }]}
-          accessibilityLabel="Zeitfenster bearbeiten"
-        >
-          <Icon name="clock" size={10} color={c.textDim} />
-          <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 3, fontSize: 9, fontWeight: '700' }}>
-            {windowStart}–{windowEnd}
-          </Txt>
-          <View style={{ marginLeft: 3 }}>
-            <Icon name="edit" size={9} color={c.textDim} />
-          </View>
-        </TouchableOpacity>
       </TouchableOpacity>
     </View>
   );
@@ -197,12 +183,13 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   countdownNumber: {
-    fontSize: 34,
-    lineHeight: 38,
+    fontSize: 40,
+    lineHeight: 44,
     fontFamily: Font.display,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
   subCaption: {
     fontSize: 12,
