@@ -1,6 +1,6 @@
 import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
-import { Eyebrow, Markdown, Tap, Txt, useReducedMotion, useTheme, washOf, type PaletteHue } from '@/components/ui';
+import { Eyebrow, Markdown, Screen, Tap, Txt, useReducedMotion, useTheme, washOf, type PaletteHue } from '@/components/ui';
 import { MaxContentWidth, Radius, Space, Type } from '@/constants/theme';
 import { askCoach, conversationOf, type ChatTurn, type CoachState, type MealPlan } from '@/lib/ai';
 import { measuredMaintenance, readPlateau, readTrend, weekdayPattern } from '@/lib/energy';
@@ -186,7 +186,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={[s.flex, { backgroundColor: c.bg }]} edges={['top', 'bottom']}>
+    <Screen scroll={false} tabBar={false} edges={['top', 'bottom']}>
       <View style={[s.header, { borderBottomColor: c.line }]}>
         <Tap onPress={() => router.back()} accessibilityLabel={t('nav.back')}>
           <View style={s.back}><Icon name="chevronLeft" size={20} color={c.text} /></View>
@@ -370,7 +370,7 @@ export default function ChatScreen() {
           </Tap>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

@@ -24,7 +24,7 @@ const TABS: Record<string, TabMeta> = {
   index: { icon: 'home', key: 'tab.today', hue: (c) => c.accent },
   planner: { icon: 'plate', key: 'tab.plan', hue: (c) => c.plan },
   progress: { icon: 'chart', key: 'tab.progress', hue: (c) => c.body },
-  grocery: { icon: 'basket', key: 'tab.shop', hue: (c) => c.plan },
+  grocery: { icon: 'basket', key: 'tab.shop', hue: (c) => c.gold },
   profile: { icon: 'user', key: 'tab.you', hue: (c) => c.accent },
 };
 

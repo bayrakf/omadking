@@ -153,12 +153,12 @@ export default function GroceryScreen() {
     <Screen wide>
       <Enter index={0}>
         <PageHeader
-          tone="plan"
+          tone="gold"
           eyebrow={t('shop.basket', { done, total }) + (batch > 1 ? ` · ${batch} portions` : '')}
           title={t('shop.title')}
         />
         <View style={{ marginTop: -Space.md, marginBottom: Space.lg }}>
-          <Bar pct={(done / total) * 100} color={c.plan} />
+          <Bar pct={(done / total) * 100} color={c.gold} />
         </View>
       </Enter>
 
@@ -215,10 +215,10 @@ export default function GroceryScreen() {
             <View style={s.catHead}>
               <View style={s.catTitleRow}>
                 <Txt variant="body" style={s.catEmoji}>{cat.emoji}</Txt>
-                <Eyebrow color={c.plan}>{cat.name}</Eyebrow>
+                <Eyebrow color={c.gold}>{cat.name}</Eyebrow>
               </View>
-              <View style={[s.catBadge, { backgroundColor: cat.doneInCat === cat.totalInCat ? c.planWash : c.well }]}>
-                <Txt variant="data" color={cat.doneInCat === cat.totalInCat ? c.plan : c.textDim} style={{ fontSize: 11 }}>
+              <View style={[s.catBadge, { backgroundColor: cat.doneInCat === cat.totalInCat ? c.goldWash : c.well }]}>
+                <Txt variant="data" color={cat.doneInCat === cat.totalInCat ? c.gold : c.textDim} style={{ fontSize: 11 }}>
                   {cat.doneInCat}/{cat.totalInCat}
                 </Txt>
               </View>
