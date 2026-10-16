@@ -253,6 +253,7 @@ const s = StyleSheet.create({
   plan: {
     flexDirection: 'row', alignItems: 'center', padding: Space.base,
     borderRadius: Radius.lg, borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.14)',
   },
   crownBox: {
     width: 44,
@@ -260,6 +261,8 @@ const s = StyleSheet.create({
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   vipBadge: {
     paddingHorizontal: 6,
@@ -269,7 +272,11 @@ const s = StyleSheet.create({
   },
   upgradeBtn: {
     paddingHorizontal: Space.md,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    borderRadius: Radius.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.45)',
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(0, 0, 0, 0.35)',
   },
 });

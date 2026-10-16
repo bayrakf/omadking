@@ -417,10 +417,10 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 onPress={() => setShowBreakFast(true)}
                 activeOpacity={0.8}
-                style={[s.zenPrimaryBtn, { backgroundColor: c.plan }]}
+                style={[s.zenPrimaryBtn, { backgroundColor: c.accent, borderBottomColor: 'rgba(0,0,0,0.35)' }]}
               >
-                <Icon name="shield" size={14} color="#FFFFFF" />
-                <Txt variant="subheading" color="#FFFFFF" style={{ marginLeft: 6, fontSize: 13, fontWeight: '800' }}>
+                <Icon name="shield" size={14} color="#08090C" />
+                <Txt variant="subheading" color="#08090C" style={{ marginLeft: 6, fontSize: 13, fontWeight: '800' }}>
                   {lang === 'de' ? 'Fastenbrechen-Guide ansehen' : 'View Break-Fast Guide'}
                 </Txt>
               </TouchableOpacity>
@@ -489,7 +489,15 @@ export default function DashboardScreen() {
                 key={ml}
                 onPress={() => addWater(ml)}
                 accessibilityLabel={lang === 'de' ? `+${ml} ml Wasser` : `Add ${ml} millilitres`}
-                style={[s.trackBtn, { backgroundColor: c.well, marginRight: i < 2 ? Space.sm : 0 }]}
+                style={[
+                  s.trackBtn,
+                  {
+                    backgroundColor: c.surfaceElevated ?? c.well,
+                    borderColor: c.line,
+                    borderWidth: 1,
+                    marginRight: i < 2 ? Space.sm : 0,
+                  },
+                ]}
               >
                 <Icon name="plus" size={12} color={c.hydro} strokeWidth={2.2} />
                 <Txt variant="data" color={c.text} style={{ marginLeft: 4, fontSize: 12.5, fontWeight: '700' }}>
@@ -561,7 +569,15 @@ export default function DashboardScreen() {
                 key={n}
                 onPress={() => addSteps(n)}
                 accessibilityLabel={`+${n} Schritte`}
-                style={[s.trackBtn, { backgroundColor: c.well, marginRight: i < 2 ? Space.sm : 0 }]}
+                style={[
+                  s.trackBtn,
+                  {
+                    backgroundColor: c.surfaceElevated ?? c.well,
+                    borderColor: c.line,
+                    borderWidth: 1,
+                    marginRight: i < 2 ? Space.sm : 0,
+                  },
+                ]}
               >
                 <Icon name="plus" size={12} color={c.accent} strokeWidth={2.2} />
                 <Txt variant="data" color={c.text} style={{ marginLeft: 4, fontSize: 12.5, fontWeight: '700' }}>
@@ -788,6 +804,9 @@ const s = StyleSheet.create({
     padding: Space.base,
     paddingTop: Space.base,
     marginTop: Space.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.09)',
+    borderTopColor: 'rgba(255, 255, 255, 0.18)',
   },
   zenHeroTop: {
     flexDirection: 'row',
@@ -834,22 +853,26 @@ const s = StyleSheet.create({
   },
   zenPrimaryBtn: {
     flex: 1,
-    height: 44,
-    borderRadius: Radius.pill,
+    height: 48,
+    borderRadius: Radius.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Space.base,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.25)',
+    borderTopColor: 'rgba(255, 255, 255, 0.35)',
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(0, 0, 0, 0.35)',
     marginRight: Space.xs,
   },
   zenResetBtn: {
-    height: 44,
+    height: 48,
     paddingHorizontal: Space.base,
-    borderRadius: Radius.pill,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
   },
   // --- Daily tracking cards (Wasser & Schritte) ---
   trackHead: {
@@ -892,11 +915,13 @@ const s = StyleSheet.create({
   },
   trackBtn: {
     flex: 1,
-    height: 40,
-    borderRadius: Radius.pill,
+    height: 38,
+    borderRadius: Radius.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.16)',
   },
   // --- OMAD plate card ---
   plateIcon: {

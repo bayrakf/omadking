@@ -164,14 +164,24 @@ export default function RecipeCard({
           { v: `${plan.carbs_g}g`, label: 'CARBS', color: c.hydro },
           { v: `${plan.fat_g}g`, label: lang === 'de' ? 'FETT' : 'FAT', color: c.gold },
         ].map((m) => (
-          <View key={m.label} style={[s.macro, { backgroundColor: c.well, borderColor: c.line }]}>
+          <View
+            key={m.label}
+            style={[
+              s.macro,
+              {
+                backgroundColor: c.surfaceElevated ?? c.well,
+                borderColor: c.line,
+                borderTopColor: 'rgba(255, 255, 255, 0.14)',
+              },
+            ]}
+          >
             <View style={[s.macroDot, { backgroundColor: m.color }]} />
             <Txt variant="subheading" style={{ fontSize: 16, fontWeight: '700', color: c.text }}>{m.v}</Txt>
             <Eyebrow style={{ marginTop: 2 }} color={c.textDim}>{m.label}</Eyebrow>
           </View>
         ))}
       </View>
-      <View style={[s.subCard, { backgroundColor: c.well, borderColor: c.line }]}>
+      <View style={[s.subCard, { backgroundColor: c.surfaceElevated ?? c.well, borderColor: c.line, borderTopColor: 'rgba(255, 255, 255, 0.14)' }]}>
         <View style={s.ingredientHead}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Icon name="basket" size={16} color={plan_.ink} />

@@ -558,11 +558,43 @@ export function Button({
   tone?: Tone;
 }) {
   const c = useTheme();
+  const scheme = useResolvedScheme();
+  const isDark = scheme === 'dark';
   const off = disabled || loading;
   const t = TONES[tone](c);
 
-  const bg = variant === 'primary' ? (off ? c.well : t.ink) : variant === 'secondary' ? c.well : 'transparent';
-  const fg = variant === 'primary' ? (off ? c.textFaint : c.onAccent) : off ? c.textFaint : c.text;
+  const bg =
+    variant === 'primary'
+      ? off
+        ? c.well
+        : t.ink
+      : variant === 'secondary'
+      ? off
+        ? c.well
+        : (c.surfaceElevated ?? c.surface)
+      : 'transparent';
+
+  const fg =
+    variant === 'primary'
+      ? off
+        ? c.textFaint
+        : tone === 'accent' || tone === 'plan' || tone === 'gold' || tone === 'hydro'
+        ? c.onAccent
+        : '#FFFFFF'
+      : off
+      ? c.textFaint
+      : c.text;
+
+  const borderColor =
+    variant === 'secondary'
+      ? isDark
+        ? 'rgba(255, 255, 255, 0.12)'
+        : c.lineStrong
+      : variant === 'ghost'
+      ? isDark
+        ? 'rgba(255, 255, 255, 0.14)'
+        : c.line
+      : 'transparent';
 
   return (
     <Tap onPress={onPress} disabled={off} accessibilityLabel={label} style={style}>
@@ -571,13 +603,18 @@ export function Button({
           styles.button,
           {
             backgroundColor: bg,
-            borderWidth: variant === 'ghost' ? 1 : 0,
-            borderColor: variant === 'ghost' ? c.line : 'transparent',
-            // Lit on top, shaded underneath: the button becomes a key cap.
-            borderTopWidth: variant === 'primary' && !off ? 1 : 0,
-            borderTopColor: variant === 'primary' && !off ? 'rgba(255, 255, 255, 0.28)' : 'transparent',
+            borderWidth: variant === 'primary' ? 0 : 1,
+            borderColor,
+            // Lit on top, shaded underneath: the button becomes a precision key cap.
+            borderTopWidth: variant === 'primary' && !off ? 1 : variant === 'secondary' && isDark ? 1 : 0,
+            borderTopColor:
+              variant === 'primary' && !off
+                ? 'rgba(255, 255, 255, 0.38)'
+                : variant === 'secondary' && isDark
+                ? 'rgba(255, 255, 255, 0.18)'
+                : 'transparent',
             borderBottomWidth: variant === 'primary' && !off ? 2 : 0,
-            borderBottomColor: variant === 'primary' && !off ? shade(t.ink, -0.3) : 'transparent',
+            borderBottomColor: variant === 'primary' && !off ? shade(t.ink, -0.32) : 'transparent',
           },
         ]}
       >
@@ -588,12 +625,13 @@ export function Button({
         )}
         <Text
           style={[
-            Type.subheading,
+            Type.heading,
             {
               color: fg,
               marginLeft: icon || loading ? Space.sm : 0,
+              fontSize: 14.5,
               fontWeight: '700',
-              letterSpacing: 0.2,
+              letterSpacing: 0.3,
             },
           ]}
         >
@@ -619,6 +657,8 @@ export function Chip({
   tone?: Tone;
 }) {
   const c = useTheme();
+  const scheme = useResolvedScheme();
+  const isDark = scheme === 'dark';
   const t = TONES[tone](c);
   return (
     <Tap
@@ -632,16 +672,27 @@ export function Chip({
         style={[
           styles.chip,
           {
-            // Selected is the domain wash with a solid tinted rim — the same
-            // language as the tinted cards, so a chosen option reads as "this
-            // belongs to that place" rather than as a hole punched in colour.
-            backgroundColor: selected ? t.fill : c.well,
-            borderColor: selected ? t.ink : c.lineStrong,
+            backgroundColor: selected ? (tone === 'accent' ? c.accent : t.fill) : (c.surfaceElevated ?? c.surface),
+            borderColor: selected ? (tone === 'accent' ? c.accent : t.ink) : isDark ? 'rgba(255, 255, 255, 0.10)' : c.line,
             borderWidth: 1,
+            ...(selected && tone === 'accent' && {
+              borderTopWidth: 1,
+              borderTopColor: 'rgba(255, 255, 255, 0.4)',
+            }),
           },
         ]}
       >
-        <Text style={[Type.bodyMedium, { color: selected ? t.ink : c.textDim, fontSize: 13.5, fontWeight: selected ? '700' : '500' }]}>
+        <Text
+          style={[
+            Type.bodyMedium,
+            {
+              color: selected ? (tone === 'accent' ? c.onAccent : t.ink) : c.textDim,
+              fontSize: 13,
+              fontWeight: selected ? '800' : '600',
+              letterSpacing: 0.2,
+            },
+          ]}
+        >
           {label}
         </Text>
       </View>
@@ -943,35 +994,43 @@ export function NavRow({
   title: string;
   sub: string;
   onPress: () => void;
-  /**
-   * The domain this row leads to, if it leads to one.
-   *
-   * Six rows with six identical grey tiles is a list you have to read from the
-   * top every time. Left without a tone the tile stays neutral, which is the
-   * honest answer for the rows that are not about your body, your water or the
-   * plan — Sync and Export lead somewhere real but nowhere coloured, and
-   * giving them a hue anyway would be the point at which the hues stop meaning
-   * a place and start meaning "this row exists".
-   */
   tone?: Tone;
 }) {
   const c = useTheme();
+  const scheme = useResolvedScheme();
+  const isDark = scheme === 'dark';
   const t = tone ? TONES[tone](c) : null;
   return (
     <Tap onPress={onPress} accessibilityLabel={title}>
-      <View style={[styles.navRow, { backgroundColor: c.surface, borderColor: c.line }]}>
-        <View style={[styles.navIcon, { backgroundColor: t ? t.fill : c.well }]}>
-          {/* Not `textDim` when there is no tone: beside three coloured tiles
-              a dim glyph reads as a disabled row rather than a neutral one. */}
-          <Icon name={icon} size={20} color={t ? t.ink : c.text} />
+      <View
+        style={[
+          styles.navRow,
+          {
+            backgroundColor: c.surface,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : c.line,
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : c.line,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.navIcon,
+            {
+              backgroundColor: t ? t.fill : (c.surfaceElevated ?? c.well),
+              borderColor: t ? t.edge : isDark ? 'rgba(255, 255, 255, 0.10)' : c.line,
+              borderWidth: 1,
+            },
+          ]}
+        >
+          <Icon name={icon} size={19} color={t ? t.ink : c.text} />
         </View>
         <View style={styles.flex}>
-          <Txt variant="subheading">{title}</Txt>
+          <Txt variant="subheading" style={{ fontWeight: '700' }}>{title}</Txt>
           <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
             {sub}
           </Txt>
         </View>
-        <Icon name="chevronRight" size={18} color={c.textFaint} />
+        <Icon name="chevronRight" size={17} color={c.textFaint} />
       </View>
     </Tap>
   );
@@ -1039,9 +1098,9 @@ const styles = StyleSheet.create({
   columnHalf: { flex: 1, minWidth: 0 },
   columnLeft: { marginRight: Space.base },
   button: {
-    minHeight: 52,
+    minHeight: 50,
     paddingVertical: Space.sm,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -1049,10 +1108,10 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: Space.base,
-    minHeight: 42,
-    paddingVertical: Space.xs,
+    minHeight: 38,
+    paddingVertical: 6,
     borderRadius: Radius.pill,
-    borderWidth: 1.5,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1081,8 +1140,8 @@ const styles = StyleSheet.create({
     marginBottom: Space.sm,
   },
   navIcon: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',

@@ -18,14 +18,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * things it is made of. Giving them separate colours would invent a
  * distinction the product does not have.
  */
-type TabMeta = { icon: IconName; key: Key; hue: (c: ThemePalette) => string };
+type TabMeta = { icon: IconName; key: Key };
 
 const TABS: Record<string, TabMeta> = {
-  index: { icon: 'home', key: 'tab.today', hue: (c) => c.accent },
-  planner: { icon: 'plate', key: 'tab.plan', hue: (c) => c.plan },
-  progress: { icon: 'chart', key: 'tab.progress', hue: (c) => c.body },
-  grocery: { icon: 'basket', key: 'tab.shop', hue: (c) => c.gold },
-  profile: { icon: 'user', key: 'tab.you', hue: (c) => c.accent },
+  index: { icon: 'home', key: 'tab.today' },
+  planner: { icon: 'plate', key: 'tab.plan' },
+  progress: { icon: 'chart', key: 'tab.progress' },
+  grocery: { icon: 'basket', key: 'tab.shop' },
+  profile: { icon: 'user', key: 'tab.you' },
 };
 
 function TabBar({ state, navigation }: any) {
@@ -40,17 +40,16 @@ function TabBar({ state, navigation }: any) {
         style={[
           styles.bar,
           {
-            backgroundColor: c.surface,
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : c.line,
-            // Lit top edge — the same micro-surface trick as cards and buttons.
-            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.9)',
+            backgroundColor: isDark ? 'rgba(14, 17, 23, 0.92)' : 'rgba(255, 255, 255, 0.96)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : c.line,
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.9)',
           },
+          Platform.OS === 'web' && ({ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any),
         ]}
       >
         {state.routes.map((route: any, index: number) => {
           const focused = state.index === index;
           const meta = TABS[route.name];
-          const hue = meta ? meta.hue(c) : c.accent;
           const label = meta ? t(meta.key) : route.name;
 
           const onPress = () => {
@@ -71,24 +70,22 @@ function TabBar({ state, navigation }: any) {
                 style={[
                   styles.iconWrap,
                   focused && {
-                    // Solid disc in the tab's own hue — the PulseUp pattern:
-                    // the active item is a filled circle, not an outline.
-                    backgroundColor: hue,
+                    backgroundColor: c.accent,
                     ...Platform.select({
-                      ios: { shadowColor: hue, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 3 } },
+                      ios: { shadowColor: c.accent, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
                       android: {},
-                      default: { boxShadow: `0 3px 16px ${hue}55` } as any,
+                      default: { boxShadow: `0 2px 14px rgba(212, 255, 0, 0.35)` } as any,
                     }),
                   },
                 ]}
               >
                 <Icon
                   name={meta ? meta.icon : 'home'}
-                  size={19}
-                  color={focused ? c.onAccent : c.textFaint}
+                  size={18}
+                  color={focused ? c.onAccent : c.textDim}
                 />
                 {route.name === 'profile' && (
-                  <View style={[styles.proBadge, { backgroundColor: c.gold }]}>
+                  <View style={[styles.proBadge, { backgroundColor: c.accent }]}>
                     <Text style={styles.proText}>PRO</Text>
                   </View>
                 )}
@@ -97,11 +94,11 @@ function TabBar({ state, navigation }: any) {
                 style={[
                   Type.eyebrow,
                   {
-                    color: focused ? hue : c.textFaint,
-                    marginTop: 2.5,
+                    color: focused ? (isDark ? '#FFFFFF' : c.text) : c.textFaint,
+                    marginTop: 3,
                     fontWeight: focused ? '800' : '600',
                     fontSize: 9.5,
-                    letterSpacing: 0.5,
+                    letterSpacing: 0.6,
                   },
                 ]}
               >

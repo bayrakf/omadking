@@ -393,7 +393,7 @@ export default function ProgressScreen() {
                 {
                   flex: 1,
                   color: c.text,
-                  backgroundColor: c.well,
+                  backgroundColor: c.surfaceElevated ?? c.well,
                   borderColor: c.line,
                   marginRight: Space.sm,
                 },
@@ -404,8 +404,14 @@ export default function ProgressScreen() {
                 style={{
                   width: 48,
                   height: 48,
-                  borderRadius: Radius.sm,
-                  backgroundColor: weightInput.trim() ? c.accent : c.well,
+                  borderRadius: Radius.md,
+                  backgroundColor: weightInput.trim() ? c.accent : (c.surfaceElevated ?? c.well),
+                  borderColor: weightInput.trim() ? c.accent : c.line,
+                  borderWidth: 1,
+                  borderTopWidth: weightInput.trim() ? 1 : 0,
+                  borderTopColor: weightInput.trim() ? 'rgba(255, 255, 255, 0.4)' : 'transparent',
+                  borderBottomWidth: weightInput.trim() ? 2 : 0,
+                  borderBottomColor: weightInput.trim() ? 'rgba(0, 0, 0, 0.35)' : 'transparent',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -1090,7 +1096,7 @@ const s = StyleSheet.create({
   figRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
   inputs: { flexDirection: 'row', marginRight: -Space.md },
   inputCol: { flex: 1, marginRight: Space.md },
-  input: { height: 48, borderRadius: Radius.sm, borderWidth: 1, paddingHorizontal: Space.md, fontSize: 15 },
+  input: { height: 48, borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Space.base, fontSize: 16 },
   histRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Space.md },
   rowEnd: { flexDirection: 'row', alignItems: 'center' },
   changeBadge: {

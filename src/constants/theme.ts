@@ -93,54 +93,55 @@ export const PhaseColors = {
 };
 
 const dark: ThemePalette = {
-  // Near-black "PulseUp" ground: pure charcoal cards on true black,
-  // one electric lime accent doing all the talking.
-  bg: '#08080A',
-  surface: '#131316',
-  surfaceElevated: '#1A1A1E',
-  well: '#0F0F12',
-  line: '#242428',
-  lineStrong: '#38383E',
+  // Deep Titanium Carbon Ground: true athletic contrast, zero muddy gray
+  bg: '#08090C',
+  surface: '#11141A',
+  surfaceElevated: '#171B23',
+  well: '#0C0E13',
+  line: 'rgba(255, 255, 255, 0.08)',
+  lineStrong: 'rgba(255, 255, 255, 0.16)',
 
-  text: '#FAFAFA',
-  textDim: '#A3A3AB',
-  textFaint: '#6B6B73',
+  text: '#F8FAFC',
+  textDim: '#94A3B8',
+  textFaint: '#475569',
 
-  accent: '#C6F53F',
-  accentDim: '#9BC92B',
-  accentWash: 'rgba(198, 245, 63, 0.14)',
-  onAccent: '#0D1205',
+  // High-Voltage Athletic Volt: electric energy, maximum legibility
+  accent: '#D4FF00',
+  accentDim: '#B2D900',
+  accentWash: 'rgba(212, 255, 0, 0.12)',
+  onAccent: '#08090C',
 
-  ember: '#FF8A3C',
-  emberWash: 'rgba(255, 138, 60, 0.15)',
+  // Solar Kinetic Flame (Eating window, streaks)
+  ember: '#FF5500',
+  emberWash: 'rgba(255, 85, 0, 0.14)',
 
-  hydro: '#3FC1FF',
-  hydroWash: 'rgba(63, 193, 255, 0.14)',
-  body: '#C084FC',
-  bodyWash: 'rgba(192, 132, 252, 0.14)',
-  plan: '#C6F53F',
-  planWash: 'rgba(198, 245, 63, 0.14)',
+  hydro: '#38BDF8',
+  hydroWash: 'rgba(56, 189, 248, 0.12)',
+  body: '#818CF8',
+  bodyWash: 'rgba(129, 140, 248, 0.12)',
+  plan: '#D4FF00',
+  planWash: 'rgba(212, 255, 0, 0.12)',
   gold: '#F59E0B',
-  goldWash: 'rgba(245, 158, 11, 0.15)',
+  goldWash: 'rgba(245, 158, 11, 0.14)',
 
-  positive: '#A3E635',
+  positive: '#10B981',
   negative: '#EF4444',
 
-  heroFill: '#15151A',
+  heroFill: '#10131A',
   onHero: '#FFFFFF',
   heroTrack: 'rgba(255, 255, 255, 0.10)',
 
-  dialTrack: '#101014',
+  dialTrack: '#161922',
 };
 
 const light: ThemePalette = {
-  // Soft Pearl / Alabaster ground
-  bg: '#F4F6FB',
+  // Pure Clean Chalk ground
+  bg: '#F8FAFC',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  well: '#EDF1F8',
-  line: '#DFE6F0',
-  lineStrong: '#C9D3E2',
+  well: '#F1F5F9',
+  line: '#E2E8F0',
+  lineStrong: '#CBD5E1',
 
   text: '#0F172A',
   textDim: '#475569',
@@ -158,57 +159,53 @@ const light: ThemePalette = {
   hydroWash: 'rgba(2, 132, 199, 0.10)',
   body: '#7C3AED',
   bodyWash: 'rgba(124, 58, 237, 0.10)',
-  plan: '#059669',
-  planWash: 'rgba(5, 150, 105, 0.10)',
+  plan: '#15803D',
+  planWash: 'rgba(21, 128, 61, 0.10)',
   gold: '#D97706',
   goldWash: 'rgba(217, 119, 6, 0.10)',
 
-  positive: '#059669',
+  positive: '#15803D',
   negative: '#DC2626',
 
-  heroFill: '#0C4A6E',
+  heroFill: '#0F172A',
   onHero: '#FFFFFF',
   heroTrack: 'rgba(255, 255, 255, 0.20)',
 
-  dialTrack: '#DFE6F0',
+  dialTrack: '#E2E8F0',
 };
 
 export const Colors = { light, dark };
 
 // ---------------------------------------------------------------------------
-// Type
+// Type: Athletic Display (Archivo) + Humanist Body (Hanken) + Tabular Mono (JetBrains)
 // ---------------------------------------------------------------------------
 
-/** Family names must match the keys passed to useFonts() in the root layout. */
 export const Font = {
-  display: 'HankenGrotesk-SemiBold',
-  displaySemi: 'HankenGrotesk-Medium',
+  display: 'Archivo-Bold',
+  displaySemi: 'Archivo-SemiBold',
   body: 'HankenGrotesk-Regular',
   bodyMedium: 'HankenGrotesk-Medium',
   bodySemi: 'HankenGrotesk-SemiBold',
-  mono: 'HankenGrotesk-Medium',
+  mono: 'JetBrainsMono-Medium',
 } as const;
 
-/**
- * Balanced tracking and line heights for a soft, friendly and modern aesthetic.
- */
 export const Type = {
-  hero: { fontFamily: Font.display, fontSize: 48, lineHeight: 52, letterSpacing: -0.9 },
-  display: { fontFamily: Font.display, fontSize: 34, lineHeight: 38, letterSpacing: -0.6 },
-  title: { fontFamily: Font.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.4 },
-  heading: { fontFamily: Font.displaySemi, fontSize: 18, lineHeight: 23, letterSpacing: -0.2 },
+  hero: { fontFamily: Font.display, fontSize: 46, lineHeight: 50, letterSpacing: -1.2 },
+  display: { fontFamily: Font.display, fontSize: 32, lineHeight: 36, letterSpacing: -0.8 },
+  title: { fontFamily: Font.display, fontSize: 23, lineHeight: 27, letterSpacing: -0.5 },
+  heading: { fontFamily: Font.displaySemi, fontSize: 18, lineHeight: 22, letterSpacing: -0.3 },
   subheading: { fontFamily: Font.bodySemi, fontSize: 15, lineHeight: 20, letterSpacing: -0.1 },
   body: { fontFamily: Font.body, fontSize: 15, lineHeight: 22 },
   bodyMedium: { fontFamily: Font.bodyMedium, fontSize: 15, lineHeight: 22 },
-  small: { fontFamily: Font.body, fontSize: 13, lineHeight: 19 },
-  /** Uppercase micro-labels. Soft, clear voice. */
-  eyebrow: { fontFamily: Font.mono, fontSize: 10.5, lineHeight: 14, letterSpacing: 0.9 },
-  /** Clock times, units, tabular data. */
+  small: { fontFamily: Font.body, fontSize: 13, lineHeight: 18 },
+  /** Uppercase micro-labels with athletic tracking */
+  eyebrow: { fontFamily: Font.mono, fontSize: 10, lineHeight: 14, letterSpacing: 1.2 },
+  /** Tabular figures, units, clock times */
   data: { fontFamily: Font.mono, fontSize: 13, lineHeight: 18, letterSpacing: 0.2 },
 } as const;
 
 // ---------------------------------------------------------------------------
-// Space, shape, motion
+// Space, shape, motion — Precision Architectural Geometry (Not Bubbly Slop)
 // ---------------------------------------------------------------------------
 
 export const Space = {
@@ -224,10 +221,10 @@ export const Space = {
 } as const;
 
 export const Radius = {
-  sm: 12,
-  md: 18,
-  lg: 24,
-  xl: 30,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
   pill: 999,
 } as const;
 

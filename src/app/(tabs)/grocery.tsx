@@ -183,7 +183,7 @@ export default function GroceryScreen() {
               </View>
             </Tap>
             <Tap onPress={shareList} accessibilityLabel="Share list">
-              <View style={[s.tool, { borderColor: c.line }]}>
+              <View style={[s.tool, { borderColor: c.line, backgroundColor: c.surfaceElevated ?? c.surface }]}>
                 <Icon name={copied ? 'check' : 'share'} size={14} color={copied ? c.positive : c.textDim} />
                 <Txt variant="small" color={copied ? c.positive : c.textDim} style={{ marginLeft: 4 }}>
                   {copied ? 'Copied' : Platform.OS === 'web' ? 'Copy' : 'Share'}
@@ -192,14 +192,14 @@ export default function GroceryScreen() {
             </Tap>
             {Platform.OS === 'web' && (
               <Tap onPress={printList} accessibilityLabel="Print list">
-                <View style={[s.tool, { borderColor: c.line }]}>
+                <View style={[s.tool, { borderColor: c.line, backgroundColor: c.surfaceElevated ?? c.surface }]}>
                   <Icon name="edit" size={14} color={c.textDim} />
                   <Txt variant="small" color={c.textDim} style={{ marginLeft: 4 }}>Print / PDF</Txt>
                 </View>
               </Tap>
             )}
             <Tap onPress={clear} accessibilityLabel="Clear ticks">
-              <View style={[s.tool, { borderColor: c.line }]}>
+              <View style={[s.tool, { borderColor: c.line, backgroundColor: c.surfaceElevated ?? c.surface }]}>
                 <Icon name="close" size={14} color={c.textDim} />
                 <Txt variant="small" color={c.textDim} style={{ marginLeft: 4 }}>{t('shop.clear')}</Txt>
               </View>
@@ -298,11 +298,13 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 34,
-    paddingVertical: 4,
+    paddingVertical: 5,
     paddingHorizontal: Space.md,
-    borderRadius: Radius.pill,
+    borderRadius: Radius.md,
     borderWidth: 1,
     marginRight: Space.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.14)',
   },
   item: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Space.md },
   itemText: { flex: 1 },
