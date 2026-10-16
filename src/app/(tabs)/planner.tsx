@@ -1,4 +1,4 @@
-import { Icon } from '@/components/icons';
+import { Icon, type IconName } from '@/components/icons';
 import { useLang } from '@/components/lang';
 import RecipeCard from '@/components/RecipeCard';
 import { CookingModeModal } from '@/components/CookingModeModal';
@@ -8,7 +8,7 @@ import {
   Chip,
   Enter,
   Eyebrow,
-  Notice, PageHeader,
+  Notice,
   Screen,
   SegmentedControl,
   Tap,
@@ -48,13 +48,13 @@ import { useCallback, useState } from 'react';
 import { Platform, Share, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
-const SPORTS = [
-  { id: 'running', label: 'Running', labelDe: 'Laufen' },
-  { id: 'weights', label: 'Weights', labelDe: 'Kraft' },
-  { id: 'cycling', label: 'Cycling', labelDe: 'Radfahren' },
-  { id: 'soccer', label: 'Football', labelDe: 'Fußball' },
-  { id: 'boxing', label: 'Boxing', labelDe: 'Boxen' },
-  { id: 'yoga', label: 'Yoga', labelDe: 'Yoga & Flow' },
+const SPORTS: { id: string; label: string; labelDe: string; icon: IconName }[] = [
+  { id: 'running', label: 'Running', labelDe: 'Laufen', icon: 'run' },
+  { id: 'weights', label: 'Weights', labelDe: 'Kraft', icon: 'dumbbell' },
+  { id: 'cycling', label: 'Cycling', labelDe: 'Radfahren', icon: 'bike' },
+  { id: 'soccer', label: 'Football', labelDe: 'Fußball', icon: 'ball' },
+  { id: 'boxing', label: 'Boxing', labelDe: 'Boxen', icon: 'boxing' },
+  { id: 'yoga', label: 'Yoga', labelDe: 'Yoga & Flow', icon: 'yoga' },
 ];
 const DURATIONS = [30, 45, 60, 90, 120];
 const INTENSITIES: { id: Intensity; label: string; labelDe: string }[] = [
@@ -65,10 +65,10 @@ const INTENSITIES: { id: Intensity; label: string; labelDe: string }[] = [
 ];
 const TIMES = ['06:00', '12:00', '17:00', '18:00', '19:00', '20:00'];
 
-const COMPLEXITY_OPTIONS: { id: MealComplexity; emoji: string; label: string; labelDe: string; sub: string; subDe: string; premiumOnly: boolean }[] = [
-  { id: 'quick', emoji: '⚡', label: 'Quick', labelDe: 'Schnell', sub: '≤15 min · 1 pan', subDe: '≤15 Min · 1 Pfanne', premiumOnly: false },
-  { id: 'balanced', emoji: '🍽', label: 'Balanced', labelDe: 'Ausgewogen', sub: '≤30 min · meal-prep', subDe: '≤30 Min · Meal-Prep', premiumOnly: false },
-  { id: 'chef', emoji: '👨‍🍳', label: 'Chef-Level', labelDe: 'Chef-Level', sub: 'Gourmet · plating', subDe: 'Gourmet · Anrichten', premiumOnly: true },
+const COMPLEXITY_OPTIONS: { id: MealComplexity; icon: IconName; label: string; labelDe: string; sub: string; subDe: string; premiumOnly: boolean }[] = [
+  { id: 'quick', icon: 'bolt', label: 'Quick', labelDe: 'Schnell', sub: '≤15 min · 1 pan', subDe: '≤15 Min · 1 Pfanne', premiumOnly: false },
+  { id: 'balanced', icon: 'plate', label: 'Balanced', labelDe: 'Ausgewogen', sub: '≤30 min · meal-prep', subDe: '≤30 Min · Meal-Prep', premiumOnly: false },
+  { id: 'chef', icon: 'chefHat', label: 'Chef-Level', labelDe: 'Chef-Level', sub: 'Gourmet · plating', subDe: 'Gourmet · Anrichten', premiumOnly: true },
 ];
 
 /**
@@ -315,12 +315,28 @@ export default function PlannerScreen() {
   return (
     <Screen>
       <Enter index={0}>
-        <PageHeader
-          tone="plan"
-          eyebrow={isRestDay ? t('plan.restDay') : `${sport} · ${duration} min · ${intensity}`}
-          title={t('plan.title')}
-          sub={t('plan.sub')}
-        />
+        <View style={s.topBar}>
+          <View>
+            <Eyebrow color={c.textDim} style={{ letterSpacing: 1.2 }}>
+              {isRestDay
+                ? (lang === 'de' ? 'RUHETAG · OMAD' : 'REST DAY · OMAD')
+                : `${sport.toUpperCase()} · ${duration} MIN · ${intensity.toUpperCase()}`}
+            </Eyebrow>
+            <Txt variant="display" color="#FFFFFF" style={{ fontSize: 26, fontWeight: '800', marginTop: 2 }}>
+              {t('plan.title')}
+            </Txt>
+          </View>
+          {quota && !quota.premium && (
+            <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade">
+              <View style={[s.quotaPill, { borderColor: 'rgba(255, 255, 255, 0.12)', backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                <Icon name="bolt" size={13} color={c.plan} />
+                <Txt variant="eyebrow" color={c.plan} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
+                  {quota.remaining}/{quota.limit}
+                </Txt>
+              </View>
+            </Tap>
+          )}
+        </View>
         <SegmentedControl
           values={[
             { id: 'today', label: lang === 'de' ? 'Heute' : 'Today', icon: 'plate' },
@@ -455,6 +471,7 @@ export default function PlannerScreen() {
                         <Chip
                           key={sp.id}
                           label={lang === 'de' ? sp.labelDe : sp.label}
+                          icon={sp.icon}
                           selected={sport === sp.id}
                           onPress={() => setSport(sp.id)}
                           style={s.chipGap}
@@ -548,12 +565,14 @@ export default function PlannerScreen() {
                       {/* Lock overlay for premium */}
                       {locked && (
                         <View style={[s.premiumBadge, { backgroundColor: c.gold }]}>
-                          <Txt variant="eyebrow" color="#fff" style={{ fontSize: 9, fontWeight: '800' }}>
+                          <Txt variant="eyebrow" color="#FFFFFF" style={{ fontSize: 9, fontWeight: '800' }}>
                             PREMIUM
                           </Txt>
                         </View>
                       )}
-                      <Txt style={{ fontSize: 24, textAlign: 'center' }}>{opt.emoji}</Txt>
+                      <View style={{ alignItems: 'center', justifyContent: 'center', height: 28, marginTop: 4 }}>
+                        <Icon name={opt.icon} size={22} color={isSelected ? c.plan : c.textDim} />
+                      </View>
                       <Txt
                         variant="subheading"
                         color={isSelected ? c.plan : c.text}
@@ -717,7 +736,8 @@ export default function PlannerScreen() {
               </Card>
               <View style={{ marginTop: Space.base }}>
                 <Button
-                  label={lang === 'de' ? '👨‍🍳 Kochmodus starten (Hands-Free)' : '👨‍🍳 Start Cooking Mode'}
+                  label={lang === 'de' ? 'Kochmodus starten (Hands-Free)' : 'Start Cooking Mode'}
+                  icon="chefHat"
                   onPress={() => setShowCookingMode(true)}
                   tone="plan"
                 />
@@ -825,8 +845,8 @@ export default function PlannerScreen() {
 
                   <View style={[s.weekFeatureGrid, { marginTop: Space.base }]}>
                     <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line, marginRight: Space.sm }]}>
-                      <Txt style={{ fontSize: 20 }}>🗓</Txt>
-                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 4 }}>
+                      <Icon name="calendar" size={18} color={c.gold} />
+                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 6 }}>
                         {lang === 'de' ? '7-Tage-Vorschau' : '7-Day Overview'}
                       </Txt>
                       <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
@@ -834,8 +854,8 @@ export default function PlannerScreen() {
                       </Txt>
                     </View>
                     <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line, marginRight: Space.sm }]}>
-                      <Txt style={{ fontSize: 20 }}>⚡</Txt>
-                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 4 }}>
+                      <Icon name="bolt" size={18} color={c.ember} />
+                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 6 }}>
                         {lang === 'de' ? 'Makro-Periodisierung' : 'Macro Periodisation'}
                       </Txt>
                       <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
@@ -843,8 +863,8 @@ export default function PlannerScreen() {
                       </Txt>
                     </View>
                     <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line }]}>
-                      <Txt style={{ fontSize: 20 }}>🛒</Txt>
-                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 4 }}>
+                      <Icon name="basket" size={18} color={c.plan} />
+                      <Txt variant="subheading" style={{ fontSize: 13, fontWeight: '700', marginTop: 6 }}>
                         {lang === 'de' ? '1x Wocheneinkauf' : '1x Weekly Shopping'}
                       </Txt>
                       <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
@@ -968,6 +988,21 @@ export default function PlannerScreen() {
 }
 
 const s = StyleSheet.create({
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Space.base,
+    paddingBottom: Space.md,
+  },
+  quotaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
   quotaRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },

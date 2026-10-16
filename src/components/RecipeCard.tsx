@@ -126,16 +126,22 @@ export default function RecipeCard({
         {plan.complexity && plan.complexity !== 'balanced' && (
           <View style={[
             s.complexityBadge,
+            { flexDirection: 'row', alignItems: 'center' },
             plan.complexity === 'chef'
               ? { backgroundColor: washOf(c.gold), borderColor: c.gold }
               : { backgroundColor: c.well, borderColor: c.line },
           ]}>
+            <Icon
+              name={plan.complexity === 'quick' ? 'bolt' : 'chefHat'}
+              size={12}
+              color={plan.complexity === 'chef' ? c.gold : c.textDim}
+            />
             <Txt
               variant="eyebrow"
-              style={{ fontSize: 10, fontWeight: '800' }}
+              style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}
               color={plan.complexity === 'chef' ? c.gold : c.textDim}
             >
-              {plan.complexity === 'quick' ? '⚡ BLITZ · ≤15 MIN' : '👨‍🍳 CHEF-LEVEL'}
+              {plan.complexity === 'quick' ? 'BLITZ · ≤15 MIN' : 'CHEF-LEVEL'}
             </Txt>
           </View>
         )}

@@ -286,8 +286,8 @@ export function CookingModeModal({
             <Txt variant="subheading" color="#FFFFFF" style={{ marginRight: 4, fontWeight: '800' }}>
               {currentStepIdx === steps.length - 1
                 ? lang === 'de'
-                  ? 'Fertig gekocht! 🎉'
-                  : 'Finished Cooking! 🎉'
+                  ? 'Fertig gekocht'
+                  : 'Finished Cooking'
                 : lang === 'de'
                 ? 'Nächster Schritt'
                 : 'Next Step'}

@@ -10,7 +10,6 @@ import {
   Enter,
   Eyebrow,
   NavRow,
-  PageHeader,
   PairedBars,
   Screen,
   SegmentedControl,
@@ -102,7 +101,7 @@ function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
-  const pad = 10;
+  const pad = 12;
 
   const xy = points.map((p, i) => ({
     x: (i / (points.length - 1)) * (width - pad * 2) + pad,
@@ -126,13 +125,13 @@ function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?
         <Defs>
           <LinearGradient id="weightGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <Stop offset="0%" stopColor={c.body} stopOpacity={0.35} />
-            <Stop offset="100%" stopColor={c.body} stopOpacity={0.02} />
+            <Stop offset="100%" stopColor={c.body} stopOpacity={0.00} />
           </LinearGradient>
         </Defs>
         <Path d={area} fill="url(#weightGrad)" />
         <Path d={line} stroke={c.body} strokeWidth={2.8} fill="none" strokeLinecap="round" />
         <Circle cx={last.x} cy={last.y} r={7} fill={c.bodyWash} />
-        <Circle cx={last.x} cy={last.y} r={4.5} fill={c.bg} />
+        <Circle cx={last.x} cy={last.y} r={4.5} fill="#08090C" />
         <Circle cx={last.x} cy={last.y} r={3} fill={c.body} />
       </Svg>
     </View>
@@ -356,75 +355,84 @@ export default function ProgressScreen() {
   return (
     <Screen wide>
       <Enter index={0}>
-        <PageHeader
-          tone="body"
-          eyebrow={entries.length ? t('progress.entries', { n: entries.length }) : t('progress.noEntries')}
-          title={t('progress.title')}
-        />
+        <View style={s.topBar}>
+          <View>
+            <Eyebrow color={c.textDim} style={{ letterSpacing: 1.2 }}>
+              {entries.length
+                ? (lang === 'de' ? `BIOMETRIE · ${entries.length} MESSUNGEN` : `BIOMETRICS · ${entries.length} ENTRIES`)
+                : (lang === 'de' ? 'BIOMETRIE & VERLAUF' : 'BIOMETRICS & PROGRESS')}
+            </Eyebrow>
+            <Txt variant="display" color="#FFFFFF" style={{ fontSize: 26, fontWeight: '800', marginTop: 2 }}>
+              {t('progress.title')}
+            </Txt>
+          </View>
+          {steady && steady.streak > 0 && (
+            <View style={[s.streakBadge, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
+              <Icon name="flame" size={13} color={c.ember} />
+              <Txt variant="eyebrow" color={c.ember} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
+                {steady.streak} {lang === 'de' ? 'TAGE' : 'DAYS'}
+              </Txt>
+            </View>
+          )}
+        </View>
       </Enter>
 
       {/* QUICK DAILY WEIGH-IN */}
       <Enter index={1}>
-        <Card style={{ marginBottom: Space.base }} tone="body">
+        <Card style={[s.weighCard, { backgroundColor: c.heroFill, borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
           <View style={s.split}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Icon name="chart" size={14} color={c.body} />
-              <Eyebrow color={c.body} style={{ marginLeft: 6 }}>
+              <Icon name="scale" size={14} color={c.body} />
+              <Eyebrow color={c.body} style={{ marginLeft: 6, letterSpacing: 0.8 }}>
                 {lang === 'de' ? 'TÄGLICHES WIEGEN' : 'DAILY WEIGH-IN'}
               </Eyebrow>
             </View>
             {entries.length > 0 && (
-              <Txt variant="small" color={c.textDim}>
-                {lang === 'de' ? 'Zuletzt: ' : 'Latest: '}{entries[0].weight_kg.toFixed(1)} kg
-              </Txt>
+              <View style={[s.latestPill, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
+                <Txt variant="small" color={c.textDim}>
+                  {lang === 'de' ? 'Zuletzt: ' : 'Latest: '}{entries[0].weight_kg.toFixed(1)} kg
+                </Txt>
+              </View>
             )}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Space.sm }}>
-            <TextInput
-              value={weightInput}
-              onChangeText={setWeightInput}
-              onSubmitEditing={logWeight}
-              placeholder={profile ? profile.weight_kg.toFixed(1) : '75.0'}
-              placeholderTextColor={c.textFaint}
-              keyboardType="numeric"
-              inputMode="decimal"
-              accessibilityLabel="Today's weight in kilograms"
-              style={[
-                s.input,
-                {
-                  flex: 1,
-                  color: c.text,
-                  backgroundColor: c.surfaceElevated ?? c.well,
-                  borderColor: c.line,
-                  marginRight: Space.sm,
-                },
-              ]}
-            />
+            <View style={[s.inputWrap, { backgroundColor: c.well, borderColor: 'rgba(255, 255, 255, 0.10)' }]}>
+              <TextInput
+                value={weightInput}
+                onChangeText={setWeightInput}
+                onSubmitEditing={logWeight}
+                placeholder={profile ? profile.weight_kg.toFixed(1) : '75.0'}
+                placeholderTextColor={c.textFaint}
+                keyboardType="numeric"
+                inputMode="decimal"
+                accessibilityLabel="Today's weight in kilograms"
+                style={[s.inputClean, { color: '#FFFFFF' }]}
+              />
+              <Txt variant="small" color={c.textDim} style={{ fontWeight: '700', paddingRight: Space.sm }}>
+                KG
+              </Txt>
+            </View>
             <Tap onPress={logWeight} disabled={!weightInput.trim()} accessibilityLabel="Save weight">
               <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: Radius.md,
-                  backgroundColor: weightInput.trim() ? c.accent : (c.surfaceElevated ?? c.well),
-                  borderColor: weightInput.trim() ? c.accent : c.line,
-                  borderWidth: 1,
-                  borderTopWidth: weightInput.trim() ? 1 : 0,
-                  borderTopColor: weightInput.trim() ? 'rgba(255, 255, 255, 0.4)' : 'transparent',
-                  borderBottomWidth: weightInput.trim() ? 2 : 0,
-                  borderBottomColor: weightInput.trim() ? 'rgba(0, 0, 0, 0.35)' : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                style={[
+                  s.submitWeightBtn,
+                  {
+                    backgroundColor: weightInput.trim() ? c.accent : c.well,
+                    borderColor: weightInput.trim() ? c.accent : 'rgba(255, 255, 255, 0.1)',
+                  },
+                ]}
               >
                 <Icon name="check" size={18} color={weightInput.trim() ? c.onAccent : c.textFaint} strokeWidth={2.4} />
               </View>
             </Tap>
           </View>
           {weighedToday && (
-            <Txt variant="small" color={c.positive} style={{ marginTop: Space.xs }}>
-              {lang === 'de' ? '✓ Heute bereits eingetragen' : '✓ Logged for today'}
-            </Txt>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Space.xs }}>
+              <Icon name="check" size={12} color={c.positive} />
+              <Txt variant="small" color={c.positive} style={{ marginLeft: 4, fontWeight: '600' }}>
+                {lang === 'de' ? 'Heute bereits eingetragen' : 'Logged for today'}
+              </Txt>
+            </View>
           )}
         </Card>
       </Enter>
@@ -514,22 +522,40 @@ export default function ProgressScreen() {
           <Columns>
             {/* Weight & Trend Hero */}
             <Enter index={1}>
-              <Card style={{ marginBottom: Space.base }}>
+              <Card style={[s.heroCard, { backgroundColor: c.heroFill, borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
                 <View style={s.split}>
                   <View style={{ flex: 1 }}>
-                    <Eyebrow color={c.body}>{t('card.currentWeight')}</Eyebrow>
+                    <Eyebrow color={c.body} style={{ letterSpacing: 0.8 }}>{t('card.currentWeight')}</Eyebrow>
                     <View style={s.figRow}>
-                      <Txt variant="display" style={{ fontSize: 36, fontWeight: '800' }}>{current.toFixed(1)}</Txt>
-                      <Txt variant="data" color={c.textFaint} style={{ marginLeft: 4, fontSize: 16 }}>kg</Txt>
+                      <Txt variant="display" color="#FFFFFF" style={{ fontSize: 38, fontWeight: '800', letterSpacing: -0.5 }}>
+                        {current.toFixed(1)}
+                      </Txt>
+                      <Txt variant="data" color={c.textFaint} style={{ marginLeft: 6, fontSize: 18, fontWeight: '600', alignSelf: 'flex-end', marginBottom: 6 }}>
+                        kg
+                      </Txt>
                     </View>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Eyebrow color={c.body}>{t('card.sinceStart')}</Eyebrow>
-                    <View style={[s.changeBadge, { backgroundColor: good ? c.planWash : c.well }]}>
+                    <Eyebrow color={c.textDim} style={{ letterSpacing: 0.8 }}>{t('card.sinceStart')}</Eyebrow>
+                    <View style={[
+                      s.changeBadge,
+                      {
+                        backgroundColor: good ? c.planWash : c.well,
+                        borderColor: good ? c.plan : c.line,
+                        borderWidth: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      }
+                    ]}>
+                      <Icon
+                        name={change < 0 ? 'trendingDown' : change > 0 ? 'trendingUp' : 'trendFlat'}
+                        size={13}
+                        color={change === 0 ? c.textDim : good ? c.positive : c.negative}
+                      />
                       <Txt
                         variant="heading"
                         color={change === 0 ? c.textDim : good ? c.positive : c.negative}
-                        style={{ fontSize: 16, fontWeight: '800' }}
+                        style={{ fontSize: 14, fontWeight: '800', marginLeft: 4 }}
                       >
                         {change > 0 ? '+' : ''}{change.toFixed(1)} kg
                       </Txt>
@@ -539,13 +565,16 @@ export default function ProgressScreen() {
 
                 {entries.length >= 2 ? (
                   <>
-                    <View style={{ marginVertical: Space.sm }}>
+                    <View style={{ marginVertical: Space.sm, borderRadius: Radius.md, overflow: 'hidden' }}>
                       <TrendChart entries={entries} />
                     </View>
-                    <Divider style={{ marginVertical: Space.sm }} />
+                    <View style={[s.statDivider, { backgroundColor: 'rgba(255, 255, 255, 0.08)', marginVertical: Space.sm }]} />
                     <View style={s.split}>
-                      <Txt variant="small" color={c.textDim}>{t('card.weeklyTrend')}</Txt>
-                      <Txt variant="data" color={c.body} style={{ fontWeight: '700' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Icon name="chart" size={13} color={c.textDim} />
+                        <Txt variant="small" color={c.textDim} style={{ marginLeft: 6 }}>{t('card.weeklyTrend')}</Txt>
+                      </View>
+                      <Txt variant="data" color="#FFFFFF" style={{ fontWeight: '800' }}>
                         {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg / Woche`}
                       </Txt>
                     </View>
@@ -556,20 +585,24 @@ export default function ProgressScreen() {
                   </Txt>
                 )}
 
-                <View style={{ marginTop: Space.base }}>
-                  <View style={[s.split, { marginBottom: 6 }]}>
-                    <Eyebrow>{t('card.goalProgress')} ({profile.goal.replace('_', ' ')})</Eyebrow>
-                    {/* The bar already shows the share travelled; printing it as
-                    a percentage as well spends the app's one wording rule —
-                    counted facts, not figures — on a number the reader can
-                    see. It also read "0%" on a muscle-gain goal, where the
-                    target is above the start and the share is meaningless. */}
-                    <Txt variant="data" color={c.textDim}>BMI {bmi.toFixed(1)} ({bmiLabel})</Txt>
+                <View style={{ marginTop: Space.base, paddingTop: Space.sm, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.06)' }}>
+                  <View style={[s.split, { marginBottom: 8 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Icon name="target" size={12} color={c.body} />
+                      <Eyebrow color={c.body} style={{ marginLeft: 6 }}>
+                        {t('card.goalProgress')} ({profile.goal.replace('_', ' ')})
+                      </Eyebrow>
+                    </View>
+                    <View style={[s.bmiBadge, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }]}>
+                      <Txt variant="eyebrow" color="#FFFFFF" style={{ fontSize: 10, fontWeight: '700' }}>
+                        BMI {bmi.toFixed(1)} · {bmiLabel.toUpperCase()}
+                      </Txt>
+                    </View>
                   </View>
                   <Bar pct={pct} color={c.body} />
                   <View style={[s.split, { marginTop: 6 }]}>
-                    <Txt variant="data" color={c.textFaint}>{t('card.start', { kg: start.toFixed(1) })}</Txt>
-                    <Txt variant="data" color={c.textFaint}>{t('card.target', { kg: target.toFixed(1) })}</Txt>
+                    <Txt variant="data" color={c.textFaint} style={{ fontSize: 11 }}>{t('card.start', { kg: start.toFixed(1) })}</Txt>
+                    <Txt variant="data" color={c.textDim} style={{ fontSize: 11, fontWeight: '700' }}>{t('card.target', { kg: target.toFixed(1) })}</Txt>
                   </View>
                 </View>
               </Card>
@@ -1028,29 +1061,43 @@ export default function ProgressScreen() {
                     </Txt>
                   </TouchableOpacity>
                 </View>
-                <Card style={{ paddingVertical: Space.sm }}>
+                <Card style={[s.historyCard, { backgroundColor: c.heroFill, borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
                   {entries.slice(0, 15).map((e, i) => {
                     const prev = entries[i + 1];
                     const delta = prev ? e.weight_kg - prev.weight_kg : null;
                     return (
                       <View key={e.id}>
-                        {i > 0 && <Divider />}
+                        {i > 0 && <View style={[s.historyDivider, { backgroundColor: 'rgba(255, 255, 255, 0.06)' }]} />}
                         <View style={s.histRow}>
                           <View style={{ flex: 1 }}>
-                            <Txt variant="data" color={c.text}>{formatReadableDate(e.date, lang)}</Txt>
+                            <Txt variant="data" color="#FFFFFF" style={{ fontWeight: '700' }}>{formatReadableDate(e.date, lang)}</Txt>
                             {fastingNotes[e.date] ? (
-                              <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
-                                📝 {fastingNotes[e.date]}
-                              </Txt>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                                <Icon name="edit" size={11} color={c.textDim} />
+                                <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginLeft: 4 }}>
+                                  {fastingNotes[e.date]}
+                                </Txt>
+                              </View>
                             ) : null}
                           </View>
                           <View style={s.rowEnd}>
                             {delta !== null && delta !== 0 && (
-                              <Txt variant="data" color={delta > 0 ? c.negative : c.positive} style={{ marginRight: Space.md }}>
-                                {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
-                              </Txt>
+                              <View style={[
+                                s.deltaBadge,
+                                {
+                                  backgroundColor: delta < 0 ? c.planWash : c.emberWash,
+                                  borderColor: delta < 0 ? c.plan : c.ember,
+                                  marginRight: Space.sm,
+                                }
+                              ]}>
+                                <Txt variant="data" color={delta > 0 ? c.negative : c.positive} style={{ fontSize: 11, fontWeight: '800' }}>
+                                  {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
+                                </Txt>
+                              </View>
                             )}
-                            <Txt variant="heading" style={{ fontSize: 16 }}>{e.weight_kg.toFixed(1)} kg</Txt>
+                            <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 16, fontWeight: '800' }}>
+                              {e.weight_kg.toFixed(1)} kg
+                            </Txt>
                           </View>
                         </View>
                       </View>
@@ -1111,6 +1158,84 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Space.base,
+    paddingBottom: Space.md,
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  weighCard: {
+    marginBottom: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  latestPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  inputWrap: {
+    flex: 1,
+    height: 48,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Space.sm,
+    marginRight: Space.sm,
+  },
+  inputClean: {
+    flex: 1,
+    height: 48,
+    fontSize: 16,
+    paddingHorizontal: Space.xs,
+  },
+  submitWeightBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCard: {
+    marginBottom: Space.base,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  bmiBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  statDivider: {
+    height: 1,
+  },
+  historyCard: {
+    paddingVertical: Space.sm,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  historyDivider: {
+    height: 1,
+  },
+  deltaBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: Radius.pill,
     borderWidth: 1,
   },

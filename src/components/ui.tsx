@@ -649,12 +649,14 @@ export function Chip({
   onPress,
   style,
   tone = 'accent',
+  icon,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
   tone?: Tone;
+  icon?: IconName;
 }) {
   const c = useTheme();
   const scheme = useResolvedScheme();
@@ -682,6 +684,15 @@ export function Chip({
           },
         ]}
       >
+        {icon && (
+          <View style={{ marginRight: 6 }}>
+            <Icon
+              name={icon}
+              size={15}
+              color={selected ? (tone === 'accent' ? c.onAccent : t.ink) : c.textDim}
+            />
+          </View>
+        )}
         <Text
           style={[
             Type.bodyMedium,
@@ -1112,6 +1123,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: Radius.pill,
     borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
