@@ -1,13 +1,40 @@
 /**
- * Shared primitives. Every screen composes these rather than restyling from
- * scratch, which is what keeps nine screens looking like one product.
+ * Core UI primitives (`Screen`, `Columns`, `Card`, `Button`, `Chip`, `SegmentedControl`,
+ * `PageHeader`, `NavRow`, `Stat`, `PairedBars`, `Bar`, `Empty`, `Notice`, `Txt`, `Tap`).
+ *
+ * Designed after shadcn/ui + react-native-reusables primitive discipline:
+ * - Zero `gap`, `rowGap`, `columnGap` (react-native-web 0.21 crash guard).
+ * - Strict dual-polarity `useTheme()` coloring (zero hardcoded light/dark leakage).
+ * - Non-flicker `Enter` transitions (0.94 -> 1 opacity, never stalls dim).
+ * - Compact single-line `SegmentedControl` with clean borders & `accessibilityState`.
  */
 
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text as RNText,
+  View,
+  useWindowDimensions,
+  type PressableProps,
+  type StyleProp,
+  type TextProps,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
+import { useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 import {
   Breakpoint,
-  Colors,
   Font,
-  MaxContentWidth, MaxWideWidth,
+  MaxContentWidth,
+  MaxWideWidth,
   Motion,
   Radius,
   Shadow,
@@ -16,59 +43,29 @@ import {
   Type,
   type ThemePalette,
 } from '@/constants/theme';
-import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
-import { clampFontScale, scaleType } from '@/lib/typography';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  AccessibilityInfo,
-  ActivityIndicator,
-  Animated,
-  Dimensions,
-  PixelRatio,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-  type LayoutChangeEvent,
-  type StyleProp,
-  type TextStyle,
-  type ViewStyle,
-} from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { useThemeMode } from './ThemeProvider';
 import { Icon, type IconName } from './icons';
-import { useLang } from './lang';
-import { useResolvedScheme } from './ThemeProvider';
+import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
+
+export { Font };
 
 export function useTheme(): ThemePalette {
-  const scheme = useResolvedScheme();
-  return Colors[scheme];
+  return useThemeMode().colors;
 }
 
-/** Honours the OS "reduce motion" setting; entrances become instant. */
-/** The system font setting, clamped by src/lib/typography. */
 export function useFontScale(): number {
-  const [scale, setScale] = React.useState(() => clampFontScale(PixelRatio.getFontScale()));
-
-  React.useEffect(() => {
-    // The setting can change while the app is open.
-    const sub = Dimensions.addEventListener('change', () =>
-      setScale(clampFontScale(PixelRatio.getFontScale()))
-    );
-    return () => sub.remove();
-  }, []);
-
-  return scale;
+  const { fontScale } = useWindowDimensions();
+  return fontScale || 1;
 }
 
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = React.useState(false);
+  const [reduced, setReduced] = useState(false);
   useEffect(() => {
     let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled?.().then((v) => alive && setReduced(!!v));
-    const sub = AccessibilityInfo.addEventListener?.('reduceMotionChanged', (v) => setReduced(!!v));
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      if (alive) setReduced(Boolean(v));
+    });
+    const sub = AccessibilityInfo.addEventListener?.('reduceMotionChanged', setReduced);
     return () => {
       alive = false;
       sub?.remove?.();
@@ -77,45 +74,47 @@ export function useReducedMotion(): boolean {
   return reduced;
 }
 
-/**
- * Staggered fade + rise. One orchestrated entrance per screen reads as a single
- * gesture; the same effect scattered across unrelated elements reads as noise.
- */
 export function Enter({
   index = 0,
+  delay,
+  distance = 4,
   children,
   style,
 }: {
   index?: number;
+  delay?: number;
+  distance?: number;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
-  const t = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const anim = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const computedDelay = Math.min(delay ?? index * Motion.stagger, 100);
 
   useEffect(() => {
     if (reduced) {
-      t.setValue(1);
+      anim.setValue(1);
       return;
     }
-    const anim = Animated.timing(t, {
+    Animated.timing(anim, {
       toValue: 1,
       duration: Motion.enter,
-      delay: index * Motion.stagger,
-      useNativeDriver: true,
-    });
-    anim.start();
-    return () => anim.stop();
-  }, [index, reduced, t]);
+      delay: computedDelay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  }, [anim, computedDelay, reduced]);
+
+  if (reduced) return <View style={style}>{children}</View>;
 
   return (
     <Animated.View
       style={[
-        style,
         {
-          opacity: t,
-          transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+          opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }),
+          transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [distance, 0] }) }],
         },
+        style,
       ]}
     >
       {children}
@@ -123,196 +122,182 @@ export function Enter({
   );
 }
 
-/**
- * Whether this viewport has room for two columns.
- *
- * A hook rather than a media query because the layout has to work on native
- * too — a tablet in landscape is the same situation as a laptop, and RN has no
- * CSS to ask.
- */
 export function useWide(): boolean {
   const { width } = useWindowDimensions();
   return width >= Breakpoint.wide;
 }
 
-/** Page shell: safe area, centred column, clearance for the floating tab bar. */
 export function Screen({
   children,
   scroll = true,
-  edges = ['top'],
+  edges,
   tabBar = true,
   wide = false,
+  sticky,
+  refresh,
+  scrollRef,
+  bare = false,
+  style,
   contentStyle,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   edges?: Edge[];
   tabBar?: boolean;
-  /**
-   * Opt in to the wider budget on a large screen.
-   *
-   * Only for screens that actually have parallel content. A form or a
-   * conversation reads worse wide — a line of prose past about 75 characters
-   * is harder to track back to the next line, and no amount of screen makes
-   * that untrue.
-   */
   wide?: boolean;
+  sticky?: React.ReactNode;
+  refresh?: { refreshing: boolean; onRefresh: () => void };
+  scrollRef?: React.RefObject<ScrollView | null>;
+  bare?: boolean;
+  style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
   const isWide = useWide();
-  const pad = { paddingBottom: tabBar ? TabBarClearance : Space.xxl };
-  const width = { maxWidth: wide && isWide ? MaxWideWidth : MaxContentWidth };
+  const insets = useSafeAreaInsets();
+  const useEdges = edges ?? ['top'];
+  const padTop = useEdges.includes('top') ? Math.max(insets.top, Space.md) : 0;
+  const padBottomBase = useEdges.includes('bottom') ? Math.max(insets.bottom, Space.base) : Space.xl;
+  // On wide desktop viewports navigation sits in the top chrome bar so bottom never needs floating dock clearance.
+  const padBottom = tabBar && !isWide ? padBottomBase + TabBarClearance : padBottomBase + Space.lg;
+  const maxWidth = wide && isWide ? MaxWideWidth : MaxContentWidth;
+  const sidePad = isWide ? Space.xl : Space.base;
 
-  return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: c.bg }]} edges={edges}>
-      {scroll ? (
-        <ScrollView
-          contentContainerStyle={[styles.column, width, pad, contentStyle]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+  if (bare || !scroll) {
+    return (
+      <View
+        style={[
+          styles.flex,
+          { backgroundColor: c.bg, paddingTop: padTop, paddingBottom: padBottomBase },
+          style,
+        ]}
+      >
+        <View style={[{ flex: 1, width: '100%', maxWidth, alignSelf: 'center', paddingHorizontal: sidePad }, contentStyle]}>
           {children}
-        </ScrollView>
-      ) : (
-        <View style={[styles.flex, styles.column, width, pad, contentStyle]}>{children}</View>
-      )}
-    </SafeAreaView>
-  );
-}
-
-/**
- * Two columns on a wide screen, one on a phone.
- *
- * Children go into a left and a right column rather than wrapping. Wrapping at
- * 50% width lines cards up in rows, so a short card beside a tall one leaves a
- * hole the height of the difference — and this app's cards differ a lot, a
- * two-line notice next to a chart.
- *
- * Which column a card lands in is decided by height, not by turn. Dealing them
- * alternately packs each column but not against each other: on Progress the
- * odd positions happened to hold the two short cards and the even ones the
- * three tall ones, so the right column ended half way up the screen and the
- * bottom right of the page was empty. Each card now goes under whichever
- * column is currently shorter, which is what makes a masonry look deliberate.
- *
- * Heights are only known after a layout pass, so the first paint deals
- * alternately and the arrangement settles once. Moving a card between columns
- * cannot change its height — both columns are the same width — so it settles
- * exactly once rather than oscillating.
- *
- * Order runs down the left and then down the right, which is how someone reads
- * two columns anyway. Anything whose sequence carries meaning should not be in
- * here — put it above the split.
- *
- * Margins, not `gap`: the README's standing constraint.
- */
-export function Columns({ children }: { children: React.ReactNode }) {
-  const wide = useWide();
-  const [heights, setHeights] = useState<Record<number, number>>({});
-  const items = React.Children.toArray(children).filter(Boolean);
-
-  const measure = (i: number) => (e: LayoutChangeEvent) => {
-    const h = Math.round(e.nativeEvent.layout.height);
-    setHeights((prev) => (prev[i] === h ? prev : { ...prev, [i]: h }));
-  };
-
-  if (!wide || items.length < 2) return <>{children}</>;
-
-  const measured = items.every((_, i) => heights[i] !== undefined);
-  const left: React.ReactNode[] = [];
-  const right: React.ReactNode[] = [];
-  let leftHeight = 0;
-  let rightHeight = 0;
-
-  items.forEach((child, i) => {
-    const cell = (
-      <View key={i} onLayout={measure(i)}>
-        {child}
+        </View>
       </View>
     );
-    const goLeft = measured ? leftHeight <= rightHeight : i % 2 === 0;
-    if (goLeft) {
-      left.push(cell);
-      leftHeight += heights[i] ?? 0;
-    } else {
-      right.push(cell);
-      rightHeight += heights[i] ?? 0;
-    }
-  });
+  }
 
   return (
-    <View style={styles.columns}>
-      <View style={[styles.columnHalf, styles.columnLeft]}>{left}</View>
-      <View style={styles.columnHalf}>{right}</View>
+    <View style={[styles.flex, { backgroundColor: c.bg, paddingTop: padTop }, style]}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.flex}
+        contentContainerStyle={[
+          {
+            width: '100%',
+            maxWidth,
+            alignSelf: 'center',
+            paddingHorizontal: sidePad,
+            paddingTop: Space.xs,
+            paddingBottom: padBottom,
+          },
+          contentStyle,
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          refresh ? (
+            <RefreshControl refreshing={refresh.refreshing} onRefresh={refresh.onRefresh} tintColor={c.accent} />
+          ) : undefined
+        }
+      >
+        {children}
+      </ScrollView>
+      {sticky ? (
+        <View
+          style={[
+            styles.sticky,
+            {
+              backgroundColor: c.bg,
+              borderTopColor: c.line,
+              paddingBottom: Math.max(insets.bottom, Space.sm),
+              paddingHorizontal: sidePad,
+            },
+          ]}
+        >
+          <View style={{ width: '100%', maxWidth, alignSelf: 'center' }}>{sticky}</View>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-type TxtVariant = keyof typeof Type;
+/** Two balanced columns above Breakpoint.wide (`840px`), single column below. */
+export function Columns({ children }: { children: React.ReactNode }) {
+  const isWide = useWide();
+  const items = React.Children.toArray(children).filter(Boolean);
+  if (!isWide || items.length < 2) {
+    return <View>{children}</View>;
+  }
+  const left: React.ReactNode[] = [];
+  const right: React.ReactNode[] = [];
+  items.forEach((child, i) => {
+    if (i % 2 === 0) left.push(child);
+    else right.push(child);
+  });
+  return (
+    <View style={styles.columns}>
+      <View style={[styles.col, { marginRight: Space.base / 2 }]}>{left}</View>
+      <View style={[styles.col, { marginLeft: Space.base / 2 }]}>{right}</View>
+    </View>
+  );
+}
+
+export type TxtVariant = keyof typeof Type;
+export type TypeVariant = TxtVariant;
 
 export function Txt({
   variant = 'body',
   color,
+  align,
   style,
   children,
-  numberOfLines,
   ...rest
-}: {
+}: TextProps & {
   variant?: TxtVariant;
   color?: string;
-  style?: StyleProp<TextStyle>;
-  children: React.ReactNode;
-  numberOfLines?: number;
-} & React.ComponentProps<typeof Text>) {
+  align?: TextStyle['textAlign'];
+}) {
   const c = useTheme();
-  const scale = useFontScale();
-  const base = Type[variant] as TextStyle;
-  const scaled = scaleType(base, scale);
-
   return (
-    <Text
-      numberOfLines={numberOfLines}
-      // The cap is ours; letting the OS scale on top of it would double up.
-      maxFontSizeMultiplier={1}
-      style={[base, scaled, { color: color ?? c.text }, style]}
+    <RNText
+      maxFontSizeMultiplier={1.4}
       {...rest}
+      style={[
+        Type[variant],
+        { color: color ?? c.text },
+        align ? { textAlign: align } : null,
+        style,
+      ]}
     >
       {children}
-    </Text>
+    </RNText>
   );
 }
 
-/**
- * Renders what the coach writes.
- *
- * The model replies in Markdown; printing it verbatim put literal `**` and
- * `* ` on screen. Blocks are spaced with margins because `gap` breaks this
- * RN-Web version, and the whole reply carries one accessibility label so a
- * screen reader hears prose rather than a list of fragments.
- */
 export function Markdown({ text, color }: { text: string; color?: string }) {
   const c = useTheme();
-  const blocks = React.useMemo(() => parseMarkdown(text), [text]);
+  const blocks = useMemo(() => parseMarkdown(text), [text]);
   const fg = color ?? c.text;
 
-  // Nothing recognised at all — show the source rather than an empty bubble.
   if (blocks.length === 0) {
     return <Txt variant="body" color={fg}>{text}</Txt>;
   }
 
   const inline = (spans: Span[]) =>
-    spans.map((s, i) => {
-      if (s.type === 'bold') return <Text key={i} style={{ fontFamily: Font.bodySemi }}>{s.text}</Text>;
-      if (s.type === 'italic') return <Text key={i} style={{ fontStyle: 'italic' }}>{s.text}</Text>;
-      if (s.type === 'code') {
+    spans.map((span, i) => {
+      if (span.type === 'bold') return <RNText key={i} style={{ fontFamily: Font.bodySemi, fontWeight: '700' }}>{span.text}</RNText>;
+      if (span.type === 'italic') return <RNText key={i} style={{ fontStyle: 'italic' }}>{span.text}</RNText>;
+      if (span.type === 'code') {
         return (
-          <Text key={i} style={{ fontFamily: Font.mono, fontSize: 13, color: c.accent }}>
-            {s.text}
-          </Text>
+          <RNText key={i} style={{ fontFamily: Font.mono, fontSize: 13, color: c.accent }}>
+            {span.text}
+          </RNText>
         );
       }
-      return <Text key={i}>{s.text}</Text>;
+      return <RNText key={i}>{span.text}</RNText>;
     });
 
   return (
@@ -321,78 +306,67 @@ export function Markdown({ text, color }: { text: string; color?: string }) {
         const first = i === 0;
         if (b.type === 'heading') {
           return (
-            <Text
+            <RNText
               key={i}
               style={[Type.subheading, { color: fg, marginTop: first ? 0 : Space.base, marginBottom: Space.xs }]}
             >
               {inline(b.spans)}
-            </Text>
+            </RNText>
           );
         }
         if (b.type === 'bullet' || b.type === 'ordered') {
           return (
             <View key={i} style={[styles.mdRow, { marginTop: first ? 0 : Space.sm }]}>
               {b.type === 'ordered' ? (
-                <Text style={[Type.body, { color: c.textDim, width: 22 }]}>{b.index}.</Text>
+                <RNText style={[Type.body, { color: c.textDim, width: 22 }]}>{b.index}.</RNText>
               ) : (
                 <View style={[styles.mdDot, { backgroundColor: c.textFaint }]} />
               )}
-              <Text style={[Type.body, { color: fg, flex: 1 }]}>{inline(b.spans)}</Text>
+              <RNText style={[Type.body, { color: fg, flex: 1 }]}>{inline(b.spans)}</RNText>
             </View>
           );
         }
         return (
-          <Text key={i} style={[Type.body, { color: fg, marginTop: first ? 0 : Space.md }]}>
+          <RNText key={i} style={[Type.body, { color: fg, marginTop: first ? 0 : Space.md }]}>
             {inline(b.spans)}
-          </Text>
+          </RNText>
         );
       })}
     </View>
   );
 }
 
-/** Uppercase mono micro-label. Carries data, never decoration. */
-export function Eyebrow({ children, color, style, numberOfLines }: { children: React.ReactNode; color?: string; style?: StyleProp<TextStyle>; numberOfLines?: number }) {
+export function Eyebrow({
+  children,
+  color,
+  style,
+  numberOfLines,
+}: {
+  children: React.ReactNode;
+  color?: string;
+  style?: StyleProp<TextStyle>;
+  numberOfLines?: number;
+}) {
   const c = useTheme();
-  const scale = useFontScale();
   return (
-    <Text
+    <RNText
+      maxFontSizeMultiplier={1.25}
       numberOfLines={numberOfLines}
-      maxFontSizeMultiplier={1}
       style={[
         Type.eyebrow,
-        scaleType(Type.eyebrow, scale),
-        { color: color ?? c.textFaint, textTransform: 'uppercase' },
+        {
+          color: color ?? c.textFaint,
+          textTransform: 'uppercase',
+        },
         style,
       ]}
     >
       {children}
-    </Text>
+    </RNText>
   );
 }
 
-/** Flat panel with a hairline border. Shadows go muddy on a near-black page. */
-/**
- * A panel, optionally belonging to one of the app's domains.
- *
- * The tone is a location, not a decoration: a card washed in blue is about
- * water, violet is about your body, green is about the plan. A screen of
- * identical white boxes made everything the same weight and told the reader
- * nothing; a wash and a matching edge cost one prop and say where they are.
- *
- * `default` stays plain on purpose. If every card were tinted the tint would
- * mean as little as no tint at all — the same reasoning that keeps ember rare.
- */
-export type CardTone = 'default' | 'accent' | 'ember' | 'hydro' | 'body' | 'plan' | 'gold';
-
-/** The domains a tone can name. `default` is "this belongs to no domain". */
-export type Tone = Exclude<CardTone, 'default'>;
-
-/**
- * `edge` draws the border, `fill` washes the surface, `ink` is what text and
- * icons on that wash are set in.
- */
-const TONES: Record<Tone, (c: ThemePalette) => { edge: string; fill: string; ink: string }> = {
+export const TONES: Record<Tone, (c: ThemePalette) => { edge: string; fill: string; ink: string }> = {
   accent: (c) => ({ edge: c.accentDim, fill: c.accentWash, ink: c.accent }),
   ember: (c) => ({ edge: c.ember, fill: c.emberWash, ink: c.ember }),
   hydro: (c) => ({ edge: c.hydro, fill: c.hydroWash, ink: c.hydro }),
@@ -401,68 +375,74 @@ const TONES: Record<Tone, (c: ThemePalette) => { edge: string; fill: string; ink
   gold: (c) => ({ edge: c.gold, fill: c.goldWash, ink: c.gold }),
 };
 
-/**
- * A tint of any palette colour, for a surface that has to sit under it.
- *
- * The washes in the palette exist for the five domains; anything else that
- * wants a tinted chip was reaching for a hand-written `rgba(...)`, which is
- * how six different alphas ended up on one screen. One alpha, applied to
- * whatever colour the scheme resolved, keeps them the same weight.
- */
-export type PaletteHue = 'accent' | 'ember' | 'hydro' | 'body' | 'plan' | 'gold' | 'textDim';
+export type CardTone = 'default' | 'accent' | 'ember' | 'hydro' | 'body' | 'plan' | 'gold';
+export type Tone = Exclude<CardTone, 'default'>;
+export type PaletteHue = Tone | 'textDim';
 
 export function washOf(hex: string): string {
-  return /^#[0-9a-fA-F]{6}$/.test(hex) ? `${hex}22` : hex;
+  if (!hex || typeof hex !== 'string') return 'rgba(148, 163, 184, 0.11)';
+  if (hex.startsWith('#') && (hex.length === 7 || hex.length === 4)) {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    if (hex.length === 4) {
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else {
+      r = parseInt(hex.slice(1, 3), 16);
+      g = parseInt(hex.slice(3, 5), 16);
+      b = parseInt(hex.slice(5, 7), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, 0.11)`;
+  }
+  return hex;
 }
 
-/** The palette entry for a domain, for anything that is not a `Card`. */
 export function useTone(tone: Tone) {
-  return TONES[tone](useTheme());
+  const c = useTheme();
+  return TONES[tone](c);
 }
 
-/**
- * Darken (`pct` < 0) or lighten (`pct` > 0) a hex colour. Used for the tactile
- * bottom edge on primary buttons — a flat fill reads as a label, a fill with
- * one lit top edge and one shaded bottom edge reads as something you press.
- */
 export function shade(hex: string, pct: number): string {
-  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
-  if (!m) return hex;
-  const n = parseInt(m[1], 16);
-  const f = (v: number) =>
-    Math.max(0, Math.min(255, Math.round(pct >= 0 ? v + (255 - v) * pct : v * (1 + pct))));
-  const r = f((n >> 16) & 255);
-  const g = f((n >> 8) & 255);
-  const b = f(n & 255);
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+  if (!hex.startsWith('#') || hex.length !== 7) return hex;
+  const f = parseInt(hex.slice(1), 16);
+  const t = pct < 0 ? 0 : 255;
+  const p = Math.abs(pct);
+  const R = f >> 16;
+  const G = (f >> 8) & 0x00ff;
+  const B = f & 0x0000ff;
+  const nr = Math.round((t - R) * p) + R;
+  const ng = Math.round((t - G) * p) + G;
+  const nb = Math.round((t - B) * p) + B;
+  return '#' + (0x1000000 + nr * 0x10000 + ng * 0x100 + nb).toString(16).slice(1);
 }
 
 export function Card({
   children,
-  style,
   tone = 'default',
+  style,
 }: {
   children: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
   tone?: CardTone;
+  style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
-  const scheme = useResolvedScheme();
-  const t = tone === 'default' ? null : TONES[tone](c);
-  const isDark = scheme === 'dark';
+  const { resolved } = useThemeMode();
+  const pal =
+    tone === 'default'
+      ? { fill: c.surface, edge: c.line }
+      : { fill: TONES[tone](c).fill, edge: washOf(TONES[tone](c).edge).replace('0.11)', '0.28)') };
+
   return (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: t ? t.fill : c.surface,
-          borderColor: t ? t.edge : isDark ? 'rgba(255, 255, 255, 0.08)' : c.line,
-          borderWidth: 1,
-          // A lit top edge gives the dark card its micro-surface depth — the
-          // same trick the buttons use, at whisper volume.
-          ...(isDark && !t ? { borderTopColor: 'rgba(255, 255, 255, 0.10)' } : null),
+          backgroundColor: pal.fill,
+          borderColor: pal.edge,
         },
-        !isDark && !t && Shadow.card,
+        tone === 'default' && resolved === 'light' ? Shadow.card : null,
         style,
       ]}
     >
@@ -471,247 +451,255 @@ export function Card({
   );
 }
 
-/**
- * Sizing lives on the pressable; everything else lives on the view that scales.
- */
-const OUTER_KEYS = [
-  'flex', 'flexGrow', 'flexShrink', 'flexBasis',
-  'width', 'minWidth', 'maxWidth', 'alignSelf',
-] as const;
+const OUTER_KEYS = new Set([
+  'flex',
+  'flexGrow',
+  'flexShrink',
+  'flexBasis',
+  'alignSelf',
+  'width',
+  'minWidth',
+  'maxWidth',
+  'margin',
+  'marginTop',
+  'marginBottom',
+  'marginLeft',
+  'marginRight',
+  'marginHorizontal',
+  'marginVertical',
+  'position',
+  'top',
+  'right',
+  'bottom',
+  'left',
+]);
 
-/** Press feedback: a small spring scale. Applied once, everywhere tappable. */
 export function Tap({
-  onPress,
   children,
   style,
+  hitSlop,
   disabled,
-  accessibilityLabel,
-  accessibilityRole = 'button',
+  accessibilityRole,
   accessibilityState,
-}: {
-  onPress?: () => void;
+  ...rest
+}: PressableProps & {
+  style?: StyleProp<ViewStyle | TextStyle>;
   children: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
-  disabled?: boolean;
-  accessibilityLabel?: string;
-  accessibilityRole?: any;
-  accessibilityState?: any;
 }) {
-  const reduced = useReducedMotion();
-  const s = useRef(new Animated.Value(1)).current;
-
-  const to = (v: number) => {
-    if (reduced) return;
-    Animated.spring(s, { toValue: v, useNativeDriver: true, speed: 50, bounciness: 3 }).start();
-  };
-
-  const inner: ViewStyle = { ...(StyleSheet.flatten(style) as ViewStyle) };
-  const outer: ViewStyle = {};
-  for (const k of OUTER_KEYS) {
-    if (inner[k] === undefined) continue;
-    (outer as any)[k] = inner[k];
-    delete inner[k];
+  const flat = StyleSheet.flatten(style as StyleProp<ViewStyle>) || {};
+  const outer: Record<string, any> = {};
+  const inner: Record<string, any> = {};
+  for (const [k, v] of Object.entries(flat)) {
+    if (OUTER_KEYS.has(k)) outer[k] = v;
+    else inner[k] = v;
   }
   const fills = Object.keys(outer).length > 0;
 
   return (
     <Pressable
-      style={outer}
-      onPress={onPress}
-      onPressIn={() => to(Motion.pressScale)}
-      onPressOut={() => to(1)}
       disabled={disabled}
-      accessibilityRole={accessibilityRole}
-      accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole ?? 'button'}
       accessibilityState={accessibilityState}
+      hitSlop={hitSlop ?? { top: 4, bottom: 4, left: 4, right: 4 }}
       {...(accessibilityState && 'checked' in accessibilityState
         ? { 'aria-checked': !!accessibilityState.checked }
+        : null)}
+      {...(accessibilityState && 'selected' in accessibilityState
+        ? { 'aria-selected': !!accessibilityState.selected }
         : null)}
       {...(accessibilityState && accessibilityState.disabled
         ? { 'aria-disabled': true }
         : null)}
+      {...rest}
+      style={({ pressed }) => [
+        outer as ViewStyle,
+        Platform.OS === 'web' ? ({ cursor: disabled ? 'not-allowed' : 'pointer' } as any) : null,
+        pressed && !disabled ? { opacity: 0.84, transform: [{ scale: Motion.pressScale }] } : null,
+      ]}
     >
-      <Animated.View style={[{ transform: [{ scale: s }] }, fills && styles.tapFill, inner]}>
+      <View style={[fills ? styles.tapFill : null, inner as ViewStyle]}>
         {children}
-      </Animated.View>
+      </View>
     </Pressable>
   );
 }
+
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'ember';
+export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export function Button({
   label,
   onPress,
   variant = 'primary',
+  size = 'md',
+  tone,
   icon,
-  disabled,
-  loading,
+  disabled = false,
+  loading = false,
+  fullWidth = false,
+  accessibilityLabel,
   style,
-  tone = 'accent',
 }: {
   label: string;
   onPress?: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  tone?: Tone;
   icon?: IconName;
   disabled?: boolean;
   loading?: boolean;
+  fullWidth?: boolean;
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
-  tone?: Tone;
 }) {
   const c = useTheme();
-  const scheme = useResolvedScheme();
-  const isDark = scheme === 'dark';
-  const off = disabled || loading;
-  const t = TONES[tone](c);
+  const isDisabled = disabled || loading;
 
-  const bg =
-    variant === 'primary'
-      ? off
-        ? c.well
-        : t.ink
-      : variant === 'secondary'
-      ? off
-        ? c.well
-        : (c.surfaceElevated ?? c.surface)
-      : 'transparent';
+  let bg = c.accent;
+  let border = c.accent;
+  let fg = c.onAccent;
 
-  const fg =
-    variant === 'primary'
-      ? off
-        ? c.textFaint
-        : tone === 'accent' || tone === 'plan' || tone === 'gold' || tone === 'hydro'
-        ? c.onAccent
-        : '#FFFFFF'
-      : off
-      ? c.textFaint
-      : c.text;
+  if (variant === 'ember' || (variant === 'primary' && tone === 'ember')) {
+    bg = c.ember;
+    border = c.ember;
+    fg = c.onEmber;
+  } else if (variant === 'primary' && tone && tone !== 'accent') {
+    const t = TONES[tone](c);
+    bg = t.ink;
+    border = t.ink;
+    fg = tone === 'gold' || tone === 'hydro' || tone === 'plan' ? c.onAccent : '#FFFFFF';
+  } else if (variant === 'secondary') {
+    bg = c.surfaceElevated;
+    border = c.lineStrong;
+    fg = c.text;
+  } else if (variant === 'outline') {
+    bg = 'transparent';
+    border = c.lineStrong;
+    fg = c.text;
+  } else if (variant === 'ghost') {
+    bg = 'transparent';
+    border = 'transparent';
+    fg = tone ? TONES[tone](c).ink : c.textDim;
+  }
 
-  const borderColor =
-    variant === 'secondary'
-      ? isDark
-        ? 'rgba(255, 255, 255, 0.12)'
-        : c.lineStrong
-      : variant === 'ghost'
-      ? isDark
-        ? 'rgba(255, 255, 255, 0.14)'
-        : c.line
-      : 'transparent';
+  const heightMap: Record<ButtonSize, { minHeight: number; px: number; fontSize: number }> = {
+    sm: { minHeight: 36, px: 12, fontSize: 13 },
+    md: { minHeight: 46, px: 18, fontSize: 15 },
+    lg: { minHeight: 52, px: 22, fontSize: 16 },
+  };
+  const sz = heightMap[size];
 
   return (
-    <Tap onPress={onPress} disabled={off} accessibilityLabel={label} style={style}>
-      <View
-        style={[
-          styles.button,
-          {
-            backgroundColor: bg,
-            borderWidth: variant === 'primary' ? 0 : 1,
-            borderColor,
-            // Lit on top, shaded underneath: the button becomes a precision key cap.
-            borderTopWidth: variant === 'primary' && !off ? 1 : variant === 'secondary' && isDark ? 1 : 0,
-            borderTopColor:
-              variant === 'primary' && !off
-                ? 'rgba(255, 255, 255, 0.38)'
-                : variant === 'secondary' && isDark
-                ? 'rgba(255, 255, 255, 0.18)'
-                : 'transparent',
-            borderBottomWidth: variant === 'primary' && !off ? 2 : 0,
-            borderBottomColor: variant === 'primary' && !off ? shade(t.ink, -0.32) : 'transparent',
-          },
-        ]}
-      >
-        {loading ? (
+    <Tap
+      onPress={onPress}
+      disabled={isDisabled}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      style={[
+        styles.btn,
+        {
+          minHeight: sz.minHeight,
+          paddingHorizontal: sz.px,
+          backgroundColor: bg,
+          borderColor: border,
+          borderWidth: variant === 'ghost' ? 0 : 1,
+          opacity: isDisabled ? 0.45 : 1,
+          alignSelf: fullWidth ? 'stretch' : undefined,
+        },
+        style,
+      ]}
+    >
+      {loading ? (
+        <View style={{ marginRight: 8 }}>
           <ActivityIndicator size="small" color={fg} />
-        ) : (
-          icon && <Icon name={icon} size={18} color={fg} />
-        )}
-        <Text
-          style={[
-            Type.heading,
-            {
-              color: fg,
-              marginLeft: icon || loading ? Space.sm : 0,
-              fontSize: 14.5,
-              fontWeight: '700',
-              letterSpacing: 0.3,
-            },
-          ]}
-        >
-          {label}
-        </Text>
-      </View>
+        </View>
+      ) : icon ? (
+        <View style={{ marginRight: 8 }}>
+          <Icon name={icon} size={sz.fontSize + 2} color={fg} />
+        </View>
+      ) : null}
+      <RNText
+        maxFontSizeMultiplier={1.25}
+        style={{
+          fontFamily: Font.bodySemi,
+          fontSize: sz.fontSize,
+          fontWeight: '700',
+          letterSpacing: -0.1,
+          color: fg,
+          textAlign: 'center',
+        }}
+      >
+        {label}
+      </RNText>
     </Tap>
   );
 }
 
-/** Selectable pill. Used for every option row in the app. */
 export function Chip({
   label,
-  selected,
+  selected = false,
   onPress,
-  style,
   tone = 'accent',
   icon,
+  accessibilityLabel,
+  style,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
-  style?: StyleProp<ViewStyle>;
-  tone?: Tone;
+  tone?: CardTone;
   icon?: IconName;
+  accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
-  const scheme = useResolvedScheme();
-  const isDark = scheme === 'dark';
-  const t = TONES[tone](c);
+  const activeColors: Record<CardTone, { bg: string; fg: string; border: string }> = {
+    default: { bg: c.accent, fg: c.onAccent, border: c.accent },
+    accent: { bg: c.accent, fg: c.onAccent, border: c.accent },
+    ember: { bg: c.ember, fg: c.onEmber, border: c.ember },
+    hydro: { bg: c.hydro, fg: c.onAccent, border: c.hydro },
+    body: { bg: c.body, fg: '#FFFFFF', border: c.body },
+    plan: { bg: c.plan, fg: c.onAccent, border: c.plan },
+    gold: { bg: c.gold, fg: c.onAccent, border: c.gold },
+  };
+  const pal = selected
+    ? activeColors[tone]
+    : { bg: c.surfaceElevated, fg: c.text, border: c.line };
+
   return (
     <Tap
       onPress={onPress}
-      accessibilityRole="radio"
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      style={style}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: pal.bg,
+          borderColor: pal.border,
+        },
+        style,
+      ]}
     >
-      <View
-        style={[
-          styles.chip,
-          {
-            backgroundColor: selected ? (tone === 'accent' ? c.accent : t.fill) : (c.surfaceElevated ?? c.surface),
-            borderColor: selected ? (tone === 'accent' ? c.accent : t.ink) : isDark ? 'rgba(255, 255, 255, 0.10)' : c.line,
-            borderWidth: 1,
-            ...(selected && tone === 'accent' && {
-              borderTopWidth: 1,
-              borderTopColor: 'rgba(255, 255, 255, 0.4)',
-            }),
-          },
-        ]}
+      {icon ? (
+        <View style={{ marginRight: 6 }}>
+          <Icon name={icon} size={14} color={pal.fg} />
+        </View>
+      ) : null}
+      <RNText
+        maxFontSizeMultiplier={1.25}
+        style={{
+          fontFamily: Font.bodySemi,
+          fontSize: 13.5,
+          fontWeight: selected ? '700' : '600',
+          color: pal.fg,
+        }}
       >
-        {icon && (
-          <View style={{ marginRight: 6 }}>
-            <Icon
-              name={icon}
-              size={15}
-              color={selected ? (tone === 'accent' ? c.onAccent : t.ink) : c.textDim}
-            />
-          </View>
-        )}
-        <Text
-          style={[
-            Type.bodyMedium,
-            {
-              color: selected ? (tone === 'accent' ? c.onAccent : t.ink) : c.textDim,
-              fontSize: 13,
-              fontWeight: selected ? '800' : '600',
-              letterSpacing: 0.2,
-            },
-          ]}
-        >
-          {label}
-        </Text>
-      </View>
+        {label}
+      </RNText>
     </Tap>
   );
 }
 
-/** Label above, value below. The app's standard readout. */
 export function Stat({
   label,
   value,
@@ -728,10 +716,21 @@ export function Stat({
   const c = useTheme();
   return (
     <View style={style}>
-      <Eyebrow>{label}</Eyebrow>
-      <View style={styles.statRow}>
-        <Text style={[Type.heading, { color: color ?? c.text, fontSize: 22 }]}>{value}</Text>
-        {unit && <Text style={[Type.data, { color: c.textFaint, marginLeft: 3 }]}>{unit}</Text>}
+      <Eyebrow color={c.textFaint}>{label}</Eyebrow>
+      <View style={styles.statValueRow}>
+        <RNText
+          style={[
+            Type.title,
+            { color: color ?? c.text, fontVariant: ['tabular-nums'], marginTop: 4 },
+          ]}
+        >
+          {value}
+        </RNText>
+        {unit ? (
+          <RNText style={[Type.small, { color: c.textDim, marginLeft: 4, marginBottom: 4 }]}>
+            {unit}
+          </RNText>
+        ) : null}
       </View>
     </View>
   );
@@ -739,180 +738,126 @@ export function Stat({
 
 export function Bar({ pct, color, height = 6 }: { pct: number; color: string; height?: number }) {
   const c = useTheme();
-  const reduced = useReducedMotion();
-  const w = useRef(new Animated.Value(reduced ? pct : 0)).current;
-
-  useEffect(() => {
-    if (reduced) {
-      w.setValue(pct);
-      return;
-    }
-    Animated.timing(w, { toValue: pct, duration: 620, useNativeDriver: false }).start();
-  }, [pct, reduced, w]);
-
+  const clamped = Math.max(0, Math.min(100, pct));
   return (
-    <View style={[styles.track, { backgroundColor: c.well, height, borderRadius: height / 2 }]}>
-      <Animated.View
-        style={{
-          height: '100%',
-          borderRadius: height / 2,
-          backgroundColor: color,
-          width: w.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' }),
-        }}
-      />
+    <View style={[styles.barTrack, { height, backgroundColor: c.well }]}>
+      <View style={[styles.barFill, { width: `${clamped}%`, height, backgroundColor: color }]} />
     </View>
   );
 }
 
-/**
- * What each day aimed at, next to what it came to.
- *
- * The week already exists on Progress as a row of glyphs, which says whether a
- * day was answered and roughly how, but not by how much. Two bars per day say
- * it in the one way that needs no reading: the pair matches, or one is taller.
- *
- * Days without an answer are drawn as an empty slot rather than skipped, so the
- * gaps in a week stay visible — a chart of only the answered days would flatter
- * anyone who stops answering when it goes badly.
- */
 export function PairedBars({
   days,
-  height = 96,
+  height = 76,
   labels = true,
+  tone = 'accent',
 }: {
   days: { label: string; target: number | null; kcal: number | null }[];
   height?: number;
-  /** Off when the row beneath already names the days — see Progress. */
   labels?: boolean;
+  tone?: Tone;
 }) {
   const c = useTheme();
-  // One scale across the week, from the tallest thing in it — per-day scaling
-  // would make every day look the same height and the comparison would be lost.
-  const peak = Math.max(
-    1,
-    ...days.flatMap((d) => [d.target ?? 0, d.kcal ?? 0])
-  );
+  const toneInk = TONES[tone](c).ink;
+  const maxVal = Math.max(1, ...days.flatMap((d) => [d.target ?? 0, d.kcal ?? 0]));
 
   return (
-    <View>
-      <View style={[styles.pairRow, { height }]}>
-        {days.map((d, i) => {
-          const over = d.kcal !== null && d.target !== null && d.kcal > d.target;
-          return (
-            <View key={i} style={styles.pairCol}>
-              <View style={[styles.pairBars, { height }]}>
-                {/* The plan is grey and inert; what you did carries the
-                    colour. Both drawn in the accent family read as one
-                    two-toned bar, and on a day that landed exactly on target
-                    the pair became two identical teal sticks with nothing to
-                    say which was which. */}
+    <View style={styles.pairedWrap}>
+      {days.map((d, i) => {
+        const targetH = d.target != null ? Math.max(4, Math.round((d.target / maxVal) * height)) : 4;
+        const eatenH = d.kcal != null ? Math.max(4, Math.round((d.kcal / maxVal) * height)) : 0;
+        const over = d.kcal != null && d.target != null && d.kcal > d.target * 1.15;
+        return (
+          <View key={i} style={styles.pairedCol}>
+            <View style={[styles.pairedBarsRow, { height }]}>
+              <View
+                style={{
+                  width: 8,
+                  height: targetH,
+                  borderRadius: 4,
+                  backgroundColor: c.well,
+                  borderWidth: 1,
+                  borderColor: c.lineStrong,
+                  marginRight: 3,
+                }}
+              />
+              {d.kcal != null ? (
                 <View
-                  style={[
-                    styles.pairBar,
-                    {
-                      // `textFaint`, not `lineStrong`: the same floor the day
-                      // band needed. lineStrong against a dark card is about
-                      // 1.6:1 — drawn, and gone.
-                      backgroundColor: d.target === null ? c.well : c.textFaint,
-                      height: Math.max(2, ((d.target ?? 0) / peak) * height),
-                    },
-                  ]}
+                  style={{
+                    width: 8,
+                    height: eatenH,
+                    borderRadius: 4,
+                    backgroundColor: over ? c.ember : toneInk,
+                  }}
                 />
-                <View
-                  style={[
-                    styles.pairBar,
-                    styles.pairBarLast,
-                    {
-                      backgroundColor: d.kcal === null ? c.well : over ? c.ember : c.accent,
-                      height: Math.max(2, ((d.kcal ?? 0) / peak) * height),
-                    },
-                  ]}
-                />
-              </View>
+              ) : (
+                <View style={{ width: 8, height: 2, backgroundColor: c.lineStrong, borderRadius: 1 }} />
+              )}
             </View>
-          );
-        })}
-      </View>
-      <View style={[styles.pairRow, !labels && styles.hidden]}>
-        {days.map((d, i) => (
-          <View key={i} style={styles.pairCol}>
-            <Text
-              style={[Type.eyebrow, { color: c.textFaint, textAlign: 'center', marginTop: Space.sm }]}
-              numberOfLines={1}
-            >
-              {d.label}
-            </Text>
+            {labels ? (
+              <Eyebrow color={c.textFaint} style={{ marginTop: 6, fontSize: 10 }}>
+                {d.label}
+              </Eyebrow>
+            ) : null}
           </View>
-        ))}
-      </View>
+        );
+      })}
     </View>
   );
 }
 
-/** Screen title block. Eyebrow carries real data, not a decorative kicker. */
-/**
- * The eyebrow is where a screen says which part of the app you are in, so it
- * is the cheapest place to put the domain's colour: one prop, and the header
- * of every screen stops being the same grey caption on the same white page.
- *
- * As a badge rather than loose text because at 10pt a hue is barely a hue —
- * coloured type that small reads as grey type someone got slightly wrong. The
- * wash behind it gives the colour enough area to be a colour.
- */
 export function PageHeader({
   eyebrow,
   title,
   sub,
-  tone,
+  subtitle,
+  tone = 'default',
   back,
   onBack,
+  right,
 }: {
   eyebrow?: string;
   title: string;
   sub?: string;
-  tone?: Tone;
+  subtitle?: string;
+  tone?: CardTone;
   back?: boolean;
   onBack?: () => void;
+  right?: React.ReactNode;
 }) {
   const c = useTheme();
-  const router = useRouter();
-  const { t: tr } = useLang();
-  const t = tone ? TONES[tone](c) : null;
-  const showBack = Boolean(back || onBack);
-
-  const handleBack = () => {
-    if (onBack) onBack();
-    else router.back();
-  };
+  const toneInk = tone === 'default' ? c.textFaint : TONES[tone](c).ink;
+  const subText = subtitle ?? sub;
 
   return (
-    <View style={styles.pageHeader}>
-      {showBack && (
-        <Tap onPress={handleBack} accessibilityLabel={tr('nav.back')} style={styles.backBtnTap}>
-          <View style={[styles.backBtn, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
-            <Icon name="chevronLeft" size={16} color={c.text} />
-            <Text style={[Type.bodyMedium, { color: c.text, fontSize: 13, marginLeft: 4, fontWeight: '600' }]}>
-              {tr('nav.back')}
-            </Text>
-          </View>
-        </Tap>
-      )}
-      {eyebrow &&
-        (t ? (
-          <View style={styles.headerBadgeRow}>
-            <View style={[styles.headerBadge, { backgroundColor: t.fill, borderColor: t.edge }]}>
-              <Eyebrow color={t.ink} numberOfLines={1}>{eyebrow}</Eyebrow>
-            </View>
-          </View>
-        ) : (
-          <Eyebrow style={{ marginBottom: Space.sm }}>{eyebrow}</Eyebrow>
-        ))}
-      <Txt variant="title">{title}</Txt>
-      {sub && (
-        <Txt variant="body" color={c.textDim} style={{ marginTop: Space.sm }}>
-          {sub}
-        </Txt>
-      )}
+    <View style={styles.header}>
+      <View style={styles.headerTopRow}>
+        {back && onBack ? (
+          <Tap
+            onPress={onBack}
+            accessibilityLabel="Back"
+            style={[styles.backBtn, { backgroundColor: c.surface, borderColor: c.line }]}
+          >
+            <Icon name="chevronLeft" size={18} color={c.text} />
+          </Tap>
+        ) : null}
+        <View style={{ flex: 1 }}>
+          {eyebrow ? (
+            <Eyebrow color={toneInk} style={{ marginBottom: 4 }}>
+              {eyebrow}
+            </Eyebrow>
+          ) : null}
+          <Txt variant="title" color={c.text}>
+            {title}
+          </Txt>
+          {subText ? (
+            <Txt variant="small" color={c.textDim} style={{ marginTop: 4 }}>
+              {subText}
+            </Txt>
+          ) : null}
+        </View>
+        {right ? <View style={{ marginLeft: Space.md }}>{right}</View> : null}
+      </View>
     </View>
   );
 }
@@ -920,67 +865,75 @@ export function PageHeader({
 export function SegmentedControl<T extends string>({
   values,
   selected,
+  value,
   onSelect,
+  onChange,
   tone = 'accent',
   style,
 }: {
   values: { id: T; label: string; accessibilityLabel?: string; icon?: IconName }[];
-  selected: T;
-  onSelect: (id: T) => void;
-  tone?: Tone;
+  selected?: T;
+  value?: T;
+  onSelect?: (id: T) => void;
+  onChange?: (id: T) => void;
+  tone?: CardTone;
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
-  const t = TONES[tone](c);
+  const isWide = useWide();
+  const { resolved } = useThemeMode();
+  const current = selected ?? value;
+  const handleSelect = onSelect ?? onChange;
+  const dotInk = tone === 'default' ? c.accent : TONES[tone](c).ink;
+  const showIcons = isWide || values.length < 3;
+
   return (
-    <View style={[styles.segmentTrack, { backgroundColor: c.well, borderColor: c.line }, style]}>
-      {values.map((v) => {
-        const active = selected === v.id;
+    <View
+      style={[
+        styles.segTrack,
+        { backgroundColor: c.well, borderColor: c.line },
+        style,
+      ]}
+    >
+      {values.map((item) => {
+        const active = item.id === current;
         return (
           <Tap
-            key={v.id}
-            onPress={() => onSelect(v.id)}
-            style={styles.segmentItem}
-            accessibilityRole="tab"
+            key={item.id}
+            onPress={() => handleSelect?.(item.id)}
+            accessibilityLabel={item.accessibilityLabel ?? item.label}
             accessibilityState={{ selected: active }}
-            accessibilityLabel={v.accessibilityLabel ?? v.label}
+            style={[
+              styles.segItem,
+              { paddingHorizontal: isWide ? 8 : 4 },
+              active
+                ? {
+                    backgroundColor: resolved === 'light' ? c.surface : c.surfaceElevated,
+                    borderColor: c.lineStrong,
+                    ...(resolved === 'light' ? Shadow.card : {}),
+                  }
+                : { borderColor: 'transparent' },
+            ]}
           >
-            <View
-              style={[
-                styles.segmentPill,
-                active && {
-                  // The raised pill carries the segment's domain wash, so the
-                  // control keeps teaching the palette instead of going grey.
-                  backgroundColor: t.fill,
-                  borderColor: t.edge,
-                  shadowColor: '#000',
-                  shadowOpacity: 0.08,
-                  shadowRadius: 4,
-                  elevation: 2,
-                },
-              ]}
+            {item.icon && showIcons ? (
+              <View style={{ marginRight: 5 }}>
+                <Icon name={item.icon} size={14} color={active ? dotInk : c.textFaint} />
+              </View>
+            ) : null}
+            <RNText
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
+              style={{
+                fontFamily: Font.bodySemi,
+                fontSize: isWide ? 13 : 12,
+                fontWeight: active ? '700' : '600',
+                color: active ? c.text : c.textDim,
+                textAlign: 'center',
+              }}
             >
-              {v.icon && (
-                <Icon
-                  name={v.icon}
-                  size={15}
-                  color={active ? t.ink : c.textDim}
-                />
-              )}
-              <Text
-                style={[
-                  Type.subheading,
-                  {
-                    color: active ? t.ink : c.textDim,
-                    fontSize: 13,
-                    fontWeight: active ? '700' : '500',
-                    marginLeft: v.icon ? 6 : 0,
-                  },
-                ]}
-              >
-                {v.label}
-              </Text>
-            </View>
+              {item.label}
+            </RNText>
           </Tap>
         );
       })}
@@ -990,225 +943,256 @@ export function SegmentedControl<T extends string>({
 
 export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
   const c = useTheme();
-  return <View style={[{ height: 1, backgroundColor: c.line }, style]} />;
+  return <View style={[{ height: 1, backgroundColor: c.line, marginVertical: Space.md }, style]} />;
 }
 
-/** Row that navigates somewhere. */
 export function NavRow({
   icon,
   title,
   sub,
+  subtitle,
+  value,
+  tone = 'default',
   onPress,
-  tone,
+  trailing,
+  style,
 }: {
   icon: IconName;
   title: string;
-  sub: string;
+  sub?: string;
+  subtitle?: string;
+  value?: string;
+  tone?: CardTone;
   onPress: () => void;
-  tone?: Tone;
+  trailing?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
-  const scheme = useResolvedScheme();
-  const isDark = scheme === 'dark';
-  const t = tone ? TONES[tone](c) : null;
+  const { resolved } = useThemeMode();
+  const pal =
+    tone === 'default'
+      ? { ink: c.textDim, fill: c.well }
+      : { ink: TONES[tone](c).ink, fill: TONES[tone](c).fill };
+  const subText = subtitle ?? sub;
+
   return (
-    <Tap onPress={onPress} accessibilityLabel={title}>
-      <View
-        style={[
-          styles.navRow,
-          {
-            backgroundColor: c.surface,
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : c.line,
-            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : c.line,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.navIcon,
-            {
-              backgroundColor: t ? t.fill : (c.surfaceElevated ?? c.well),
-              borderColor: t ? t.edge : isDark ? 'rgba(255, 255, 255, 0.10)' : c.line,
-              borderWidth: 1,
-            },
-          ]}
-        >
-          <Icon name={icon} size={19} color={t ? t.ink : c.text} />
-        </View>
-        <View style={styles.flex}>
-          <Txt variant="subheading" style={{ fontWeight: '700' }}>{title}</Txt>
-          <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
-            {sub}
-          </Txt>
-        </View>
-        <Icon name="chevronRight" size={17} color={c.textFaint} />
+    <Tap
+      onPress={onPress}
+      accessibilityLabel={title}
+      style={[
+        styles.navRow,
+        {
+          backgroundColor: c.surface,
+          borderColor: c.line,
+        },
+        resolved === 'light' ? Shadow.card : null,
+        style,
+      ]}
+    >
+      <View style={[styles.navIcon, { backgroundColor: pal.fill, borderColor: c.line }]}>
+        <Icon name={icon} size={18} color={pal.ink} />
       </View>
+      <View style={{ flex: 1, marginHorizontal: Space.md }}>
+        <Txt variant="subheading" color={c.text} style={{ fontSize: 15 }}>
+          {title}
+        </Txt>
+        {subText ? (
+          <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+            {subText}
+          </Txt>
+        ) : null}
+      </View>
+      {trailing ?? (
+        <View style={styles.navTrail}>
+          {value ? (
+            <Txt variant="data" color={c.textDim} style={{ marginRight: Space.xs }}>
+              {value}
+            </Txt>
+          ) : null}
+          <Icon name="chevronRight" size={16} color={c.textFaint} />
+        </View>
+      )}
     </Tap>
   );
 }
 
-/** Empty states are an invitation to act, not an apology. */
 export function Empty({
   icon,
   title,
   body,
   action,
   onAction,
+  tone = 'default',
 }: {
   icon: IconName;
   title: string;
   body: string;
-  action?: string;
+  action?: string | { label: string; onPress: () => void };
   onAction?: () => void;
+  tone?: CardTone;
 }) {
   const c = useTheme();
+  const pal =
+    tone === 'default'
+      ? { ink: c.textDim, fill: c.well }
+      : { ink: TONES[tone](c).ink, fill: TONES[tone](c).fill };
+
+  const actLabel = typeof action === 'string' ? action : action?.label;
+  const actPress = typeof action === 'string' ? onAction : action?.onPress ?? onAction;
+
   return (
-    <View style={styles.empty}>
-      <View style={[styles.emptyIcon, { borderColor: c.line, backgroundColor: c.well }]}>
-        <Icon name={icon} size={26} color={c.textDim} />
+    <Card style={styles.emptyCard}>
+      <View style={[styles.emptyIcon, { backgroundColor: pal.fill, borderColor: c.lineStrong }]}>
+        <Icon name={icon} size={24} color={pal.ink} />
       </View>
-      <Txt variant="heading" style={{ marginTop: Space.lg, textAlign: 'center' }}>
+      <Txt variant="heading" color={c.text} align="center" style={{ marginTop: Space.base }}>
         {title}
       </Txt>
-      <Txt variant="body" color={c.textDim} style={{ marginTop: Space.sm, textAlign: 'center', maxWidth: 300 }}>
+      <Txt variant="body" color={c.textDim} align="center" style={{ marginTop: Space.xs, maxWidth: 340 }}>
         {body}
       </Txt>
-      {action && onAction && <Button label={action} onPress={onAction} style={{ marginTop: Space.xl }} />}
-    </View>
+      {actLabel && actPress ? (
+        <Button
+          label={actLabel}
+          onPress={actPress}
+          variant="primary"
+          style={{ marginTop: Space.lg }}
+        />
+      ) : null}
+    </Card>
   );
 }
 
-/** Inline status line. Errors state what happened and what to do next. */
 export function Notice({ tone, children }: { tone: 'error' | 'ok' | 'warn'; children: React.ReactNode }) {
   const c = useTheme();
-  const color = tone === 'error' ? c.negative : tone === 'ok' ? c.positive : c.ember;
-  // Every state gets its own wash at the same weight — a bare "OK" line read
-  // as loose text, not as a status.
-  const wash = tone === 'ok' ? washOf(c.positive) : tone === 'warn' ? c.emberWash : washOf(c.negative);
+  const pal =
+    tone === 'ok'
+      ? { border: c.positive, bg: washOf(c.positive), ink: c.positive, icon: 'check' as IconName }
+      : tone === 'warn'
+      ? { border: c.gold, bg: washOf(c.gold), ink: c.gold, icon: 'alert' as IconName }
+      : { border: c.negative, bg: washOf(c.negative), ink: c.negative, icon: 'alert' as IconName };
+
   return (
-    <View style={[styles.notice, { backgroundColor: wash, borderColor: color }]}>
-      <Icon name={tone === 'ok' ? 'check' : 'alert'} size={16} color={color} />
-      <Text style={[Type.small, { color, marginLeft: Space.sm, flex: 1 }]}>{children}</Text>
+    <View style={[styles.notice, { backgroundColor: pal.bg, borderColor: pal.border }]}>
+      <View style={{ marginRight: Space.sm, marginTop: 2 }}>
+        <Icon name={pal.icon} size={16} color={pal.ink} />
+      </View>
+      <View style={{ flex: 1 }}>
+        {typeof children === 'string' ? (
+          <Txt variant="small" color={c.text}>
+            {children}
+          </Txt>
+        ) : (
+          children
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  /** See OUTER_KEYS: the inner view fills the pressable it no longer sizes. */
   tapFill: { flexGrow: 1, alignSelf: 'stretch' },
-  column: {
-    paddingHorizontal: Space.lg,
-    paddingTop: Space.sm,
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  card: { borderRadius: Radius.lg, padding: Space.lg },
+  sticky: { borderTopWidth: 1, paddingTop: Space.sm },
   columns: { flexDirection: 'row', alignItems: 'flex-start' },
-  columnHalf: { flex: 1, minWidth: 0 },
-  columnLeft: { marginRight: Space.base },
-  button: {
-    minHeight: 50,
-    paddingVertical: Space.sm,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    paddingHorizontal: Space.xl,
-  },
-  chip: {
-    paddingHorizontal: Space.base,
-    minHeight: 38,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: Space.xs },
-  track: { width: '100%', overflow: 'hidden' },
-  pairRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  pairCol: { flex: 1 },
-  pairBars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
-  pairBar: { width: 8, borderTopLeftRadius: 4, borderTopRightRadius: 4, marginRight: 2 },
-  pairBarLast: { marginRight: 0 },
-  hidden: { display: 'none' },
-  pageHeader: { paddingTop: Space.base, paddingBottom: Space.xl },
-  headerBadgeRow: { flexDirection: 'row', marginBottom: Space.md },
-  headerBadge: {
-    paddingHorizontal: Space.md,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Space.base,
+  col: { flex: 1 },
+  card: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    marginBottom: Space.sm,
+    padding: Space.base,
   },
-  navIcon: {
-    width: 40,
-    height: 40,
+  btn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: Radius.md,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  statValueRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  barTrack: { borderRadius: Radius.full, overflow: 'hidden', width: '100%' },
+  barFill: { borderRadius: Radius.full },
+  pairedWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: Space.xs,
+  },
+  pairedCol: { alignItems: 'center', flex: 1 },
+  pairedBarsRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
+  header: { marginBottom: Space.base },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center' },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Space.md,
   },
-  empty: { alignItems: 'center', paddingVertical: Space.hero, paddingHorizontal: Space.lg },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mdRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  mdDot: { width: 4, height: 4, borderRadius: 2, marginTop: 9, marginRight: 10 },
-  notice: {
+  segTrack: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Space.md,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    marginTop: Space.md,
-  },
-  backBtnTap: {
-    alignSelf: 'flex-start',
-    marginBottom: Space.md,
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-  },
-  segmentTrack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 4,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Space.base,
-  },
-  segmentItem: {
-    flex: 1,
-  },
-  segmentPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: 'transparent',
+    padding: 4,
+    marginBottom: Space.base,
   },
+  segItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    minHeight: 38,
+    paddingHorizontal: 8,
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: Space.md,
+    marginBottom: Space.sm,
+  },
+  navIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navTrail: { flexDirection: 'row', alignItems: 'center' },
+  emptyCard: {
+    alignItems: 'center',
+    paddingVertical: Space.xl,
+    paddingHorizontal: Space.lg,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: Space.md,
+    marginTop: Space.md,
+  },
+  mdRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  mdDot: { width: 5, height: 5, borderRadius: 2.5, marginTop: 9, marginRight: Space.sm },
 });

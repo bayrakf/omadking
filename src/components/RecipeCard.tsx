@@ -115,8 +115,8 @@ export default function RecipeCard({
           ]}
           accessibilityLabel={favorite ? 'Favorit' : 'Als Favorit speichern'}
         >
-          <Icon name="check" size={13} color={favorite ? '#231303' : '#FFFFFF'} strokeWidth={2.4} />
-          <Txt variant="eyebrow" color={favorite ? '#231303' : '#FFFFFF'} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
+          <Icon name="check" size={13} color={favorite ? c.onAccent : '#FFFFFF'} strokeWidth={2.4} />
+          <Txt variant="eyebrow" color={favorite ? c.onAccent : '#FFFFFF'} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
             {favorite ? 'FAVORIT' : '+FAVORIT'}
           </Txt>
         </TouchableOpacity>
@@ -175,9 +175,8 @@ export default function RecipeCard({
             style={[
               s.macro,
               {
-                backgroundColor: c.surfaceElevated ?? c.well,
+                backgroundColor: c.surfaceElevated,
                 borderColor: c.line,
-                borderTopColor: 'rgba(255, 255, 255, 0.14)',
               },
             ]}
           >
@@ -187,7 +186,7 @@ export default function RecipeCard({
           </View>
         ))}
       </View>
-      <View style={[s.subCard, { backgroundColor: c.surfaceElevated ?? c.well, borderColor: c.line, borderTopColor: 'rgba(255, 255, 255, 0.14)' }]}>
+      <View style={[s.subCard, { backgroundColor: c.surfaceElevated, borderColor: c.line }]}>
         <View style={s.ingredientHead}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Icon name="basket" size={16} color={plan_.ink} />

@@ -121,7 +121,7 @@ export function DayBand({
                   backgroundColor: m.done
                     ? c.positive
                     : onHero
-                      ? 'rgba(255,255,255,0.7)'
+                      ? m.past ? c.textFaint : c.onHero
                       : m.past ? c.textFaint : c.text,
                 },
               ]}

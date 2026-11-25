@@ -97,11 +97,11 @@ export default function DayDial({
         <Defs>
           <LinearGradient id="dialFastGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor={c.accent} />
-            <Stop offset="100%" stopColor="#818CF8" />
+            <Stop offset="100%" stopColor={c.body} />
           </LinearGradient>
           <LinearGradient id="dialEatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor={c.ember} />
-            <Stop offset="100%" stopColor="#F59E0B" />
+            <Stop offset="100%" stopColor={c.gold} />
           </LinearGradient>
         </Defs>
 

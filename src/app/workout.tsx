@@ -235,7 +235,7 @@ export default function WorkoutScreen() {
                     </Txt>
                     <View style={s.metaRow}>
                       <Txt variant="data" color={c.textDim} style={{ fontSize: 12 }}>
-                        ⏱️ {w.durationMin} Min · 🔥 ~{w.estBurnKcal} kcal · {w.intensity.toUpperCase()}
+                        {w.durationMin} Min · ~{w.estBurnKcal} kcal · {w.intensity.toUpperCase()}
                       </Txt>
                     </View>
                   </View>
@@ -249,7 +249,7 @@ export default function WorkoutScreen() {
                   <View style={[s.expandedBody, { borderTopColor: c.line }]}>
                     {/* Fasting Note */}
                     <View style={[s.fastingBox, { backgroundColor: washOf(c[w.hue]), borderColor: c[w.hue] }]}>
-                      <Eyebrow color={c[w.hue]}>💡 {t('workout.fastingNote')}</Eyebrow>
+                      <Eyebrow color={c[w.hue]}>{t('workout.fastingNote')}</Eyebrow>
                       <Txt variant="small" color={c.text} style={{ marginTop: 4, lineHeight: 18 }}>
                         {w.fastingNote}
                       </Txt>
@@ -286,7 +286,7 @@ export default function WorkoutScreen() {
                               },
                             ]}
                           >
-                            {isDone && <Icon name="check" size={12} color="#080C14" strokeWidth={3} />}
+                            {isDone && <Icon name="check" size={12} color={c.onAccent} strokeWidth={3} />}
                           </View>
                           <View style={{ flex: 1, marginLeft: Space.sm }}>
                             <Txt

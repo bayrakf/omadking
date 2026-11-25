@@ -1,60 +1,40 @@
 /**
- * Design tokens.
+ * OMADCoach design tokens — Precision Metabolic Telemetry.
  *
- * Direction — "instrument panel for a 22-hour fast".
+ * Dual-polarity system (DESIGN.md):
+ *   - Obsidian Carbon (dark): #090B0E canvas, crisp hairlines, #C9F233 volt accent
+ *   - Alabaster Paper (light): #F5F4EF warm paper, crisp white surfaces, #157A3D emerald
  *
- * The product's single fact is that the day is one enormous fast and one small
- * window. So the interface encodes physiological state in temperature rather
- * than decorating with it: the resting identity is cold (graphite, ice), and
- * `ember` is reserved for eating and its excess — the window being open, a meal
- * being due, the meal itself, and a day or a week that ran past its line.
- * Because ember is rationed, it means something when it shows up.
- *
- * Nothing else may be warm, and "nothing else" has teeth: a crown on the
- * paywall and a "best value" badge were both ember once, which spent the one
- * colour that means *eat now* on a sales badge. Decoration is exactly the use
- * this rule exists to refuse. If something warm is wanted and it is not about
- * eating, the answer is no.
- *
- * Three type roles, deliberately distinct:
- *   display (Archivo)        — numerals and titles; this app is mostly numbers
- *   body    (Hanken Grotesk) — prose, labels, buttons
- *   mono    (JetBrains Mono) — eyebrows, units, clock times. Tabular figures
- *                              stop the countdown jittering as digits change.
+ * `ember` is strictly rationed across the product: eating window open, meal due,
+ * excess intake, and streak fire (`CLAUDE.md` Voice rule).
+ * Both polarities guarantee >= 4.5:1 text contrast and prohibit dark card islands
+ * stranded inside light mode.
  */
 
+import { Platform, type TextStyle } from 'react-native';
 import '@/global.css';
-import { Platform } from 'react-native';
 
 export type ThemePalette = {
-  /** page background */
   bg: string;
-  /** card / panel */
   surface: string;
-  /** elevated card surface with extra pop */
   surfaceElevated: string;
-  /** input wells, progress tracks, inactive chips */
   well: string;
-  /** hairline borders */
   line: string;
-  /** stronger border, for focus and selection */
   lineStrong: string;
 
   text: string;
   textDim: string;
   textFaint: string;
 
-  /** vibrant teal/cyan accent */
   accent: string;
   accentDim: string;
   accentWash: string;
   onAccent: string;
 
-  /** radiant flame / sunset: eating window, meal due, streak fire */
   ember: string;
   emberWash: string;
+  onEmber: string;
 
-  /** Domain hues */
   hydro: string;
   hydroWash: string;
   body: string;
@@ -67,118 +47,102 @@ export type ThemePalette = {
   positive: string;
   negative: string;
 
-  /** Hero countdown block */
   heroFill: string;
   onHero: string;
   heroTrack: string;
 
-  /** the dial's untravelled track */
   dialTrack: string;
 };
 
-/**
- * The metabolic phases, in the palette's own temperature.
- *
- * These were the Tailwind swatches — amber-500, violet-500, cyan-500 — which is
- * the same six colours every dashboard on the internet uses, at full chroma.
- * Five of them side by side on one bar is what made the screen read as a
- * framework rather than as a product. Same hue order, muted to sit together.
- */
 export const PhaseColors = {
   sugarDrop: '#F59E0B',
-  fatBurn: '#FF6B4A',
+  fatBurn: '#FF642E',
   ketosis: '#A855F7',
   autophagy: '#38BDF8',
-  deepFast: '#10B981',
-};
+  deepFast: '#22C55E',
+} as const;
 
 const dark: ThemePalette = {
-  // Deep Titanium Carbon Ground: true athletic contrast, zero muddy gray
-  bg: '#08090C',
+  bg: '#090B0E',
   surface: '#11141A',
   surfaceElevated: '#171B23',
-  well: '#0C0E13',
-  line: 'rgba(255, 255, 255, 0.08)',
-  lineStrong: 'rgba(255, 255, 255, 0.16)',
+  well: '#0C0F14',
+  line: 'rgba(241, 245, 249, 0.08)',
+  lineStrong: 'rgba(241, 245, 249, 0.17)',
 
-  text: '#F8FAFC',
-  textDim: '#94A3B8',
-  textFaint: '#475569',
+  text: '#F3F5F8',
+  textDim: '#9CA5B4',
+  textFaint: '#737E90',
 
-  // High-Voltage Athletic Volt: electric energy, maximum legibility
-  accent: '#D4FF00',
-  accentDim: '#B2D900',
-  accentWash: 'rgba(212, 255, 0, 0.12)',
-  onAccent: '#08090C',
+  accent: '#C9F233',
+  accentDim: '#A8CE23',
+  accentWash: 'rgba(201, 242, 51, 0.12)',
+  onAccent: '#090B0E',
 
-  // Solar Kinetic Flame (Eating window, streaks)
-  ember: '#FF5500',
-  emberWash: 'rgba(255, 85, 0, 0.14)',
+  ember: '#FF642E',
+  emberWash: 'rgba(255, 100, 46, 0.13)',
+  onEmber: '#090B0E',
 
   hydro: '#38BDF8',
   hydroWash: 'rgba(56, 189, 248, 0.12)',
-  body: '#818CF8',
-  bodyWash: 'rgba(129, 140, 248, 0.12)',
-  plan: '#D4FF00',
-  planWash: 'rgba(212, 255, 0, 0.12)',
+  body: '#A78BFA',
+  bodyWash: 'rgba(167, 139, 250, 0.12)',
+  plan: '#22C55E',
+  planWash: 'rgba(34, 197, 94, 0.12)',
   gold: '#F59E0B',
-  goldWash: 'rgba(245, 158, 11, 0.14)',
+  goldWash: 'rgba(245, 158, 11, 0.12)',
 
-  positive: '#10B981',
+  positive: '#22C55E',
   negative: '#EF4444',
 
-  heroFill: '#10131A',
-  onHero: '#FFFFFF',
-  heroTrack: 'rgba(255, 255, 255, 0.10)',
+  heroFill: '#131720',
+  onHero: '#F3F5F8',
+  heroTrack: 'rgba(241, 245, 249, 0.10)',
 
-  dialTrack: '#161922',
+  dialTrack: 'rgba(241, 245, 249, 0.10)',
 };
 
 const light: ThemePalette = {
-  // Pure Clean Chalk ground
-  bg: '#F8FAFC',
+  bg: '#F5F4EF',
   surface: '#FFFFFF',
-  surfaceElevated: '#FFFFFF',
-  well: '#F1F5F9',
-  line: '#E2E8F0',
-  lineStrong: '#CBD5E1',
+  surfaceElevated: '#ECEAE2',
+  well: '#E6E3DA',
+  line: 'rgba(17, 19, 23, 0.08)',
+  lineStrong: 'rgba(17, 19, 23, 0.17)',
 
-  text: '#0F172A',
-  textDim: '#475569',
-  textFaint: '#94A3B8',
+  text: '#111317',
+  textDim: '#4A5260',
+  textFaint: '#616B7A',
 
-  accent: '#15803D',
-  accentDim: '#166534',
-  accentWash: 'rgba(21, 128, 61, 0.10)',
+  accent: '#157A3D',
+  accentDim: '#116332',
+  accentWash: 'rgba(21, 122, 61, 0.10)',
   onAccent: '#FFFFFF',
 
-  ember: '#EA580C',
-  emberWash: 'rgba(234, 88, 12, 0.10)',
+  ember: '#C2410C',
+  emberWash: 'rgba(194, 65, 12, 0.10)',
+  onEmber: '#FFFFFF',
 
-  hydro: '#0284C7',
-  hydroWash: 'rgba(2, 132, 199, 0.10)',
-  body: '#7C3AED',
-  bodyWash: 'rgba(124, 58, 237, 0.10)',
+  hydro: '#0369A1',
+  hydroWash: 'rgba(3, 105, 161, 0.10)',
+  body: '#6D28D9',
+  bodyWash: 'rgba(109, 40, 217, 0.09)',
   plan: '#15803D',
   planWash: 'rgba(21, 128, 61, 0.10)',
-  gold: '#D97706',
-  goldWash: 'rgba(217, 119, 6, 0.10)',
+  gold: '#B45309',
+  goldWash: 'rgba(180, 83, 9, 0.10)',
 
   positive: '#15803D',
   negative: '#DC2626',
 
-  heroFill: '#0F172A',
-  onHero: '#FFFFFF',
-  heroTrack: 'rgba(255, 255, 255, 0.20)',
+  heroFill: '#FFFFFF',
+  onHero: '#111317',
+  heroTrack: 'rgba(17, 19, 23, 0.09)',
 
-  dialTrack: '#E2E8F0',
+  dialTrack: 'rgba(17, 19, 23, 0.09)',
 };
 
 export const Colors = { light, dark };
-
-// ---------------------------------------------------------------------------
-// Type: Athletic Display (Archivo) + Humanist Body (Hanken) + Tabular Mono (JetBrains)
-// ---------------------------------------------------------------------------
 
 export const Font = {
   display: 'Archivo-Bold',
@@ -186,27 +150,31 @@ export const Font = {
   body: 'HankenGrotesk-Regular',
   bodyMedium: 'HankenGrotesk-Medium',
   bodySemi: 'HankenGrotesk-SemiBold',
+  sans: 'HankenGrotesk-Regular',
   mono: 'JetBrainsMono-Medium',
 } as const;
 
-export const Type = {
-  hero: { fontFamily: Font.display, fontSize: 46, lineHeight: 50, letterSpacing: -1.2 },
-  display: { fontFamily: Font.display, fontSize: 32, lineHeight: 36, letterSpacing: -0.8 },
-  title: { fontFamily: Font.display, fontSize: 23, lineHeight: 27, letterSpacing: -0.5 },
-  heading: { fontFamily: Font.displaySemi, fontSize: 18, lineHeight: 22, letterSpacing: -0.3 },
-  subheading: { fontFamily: Font.bodySemi, fontSize: 15, lineHeight: 20, letterSpacing: -0.1 },
+export const Type: Record<
+  'hero' | 'display' | 'title' | 'heading' | 'subheading' | 'body' | 'bodyMedium' | 'small' | 'eyebrow' | 'data',
+  TextStyle
+> = {
+  hero: { fontFamily: Font.display, fontSize: 44, lineHeight: 48, letterSpacing: -1.4 },
+  display: { fontFamily: Font.display, fontSize: 32, lineHeight: 36, letterSpacing: -0.9 },
+  title: { fontFamily: Font.display, fontSize: 24, lineHeight: 28, letterSpacing: -0.6 },
+  heading: { fontFamily: Font.displaySemi, fontSize: 18, lineHeight: 23, letterSpacing: -0.3 },
+  subheading: { fontFamily: Font.bodySemi, fontSize: 15, lineHeight: 21, letterSpacing: -0.15 },
   body: { fontFamily: Font.body, fontSize: 15, lineHeight: 22 },
   bodyMedium: { fontFamily: Font.bodyMedium, fontSize: 15, lineHeight: 22 },
   small: { fontFamily: Font.body, fontSize: 13, lineHeight: 18 },
-  /** Uppercase micro-labels with athletic tracking */
-  eyebrow: { fontFamily: Font.mono, fontSize: 10, lineHeight: 14, letterSpacing: 1.2 },
-  /** Tabular figures, units, clock times */
-  data: { fontFamily: Font.mono, fontSize: 13, lineHeight: 18, letterSpacing: 0.2 },
-} as const;
-
-// ---------------------------------------------------------------------------
-// Space, shape, motion — Precision Architectural Geometry (Not Bubbly Slop)
-// ---------------------------------------------------------------------------
+  eyebrow: { fontFamily: Font.mono, fontSize: 10.5, lineHeight: 14, letterSpacing: 1.1 },
+  data: {
+    fontFamily: Font.mono,
+    fontSize: 13,
+    lineHeight: 18,
+    letterSpacing: 0.2,
+    fontVariant: ['tabular-nums'],
+  },
+};
 
 export const Space = {
   xs: 4,
@@ -221,72 +189,61 @@ export const Space = {
 } as const;
 
 export const Radius = {
+  xs: 6,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 20,
   pill: 999,
+  full: 999,
 } as const;
 
 export const Shadow = {
-  card: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
-  },
-  lifted: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.12,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 6,
-  },
-} as const;
+  card: Platform.select({
+    web: { boxShadow: '0 1px 3px rgba(9, 11, 14, 0.05), 0 6px 20px rgba(9, 11, 14, 0.03)' } as any,
+    default: {
+      shadowColor: '#000000',
+      shadowOpacity: 0.06,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+  }),
+  lifted: Platform.select({
+    web: { boxShadow: '0 8px 28px rgba(9, 11, 14, 0.14)' } as any,
+    default: {
+      shadowColor: '#000000',
+      shadowOpacity: 0.12,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 6,
+    },
+  }),
+};
 
 export const Motion = {
-  /** Entrance of a single element. */
-  enter: 380,
-  /** Delay between staggered siblings. Small enough to read as one gesture. */
-  stagger: 45,
-  /** Press feedback. */
+  enter: 160,
+  fast: 140,
+  base: 220,
+  stagger: 35,
   press: 100,
-  pressScale: 0.97,
+  pressScale: 0.98,
 } as const;
 
 export const MaxContentWidth = 560;
+export const MaxWideWidth = 1000;
+export const Breakpoint = { wide: 840 } as const;
 
-/**
- * The column budget once there are two of them, and where two start.
- *
- * Below the breakpoint the app is a phone app and one column is correct. Above
- * it, a 560pt strip stranded in a 1600pt window is not restraint, it is a phone
- * app someone opened on a laptop — which is exactly how it read.
- *
- * Both numbers are derived rather than chosen, because the chosen ones were
- * wrong in a way that is easy to miss: at a 900pt breakpoint with a 1080pt
- * budget, crossing into two columns gave each card 422pt where the single
- * column had given it 520. The window got wider and every card got narrower.
- *
- * So the rule is stated instead: a column is never narrower than the one
- * column it replaces, which makes the budget two full content widths plus the
- * gutter between them, and the breakpoint the width at which that fits.
- */
-export const MaxWideWidth = MaxContentWidth * 2 + Space.base;
-export const Breakpoint = { wide: MaxWideWidth } as const;
+/** Tab bar height + breathing room on mobile viewports so bottom cards are never clipped. */
+export const TabBarClearance = 124;
 
-/** Tab bar height + breathing room, so scroll views clear the floating bar. */
-export const TabBarClearance = 108;
-
-/** Web needs the font stack too, for any text rendered before RN styles apply. */
 export const Fonts = Platform.select({
   ios: { sans: 'system-ui', serif: 'ui-serif', rounded: 'ui-rounded', mono: 'ui-monospace' },
   default: { sans: 'normal', serif: 'serif', rounded: 'normal', mono: 'monospace' },
   web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
+    sans: "'Hanken Grotesk', system-ui, -apple-system, sans-serif",
+    serif: "Georgia, 'Times New Roman', serif",
+    rounded: "'Hanken Grotesk', system-ui, sans-serif",
+    mono: "'JetBrains Mono', ui-monospace, monospace",
   },
 });

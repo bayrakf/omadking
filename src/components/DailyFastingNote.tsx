@@ -7,11 +7,11 @@ import { useLang } from './lang';
 import { Eyebrow, Txt, useTheme } from './ui';
 
 const PRESET_TAGS = [
-  '🎯 Starker Fokus',
-  '⚡️ Müheloses Fasten',
-  '🏋️‍♂️ Top Workout',
-  '🧂 Salz hat geholfen',
-  '💧 3L getrunken',
+  'Starker Fokus',
+  'Müheloses Fasten',
+  'Top Workout',
+  'Salz hat geholfen',
+  '3L getrunken',
 ];
 
 export function DailyFastingNote({ embedded = false }: { embedded?: boolean }) {

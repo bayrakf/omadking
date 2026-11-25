@@ -131,7 +131,7 @@ function TrendChart({ entries, height = 132 }: { entries: WeightEntry[]; height?
         <Path d={area} fill="url(#weightGrad)" />
         <Path d={line} stroke={c.body} strokeWidth={2.8} fill="none" strokeLinecap="round" />
         <Circle cx={last.x} cy={last.y} r={7} fill={c.bodyWash} />
-        <Circle cx={last.x} cy={last.y} r={4.5} fill="#08090C" />
+        <Circle cx={last.x} cy={last.y} r={4.5} fill={c.surface} />
         <Circle cx={last.x} cy={last.y} r={3} fill={c.body} />
       </Svg>
     </View>
@@ -359,10 +359,12 @@ export default function ProgressScreen() {
           <View>
             <Eyebrow color={c.textDim} style={{ letterSpacing: 1.2 }}>
               {entries.length
-                ? (lang === 'de' ? `BIOMETRIE · ${entries.length} MESSUNGEN` : `BIOMETRICS · ${entries.length} ENTRIES`)
+                ? (lang === 'de'
+                    ? `BIOMETRIE · ${entries.length} ${entries.length === 1 ? 'MESSUNG' : 'MESSUNGEN'}`
+                    : `BIOMETRICS · ${entries.length} ${entries.length === 1 ? 'ENTRY' : 'ENTRIES'}`)
                 : (lang === 'de' ? 'BIOMETRIE & VERLAUF' : 'BIOMETRICS & PROGRESS')}
             </Eyebrow>
-            <Txt variant="display" color="#FFFFFF" style={{ fontSize: 26, fontWeight: '800', marginTop: 2 }}>
+            <Txt variant="display" color={c.text} style={{ fontSize: 26, fontWeight: '800', marginTop: 2 }}>
               {t('progress.title')}
             </Txt>
           </View>
@@ -379,7 +381,7 @@ export default function ProgressScreen() {
 
       {/* QUICK DAILY WEIGH-IN */}
       <Enter index={1}>
-        <Card style={[s.weighCard, { backgroundColor: c.heroFill, borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
+        <Card style={[s.weighCard, { backgroundColor: c.heroFill, borderColor: c.lineStrong }]}>
           <View style={s.split}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Icon name="scale" size={14} color={c.body} />
@@ -388,7 +390,7 @@ export default function ProgressScreen() {
               </Eyebrow>
             </View>
             {entries.length > 0 && (
-              <View style={[s.latestPill, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
+              <View style={[s.latestPill, { backgroundColor: c.surfaceElevated, borderColor: c.line }]}>
                 <Txt variant="small" color={c.textDim}>
                   {lang === 'de' ? 'Zuletzt: ' : 'Latest: '}{entries[0].weight_kg.toFixed(1)} kg
                 </Txt>
@@ -396,7 +398,7 @@ export default function ProgressScreen() {
             )}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Space.sm }}>
-            <View style={[s.inputWrap, { backgroundColor: c.well, borderColor: 'rgba(255, 255, 255, 0.10)' }]}>
+            <View style={[s.inputWrap, { backgroundColor: c.well, borderColor: c.line }]}>
               <TextInput
                 value={weightInput}
                 onChangeText={setWeightInput}
@@ -406,7 +408,7 @@ export default function ProgressScreen() {
                 keyboardType="numeric"
                 inputMode="decimal"
                 accessibilityLabel="Today's weight in kilograms"
-                style={[s.inputClean, { color: '#FFFFFF' }]}
+                style={[s.inputClean, { color: c.text }]}
               />
               <Txt variant="small" color={c.textDim} style={{ fontWeight: '700', paddingRight: Space.sm }}>
                 KG
@@ -418,7 +420,7 @@ export default function ProgressScreen() {
                   s.submitWeightBtn,
                   {
                     backgroundColor: weightInput.trim() ? c.accent : c.well,
-                    borderColor: weightInput.trim() ? c.accent : 'rgba(255, 255, 255, 0.1)',
+                    borderColor: weightInput.trim() ? c.accent : c.line,
                   },
                 ]}
               >
@@ -522,12 +524,12 @@ export default function ProgressScreen() {
           <Columns>
             {/* Weight & Trend Hero */}
             <Enter index={1}>
-              <Card style={[s.heroCard, { backgroundColor: c.heroFill, borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
+              <Card style={[s.heroCard, { backgroundColor: c.heroFill, borderColor: c.lineStrong }]}>
                 <View style={s.split}>
                   <View style={{ flex: 1 }}>
                     <Eyebrow color={c.body} style={{ letterSpacing: 0.8 }}>{t('card.currentWeight')}</Eyebrow>
                     <View style={s.figRow}>
-                      <Txt variant="display" color="#FFFFFF" style={{ fontSize: 38, fontWeight: '800', letterSpacing: -0.5 }}>
+                      <Txt variant="display" color={c.onHero} style={{ fontSize: 38, fontWeight: '800', letterSpacing: -0.5 }}>
                         {current.toFixed(1)}
                       </Txt>
                       <Txt variant="data" color={c.textFaint} style={{ marginLeft: 6, fontSize: 18, fontWeight: '600', alignSelf: 'flex-end', marginBottom: 6 }}>
@@ -568,13 +570,13 @@ export default function ProgressScreen() {
                     <View style={{ marginVertical: Space.sm, borderRadius: Radius.md, overflow: 'hidden' }}>
                       <TrendChart entries={entries} />
                     </View>
-                    <View style={[s.statDivider, { backgroundColor: 'rgba(255, 255, 255, 0.08)', marginVertical: Space.sm }]} />
+                    <View style={[s.statDivider, { backgroundColor: c.line, marginVertical: Space.sm }]} />
                     <View style={s.split}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="chart" size={13} color={c.textDim} />
                         <Txt variant="small" color={c.textDim} style={{ marginLeft: 6 }}>{t('card.weeklyTrend')}</Txt>
                       </View>
-                      <Txt variant="data" color="#FFFFFF" style={{ fontWeight: '800' }}>
+                      <Txt variant="data" color={c.onHero} style={{ fontWeight: '800' }}>
                         {trend === null ? '—' : `${trend > 0 ? '+' : ''}${trend.toFixed(2)} kg / Woche`}
                       </Txt>
                     </View>
@@ -590,11 +592,11 @@ export default function ProgressScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Icon name="target" size={12} color={c.body} />
                       <Eyebrow color={c.body} style={{ marginLeft: 6 }}>
-                        {t('card.goalProgress')} ({profile.goal.replace('_', ' ')})
+                        {t('card.goalProgress')} ({lang === 'de' ? (profile.goal === 'weight_loss' ? 'Abnehmen' : profile.goal === 'muscle_gain' ? 'Aufbau' : 'Performance') : profile.goal.replace('_', ' ')})
                       </Eyebrow>
                     </View>
-                    <View style={[s.bmiBadge, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }]}>
-                      <Txt variant="eyebrow" color="#FFFFFF" style={{ fontSize: 10, fontWeight: '700' }}>
+                    <View style={[s.bmiBadge, { backgroundColor: c.surfaceElevated, borderColor: c.line }]}>
+                      <Txt variant="eyebrow" color={c.text} style={{ fontSize: 10, fontWeight: '700' }}>
                         BMI {bmi.toFixed(1)} · {bmiLabel.toUpperCase()}
                       </Txt>
                     </View>
@@ -734,7 +736,9 @@ export default function ProgressScreen() {
                           {bigPlan.perDayKcal !== null && (
                             <Txt variant="heading" style={{ marginTop: Space.md }}>
                               {bigPlan.perDayKcal}
-                              <Txt variant="small" color={c.textFaint}> kcal an den anderen Tagen</Txt>
+                              <Txt variant="small" color={c.textFaint}>
+                                {lang === 'de' ? ' kcal an den anderen Tagen' : ' kcal on the other days'}
+                              </Txt>
                             </Txt>
                           )}
                           <Txt variant="small" color={c.textDim} style={{ marginTop: Space.md }}>
@@ -1061,16 +1065,16 @@ export default function ProgressScreen() {
                     </Txt>
                   </TouchableOpacity>
                 </View>
-                <Card style={[s.historyCard, { backgroundColor: c.heroFill, borderColor: 'rgba(255, 255, 255, 0.08)' }]}>
+                <Card style={[s.historyCard, { backgroundColor: c.heroFill, borderColor: c.lineStrong }]}>
                   {entries.slice(0, 15).map((e, i) => {
                     const prev = entries[i + 1];
                     const delta = prev ? e.weight_kg - prev.weight_kg : null;
                     return (
                       <View key={e.id}>
-                        {i > 0 && <View style={[s.historyDivider, { backgroundColor: 'rgba(255, 255, 255, 0.06)' }]} />}
+                        {i > 0 && <View style={[s.historyDivider, { backgroundColor: c.line }]} />}
                         <View style={s.histRow}>
                           <View style={{ flex: 1 }}>
-                            <Txt variant="data" color="#FFFFFF" style={{ fontWeight: '700' }}>{formatReadableDate(e.date, lang)}</Txt>
+                            <Txt variant="data" color={c.onHero} style={{ fontWeight: '700' }}>{formatReadableDate(e.date, lang)}</Txt>
                             {fastingNotes[e.date] ? (
                               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
                                 <Icon name="edit" size={11} color={c.textDim} />
@@ -1095,7 +1099,7 @@ export default function ProgressScreen() {
                                 </Txt>
                               </View>
                             )}
-                            <Txt variant="heading" color="#FFFFFF" style={{ fontSize: 16, fontWeight: '800' }}>
+                            <Txt variant="heading" color={c.onHero} style={{ fontSize: 16, fontWeight: '800' }}>
                               {e.weight_kg.toFixed(1)} kg
                             </Txt>
                           </View>

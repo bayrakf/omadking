@@ -75,14 +75,14 @@ export function WeekdayPillStrip({
                 haptic('light');
                 router.push('/achievements');
               }}
-              style={[s.todayBadge, { backgroundColor: isPersonalBest ? '#FEF3C7' : c.emberWash, borderColor: isPersonalBest ? '#F59E0B' : c.ember, marginRight: 6, flexDirection: 'row', alignItems: 'center' }]}
+              style={[s.todayBadge, { backgroundColor: isPersonalBest ? c.goldWash : c.emberWash, borderColor: isPersonalBest ? c.gold : c.ember, marginRight: 6, flexDirection: 'row', alignItems: 'center' }]}
               accessibilityLabel={`Streak: ${streak} days. Personal record: ${longestStreakCount}. Tap to view achievements.`}
             >
-              <Icon name={isPersonalBest ? 'crown' : 'flame'} size={10} color={isPersonalBest ? '#D97706' : c.ember} />
-              <Txt variant="data" color={isPersonalBest ? '#B45309' : c.ember} style={{ fontSize: 10, fontWeight: '800', marginLeft: 3 }}>
+              <Icon name={isPersonalBest ? 'crown' : 'flame'} size={10} color={isPersonalBest ? c.gold : c.ember} />
+              <Txt variant="data" color={isPersonalBest ? c.gold : c.ember} style={{ fontSize: 10, fontWeight: '800', marginLeft: 3 }}>
                 {streak} {lang === 'de' ? (streak === 1 ? 'TAG' : 'TAGE') : (streak === 1 ? 'DAY' : 'DAYS')}
                 {longestStreakCount > streak && ` · MAX ${longestStreakCount}`}
-                {isPersonalBest && streak >= 3 && ' · 👑 REKORD'}
+                {isPersonalBest && streak >= 3 && (lang === 'de' ? ' · REKORD' : ' · BEST')}
               </Txt>
             </TouchableOpacity>
           )}

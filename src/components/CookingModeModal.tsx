@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Space, Radius, Font } from '@/constants/theme';
-import { Txt, Eyebrow } from './ui';
+import { Txt, Eyebrow, useTheme, washOf } from './ui';
 import { Icon } from './icons';
 import { useLang } from './lang';
 import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
@@ -30,6 +30,7 @@ export function CookingModeModal({
   plan,
   portions = 1,
 }: CookingModeModalProps) {
+  const c = useTheme();
   const { lang } = useLang();
 
   const steps = splitSteps(plan.recipe.instructions);
@@ -106,22 +107,22 @@ export function CookingModeModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-      <SafeAreaView style={[s.container, { backgroundColor: '#070A0F' }]}>
+      <SafeAreaView style={[s.container, { backgroundColor: c.bg }]}>
         {/* Header */}
-        <View style={[s.header, { borderBottomColor: 'rgba(255, 255, 255, 0.08)' }]}>
+        <View style={[s.header, { borderBottomColor: c.line }]}>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={s.liveBadge}>
-                <View style={s.liveDot} />
-                <Eyebrow color="#10B981" style={{ fontSize: 9, fontWeight: '800' }}>
+              <View style={[s.liveBadge, { backgroundColor: washOf(c.plan), borderColor: washOf(c.plan) }]}>
+                <View style={[s.liveDot, { backgroundColor: c.plan }]} />
+                <Eyebrow color={c.plan} style={{ fontSize: 9, fontWeight: '800' }}>
                   {lang === 'de' ? 'KOCHMODUS AKTIV' : 'KITCHEN MODE'}
                 </Eyebrow>
               </View>
-              <Txt variant="eyebrow" color="#94A3B8" style={{ marginLeft: 8, fontSize: 9.5 }}>
+              <Txt variant="eyebrow" color={c.textDim} style={{ marginLeft: 8, fontSize: 9.5 }}>
                 {plan.recipe.prep_time_min} Min · {portions} {portions === 1 ? 'Portion' : 'Portionen'}
               </Txt>
             </View>
-            <Txt variant="heading" color="#F8FAFC" numberOfLines={1} style={{ fontSize: 16, fontWeight: '800', marginTop: 2 }}>
+            <Txt variant="heading" color={c.text} numberOfLines={1} style={{ fontSize: 16, fontWeight: '800', marginTop: 2 }}>
               {plan.recipe.title}
             </Txt>
           </View>
@@ -129,9 +130,9 @@ export function CookingModeModal({
           <TouchableOpacity
             onPress={onClose}
             activeOpacity={0.7}
-            style={[s.closeBtn, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}
+            style={[s.closeBtn, { backgroundColor: c.surfaceElevated, borderWidth: 1, borderColor: c.line }]}
           >
-            <Icon name="close" size={16} color="#F8FAFC" />
+            <Icon name="close" size={16} color={c.text} />
           </TouchableOpacity>
         </View>
 
@@ -146,12 +147,13 @@ export function CookingModeModal({
                 style={[
                   s.progressSegment,
                   {
+                    marginHorizontal: 2,
                     backgroundColor:
                       i === currentStepIdx
-                        ? '#10B981'
+                        ? c.plan
                         : i < currentStepIdx
-                        ? 'rgba(16, 185, 129, 0.4)'
-                        : 'rgba(255, 255, 255, 0.1)',
+                        ? washOf(c.plan)
+                        : c.well,
                   },
                 ]}
               />
@@ -161,8 +163,8 @@ export function CookingModeModal({
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.stepScroll}>
             {/* Step Number Badge */}
             <View style={s.stepBadgeRow}>
-              <View style={s.stepNumberPill}>
-                <Txt variant="eyebrow" color="#10B981" style={{ fontSize: 12, fontWeight: '900' }}>
+              <View style={[s.stepNumberPill, { backgroundColor: washOf(c.plan), borderColor: washOf(c.plan) }]}>
+                <Txt variant="eyebrow" color={c.plan} style={{ fontSize: 12, fontWeight: '900' }}>
                   {lang === 'de'
                     ? `SCHRITT ${currentStepIdx + 1} VON ${steps.length}`
                     : `STEP ${currentStepIdx + 1} OF ${steps.length}`}
@@ -171,28 +173,28 @@ export function CookingModeModal({
             </View>
 
             {/* Huge Cooking Step Typography */}
-            <Text style={s.stepHeroText}>{activeStep}</Text>
+            <Text style={[s.stepHeroText, { color: c.text }]}>{activeStep}</Text>
 
             {/* Integrated Step Timer (if detected) */}
             {detectedMins && (
-              <View style={[s.timerCard, { backgroundColor: '#121824', borderColor: 'rgba(255, 255, 255, 0.1)' }]}>
+              <View style={[s.timerCard, { backgroundColor: c.surface, borderColor: c.lineStrong }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Icon name="clock" size={18} color="#38BDF8" />
+                    <Icon name="clock" size={18} color={c.hydro} />
                     <View style={{ marginLeft: 8 }}>
-                      <Eyebrow color="#38BDF8" style={{ fontSize: 10, fontWeight: '800' }}>
+                      <Eyebrow color={c.hydro} style={{ fontSize: 10, fontWeight: '800' }}>
                         {lang === 'de' ? 'GARZEIT-TIMER' : 'COOKING TIMER'}
                       </Eyebrow>
-                      <Txt variant="hero" color={timerSeconds === 0 ? '#10B981' : '#F8FAFC'} style={{ fontSize: 32, lineHeight: 36, fontWeight: '900' }}>
+                      <Txt variant="hero" color={timerSeconds === 0 ? c.plan : c.text} style={{ fontSize: 32, lineHeight: 36, fontWeight: '900' }}>
                         {timerSeconds !== null ? formatSecs(timerSeconds) : `${detectedMins}:00`}
                       </Txt>
                     </View>
                   </View>
 
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     {timerSeconds !== null && timerSeconds !== timerInitial && (
-                      <TouchableOpacity onPress={resetTimer} style={s.timerSecBtn}>
-                        <Txt variant="eyebrow" color="#94A3B8">Reset</Txt>
+                      <TouchableOpacity onPress={resetTimer} style={[s.timerSecBtn, { backgroundColor: c.well, marginRight: 8 }]}>
+                        <Txt variant="eyebrow" color={c.textDim}>Reset</Txt>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity
@@ -200,11 +202,11 @@ export function CookingModeModal({
                       activeOpacity={0.8}
                       style={[
                         s.timerActionBtn,
-                        { backgroundColor: timerRunning ? '#EF4444' : '#38BDF8' },
+                        { backgroundColor: timerRunning ? c.negative : c.hydro },
                       ]}
                     >
-                      <Icon name="clock" size={14} color="#080C14" />
-                      <Txt variant="subheading" color="#080C14" style={{ marginLeft: 4, fontSize: 13, fontWeight: '800' }}>
+                      <Icon name="clock" size={14} color={c.onAccent} />
+                      <Txt variant="subheading" color={c.onAccent} style={{ marginLeft: 4, fontSize: 13, fontWeight: '800' }}>
                         {timerRunning ? (lang === 'de' ? 'Pause' : 'Pause') : (lang === 'de' ? 'Starten' : 'Start')}
                       </Txt>
                     </TouchableOpacity>
@@ -217,27 +219,27 @@ export function CookingModeModal({
             <TouchableOpacity
               onPress={() => setShowIngredients(!showIngredients)}
               activeOpacity={0.8}
-              style={[s.ingredientsToggle, { backgroundColor: '#182030', borderColor: 'rgba(255, 255, 255, 0.08)' }]}
+              style={[s.ingredientsToggle, { backgroundColor: c.surfaceElevated, borderColor: c.line }]}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon name="basket" size={15} color="#10B981" />
-                <Txt variant="subheading" color="#F8FAFC" style={{ marginLeft: 6, fontSize: 13, fontWeight: '700' }}>
+                <Icon name="basket" size={15} color={c.plan} />
+                <Txt variant="subheading" color={c.text} style={{ marginLeft: 6, fontSize: 13, fontWeight: '700' }}>
                   {lang === 'de' ? 'Zutatenliste für diesen Kochschritt' : 'Ingredients List'}
                 </Txt>
               </View>
-              <Icon name="chevronRight" size={14} color="#94A3B8" />
+              <Icon name="chevronRight" size={14} color={c.textDim} />
             </TouchableOpacity>
 
             {showIngredients && (
-              <View style={[s.ingredientsCard, { backgroundColor: '#101520', borderColor: 'rgba(255, 255, 255, 0.06)' }]}>
+              <View style={[s.ingredientsCard, { backgroundColor: c.surface, borderColor: c.line }]}>
                 {scaledIngredients.map((item, idx) => (
                   <View key={idx} style={s.ingredientRow}>
-                    <View style={s.ingDot} />
-                    <Txt variant="body" color="#F8FAFC" style={{ flex: 1, fontSize: 13 }}>
+                    <View style={[s.ingDot, { backgroundColor: c.plan }]} />
+                    <Txt variant="body" color={c.text} style={{ flex: 1, fontSize: 13 }}>
                       {item.name}
                     </Txt>
                     {item.amount && (
-                      <Txt variant="data" color="#10B981" style={{ fontSize: 13, fontWeight: '700' }}>
+                      <Txt variant="data" color={c.plan} style={{ fontSize: 13, fontWeight: '700' }}>
                         {item.amount}
                       </Txt>
                     )}
@@ -249,7 +251,7 @@ export function CookingModeModal({
         </View>
 
         {/* Big Touch Target Bottom Navigation */}
-        <View style={[s.footer, { borderTopColor: 'rgba(255, 255, 255, 0.08)' }]}>
+        <View style={[s.footer, { borderTopColor: c.line }]}>
           <TouchableOpacity
             disabled={currentStepIdx === 0}
             onPress={() => {
@@ -261,11 +263,12 @@ export function CookingModeModal({
             style={[
               s.navBtn,
               s.prevBtn,
+              { backgroundColor: c.surfaceElevated, borderColor: c.line },
               { opacity: currentStepIdx === 0 ? 0.3 : 1 },
             ]}
           >
-            <Icon name="chevronLeft" size={16} color="#F8FAFC" />
-            <Txt variant="subheading" color="#F8FAFC" style={{ marginLeft: 4, fontWeight: '700' }}>
+            <Icon name="chevronLeft" size={16} color={c.text} />
+            <Txt variant="subheading" color={c.text} style={{ marginLeft: 4, fontWeight: '700' }}>
               {lang === 'de' ? 'Zurück' : 'Back'}
             </Txt>
           </TouchableOpacity>
@@ -281,9 +284,9 @@ export function CookingModeModal({
                 onClose();
               }
             }}
-            style={[s.navBtn, s.nextBtn, { backgroundColor: '#10B981' }]}
+            style={[s.navBtn, s.nextBtn, { backgroundColor: c.plan }]}
           >
-            <Txt variant="subheading" color="#FFFFFF" style={{ marginRight: 4, fontWeight: '800' }}>
+            <Txt variant="subheading" color={c.onAccent} style={{ marginRight: 4, fontWeight: '800' }}>
               {currentStepIdx === steps.length - 1
                 ? lang === 'de'
                   ? 'Fertig gekocht'
@@ -293,7 +296,7 @@ export function CookingModeModal({
                 : 'Next Step'}
             </Txt>
             {currentStepIdx < steps.length - 1 && (
-              <Icon name="chevronRight" size={16} color="#FFFFFF" />
+              <Icon name="chevronRight" size={16} color={c.onAccent} />
             )}
           </TouchableOpacity>
         </View>
@@ -351,7 +354,6 @@ const s = StyleSheet.create({
   },
   progressRow: {
     flexDirection: 'row',
-    gap: 4,
     marginVertical: Space.md,
   },
   progressSegment: {
@@ -428,7 +430,6 @@ const s = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Space.md,
     paddingHorizontal: Space.lg,
     paddingVertical: Space.base,
     borderTopWidth: 1,
@@ -442,11 +443,10 @@ const s = StyleSheet.create({
     paddingHorizontal: Space.lg,
   },
   prevBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    marginRight: Space.md,
   },
   nextBtn: {
     flex: 1,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.25)',
   },
 });

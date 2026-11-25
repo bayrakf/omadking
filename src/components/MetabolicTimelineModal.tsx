@@ -129,7 +129,7 @@ export function MetabolicTimelineModal({ visible, onClose, hoursFasted }: Metabo
                     s.stageCard,
                     {
                       backgroundColor: isCurrent ? washOf(c[st.hue]) : c.well,
-                      borderColor: isCurrent ? c[st.hue] : isPassed ? 'rgba(255,255,255,0.15)' : c.line,
+                      borderColor: isCurrent ? c[st.hue] : isPassed ? c.lineStrong : c.line,
                       borderWidth: isCurrent ? 1.5 : 1,
                     },
                   ]}
@@ -145,7 +145,7 @@ export function MetabolicTimelineModal({ visible, onClose, hoursFasted }: Metabo
                         </Txt>
                         {isCurrent && (
                           <View style={[s.currentPill, { backgroundColor: c[st.hue] }]}>
-                            <Txt variant="eyebrow" color="#FFFFFF" style={{ fontSize: 9, fontWeight: '900' }}>
+                            <Txt variant="eyebrow" color={c.onAccent} style={{ fontSize: 9, fontWeight: '900' }}>
                               {lang === 'de' ? 'JETZT AKTIV' : 'ACTIVE NOW'}
                             </Txt>
                           </View>
@@ -174,7 +174,7 @@ export function MetabolicTimelineModal({ visible, onClose, hoursFasted }: Metabo
 
                   <View style={[s.bioBox, { backgroundColor: c.surface, borderColor: c.line }]}>
                     <Txt variant="data" color={c[st.hue]} style={{ fontSize: 10, fontWeight: '700' }}>
-                      🔬 {st.biochemistry}
+                      {st.biochemistry}
                     </Txt>
                   </View>
                 </View>

@@ -1,16 +1,20 @@
-import { useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+/**
+ * Coaxial SVG fasting telemetry dial.
+ *
+ * Dual-polarity safe: reads every ink/track/accent color from `useTheme()` so
+ * Light Mode renders crisply against Alabaster Paper without white-on-white
+ * vanishing text or dark glow bleed.
+ */
+
+import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { Space, Radius, Font } from '@/constants/theme';
-import { Txt, Eyebrow, useTheme, useReducedMotion } from './ui';
-import { Icon } from './icons';
-import { useLang } from './lang';
+import { Eyebrow, Txt, useTheme, washOf, type PaletteHue } from '@/components/ui';
+import { useLang } from '@/components/lang';
+import { Icon } from '@/components/icons';
+import { Radius, Space } from '@/constants/theme';
 import { formatCountdown } from '@/lib/nutrition';
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-interface FastingHaloDialProps {
-  size?: number;
+type Props = {
   remainingMs: number;
   fastingHours: number;
   progressPct: number;
@@ -19,14 +23,14 @@ interface FastingHaloDialProps {
   windowEnd: string;
   hoursFasted: number;
   phaseName: string;
-  phaseHue: 'gold' | 'ember' | 'accent' | 'plan' | 'body';
-  onPressTimer: () => void;
-  onPressAdjust: () => void;
-}
+  phaseHue: PaletteHue;
+  size?: number;
+  stageSummary?: string;
+};
 
 export function FastingHaloDial({
-  size = 230,
   remainingMs,
+  fastingHours,
   progressPct,
   isEating,
   windowStart,
@@ -34,175 +38,151 @@ export function FastingHaloDial({
   hoursFasted,
   phaseName,
   phaseHue,
-  onPressTimer,
-  onPressAdjust,
-}: FastingHaloDialProps) {
+  size = 236,
+  stageSummary,
+}: Props) {
   const c = useTheme();
-  const { lang } = useLang();
-  const reduced = useReducedMotion();
+  const { lang, t } = useLang();
 
-  const strokeWidth = 12;
-  const radius = (size - strokeWidth) / 2 - 10;
-  const circumference = 2 * Math.PI * radius;
+  const strokeWidth = 10;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = cx - strokeWidth - 8;
+  const innerR = r - 11;
+  const circumference = 2 * Math.PI * r;
+  const clamped = Math.max(2, Math.min(100, isEating ? progressPct : (hoursFasted / fastingHours) * 100));
+  const strokeDashoffset = circumference - (clamped / 100) * circumference;
 
-  const anim = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const arcColor = isEating ? c.ember : c.accent;
+  const arcGradStart = isEating ? c.ember : phaseHue === 'plan' ? c.plan : c.accent;
+  const pillColor = isEating ? c.ember : c[phaseHue] ?? c.accent;
+  const pillBg = isEating ? c.emberWash : washOf(pillColor);
 
-  useEffect(() => {
-    if (reduced) {
-      anim.setValue(1);
-      return;
-    }
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: false,
-    }).start();
-  }, [anim, reduced]);
+  const badgeLabel = isEating
+    ? `${phaseName} · ${t('today.windowOpen')}`
+    : `${phaseName} · ${hoursFasted.toFixed(1)}h`;
 
-  // Normalized progress (0 to 1)
-  const normProgress = Math.max(0.02, Math.min(1, progressPct / 100));
-  const strokeDashoffset = circumference * (1 - normProgress);
-
-  const phaseColor = isEating ? c.ember : c[phaseHue] || c.accent;
+  const timeCue = isEating
+    ? lang === 'de'
+      ? `Schließt um ${windowEnd} Uhr`
+      : `Window closes ${windowEnd}`
+    : lang === 'de'
+    ? `Öffnet um ${windowStart} Uhr`
+    : `Window opens ${windowStart}`;
 
   return (
-    <View style={[s.wrapper, { width: size, height: size }]}>
-      {/* Ambient Radial Mesh Glow */}
-      <View
-        style={[
-          s.ambientGlow,
-          {
-            width: size * 0.9,
-            height: size * 0.9,
-            borderRadius: (size * 0.9) / 2,
-            backgroundColor: isEating ? 'rgba(255, 107, 74, 0.12)' : `${phaseColor}15`,
-          },
-        ]}
-      />
+    <View style={s.wrap}>
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <Svg width={size} height={size}>
+          <Defs>
+            <LinearGradient id="haloGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor={arcGradStart} />
+              <Stop offset="100%" stopColor={arcColor} />
+            </LinearGradient>
+          </Defs>
 
-      {/* SVG Circular Halo Track */}
-      <Svg width={size} height={size} style={s.svgLayer}>
-        <Defs>
-          <LinearGradient id="haloGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={isEating ? c.ember : phaseColor} />
-            <Stop offset="100%" stopColor={isEating ? '#FF8C66' : c.accent} />
-          </LinearGradient>
-        </Defs>
+          {/* Subtle recessed inner calibration ring */}
+          <Circle
+            cx={cx}
+            cy={cy}
+            r={innerR}
+            stroke={c.line}
+            strokeWidth={1}
+            strokeDasharray="2 6"
+            fill="none"
+          />
 
-        {/* Untravelled Track - Crisp subtle border */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="rgba(255, 255, 255, 0.08)"
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeLinecap="round"
-        />
+          {/* Main dial track */}
+          <Circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            stroke={c.dialTrack}
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
 
-        {/* Travelled Progress Arc */}
-        <AnimatedCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="url(#haloGrad)"
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
+          {/* Active progress arc */}
+          <Circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            stroke="url(#haloGrad)"
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${cx} ${cy})`}
+            fill="none"
+          />
+        </Svg>
 
-      {/* Center Readout Card */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={onPressTimer}
-        style={s.centerContent}
-        accessibilityRole="button"
-        accessibilityLabel={`Fasten Timer: ${formatCountdown(remainingMs)}`}
-      >
-        {/* Phase Pill Badge */}
-        <View style={[s.phasePill, { backgroundColor: isEating ? c.emberWash : `${phaseColor}20` }]}>
-          <Icon name={isEating ? 'plate' : 'flame'} size={11} color={phaseColor} />
-          <Eyebrow color={phaseColor} style={{ marginLeft: 5, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 }}>
-            {isEating
-              ? (lang === 'de' ? 'ESSENSFENSTER' : 'EATING WINDOW')
-              : `${phaseName.toUpperCase()} · ${hoursFasted.toFixed(1)}H`}
-          </Eyebrow>
+        <View style={[s.centerOverlay, { width: size - strokeWidth * 2 - 28 }]}>
+          <View style={[s.phasePill, { backgroundColor: pillBg, borderColor: washOf(pillColor) }]}>
+            <Icon name={isEating ? 'plate' : 'flame'} size={11} color={pillColor} />
+            <Txt
+              variant="eyebrow"
+              numberOfLines={1}
+              color={pillColor}
+              style={{ marginLeft: 5, fontSize: 9.5, fontWeight: '700' }}
+            >
+              {badgeLabel}
+            </Txt>
+          </View>
+
+          <Txt
+            variant="hero"
+            color={c.onHero}
+            style={s.countdownNumber}
+          >
+            {formatCountdown(remainingMs)}
+          </Txt>
+
+          <Txt variant="small" color={c.textDim} style={s.subCaption}>
+            {timeCue}
+          </Txt>
         </View>
+      </View>
 
-        {/* Hero Countdown Figures - Guaranteed 100% Crisp White */}
-        <Txt variant="hero" color="#FFFFFF" style={s.countdownNumber}>
-          {formatCountdown(remainingMs)}
-        </Txt>
-
-        {/* Subtitle Information */}
-        <Txt variant="small" color="rgba(255, 255, 255, 0.70)" style={s.subCaption}>
-          {lang === 'de'
-            ? isEating
-              ? `Schließt um ${windowEnd} Uhr`
-              : `Öffnet um ${windowStart} Uhr`
-            : isEating
-            ? `Closes at ${windowEnd}`
-            : `Opens at ${windowStart}`}
-        </Txt>
-      </TouchableOpacity>
+      {stageSummary ? (
+        <Eyebrow color={c.textFaint} style={{ marginTop: Space.xs, textAlign: 'center', fontSize: 10 }}>
+          {stageSummary}
+        </Eyebrow>
+      ) : null}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  wrapper: {
-    alignSelf: 'center',
-    position: 'relative',
+  wrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: Space.sm,
+    paddingVertical: Space.xs,
   },
-  ambientGlow: {
+  centerOverlay: {
     position: 'absolute',
-  },
-  svgLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  centerContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Space.sm,
   },
   phasePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: Radius.pill,
-    marginBottom: 4,
+    borderWidth: 1,
+    marginBottom: Space.sm,
   },
   countdownNumber: {
-    fontSize: 40,
-    lineHeight: 44,
-    fontFamily: Font.display,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    textAlign: 'center',
+    fontSize: 38,
+    lineHeight: 42,
+    letterSpacing: -1.1,
     fontVariant: ['tabular-nums'],
+    textAlign: 'center',
   },
   subCaption: {
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 4,
     textAlign: 'center',
-  },
-  adjustPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    marginTop: 6,
   },
 });

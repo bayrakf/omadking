@@ -203,7 +203,7 @@ export function FastingFeelingBar({ embedded = false }: { embedded?: boolean }) 
       {activeMoodObj && (
         <View style={[s.adviceBox, { backgroundColor: c.well, borderColor: c.line }]}>
           <Txt variant="small" color={c.textDim} style={{ lineHeight: 18 }}>
-            💡 <Txt variant="small" color={c.text} style={{ fontWeight: '600' }}>{activeMoodObj.sub}: </Txt>
+            <Txt variant="small" color={c.text} style={{ fontWeight: '600' }}>{activeMoodObj.sub}: </Txt>
             {activeMoodObj.advice}
           </Txt>
         </View>

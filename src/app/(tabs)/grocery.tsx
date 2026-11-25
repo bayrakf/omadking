@@ -7,7 +7,7 @@ import {
   Screen, Card, Txt, Eyebrow, Enter, Chip, Tap, Divider, PageHeader, Bar, Empty,
   Columns, useTheme,
 } from '@/components/ui';
-import { useT } from '@/components/lang';
+import { useLang } from '@/components/lang';
 import { Icon } from '@/components/icons';
 import { loadPlanHistory, loadPortions, KEYS } from '@/lib/store';
 import { buildGroceryList, scaleIngredients, type GroceryCategory } from '@/lib/grocery';
@@ -16,7 +16,7 @@ import type { MealPlan } from '@/lib/ai';
 
 export default function GroceryScreen() {
   const c = useTheme();
-  const t = useT();
+  const { lang, t } = useLang();
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
@@ -76,15 +76,15 @@ export default function GroceryScreen() {
   };
 
   const formatListText = (forWhatsApp = false) => {
-    const header = forWhatsApp ? '🛒 *OMAD EINKAUFSLISTE*\n━━━━━━━━━━━━━━━━━━━━' : '🛒 OMAD EINKAUFSLISTE\n--------------------';
+    const header = forWhatsApp ? '*OMAD EINKAUFSLISTE*\n━━━━━━━━━━━━━━━━━━━━' : 'OMAD EINKAUFSLISTE\n--------------------';
     const body = categories
       .map((cat) => {
-        const title = forWhatsApp ? `${cat.emoji} *${cat.name.toUpperCase()}*` : `${cat.emoji} ${cat.name.toUpperCase()}`;
+        const title = forWhatsApp ? `*${cat.name.toUpperCase()}*` : `${cat.name.toUpperCase()}`;
         const items = cat.items.map((i) => `${i.checked ? '✓' : '□'} ${i.name}${i.detail ? ` (${i.detail})` : ''}`).join('\n');
         return `${title}\n${items}`;
       })
       .join('\n\n');
-    return `${header}\n\n${body}\n\nGeneriert mit OMAD King`;
+    return `${header}\n\n${body}\n\nGeneriert mit OMADCoach`;
   };
 
   const shareList = async () => {
@@ -125,14 +125,18 @@ export default function GroceryScreen() {
 
   if (total === 0) {
     return (
-      <Screen>
+      <Screen wide>
         <Enter index={0}><PageHeader title={t('shop.title')} /></Enter>
         <Enter index={1}>
           <Empty
             icon="basket"
-            title="Nothing to buy yet"
-            body="Build a meal plan and its ingredients land here, grouped the way a shop is laid out."
-            action="Go to the planner"
+            title={lang === 'de' ? 'Noch nichts einzukaufen' : 'Nothing to buy yet'}
+            body={
+              lang === 'de'
+                ? 'Erstelle einen Mahlzeitenplan – die Zutaten landen hier nach Supermarkt-Gängen sortiert.'
+                : 'Build a meal plan and its ingredients land here, grouped the way a shop is laid out.'
+            }
+            action={lang === 'de' ? 'Zum Planer' : 'Go to the planner'}
             onAction={() => router.push('/planner')}
           />
         </Enter>
@@ -303,8 +307,6 @@ const s = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
     marginRight: Space.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.14)',
   },
   item: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Space.md },
   itemText: { flex: 1 },

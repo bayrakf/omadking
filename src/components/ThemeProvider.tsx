@@ -1,56 +1,77 @@
 /**
- * Provides a user-overridable theme mode that sits on top of the OS color scheme.
- * Wrap the entire app in <ThemeProvider> and call useOverrideTheme() to read/set.
- *
- * useTheme() in ui.tsx reads this context instead of useColorScheme() directly.
+ * Theme context provider supporting Obsidian Carbon (dark), Alabaster Paper (light),
+ * and automatic OS tracking (`system`), with instant web viewport polarity sync.
  */
-
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform, useColorScheme } from 'react-native';
+import { Colors, type ThemePalette } from '@/constants/theme';
 import { loadThemeMode, saveThemeMode, type ThemeMode } from '@/lib/store';
 
-type ThemeContextValue = {
-  /** The resolved scheme ('dark' | 'light') after applying the override. */
-  resolved: 'dark' | 'light';
-  /** The stored preference ('system' | 'dark' | 'light'). */
+type ThemeCtx = {
   mode: ThemeMode;
-  setMode: (m: ThemeMode) => Promise<void>;
+  resolved: 'dark' | 'light';
+  colors: ThemePalette;
+  setMode: (next: ThemeMode) => Promise<void>;
 };
 
-const ThemeContext = createContext<ThemeContextValue>({
+const Ctx = createContext<ThemeCtx>({
+  mode: 'dark',
   resolved: 'dark',
-  mode: 'system',
+  colors: Colors.dark,
   setMode: async () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const osScheme = useColorScheme();
   const [mode, setModeState] = useState<ThemeMode>('dark');
 
   useEffect(() => {
+    let alive = true;
     loadThemeMode().then((m) => {
-      if (m === 'light') setModeState('light');
-      else setModeState('dark');
+      if (alive) setModeState(m);
     });
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const setMode = useCallback(async (m: ThemeMode) => {
-    await saveThemeMode(m);
-    setModeState(m);
-  }, []);
+  const setMode = async (next: ThemeMode) => {
+    setModeState(next);
+    await saveThemeMode(next);
+  };
 
-  const resolved: 'dark' | 'light' = mode === 'light' ? 'light' : 'dark';
+  const resolved: 'dark' | 'light' =
+    mode === 'system' ? (osScheme === 'light' ? 'light' : 'dark') : mode === 'light' ? 'light' : 'dark';
 
-  return (
-    <ThemeContext.Provider value={{ resolved, mode, setMode }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  const colors = resolved === 'light' ? Colors.light : Colors.dark;
+
+  // Keep web root background and color-scheme synced with resolved theme polarity so
+  // margins outside ScrollViews and browser scrollbars never show a dark/light mismatch.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.style.colorScheme = resolved;
+    root.style.backgroundColor = colors.bg;
+    root.style.color = colors.text;
+    document.body.style.backgroundColor = colors.bg;
+    document.body.style.color = colors.text;
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) metaTheme.setAttribute('content', colors.bg);
+  }, [resolved, colors.bg, colors.text]);
+
+  const value = useMemo(() => ({ mode, resolved, colors, setMode }), [mode, resolved, colors]);
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-export function useOverrideTheme(): ThemeContextValue {
-  return useContext(ThemeContext);
+export function useThemeMode() {
+  return useContext(Ctx);
 }
 
-/** Resolved scheme — use this instead of useColorScheme() in useTheme(). */
+export function useOverrideTheme() {
+  return useContext(Ctx);
+}
+
 export function useResolvedScheme(): 'dark' | 'light' {
-  return useContext(ThemeContext).resolved;
+  return useContext(Ctx).resolved;
 }

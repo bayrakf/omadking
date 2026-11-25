@@ -34,8 +34,8 @@ export function MetabolicProgressBar({ hoursFasted, onPress }: MetabolicProgress
       ? `Noch ${nextMin >= 60 ? `${Math.floor(nextMin / 60)}h ${nextMin % 60}m` : `${nextMin}m`} bis ${nextPhase.nameDe}`
       : `${nextMin >= 60 ? `${Math.floor(nextMin / 60)}h ${nextMin % 60}m` : `${nextMin}m`} until ${nextPhase.nameEn}`
     : lang === 'de'
-    ? 'Maximale Autophagie & Zellreinigung aktiv 🔥'
-    : 'Maximum autophagy & cell renewal active 🔥';
+    ? 'Maximale Autophagie & Zellreinigung aktiv'
+    : 'Maximum autophagy & cell renewal active';
 
   return (
     <TouchableOpacity

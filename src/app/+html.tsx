@@ -1,22 +1,25 @@
-import { ScrollViewStyleReset } from 'expo-router/html';
-import { type PropsWithChildren } from 'react';
-
-const TITLE = 'OMADCoach — meal timing and macros for OMAD + evening training';
-const DESCRIPTION =
-  'Plan one meal a day around your workout. Get your eating window, macros that scale with session intensity, and meal-prep recipes with reheat instructions.';
-
 /**
- * Background is set before hydration so a dark-mode user doesn't get a white
- * flash while the JS bundle loads.
+ * Static web HTML wrapper (`npx expo export --platform web`).
+ *
+ * Preloads the actual typography stack (`Archivo`, `Hanken Grotesk`,
+ * `JetBrains Mono`) so telemetry figures never jump, and sets an initial
+ * surface polarity without `!important` locks so user-selected Light/Dark/
+ * System themes take effect immediately after hydration.
  */
-const PRELOAD_THEME = `
-:root { color-scheme: dark; }
+import { ScrollViewStyleReset } from 'expo-router/html';
+import type { PropsWithChildren } from 'react';
 
-/* Titanium Carbon ground: eliminates any white canvas flash */
+const PRELOAD_STYLE = `
+:root { color-scheme: dark light; }
 html, body {
-  background-color: #08090C !important;
-  color: #F8FAFC !important;
+  margin: 0;
+  padding: 0;
+  background-color: #090B0E;
+  color: #F3F5F8;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+#root { min-height: 100%; display: flex; flex-direction: column; }
 `;
 
 export default function Root({ children }: PropsWithChildren) {
@@ -25,41 +28,17 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        {/* viewport-fit=cover so the tab bar clears the home indicator on iOS */}
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
-        />
-
-        <title>{TITLE}</title>
-        <meta name="description" content={DESCRIPTION} />
-        <meta
-          name="keywords"
-          content="OMAD, one meal a day, intermittent fasting, sports nutrition, meal timing, macro calculator, fasting app"
-        />
-
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+        <title>OMADCoach</title>
+        <meta name="theme-color" content="#090B0E" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-
-        <meta name="theme-color" content="#08090C" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="OMADCoach" />
-        <meta name="mobile-web-app-capable" content="yes" />
-
-        <meta property="og:title" content={TITLE} />
-        <meta property="og:description" content={DESCRIPTION} />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="OMADCoach" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={TITLE} />
-        <meta name="twitter:description" content={DESCRIPTION} />
-
         <ScrollViewStyleReset />
-        <style dangerouslySetInnerHTML={{ __html: PRELOAD_THEME }} />
+        <style dangerouslySetInnerHTML={{ __html: PRELOAD_STYLE }} />
       </head>
       <body>{children}</body>
     </html>

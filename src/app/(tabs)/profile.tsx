@@ -17,7 +17,7 @@ import { View, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Space, Radius } from '@/constants/theme';
 import {
-  Screen, Card, Txt, Eyebrow, Enter, Tap, NavRow, PageHeader, useTheme, SegmentedControl,
+  Screen, Columns, Card, Txt, Eyebrow, Enter, Tap, NavRow, PageHeader, useTheme, SegmentedControl,
 } from '@/components/ui';
 import { useLang } from '@/components/lang';
 import { useOverrideTheme } from '@/components/ThemeProvider';
@@ -75,22 +75,22 @@ export default function ProfileScreen() {
   const targets = dailyTargets(profile, null);
 
   return (
-    <Screen>
+    <Screen wide>
       <Enter index={0}><PageHeader title={t('you.title')} /></Enter>
 
       <Enter index={1}>
         <Tap onPress={() => !premium && router.push('/paywall')} disabled={premium} accessibilityLabel="Subscription">
           <View style={[s.plan, {
-            backgroundColor: premium ? c.surfaceElevated ?? c.surface : c.surface,
+            backgroundColor: premium ? c.surfaceElevated : c.surface,
             borderColor: premium ? c.gold : c.line,
           }]}>
-            <View style={[s.crownBox, { backgroundColor: premium ? c.goldWash : c.well }]}>
+            <View style={[s.crownBox, { backgroundColor: premium ? c.goldWash : c.well, borderColor: c.line }]}>
               <Icon name="crown" size={22} color={premium ? c.gold : c.textFaint} />
             </View>
             <View style={{ flex: 1, marginLeft: Space.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Txt variant="subheading" color={premium ? c.gold : c.text} style={{ fontWeight: '700' }}>
-                  {premium ? t('you.premiumActive') : 'Free Plan'}
+                  {premium ? t('you.premiumActive') : lang === 'de' ? 'Basis-Plan' : 'Free Plan'}
                 </Txt>
                 {premium && (
                   <View style={[s.vipBadge, { backgroundColor: c.goldWash }]}>
@@ -99,7 +99,15 @@ export default function ProfileScreen() {
                 )}
               </View>
               <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
-                {premium ? 'Unbegrenzte AI-Pläne & dynamischer Stoffwechsel' : quota ? `${quota.remaining} von ${quota.limit} Plänen diese Woche frei` : ''}
+                {premium
+                  ? lang === 'de'
+                    ? 'Unbegrenzte AI-Pläne & dynamischer Stoffwechsel'
+                    : 'Unlimited AI plans & measured maintenance'
+                  : quota
+                  ? lang === 'de'
+                    ? `${quota.remaining} von ${quota.limit} Plänen diese Woche frei`
+                    : `${quota.remaining} of ${quota.limit} free plans remaining this week`
+                  : ''}
               </Txt>
             </View>
             {!premium && (
@@ -111,38 +119,44 @@ export default function ProfileScreen() {
         </Tap>
       </Enter>
 
-      {/* Körper & Fasten-Ziele */}
+      {/* Körper & Fasten-Ziele + Einstellungen im Desktop 2-Spalten-Raster */}
+      <Columns>
       <Enter index={2} style={{ marginTop: Space.xl }}>
         <Eyebrow style={{ marginBottom: Space.md }}>{t('you.groupBody')}</Eyebrow>
         <NavRow
           icon="user"
           tone="body"
           title={t('you.body')}
-          sub={`${profile.weight_kg} kg · ${profile.height_cm} cm · ${profile.age}`}
+          sub={`${profile.weight_kg} kg · ${profile.height_cm} cm · ${profile.age} ${lang === 'de' ? 'J.' : 'yr'}`}
           onPress={() => router.push('/you/body')}
         />
         <NavRow
           icon="clock"
           title={t('you.day')}
-          sub={`${profile.omad_window_start}–${windowEnd} · ${24 - profile.omad_window_hours}h fast`}
+          sub={`${profile.omad_window_start}–${windowEnd} · ${24 - profile.omad_window_hours}h ${lang === 'de' ? 'Fasten' : 'fast'}`}
           onPress={() => router.push('/you/day')}
         />
         <NavRow
           icon="chart"
           tone="plan"
           title={t('you.targets')}
-          sub={`${targets.kcal} kcal · ${targets.protein_g} g protein`}
+          sub={
+            lang === 'de'
+              ? `${targets.kcal} kcal · ${targets.protein_g} g Protein`
+              : `${targets.kcal} kcal · ${targets.protein_g} g protein`
+          }
           onPress={() => router.push('/you/targets')}
         />
         <NavRow
           icon="crown"
           tone="gold"
           title={t('achievements.title')}
-          sub="Meilensteine, Trophäen & Fasten-Serien"
+          sub={lang === 'de' ? 'Meilensteine, Trophäen & Fasten-Serien' : 'Milestones, trophies & fasting streaks'}
           onPress={() => router.push('/achievements')}
         />
       </Enter>
 
+      <View>
       {/* Erinnerungen */}
       <Enter index={3} style={{ marginTop: Space.xl }}>
         <Eyebrow style={{ marginBottom: Space.md }}>{t('you.groupNotifications')}</Eyebrow>
@@ -151,9 +165,15 @@ export default function ProfileScreen() {
           title={t('you.reminders')}
           sub={
             !remindersSupported()
-              ? 'App only'
+              ? lang === 'de'
+                ? 'Nur native App'
+                : 'App only'
               : remindOn
-              ? `On · ${queued} scheduled`
+              ? lang === 'de'
+                ? `Aktiv · ${queued} geplant`
+                : `On · ${queued} scheduled`
+              : lang === 'de'
+              ? 'Aus'
               : 'Off'
           }
           onPress={() => router.push('/you/reminders')}
@@ -166,13 +186,21 @@ export default function ProfileScreen() {
         <NavRow
           icon="flame"
           title={t('health.title')}
-          sub="Schritte, Aktivität & Smarte Waage"
+          sub={lang === 'de' ? 'Schritte, Aktivität & Waage' : 'Steps, activity & smart scale'}
           onPress={() => router.push('/health')}
         />
         <NavRow
           icon="sync"
           title={t('you.sync')}
-          sub={syncedAt ? `Last synced ${ago(syncedAt)}` : 'Not set up'}
+          sub={
+            syncedAt
+              ? lang === 'de'
+                ? `Zuletzt synchronisiert ${ago(syncedAt)}`
+                : `Last synced ${ago(syncedAt)}`
+              : lang === 'de'
+              ? 'Nicht eingerichtet'
+              : 'Not set up'
+          }
           onPress={() => router.push('/you/sync')}
         />
         <NavRow
@@ -212,28 +240,28 @@ export default function ProfileScreen() {
         <Card>
           <Tap onPress={() => router.push('/about')} accessibilityLabel="About OMAD">
             <View style={s.row}>
-              <Txt variant="body" color={c.textDim}>About OMAD</Txt>
+              <Txt variant="body" color={c.textDim}>{lang === 'de' ? 'Über OMAD' : 'About OMAD'}</Txt>
               <View style={s.value}>
-                <Txt variant="data" color={c.accent}>Read</Txt>
+                <Txt variant="data" color={c.accent}>{lang === 'de' ? 'Lesen' : 'Read'}</Txt>
                 <Icon name="chevronRight" size={16} color={c.textFaint} />
               </View>
             </View>
           </Tap>
           <Tap onPress={() => router.push('/legal?tab=privacy')} accessibilityLabel="Privacy">
             <View style={s.row}>
-              <Txt variant="body" color={c.textDim}>Privacy</Txt>
+              <Txt variant="body" color={c.textDim}>{lang === 'de' ? 'Datenschutz' : 'Privacy'}</Txt>
               <Icon name="chevronRight" size={16} color={c.textFaint} />
             </View>
           </Tap>
           <Tap onPress={() => router.push('/legal?tab=imprint')} accessibilityLabel="Imprint">
             <View style={s.row}>
-              <Txt variant="body" color={c.textDim}>Imprint</Txt>
+              <Txt variant="body" color={c.textDim}>{lang === 'de' ? 'Impressum' : 'Imprint'}</Txt>
               <Icon name="chevronRight" size={16} color={c.textFaint} />
             </View>
           </Tap>
           <Tap onPress={() => router.push('/landing')} accessibilityLabel="What this app is for">
             <View style={s.row}>
-              <Txt variant="body" color={c.textDim}>What this app is for</Txt>
+              <Txt variant="body" color={c.textDim}>{lang === 'de' ? 'Wofür diese App da ist' : 'What this app is for'}</Txt>
               <Icon name="chevronRight" size={16} color={c.textFaint} />
             </View>
           </Tap>
@@ -243,6 +271,8 @@ export default function ProfileScreen() {
           </View>
         </Card>
       </Enter>
+      </View>
+      </Columns>
     </Screen>
   );
 }
@@ -253,7 +283,6 @@ const s = StyleSheet.create({
   plan: {
     flexDirection: 'row', alignItems: 'center', padding: Space.base,
     borderRadius: Radius.lg, borderWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.14)',
   },
   crownBox: {
     width: 44,
@@ -262,7 +291,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   vipBadge: {
     paddingHorizontal: 6,
@@ -274,9 +302,5 @@ const s = StyleSheet.create({
     paddingHorizontal: Space.md,
     paddingVertical: 7,
     borderRadius: Radius.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.45)',
-    borderBottomWidth: 2,
-    borderBottomColor: 'rgba(0, 0, 0, 0.35)',
   },
 });

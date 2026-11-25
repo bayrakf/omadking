@@ -78,7 +78,7 @@ const COMPLEXITY_OPTIONS: { id: MealComplexity; icon: IconName; label: string; l
  */
 function MacroRing({ pPct, cPct, fPct }: { pPct: number; cPct: number; fPct: number }) {
   const c = useTheme();
-  const size = 112;
+  const size = 144;
   const stroke = 10;
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
@@ -320,15 +320,17 @@ export default function PlannerScreen() {
             <Eyebrow color={c.textDim} style={{ letterSpacing: 1.2 }}>
               {isRestDay
                 ? (lang === 'de' ? 'RUHETAG · OMAD' : 'REST DAY · OMAD')
-                : `${sport.toUpperCase()} · ${duration} MIN · ${intensity.toUpperCase()}`}
+                : lang === 'de'
+                ? `${(SPORTS.find((sp) => sp.id === sport)?.labelDe ?? sport).toUpperCase()} · ${duration} MIN · ${intensity === 'low' ? 'LEICHT' : intensity === 'medium' ? 'MITTEL' : 'HOCH'}`
+                : `${sport} · ${duration} min · ${intensity}`}
             </Eyebrow>
-            <Txt variant="display" color="#FFFFFF" style={{ fontSize: 26, fontWeight: '800', marginTop: 2 }}>
+            <Txt variant="display" color={c.text} style={{ fontSize: 26, fontWeight: '800', marginTop: 2 }}>
               {t('plan.title')}
             </Txt>
           </View>
           {quota && !quota.premium && (
             <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade">
-              <View style={[s.quotaPill, { borderColor: 'rgba(255, 255, 255, 0.12)', backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+              <View style={[s.quotaPill, { borderColor: c.lineStrong, backgroundColor: c.surfaceElevated }]}>
                 <Icon name="bolt" size={13} color={c.plan} />
                 <Txt variant="eyebrow" color={c.plan} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
                   {quota.remaining}/{quota.limit}
@@ -565,8 +567,8 @@ export default function PlannerScreen() {
                       {/* Lock overlay for premium */}
                       {locked && (
                         <View style={[s.premiumBadge, { backgroundColor: c.gold }]}>
-                          <Txt variant="eyebrow" color="#FFFFFF" style={{ fontSize: 9, fontWeight: '800' }}>
-                            PREMIUM
+                          <Txt variant="eyebrow" color={c.onAccent} style={{ fontSize: 9, fontWeight: '800' }}>
+                            PRO
                           </Txt>
                         </View>
                       )}
@@ -829,8 +831,9 @@ export default function PlannerScreen() {
                   </Txt>
                 </View>
                 {!premium && (
-                  <View style={[s.premiumPill, { backgroundColor: c.goldWash, borderColor: c.gold }]}>
-                    <Txt variant="eyebrow" color={c.gold} style={{ fontSize: 10, fontWeight: '800' }}>★ PREMIUM</Txt>
+                  <View style={[s.premiumPill, { backgroundColor: c.goldWash, borderColor: c.gold, flexDirection: 'row', alignItems: 'center' }]}>
+                    <Icon name="crown" size={11} color={c.gold} />
+                    <Txt variant="eyebrow" color={c.gold} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>PRO</Txt>
                   </View>
                 )}
               </View>
@@ -956,12 +959,21 @@ export default function PlannerScreen() {
           <Enter index={2}>
             <Card style={{ marginTop: Space.base }}>
               <Eyebrow style={{ marginBottom: Space.md }}>
-                {lang === 'de' ? 'Verlauf' : 'History'}
+                {lang === 'de' ? 'Gespeicherte Pläne' : 'Saved plans'}
               </Eyebrow>
               {history.length === 0 ? (
-                <Txt variant="small" color={c.textDim}>
-                  {lang === 'de' ? 'Noch kein Plan generiert.' : 'No plans yet.'}
-                </Txt>
+                <View>
+                  <Txt variant="small" color={c.textDim}>
+                    {lang === 'de' ? 'Noch kein Plan generiert.' : 'No plans yet.'}
+                  </Txt>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    label={lang === 'de' ? 'Mahlzeit planen' : "Plan today's meal"}
+                    onPress={() => setPlannerTab('today')}
+                    style={{ marginTop: Space.md, alignSelf: 'flex-start' }}
+                  />
+                </View>
               ) : (
                 history.slice(0, 10).map((p, i) => (
                   <Tap
@@ -1061,7 +1073,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
   },
   ringWrap: {
-    width: 112, height: 112,
+    width: 144, height: 144,
     alignItems: 'center', justifyContent: 'center',
   },
   ringCenter: {

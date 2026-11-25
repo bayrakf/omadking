@@ -73,7 +73,7 @@ export function BreakFastGuideModal({ visible, onClose }: BreakFastGuideModalPro
         <View style={[s.card, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
           <View style={s.head}>
             <View style={{ flex: 1 }}>
-              <Eyebrow color="#10B981">{lang === 'de' ? 'FOOD-COMA PRÄVENTION' : 'FOOD-COMA PREVENTION'}</Eyebrow>
+              <Eyebrow color={c.plan}>{lang === 'de' ? 'FOOD-COMA PRÄVENTION' : 'FOOD-COMA PREVENTION'}</Eyebrow>
               <Txt variant="heading" style={{ fontSize: 20, fontWeight: '800', marginTop: 2 }}>
                 {lang === 'de' ? 'Fastenbrechen-Protokoll' : 'Break-Fast Protocol'}
               </Txt>
@@ -128,7 +128,7 @@ export function BreakFastGuideModal({ visible, onClose }: BreakFastGuideModalPro
 
                 <View style={[s.bioBox, { backgroundColor: c.surface, borderColor: c.line }]}>
                   <Txt variant="data" color={c[step.hue]} style={{ fontSize: 10, fontWeight: '700' }}>
-                    💡 {step.scientificEffect}
+                    {step.scientificEffect}
                   </Txt>
                 </View>
               </View>

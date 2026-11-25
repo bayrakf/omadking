@@ -8,17 +8,6 @@ import { Space, Radius, Type, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Button, Chip, Tap, Card, Divider, useTheme, useReducedMotion } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { STEPS, skipsStep, stepPosition } from '@/lib/onboarding';
-
-/**
- * The hue of the subject each screen is asking about.
- *
- * The bar changes colour as the questions change domain: violet while it asks
- * about your body, teal while it asks about your day. By the time someone
- * reaches the app they have been shown the palette twice — on the landing page
- * as three icons, here as a bar that moves — so a violet card on Progress is
- * already labelled the first time they see it.
- */
-const STEP_HUE = ['accent', 'body', 'body', 'accent', 'body', 'accent'] as const;
 import {
   normalizeProfile, normTime, toMinutes, fromMinutes, PROTOCOLS, protocolForHours,
   targetWeight, dailyTargets, bmr, paceDeficit, PACE_OPTIONS, DEFAULT_DEFICIT_KCAL,
@@ -156,7 +145,9 @@ export default function OnboardingScreen() {
 
             <View style={[s.benefitCard, { backgroundColor: c.well, borderColor: c.line }]}>
               <View style={s.benefitRow}>
-                <Txt style={{ fontSize: 20 }}>🔥</Txt>
+                <View style={[s.benefitIcon, { backgroundColor: c.emberWash, borderColor: c.line }]}>
+                  <Icon name="flame" size={18} color={c.ember} />
+                </View>
                 <View style={{ flex: 1, marginLeft: Space.md }}>
                   <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Deep Ketosis & Fat Oxidation</Txt>
                   <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
@@ -165,7 +156,9 @@ export default function OnboardingScreen() {
                 </View>
               </View>
               <View style={[s.benefitRow, { marginTop: Space.md }]}>
-                <Txt style={{ fontSize: 20 }}>🧬</Txt>
+                <View style={[s.benefitIcon, { backgroundColor: c.bodyWash, borderColor: c.line }]}>
+                  <Icon name="shield" size={18} color={c.body} />
+                </View>
                 <View style={{ flex: 1, marginLeft: Space.md }}>
                   <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Autophagy & Cellular Renewal</Txt>
                   <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
@@ -174,7 +167,9 @@ export default function OnboardingScreen() {
                 </View>
               </View>
               <View style={[s.benefitRow, { marginTop: Space.md }]}>
-                <Txt style={{ fontSize: 20 }}>⚡</Txt>
+                <View style={[s.benefitIcon, { backgroundColor: c.accentWash, borderColor: c.line }]}>
+                  <Icon name="bolt" size={18} color={c.accent} />
+                </View>
                 <View style={{ flex: 1, marginLeft: Space.md }}>
                   <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Sharp Cognitive Focus</Txt>
                   <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
@@ -350,6 +345,9 @@ export default function OnboardingScreen() {
       default: {
         const p = savedProfile();
         const end = fromMinutes(toMinutes(p.omad_window_start) + p.omad_window_hours * 60);
+        const targets = dailyTargets(p, null);
+        const goalLabel =
+          p.goal === 'weight_loss' ? 'Lose fat' : p.goal === 'muscle_gain' ? 'Build muscle' : 'Performance';
         return (
           <View style={s.centre}>
             <Icon name="check" size={26} color={c.positive} strokeWidth={2.2} />
@@ -358,12 +356,13 @@ export default function OnboardingScreen() {
               {([
                 ['Eating window', `${p.omad_window_start}–${end}`],
                 ['Daily fast', `${24 - p.omad_window_hours}h`],
+                ['Daily target', `${targets.kcal} kcal · ${targets.protein_g} g protein`],
                 ['Usual training', p.default_training_time],
-                ['Goal', p.goal.replace('_', ' ')],
+                ['Goal', goalLabel],
                 ...(p.goal === 'weight_loss'
                   ? ([
                       ['Target', `${targetWeight(p, p.weight_kg)} kg`],
-                          ['Pace', p.weekly_rate_kg ? `${p.weekly_rate_kg} kg / week` : 'standard'],
+                      ['Pace', p.weekly_rate_kg ? `${p.weekly_rate_kg} kg / week` : 'standard'],
                     ] as const)
                   : []),
               ] as const).map(([label, value], i) => (
@@ -386,7 +385,7 @@ export default function OnboardingScreen() {
   };
 
   const here = stepPosition(step, data.goal);
-  const hue = c[STEP_HUE[step] ?? 'accent'];
+  const hue = c.accent;
   const label = step === 0 ? 'Start' : step === STEPS - 1 ? 'Open the app' : 'Continue';
 
   return (
@@ -523,6 +522,14 @@ const s = StyleSheet.create({
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  benefitIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footer: {
     padding: Space.lg, paddingBottom: Platform.OS === 'ios' ? Space.sm : Space.lg,

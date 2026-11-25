@@ -1,210 +1,220 @@
-import { useState } from 'react';
-import { View, StyleSheet, Switch } from 'react-native';
-import { Space, Radius } from '@/constants/theme';
-import { Screen, Card, Txt, Eyebrow, Enter, Button, useTheme, PageHeader, washOf } from '@/components/ui';
+/**
+ * Health & Sensor Telemetry screen.
+ *
+ * Strictly honors calculation integrity (`CLAUDE.md`): never invents static
+ * dummy step counts, weight, or recovery scores. Every displayed figure is
+ * computed directly from the user's stored profile, step log, weigh-ins, and
+ * completed fasts; native OS HealthKit / Health Connect bridges remain clearly
+ * distinguished from web manual telemetry.
+ */
+
+import { useCallback, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
+import {
+  Button,
+  Card,
+  Columns,
+  Enter,
+  Eyebrow,
+  PageHeader,
+  Screen,
+  Txt,
+  useTheme,
+} from '@/components/ui';
+import { Radius, Space } from '@/constants/theme';
+import { dailyTargets } from '@/lib/nutrition';
+import {
+  currentStreak,
+  loadDailySteps,
+  loadFastLog,
+  loadProfileOrDefault,
+  loadWeightLog,
+} from '@/lib/store';
 
-export default function HealthSyncScreen() {
+export default function HealthScreen() {
+  const router = useRouter();
   const c = useTheme();
-  const { t } = useLang();
+  const { lang, t } = useLang();
 
-  const [connected, setConnected] = useState(true);
-  const [autoSync, setAutoSync] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState('Vor 12 Minuten');
+  const [steps, setSteps] = useState(0);
+  const [latestKg, setLatestKg] = useState<number | null>(null);
+  const [restingKcal, setRestingKcal] = useState(0);
+  const [streak, setStreak] = useState(0);
 
-  const triggerSync = () => {
-    setSyncing(true);
-    setTimeout(() => {
-      setSyncing(false);
-      setLastSyncTime('Gerade eben');
-    }, 1000);
-  };
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const [p, st, weights, fasts] = await Promise.all([
+          loadProfileOrDefault(),
+          loadDailySteps(),
+          loadWeightLog(),
+          loadFastLog(),
+        ]);
+        if (!active) return;
+        setSteps(st);
+        setLatestKg(weights.length ? weights[0].weight_kg : p.weight_kg);
+        setRestingKcal(dailyTargets(p, null).maintenance_kcal);
+        setStreak(currentStreak(fasts));
+      })();
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  const isWeb = Platform.OS === 'web';
 
   return (
     <Screen wide>
       <Enter index={0}>
         <PageHeader
           back
-          eyebrow="Fitness & Sensoren"
+          onBack={() => router.back()}
+          eyebrow={lang === 'de' ? 'TELEMETRIE & SENSOREN' : 'TELEMETRY & SENSORS'}
           title={t('health.title')}
-          sub={t('health.sub')}
         />
-
-        {/* Integration Status Card */}
-        <Card style={[s.statusCard, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
-          <View style={s.headRow}>
-            <View style={[s.iconBox, { backgroundColor: connected ? washOf(c.positive) : c.well }]}>
-              <Icon name="sync" size={20} color={connected ? c.positive : c.textFaint} />
-            </View>
-            <View style={{ flex: 1, marginLeft: Space.md }}>
-              <Txt variant="subheading" style={{ fontSize: 17, fontWeight: '700' }}>
-                {connected ? 'Health Connect aktiv' : 'Nicht verbunden'}
-              </Txt>
-              <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
-                {connected ? `Zuletzt synchronisiert: ${lastSyncTime}` : 'Tippe zum Verbinden'}
-              </Txt>
-            </View>
-            <Switch
-              value={connected}
-              onValueChange={setConnected}
-              trackColor={{ false: c.well, true: c.positive }}
-              thumbColor={connected ? c.positive : c.surface}
-            />
-          </View>
-        </Card>
       </Enter>
 
-      {connected && (
-        <>
-          {/* Synced Live Metrics */}
-          <Enter index={1}>
-            <Eyebrow style={{ marginBottom: Space.sm, marginTop: Space.base }}>Heute synchronisiert</Eyebrow>
-
-            <View style={s.grid}>
-              {/* Steps */}
-              <View style={s.tileWrap}>
-                <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: c.well }]}>
-                    <Icon name="flame" size={18} color={c.textDim} />
-                  </View>
-                  <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
-                    8.420
-                  </Txt>
-                  <Eyebrow>{t('health.steps')}</Eyebrow>
-                  <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 4 }}>
-                    +320 kcal Aktiv-Verbrauch
-                  </Txt>
-                </Card>
+      <Columns>
+        <Enter index={1}>
+          <Card style={s.cardGap}>
+            <View style={s.rowCenter}>
+              <View style={[s.badgeBox, { backgroundColor: c.hydroWash, borderColor: c.line }]}>
+                <Icon name="sync" size={18} color={c.hydro} />
               </View>
-
-              {/* Active Burn */}
-              <View style={s.tileWrap}>
-                <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: c.well }]}>
-                    <Icon name="flame" size={18} color={c.textDim} />
-                  </View>
-                  <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
-                    480 kcal
-                  </Txt>
-                  <Eyebrow>{t('health.activeBurn')}</Eyebrow>
-                  <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 4 }}>
-                    Herzfrequenz-Zone 2 & Training
-                  </Txt>
-                </Card>
-              </View>
-
-              {/* Scale Weight */}
-              <View style={s.tileWrap}>
-                <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: c.bodyWash }]}>
-                    <Icon name="chart" size={18} color={c.body} />
-                  </View>
-                  <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
-                    78,4 kg
-                  </Txt>
-                  <Eyebrow color={c.body}>{t('health.scale')}</Eyebrow>
-                  <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 4 }}>
-                    Heute 07:15 Uhr importiert
-                  </Txt>
-                </Card>
-              </View>
-
-              {/* Sleep & Recovery */}
-              <View style={s.tileWrap}>
-                <Card style={[s.metricTile, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <View style={[s.metricIcon, { backgroundColor: c.well }]}>
-                    <Icon name="moon" size={18} color={c.textDim} />
-                  </View>
-                  <Txt variant="heading" style={{ fontSize: 22, fontWeight: '800', marginTop: Space.sm }}>
-                    7h 45m
-                  </Txt>
-                  <Eyebrow>{t('health.sleep')}</Eyebrow>
-                  <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 4 }}>
-                    92% Erholungs-Score
-                  </Txt>
-                </Card>
+              <View style={{ flex: 1, marginLeft: Space.md }}>
+                <Txt variant="subheading" color={c.text}>
+                  {isWeb
+                    ? lang === 'de'
+                      ? 'Manuelle Web-Telemetrie aktiv'
+                      : 'Manual Web Telemetry Active'
+                    : lang === 'de'
+                    ? 'Apple Health / Health Connect bereit'
+                    : 'Apple Health / Health Connect Ready'}
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                  {isWeb
+                    ? lang === 'de'
+                      ? 'Im Browser werden deine lokal erfassten Schritte, Wägungen und Fastentage direkt berechnet.'
+                      : 'On web, displayed biometrics are computed directly from your logged steps, weigh-ins, and fasts.'
+                    : lang === 'de'
+                    ? 'Native Gerätesynchronisation lässt sich auf iOS und Android verbinden.'
+                    : 'Native device sensor sync connects on iOS and Android builds.'}
+                </Txt>
               </View>
             </View>
-          </Enter>
 
-          {/* Settings & Manual Sync */}
-          <Enter index={2} style={{ marginTop: Space.base }}>
-            <Card style={{ backgroundColor: c.surface, borderColor: c.line, marginBottom: Space.base }}>
-              <View style={s.settingRow}>
-                <View style={{ flex: 1 }}>
-                  <Txt variant="subheading" style={{ fontSize: 15, fontWeight: '600' }}>
-                    Automatisch im Hintergrund
-                  </Txt>
-                  <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
-                    Aktualisiert Kalorien-Ziele sofort bei neuen Trainings.
-                  </Txt>
+            <View style={{ marginTop: Space.base, flexDirection: 'row' }}>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon="chart"
+                label={lang === 'de' ? 'Gewicht eintragen' : 'Log weight'}
+                onPress={() => router.push('/progress')}
+                style={{ marginRight: Space.sm }}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                icon="footprints"
+                label={lang === 'de' ? 'Schritte auf Heute' : 'Log steps on Today'}
+                onPress={() => router.push('/')}
+              />
+            </View>
+          </Card>
+        </Enter>
+
+        <Enter index={2}>
+          <View style={s.grid}>
+            <View style={s.cell}>
+              <Card>
+                <View style={s.rowBetween}>
+                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'SCHRITTE HEUTE' : 'STEPS TODAY'}</Eyebrow>
+                  <Icon name="footprints" size={15} color={c.accent} />
                 </View>
-                <Switch
-                  value={autoSync}
-                  onValueChange={setAutoSync}
-                  trackColor={{ false: c.well, true: c.accentDim }}
-                  thumbColor={autoSync ? c.accent : c.surface}
-                />
-              </View>
-            </Card>
+                <Txt variant="title" color={c.text} style={{ marginTop: Space.sm, fontVariant: ['tabular-nums'] }}>
+                  {steps.toLocaleString()}
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                  {lang === 'de' ? 'Ziel 10.000 / Tag' : 'Target 10,000 / day'}
+                </Txt>
+              </Card>
+            </View>
 
-            <Button
-              label={syncing ? 'Synchronisiere Daten…' : t('health.syncNow')}
-              icon="sync"
-              onPress={triggerSync}
-            />
-          </Enter>
-        </>
-      )}
+            <View style={s.cell}>
+              <Card>
+                <View style={s.rowBetween}>
+                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'GESCHÄTZTER UMSATZ' : 'EST. MAINTENANCE'}</Eyebrow>
+                  <Icon name="flame" size={15} color={c.ember} />
+                </View>
+                <Txt variant="title" color={c.text} style={{ marginTop: Space.sm, fontVariant: ['tabular-nums'] }}>
+                  {restingKcal} kcal
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                  {lang === 'de' ? 'Aus Profildaten berechnet' : 'Computed from profile'}
+                </Txt>
+              </Card>
+            </View>
+
+            <View style={s.cell}>
+              <Card>
+                <View style={s.rowBetween}>
+                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'GEWICHT' : 'LATEST WEIGHT'}</Eyebrow>
+                  <Icon name="scale" size={15} color={c.body} />
+                </View>
+                <Txt variant="title" color={c.text} style={{ marginTop: Space.sm, fontVariant: ['tabular-nums'] }}>
+                  {latestKg !== null ? `${latestKg.toFixed(1)} kg` : '—'}
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                  {lang === 'de' ? 'Letzter Eintrag' : 'Most recent entry'}
+                </Txt>
+              </Card>
+            </View>
+
+            <View style={s.cell}>
+              <Card>
+                <View style={s.rowBetween}>
+                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'FASTEN-SERIE' : 'FASTING STREAK'}</Eyebrow>
+                  <Icon name="clock" size={15} color={c.plan} />
+                </View>
+                <Txt variant="title" color={c.text} style={{ marginTop: Space.sm, fontVariant: ['tabular-nums'] }}>
+                  {streak} {streak === 1 ? (lang === 'de' ? 'Tag' : 'day') : lang === 'de' ? 'Tage' : 'days'}
+                </Txt>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                  {lang === 'de' ? 'Erfasste Fastentage' : 'Logged consecutive fasts'}
+                </Txt>
+              </Card>
+            </View>
+          </View>
+        </Enter>
+      </Columns>
     </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  statusCard: {
-    borderRadius: Radius.lg,
+  cardGap: { marginBottom: Space.base },
+  rowCenter: { flexDirection: 'row', alignItems: 'flex-start' },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  badgeBox: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Space.base,
-    marginBottom: Space.base,
-  },
-  headRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -Space.xs,
+    marginHorizontal: -4,
   },
-  tileWrap: {
+  cell: {
     width: '50%',
-    paddingHorizontal: Space.xs,
-    marginBottom: Space.sm,
-  },
-  metricTile: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Space.base,
-  },
-  metricIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    padding: 4,
   },
 });
