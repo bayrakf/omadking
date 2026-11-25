@@ -9,6 +9,7 @@ import {
   Enter,
   Eyebrow,
   Notice,
+  PageHeader,
   Screen,
   SegmentedControl,
   Tap,
@@ -78,8 +79,8 @@ const COMPLEXITY_OPTIONS: { id: MealComplexity; icon: IconName; label: string; l
  */
 function MacroRing({ pPct, cPct, fPct }: { pPct: number; cPct: number; fPct: number }) {
   const c = useTheme();
-  const size = 144;
-  const stroke = 10;
+  const size = 116;
+  const stroke = 9;
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const gap = 5; // px of air between segments, so each macro reads on its own
@@ -314,32 +315,19 @@ export default function PlannerScreen() {
 
   return (
     <Screen>
-      <Enter index={0}>
-        <View style={s.topBar}>
-          <View>
-            <Eyebrow color={c.textDim} style={{ letterSpacing: 1.2 }}>
-              {isRestDay
-                ? (lang === 'de' ? 'RUHETAG · OMAD' : 'REST DAY · OMAD')
-                : lang === 'de'
-                ? `${(SPORTS.find((sp) => sp.id === sport)?.labelDe ?? sport).toUpperCase()} · ${duration} MIN · ${intensity === 'low' ? 'LEICHT' : intensity === 'medium' ? 'MITTEL' : 'HOCH'}`
-                : `${sport} · ${duration} min · ${intensity}`}
-            </Eyebrow>
-            <Txt variant="display" color={c.text} style={{ fontSize: 26, fontWeight: '800', marginTop: 2 }}>
-              {t('plan.title')}
-            </Txt>
-          </View>
-          {quota && !quota.premium && (
-            <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade">
-              <View style={[s.quotaPill, { borderColor: c.lineStrong, backgroundColor: c.surfaceElevated }]}>
-                <Icon name="bolt" size={13} color={c.plan} />
-                <Txt variant="eyebrow" color={c.plan} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
-                  {quota.remaining}/{quota.limit}
-                </Txt>
-              </View>
-            </Tap>
-          )}
-        </View>
-        <SegmentedControl
+      <PageHeader
+        title={t('plan.title')}
+        subtitle={
+          isRestDay
+            ? lang === 'de'
+              ? 'Ruhetag'
+              : 'Rest day'
+            : lang === 'de'
+            ? `${SPORTS.find((sp) => sp.id === sport)?.labelDe ?? sport} · ${duration} Min · ${intensity === 'low' ? 'Leicht' : intensity === 'medium' ? 'Mittel' : 'Hoch'}`
+            : `${sport} · ${duration} min · ${intensity}`
+        }
+      />
+      <SegmentedControl
           values={[
             { id: 'today', label: lang === 'de' ? 'Heute' : 'Today', icon: 'plate' },
             { id: 'week', label: lang === 'de' ? 'Woche' : 'Week', icon: 'chart' },
@@ -350,7 +338,6 @@ export default function PlannerScreen() {
           tone="plan"
           style={{ marginBottom: Space.base }}
         />
-      </Enter>
 
       {plannerTab === 'today' ? (
         <>
@@ -395,56 +382,62 @@ export default function PlannerScreen() {
                 <Card style={{ marginTop: Space.base, padding: Space.base, borderRadius: Radius.lg }}>
                   {/* Header: what this is, and what training added. */}
                   <View style={s.macroHeader}>
-                    <Eyebrow color={c.textDim} style={{ fontSize: 10, letterSpacing: 0.8 }}>
-                      {lang === 'de' ? 'TAGESZIEL (OMAD)' : 'DAILY TARGET (OMAD)'}
+                    <Eyebrow color={c.textDim}>
+                      {lang === 'de' ? 'Tagesziel (OMAD)' : 'Daily target (OMAD)'}
                     </Eyebrow>
-                    {preview.burn_kcal > 0 && (
-                      <View style={[s.workoutBonusPill, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
-                        <Txt variant="eyebrow" color={c.ember} style={{ fontSize: 10, fontWeight: '800' }}>
-                          +{preview.burn_kcal} KCAL WORKOUT
-                        </Txt>
-                      </View>
-                    )}
                   </View>
 
-                  {/* Ring left, legend right: the target lives at the centre
-                      of its own split, and the macros read as a list instead
-                      of three tiles. */}
+                  {/* Ring left, legend right: clean separation on narrow phones */}
                   <View style={s.macroRow}>
                     <View style={s.ringWrap}>
                       <MacroRing pPct={pPct} cPct={cPct} fPct={fPct} />
                       <View style={s.ringCenter} pointerEvents="none">
-                        <Txt variant="hero" style={{ fontSize: 20, lineHeight: 24, fontWeight: '800', textAlign: 'center' }}>
-                          {totalKcal.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')} kcal
+                        <Txt variant="heading" style={{ fontSize: 18, lineHeight: 20, fontWeight: '700', textAlign: 'center', fontVariant: ['tabular-nums'] }}>
+                          {totalKcal.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US')}
+                          {'\n'}
+                          <Txt variant="small" color={c.textDim} style={{ fontSize: 11, lineHeight: 14, fontWeight: '500' }}>kcal</Txt>
                         </Txt>
                       </View>
                     </View>
 
-                    <View style={{ flex: 1, marginLeft: Space.base }}>
+                    <View style={{ flex: 1, marginLeft: Space.md }}>
                       {[
-                        { label: 'PROTEIN', v: preview.protein_g, pct: pPct, color: c.plan, extra: proteinPerKg ? ` · ${proteinPerKg}g/kg` : '' },
+                        { label: 'Protein', v: preview.protein_g, pct: pPct, color: c.plan, extra: proteinPerKg ? ` · ${proteinPerKg} g/kg` : '' },
                         { label: t('macro.carbs'), v: preview.carbs_g, pct: cPct, color: c.hydro, extra: '' },
                         { label: t('macro.fat'), v: preview.fat_g, pct: fPct, color: c.gold, extra: '' },
                       ].map((m, i) => (
                         <View key={m.label}>
                           {i > 0 && <View style={[s.statDivider, { backgroundColor: c.line }]} />}
                           <View style={s.macroLine}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <View style={[s.macroDot, { backgroundColor: m.color }]} />
-                              <Eyebrow color={c.textDim} style={{ fontSize: 10 }}>{m.label}</Eyebrow>
-                            </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                              <Txt variant="heading" style={{ fontSize: 18, fontWeight: '800' }}>{m.v}</Txt>
-                              <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 11 }}>g</Txt>
-                              <Txt variant="eyebrow" color={c.textFaint} style={{ marginLeft: 6, fontSize: 9.5 }}>
+                            <View style={{ flex: 1, marginRight: Space.sm }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={[s.macroDot, { backgroundColor: m.color }]} />
+                                <Eyebrow color={c.textDim} style={{ fontSize: 12 }}>{m.label}</Eyebrow>
+                              </View>
+                              <Txt variant="small" color={c.textFaint} style={{ marginLeft: 12, marginTop: 1, fontSize: 11 }}>
                                 {m.pct}%{m.extra}
                               </Txt>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                              <Txt variant="heading" style={{ fontSize: 17, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{m.v}</Txt>
+                              <Txt variant="small" color={c.textFaint} style={{ marginLeft: 2, fontSize: 12 }}>g</Txt>
                             </View>
                           </View>
                         </View>
                       ))}
                     </View>
                   </View>
+
+                  {preview.burn_kcal > 0 && (
+                    <View style={{ marginTop: Space.sm, paddingTop: Space.xs, borderTopWidth: 1, borderTopColor: c.line, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Txt variant="small" color={c.textDim}>
+                        {lang === 'de' ? 'Trainings-Bonus enthalten' : 'Includes workout bonus'}
+                      </Txt>
+                      <Txt variant="data" color={c.ember} style={{ fontSize: 12 }}>
+                        +{preview.burn_kcal} kcal
+                      </Txt>
+                    </View>
+                  )}
                 </Card>
               );
             })()}
@@ -534,7 +527,7 @@ export default function PlannerScreen() {
                   the form read longer than it is. */}
               <View style={[s.complexityDivider, { backgroundColor: c.line }]} />
               <Eyebrow style={{ marginBottom: Space.md }}>
-                {lang === 'de' ? 'REZEPT-KOMPLEXITÄT' : 'RECIPE COMPLEXITY'}
+                {lang === 'de' ? 'Rezept-Komplexität' : 'Recipe complexity'}
               </Eyebrow>
               <View style={s.complexityGrid}>
                 {COMPLEXITY_OPTIONS.map((opt, i) => {
@@ -714,19 +707,19 @@ export default function PlannerScreen() {
               <Card style={{ marginTop: Space.base }}>
                 <View style={s.timingRow}>
                   <View style={s.timingCell}>
-                    <Eyebrow color={c.textDim}>{lang === 'de' ? 'ESSFENSTER' : 'WINDOW'}</Eyebrow>
+                    <Eyebrow color={c.textDim}>{lang === 'de' ? 'Essfenster' : 'Window'}</Eyebrow>
                     <Txt variant="heading" style={{ marginTop: 2 }}>
                       {plan.eating_window_start}–{plan.eating_window_end}
                     </Txt>
                   </View>
                   {plan.pre_training_snack_time && (
                     <View style={s.timingCell}>
-                      <Eyebrow color={c.textDim}>{lang === 'de' ? 'PRE-SNACK' : 'PRE-SNACK'}</Eyebrow>
+                      <Eyebrow color={c.textDim}>{lang === 'de' ? 'Pre-Snack' : 'Pre-snack'}</Eyebrow>
                       <Txt variant="heading" style={{ marginTop: 2 }}>{plan.pre_training_snack_time}</Txt>
                     </View>
                   )}
                   <View style={s.timingCell}>
-                    <Eyebrow color={c.textDim}>{lang === 'de' ? 'MAHLZEIT' : 'MAIN MEAL'}</Eyebrow>
+                    <Eyebrow color={c.textDim}>{lang === 'de' ? 'Hauptmahlzeit' : 'Main meal'}</Eyebrow>
                     <Txt variant="heading" style={{ marginTop: 2 }}>{plan.main_meal_time}</Txt>
                   </View>
                 </View>
@@ -1073,7 +1066,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
   },
   ringWrap: {
-    width: 144, height: 144,
+    width: 116, height: 116,
     alignItems: 'center', justifyContent: 'center',
   },
   ringCenter: {
@@ -1081,7 +1074,7 @@ const s = StyleSheet.create({
   },
   macroLine: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: Space.md,
+    paddingVertical: Space.sm,
   },
   statDivider: { height: 1 },
   macroDot: {

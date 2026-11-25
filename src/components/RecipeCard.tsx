@@ -116,8 +116,8 @@ export default function RecipeCard({
           accessibilityLabel={favorite ? 'Favorit' : 'Als Favorit speichern'}
         >
           <Icon name="check" size={13} color={favorite ? c.onAccent : '#FFFFFF'} strokeWidth={2.4} />
-          <Txt variant="eyebrow" color={favorite ? c.onAccent : '#FFFFFF'} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
-            {favorite ? 'FAVORIT' : '+FAVORIT'}
+          <Txt variant="eyebrow" color={favorite ? c.onAccent : '#FFFFFF'} style={{ fontSize: 11, fontWeight: '600', marginLeft: 4 }}>
+            {favorite ? 'Favorit' : '+ Favorit'}
           </Txt>
         </TouchableOpacity>
       </View>
@@ -138,10 +138,10 @@ export default function RecipeCard({
             />
             <Txt
               variant="eyebrow"
-              style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}
+              style={{ fontSize: 11, fontWeight: '600', marginLeft: 4 }}
               color={plan.complexity === 'chef' ? c.gold : c.textDim}
             >
-              {plan.complexity === 'quick' ? 'BLITZ · ≤15 MIN' : 'CHEF-LEVEL'}
+              {plan.complexity === 'quick' ? 'Blitz · ≤15 Min' : 'Chef-Level'}
             </Txt>
           </View>
         )}
@@ -165,10 +165,10 @@ export default function RecipeCard({
           the mapping legible without shouting. */}
       <View style={s.macros}>
         {[
-          { v: String(plan.total_kcal), label: 'KCAL', color: c.ember },
-          { v: `${plan.protein_g}g`, label: 'PROTEIN', color: c.plan },
-          { v: `${plan.carbs_g}g`, label: 'CARBS', color: c.hydro },
-          { v: `${plan.fat_g}g`, label: lang === 'de' ? 'FETT' : 'FAT', color: c.gold },
+          { v: String(plan.total_kcal), label: 'kcal', color: c.ember },
+          { v: `${plan.protein_g}g`, label: 'Protein', color: c.plan },
+          { v: `${plan.carbs_g}g`, label: 'Carbs', color: c.hydro },
+          { v: `${plan.fat_g}g`, label: lang === 'de' ? 'Fett' : 'Fat', color: c.gold },
         ].map((m) => (
           <View
             key={m.label}

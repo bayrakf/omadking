@@ -133,7 +133,7 @@ export default function HealthScreen() {
             <View style={s.cell}>
               <Card>
                 <View style={s.rowBetween}>
-                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'SCHRITTE HEUTE' : 'STEPS TODAY'}</Eyebrow>
+                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'Schritte heute' : 'Steps today'}</Eyebrow>
                   <Icon name="footprints" size={15} color={c.accent} />
                 </View>
                 <Txt variant="title" color={c.text} style={{ marginTop: Space.sm, fontVariant: ['tabular-nums'] }}>
@@ -148,7 +148,7 @@ export default function HealthScreen() {
             <View style={s.cell}>
               <Card>
                 <View style={s.rowBetween}>
-                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'GESCHÄTZTER UMSATZ' : 'EST. MAINTENANCE'}</Eyebrow>
+                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'Geschätzter Umsatz' : 'Est. maintenance'}</Eyebrow>
                   <Icon name="flame" size={15} color={c.ember} />
                 </View>
                 <Txt variant="title" color={c.text} style={{ marginTop: Space.sm, fontVariant: ['tabular-nums'] }}>
@@ -163,7 +163,7 @@ export default function HealthScreen() {
             <View style={s.cell}>
               <Card>
                 <View style={s.rowBetween}>
-                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'GEWICHT' : 'LATEST WEIGHT'}</Eyebrow>
+                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'Gewicht' : 'Latest weight'}</Eyebrow>
                   <Icon name="scale" size={15} color={c.body} />
                 </View>
                 <Txt variant="title" color={c.text} style={{ marginTop: Space.sm, fontVariant: ['tabular-nums'] }}>
@@ -178,7 +178,7 @@ export default function HealthScreen() {
             <View style={s.cell}>
               <Card>
                 <View style={s.rowBetween}>
-                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'FASTEN-SERIE' : 'FASTING STREAK'}</Eyebrow>
+                  <Eyebrow color={c.textFaint}>{lang === 'de' ? 'Fasten-Serie' : 'Fasting streak'}</Eyebrow>
                   <Icon name="clock" size={15} color={c.plan} />
                 </View>
                 <Txt variant="title" color={c.text} style={{ marginTop: Space.sm, fontVariant: ['tabular-nums'] }}>

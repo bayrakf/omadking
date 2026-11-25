@@ -10,6 +10,7 @@ import {
   Enter,
   Eyebrow,
   NavRow,
+  PageHeader,
   PairedBars,
   Screen,
   SegmentedControl,
@@ -353,30 +354,28 @@ export default function ProgressScreen() {
   const bigPlan = bigDay ? planAhead(dayKcal, intake, bigExtra, bigDay, floor) : null;
 
   return (
-    <Screen wide>
+    <Screen>
       <Enter index={0}>
-        <View style={s.topBar}>
-          <View>
-            <Eyebrow color={c.textDim} style={{ letterSpacing: 1.2 }}>
-              {entries.length
-                ? (lang === 'de'
-                    ? `BIOMETRIE · ${entries.length} ${entries.length === 1 ? 'MESSUNG' : 'MESSUNGEN'}`
-                    : `BIOMETRICS · ${entries.length} ${entries.length === 1 ? 'ENTRY' : 'ENTRIES'}`)
-                : (lang === 'de' ? 'BIOMETRIE & VERLAUF' : 'BIOMETRICS & PROGRESS')}
-            </Eyebrow>
-            <Txt variant="display" color={c.text} style={{ fontSize: 26, fontWeight: '800', marginTop: 2 }}>
-              {t('progress.title')}
-            </Txt>
-          </View>
-          {steady && steady.streak > 0 && (
-            <View style={[s.streakBadge, { backgroundColor: c.emberWash, borderColor: c.ember }]}>
-              <Icon name="flame" size={13} color={c.ember} />
-              <Txt variant="eyebrow" color={c.ember} style={{ fontSize: 10, fontWeight: '800', marginLeft: 4 }}>
-                {steady.streak} {lang === 'de' ? 'TAGE' : 'DAYS'}
-              </Txt>
-            </View>
-          )}
-        </View>
+        <PageHeader
+          title={t('progress.title')}
+          subtitle={
+            entries.length
+              ? lang === 'de'
+                ? `${entries.length} ${entries.length === 1 ? 'Messung' : 'Messungen'}`
+                : `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`
+              : undefined
+          }
+          right={
+            steady && steady.streak > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Icon name="flame" size={14} color={c.ember} />
+                <Txt variant="data" color={c.ember} style={{ marginLeft: 4 }}>
+                  {steady.streak} {lang === 'de' ? 'Tage' : 'days'}
+                </Txt>
+              </View>
+            ) : undefined
+          }
+        />
       </Enter>
 
       {/* QUICK DAILY WEIGH-IN */}
@@ -385,8 +384,8 @@ export default function ProgressScreen() {
           <View style={s.split}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Icon name="scale" size={14} color={c.body} />
-              <Eyebrow color={c.body} style={{ marginLeft: 6, letterSpacing: 0.8 }}>
-                {lang === 'de' ? 'TÄGLICHES WIEGEN' : 'DAILY WEIGH-IN'}
+              <Eyebrow color={c.body} style={{ marginLeft: 6 }}>
+                {lang === 'de' ? 'Tägliches Wiegen' : 'Daily weigh-in'}
               </Eyebrow>
             </View>
             {entries.length > 0 && (
@@ -410,8 +409,8 @@ export default function ProgressScreen() {
                 accessibilityLabel="Today's weight in kilograms"
                 style={[s.inputClean, { color: c.text }]}
               />
-              <Txt variant="small" color={c.textDim} style={{ fontWeight: '700', paddingRight: Space.sm }}>
-                KG
+              <Txt variant="small" color={c.textDim} style={{ fontWeight: '600', paddingRight: Space.sm }}>
+                kg
               </Txt>
             </View>
             <Tap onPress={logWeight} disabled={!weightInput.trim()} accessibilityLabel="Save weight">
@@ -455,7 +454,7 @@ export default function ProgressScreen() {
                   color={decision.headline === 'Carry on' ? c.positive : c.body}
                 />
                 <Eyebrow color={decision.headline === 'Carry on' ? c.textDim : c.body} style={{ marginLeft: 6 }}>
-                  {lang === 'de' ? 'DIESE WOCHE' : 'THIS WEEK'}
+                  {lang === 'de' ? 'Diese Woche' : 'This week'}
                 </Eyebrow>
               </View>
             </View>
@@ -478,7 +477,7 @@ export default function ProgressScreen() {
         <Enter index={1}>
           <Card style={{ marginBottom: Space.base }}>
             <View style={s.split}>
-              <Eyebrow>{lang === 'de' ? 'KONSISTENZ' : 'CONSISTENCY'}</Eyebrow>
+              <Eyebrow>{lang === 'de' ? 'Konsistenz' : 'Consistency'}</Eyebrow>
               {steady.streak > 0 && (
                 <Txt variant="data" color={c.textFaint}>
                   {lang === 'de' ? `${steady.streak} in Folge` : `${steady.streak} in a row`}
@@ -587,17 +586,17 @@ export default function ProgressScreen() {
                   </Txt>
                 )}
 
-                <View style={{ marginTop: Space.base, paddingTop: Space.sm, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.06)' }}>
+                <View style={{ marginTop: Space.base, paddingTop: Space.sm, borderTopWidth: 1, borderTopColor: c.line }}>
                   <View style={[s.split, { marginBottom: 8 }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Icon name="target" size={12} color={c.body} />
+                      <Icon name="target" size={13} color={c.body} />
                       <Eyebrow color={c.body} style={{ marginLeft: 6 }}>
                         {t('card.goalProgress')} ({lang === 'de' ? (profile.goal === 'weight_loss' ? 'Abnehmen' : profile.goal === 'muscle_gain' ? 'Aufbau' : 'Performance') : profile.goal.replace('_', ' ')})
                       </Eyebrow>
                     </View>
-                    <View style={[s.bmiBadge, { backgroundColor: c.surfaceElevated, borderColor: c.line }]}>
-                      <Txt variant="eyebrow" color={c.text} style={{ fontSize: 10, fontWeight: '700' }}>
-                        BMI {bmi.toFixed(1)} · {bmiLabel.toUpperCase()}
+                    <View style={[s.bmiBadge, { backgroundColor: c.well, borderColor: c.line }]}>
+                      <Txt variant="small" color={c.textDim} style={{ fontWeight: '600' }}>
+                        BMI {bmi.toFixed(1)} · {bmiLabel}
                       </Txt>
                     </View>
                   </View>

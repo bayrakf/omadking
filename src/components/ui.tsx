@@ -1,20 +1,19 @@
 /**
- * Core UI primitives (`Screen`, `Columns`, `Card`, `Button`, `Chip`, `SegmentedControl`,
- * `PageHeader`, `NavRow`, `Stat`, `PairedBars`, `Bar`, `Empty`, `Notice`, `Txt`, `Tap`).
+ * Mobile-first core UI primitives (`Screen`, `Columns`, `Card`, `Button`, `Chip`,
+ * `SegmentedControl`, `PageHeader`, `NavRow`, `Stat`, `PairedBars`, `Bar`,
+ * `Empty`, `Notice`, `Txt`, `Tap`).
  *
- * Designed after shadcn/ui + react-native-reusables primitive discipline:
+ * Implements `mobile-native`, `no-slop-ui`, and `animate-expo` rules:
  * - Zero `gap`, `rowGap`, `columnGap` (react-native-web 0.21 crash guard).
- * - Strict dual-polarity `useTheme()` coloring (zero hardcoded light/dark leakage).
- * - Non-flicker `Enter` transitions (0.94 -> 1 opacity, never stalls dim).
- * - Compact single-line `SegmentedControl` with clean borders & `accessibilityState`.
+ * - Zero page-load fade stagger bloat (`Enter` renders immediately without dim delay).
+ * - Zero forced uppercase mono eyebrow noise or decorative icon boxes.
+ * - >= 44pt touch targets with `pressRetentionOffset` and crisp press feedback.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
-  Animated,
-  Easing,
   Platform,
   Pressable,
   RefreshControl,
@@ -33,9 +32,9 @@ import { useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 import {
   Breakpoint,
   Font,
+  Hairline,
   MaxContentWidth,
   MaxWideWidth,
-  Motion,
   Radius,
   Shadow,
   Space,
@@ -43,9 +42,9 @@ import {
   Type,
   type ThemePalette,
 } from '@/constants/theme';
+import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
 import { useThemeMode } from './ThemeProvider';
 import { Icon, type IconName } from './icons';
-import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
 
 export { Font };
 
@@ -74,10 +73,8 @@ export function useReducedMotion(): boolean {
   return reduced;
 }
 
+/** Immediate container wrapper (no entrance stagger slop on every mount). */
 export function Enter({
-  index = 0,
-  delay,
-  distance = 4,
   children,
   style,
 }: {
@@ -87,39 +84,7 @@ export function Enter({
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const reduced = useReducedMotion();
-  const anim = useRef(new Animated.Value(reduced ? 1 : 0)).current;
-  const computedDelay = Math.min(delay ?? index * Motion.stagger, 100);
-
-  useEffect(() => {
-    if (reduced) {
-      anim.setValue(1);
-      return;
-    }
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: Motion.enter,
-      delay: computedDelay,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: Platform.OS !== 'web',
-    }).start();
-  }, [anim, computedDelay, reduced]);
-
-  if (reduced) return <View style={style}>{children}</View>;
-
-  return (
-    <Animated.View
-      style={[
-        {
-          opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }),
-          transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [distance, 0] }) }],
-        },
-        style,
-      ]}
-    >
-      {children}
-    </Animated.View>
-  );
+  return <View style={style}>{children}</View>;
 }
 
 export function useWide(): boolean {
@@ -157,11 +122,11 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const useEdges = edges ?? ['top'];
   const padTop = useEdges.includes('top') ? Math.max(insets.top, Space.md) : 0;
-  const padBottomBase = useEdges.includes('bottom') ? Math.max(insets.bottom, Space.base) : Space.xl;
-  // On wide desktop viewports navigation sits in the top chrome bar so bottom never needs floating dock clearance.
-  const padBottom = tabBar && !isWide ? padBottomBase + TabBarClearance : padBottomBase + Space.lg;
+  const padBottomBase = useEdges.includes('bottom') ? Math.max(insets.bottom, Space.base) : Space.base;
+  // Tab bar is docked in normal flex flow below Screen — only comfortable scroll breathing room needed.
+  const padBottom = tabBar ? padBottomBase + TabBarClearance : padBottomBase + Space.lg;
   const maxWidth = wide && isWide ? MaxWideWidth : MaxContentWidth;
-  const sidePad = isWide ? Space.xl : Space.base;
+  const sidePad = Space.base;
 
   if (bare || !scroll) {
     return (
@@ -224,7 +189,7 @@ export function Screen({
   );
 }
 
-/** Two balanced columns above Breakpoint.wide (`840px`), single column below. */
+/** Single-column mobile-first flow; optional two columns only on tablet/desktop wide screens. */
 export function Columns({ children }: { children: React.ReactNode }) {
   const isWide = useWide();
   const items = React.Children.toArray(children).filter(Boolean);
@@ -239,8 +204,8 @@ export function Columns({ children }: { children: React.ReactNode }) {
   });
   return (
     <View style={styles.columns}>
-      <View style={[styles.col, { marginRight: Space.base / 2 }]}>{left}</View>
-      <View style={[styles.col, { marginLeft: Space.base / 2 }]}>{right}</View>
+      <View style={[styles.col, { marginRight: Space.sm }]}>{left}</View>
+      <View style={[styles.col, { marginLeft: Space.sm }]}>{right}</View>
     </View>
   );
 }
@@ -336,6 +301,7 @@ export function Markdown({ text, color }: { text: string; color?: string }) {
   );
 }
 
+/** Clean section label in natural sentence case — no forced ALL-CAPS monospace spam. */
 export function Eyebrow({
   children,
   color,
@@ -350,14 +316,11 @@ export function Eyebrow({
   const c = useTheme();
   return (
     <RNText
-      maxFontSizeMultiplier={1.25}
+      maxFontSizeMultiplier={1.3}
       numberOfLines={numberOfLines}
       style={[
         Type.eyebrow,
-        {
-          color: color ?? c.textFaint,
-          textTransform: 'uppercase',
-        },
+        { color: color ?? c.textFaint },
         style,
       ]}
     >
@@ -374,13 +337,12 @@ export const TONES: Record<Tone, (c: ThemePalette) => { edge: string; fill: stri
   plan: (c) => ({ edge: c.plan, fill: c.planWash, ink: c.plan }),
   gold: (c) => ({ edge: c.gold, fill: c.goldWash, ink: c.gold }),
 };
-
 export type CardTone = 'default' | 'accent' | 'ember' | 'hydro' | 'body' | 'plan' | 'gold';
 export type Tone = Exclude<CardTone, 'default'>;
 export type PaletteHue = Tone | 'textDim';
 
 export function washOf(hex: string): string {
-  if (!hex || typeof hex !== 'string') return 'rgba(148, 163, 184, 0.11)';
+  if (!hex || typeof hex !== 'string') return 'rgba(148, 163, 184, 0.10)';
   if (hex.startsWith('#') && (hex.length === 7 || hex.length === 4)) {
     let r = 0;
     let g = 0;
@@ -394,7 +356,7 @@ export function washOf(hex: string): string {
       g = parseInt(hex.slice(3, 5), 16);
       b = parseInt(hex.slice(5, 7), 16);
     }
-    return `rgba(${r}, ${g}, ${b}, 0.11)`;
+    return `rgba(${r}, ${g}, ${b}, 0.10)`;
   }
   return hex;
 }
@@ -432,7 +394,7 @@ export function Card({
   const pal =
     tone === 'default'
       ? { fill: c.surface, edge: c.line }
-      : { fill: TONES[tone](c).fill, edge: washOf(TONES[tone](c).edge).replace('0.11)', '0.28)') };
+      : { fill: TONES[tone](c).fill, edge: washOf(TONES[tone](c).edge).replace('0.10)', '0.26)') };
 
   return (
     <View
@@ -441,8 +403,8 @@ export function Card({
         {
           backgroundColor: pal.fill,
           borderColor: pal.edge,
+          borderWidth: tone === 'default' && resolved === 'light' ? Hairline : 1,
         },
-        tone === 'default' && resolved === 'light' ? Shadow.card : null,
         style,
       ]}
     >
@@ -500,7 +462,8 @@ export function Tap({
       disabled={disabled}
       accessibilityRole={accessibilityRole ?? 'button'}
       accessibilityState={accessibilityState}
-      hitSlop={hitSlop ?? { top: 4, bottom: 4, left: 4, right: 4 }}
+      hitSlop={hitSlop ?? { top: 6, bottom: 6, left: 6, right: 6 }}
+      pressRetentionOffset={{ top: 16, bottom: 16, left: 16, right: 16 }}
       {...(accessibilityState && 'checked' in accessibilityState
         ? { 'aria-checked': !!accessibilityState.checked }
         : null)}
@@ -514,7 +477,7 @@ export function Tap({
       style={({ pressed }) => [
         outer as ViewStyle,
         Platform.OS === 'web' ? ({ cursor: disabled ? 'not-allowed' : 'pointer' } as any) : null,
-        pressed && !disabled ? { opacity: 0.84, transform: [{ scale: Motion.pressScale }] } : null,
+        pressed && !disabled ? { opacity: 0.78, transform: [{ scale: 0.97 }] } : null,
       ]}
     >
       <View style={[fills ? styles.tapFill : null, inner as ViewStyle]}>
@@ -570,7 +533,7 @@ export function Button({
     fg = tone === 'gold' || tone === 'hydro' || tone === 'plan' ? c.onAccent : '#FFFFFF';
   } else if (variant === 'secondary') {
     bg = c.surfaceElevated;
-    border = c.lineStrong;
+    border = c.line;
     fg = c.text;
   } else if (variant === 'outline') {
     bg = 'transparent';
@@ -579,12 +542,12 @@ export function Button({
   } else if (variant === 'ghost') {
     bg = 'transparent';
     border = 'transparent';
-    fg = tone ? TONES[tone](c).ink : c.textDim;
+    fg = tone ? TONES[tone](c).ink : c.accent;
   }
 
   const heightMap: Record<ButtonSize, { minHeight: number; px: number; fontSize: number }> = {
-    sm: { minHeight: 36, px: 12, fontSize: 13 },
-    md: { minHeight: 46, px: 18, fontSize: 15 },
+    sm: { minHeight: 40, px: 14, fontSize: 14 },
+    md: { minHeight: 48, px: 18, fontSize: 15 },
     lg: { minHeight: 52, px: 22, fontSize: 16 },
   };
   const sz = heightMap[size];
@@ -602,8 +565,8 @@ export function Button({
           paddingHorizontal: sz.px,
           backgroundColor: bg,
           borderColor: border,
-          borderWidth: variant === 'ghost' ? 0 : 1,
-          opacity: isDisabled ? 0.45 : 1,
+          borderWidth: variant === 'outline' ? 1 : 0,
+          opacity: isDisabled ? 0.42 : 1,
           alignSelf: fullWidth ? 'stretch' : undefined,
         },
         style,
@@ -623,8 +586,7 @@ export function Button({
         style={{
           fontFamily: Font.bodySemi,
           fontSize: sz.fontSize,
-          fontWeight: '700',
-          letterSpacing: -0.1,
+          fontWeight: '600',
           color: fg,
           textAlign: 'center',
         }}
@@ -635,6 +597,7 @@ export function Button({
   );
 }
 
+/** Tactile 8px-radius chip selector — avoids rounded pill clutter everywhere. */
 export function Chip({
   label,
   selected = false,
@@ -690,7 +653,7 @@ export function Chip({
         style={{
           fontFamily: Font.bodySemi,
           fontSize: 13.5,
-          fontWeight: selected ? '700' : '600',
+          fontWeight: selected ? '600' : '500',
           color: pal.fg,
         }}
       >
@@ -721,7 +684,7 @@ export function Stat({
         <RNText
           style={[
             Type.title,
-            { color: color ?? c.text, fontVariant: ['tabular-nums'], marginTop: 4 },
+            { color: color ?? c.text, fontVariant: ['tabular-nums'], marginTop: 2 },
           ]}
         >
           {value}
@@ -736,7 +699,7 @@ export function Stat({
   );
 }
 
-export function Bar({ pct, color, height = 6 }: { pct: number; color: string; height?: number }) {
+export function Bar({ pct, color, height = 5 }: { pct: number; color: string; height?: number }) {
   const c = useTheme();
   const clamped = Math.max(0, Math.min(100, pct));
   return (
@@ -748,7 +711,7 @@ export function Bar({ pct, color, height = 6 }: { pct: number; color: string; he
 
 export function PairedBars({
   days,
-  height = 76,
+  height = 72,
   labels = true,
   tone = 'accent',
 }: {
@@ -774,10 +737,8 @@ export function PairedBars({
                 style={{
                   width: 8,
                   height: targetH,
-                  borderRadius: 4,
+                  borderRadius: 3,
                   backgroundColor: c.well,
-                  borderWidth: 1,
-                  borderColor: c.lineStrong,
                   marginRight: 3,
                 }}
               />
@@ -786,7 +747,7 @@ export function PairedBars({
                   style={{
                     width: 8,
                     height: eatenH,
-                    borderRadius: 4,
+                    borderRadius: 3,
                     backgroundColor: over ? c.ember : toneInk,
                   }}
                 />
@@ -795,7 +756,7 @@ export function PairedBars({
               )}
             </View>
             {labels ? (
-              <Eyebrow color={c.textFaint} style={{ marginTop: 6, fontSize: 10 }}>
+              <Eyebrow color={c.textFaint} style={{ marginTop: 6, fontSize: 11 }}>
                 {d.label}
               </Eyebrow>
             ) : null}
@@ -826,8 +787,8 @@ export function PageHeader({
   right?: React.ReactNode;
 }) {
   const c = useTheme();
-  const toneInk = tone === 'default' ? c.textFaint : TONES[tone](c).ink;
   const subText = subtitle ?? sub;
+  const metaColor = tone === 'default' ? c.textDim : TONES[tone](c).ink;
 
   return (
     <View style={styles.header}>
@@ -838,37 +799,36 @@ export function PageHeader({
             accessibilityLabel="Back"
             style={[styles.backBtn, { backgroundColor: c.surface, borderColor: c.line }]}
           >
-            <Icon name="chevronLeft" size={18} color={c.text} />
+            <Icon name="chevronLeft" size={20} color={c.text} />
           </Tap>
         ) : null}
         <View style={{ flex: 1 }}>
-          {eyebrow ? (
-            <Eyebrow color={toneInk} style={{ marginBottom: 4 }}>
-              {eyebrow}
-            </Eyebrow>
-          ) : null}
-          <Txt variant="title" color={c.text}>
+          <Txt variant="display" color={c.text}>
             {title}
           </Txt>
           {subText ? (
-            <Txt variant="small" color={c.textDim} style={{ marginTop: 4 }}>
+            <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
               {subText}
+            </Txt>
+          ) : eyebrow ? (
+            <Txt variant="small" color={metaColor} style={{ marginTop: 2 }}>
+              {eyebrow}
             </Txt>
           ) : null}
         </View>
-        {right ? <View style={{ marginLeft: Space.md }}>{right}</View> : null}
+        {right ? <View style={{ marginLeft: Space.sm }}>{right}</View> : null}
       </View>
     </View>
   );
 }
 
+/** Native iOS segmented control: crisp single-line segments, zero overflowing ellipsis. */
 export function SegmentedControl<T extends string>({
   values,
   selected,
   value,
   onSelect,
   onChange,
-  tone = 'accent',
   style,
 }: {
   values: { id: T; label: string; accessibilityLabel?: string; icon?: IconName }[];
@@ -880,21 +840,12 @@ export function SegmentedControl<T extends string>({
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
-  const isWide = useWide();
   const { resolved } = useThemeMode();
   const current = selected ?? value;
   const handleSelect = onSelect ?? onChange;
-  const dotInk = tone === 'default' ? c.accent : TONES[tone](c).ink;
-  const showIcons = isWide || values.length < 3;
 
   return (
-    <View
-      style={[
-        styles.segTrack,
-        { backgroundColor: c.well, borderColor: c.line },
-        style,
-      ]}
-    >
+    <View style={[styles.segTrack, { backgroundColor: c.well }, style]}>
       {values.map((item) => {
         const active = item.id === current;
         return (
@@ -905,29 +856,22 @@ export function SegmentedControl<T extends string>({
             accessibilityState={{ selected: active }}
             style={[
               styles.segItem,
-              { paddingHorizontal: isWide ? 8 : 4 },
               active
                 ? {
                     backgroundColor: resolved === 'light' ? c.surface : c.surfaceElevated,
-                    borderColor: c.lineStrong,
                     ...(resolved === 'light' ? Shadow.card : {}),
                   }
-                : { borderColor: 'transparent' },
+                : null,
             ]}
           >
-            {item.icon && showIcons ? (
-              <View style={{ marginRight: 5 }}>
-                <Icon name={item.icon} size={14} color={active ? dotInk : c.textFaint} />
-              </View>
-            ) : null}
             <RNText
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.82}
+              minimumFontScale={0.85}
               style={{
                 fontFamily: Font.bodySemi,
-                fontSize: isWide ? 13 : 12,
-                fontWeight: active ? '700' : '600',
+                fontSize: 13,
+                fontWeight: active ? '600' : '500',
                 color: active ? c.text : c.textDim,
                 textAlign: 'center',
               }}
@@ -943,9 +887,10 @@ export function SegmentedControl<T extends string>({
 
 export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
   const c = useTheme();
-  return <View style={[{ height: 1, backgroundColor: c.line, marginVertical: Space.md }, style]} />;
+  return <View style={[{ height: Hairline, backgroundColor: c.line, marginVertical: Space.md }, style]} />;
 }
 
+/** iOS grouped Settings row: crisp vector icon directly inline, no decorative badge boxes. */
 export function NavRow({
   icon,
   title,
@@ -968,11 +913,7 @@ export function NavRow({
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
-  const { resolved } = useThemeMode();
-  const pal =
-    tone === 'default'
-      ? { ink: c.textDim, fill: c.well }
-      : { ink: TONES[tone](c).ink, fill: TONES[tone](c).fill };
+  const iconColor = tone === 'default' ? c.textDim : TONES[tone](c).ink;
   const subText = subtitle ?? sub;
 
   return (
@@ -985,19 +926,16 @@ export function NavRow({
           backgroundColor: c.surface,
           borderColor: c.line,
         },
-        resolved === 'light' ? Shadow.card : null,
         style,
       ]}
     >
-      <View style={[styles.navIcon, { backgroundColor: pal.fill, borderColor: c.line }]}>
-        <Icon name={icon} size={18} color={pal.ink} />
-      </View>
+      <Icon name={icon} size={20} color={iconColor} />
       <View style={{ flex: 1, marginHorizontal: Space.md }}>
-        <Txt variant="subheading" color={c.text} style={{ fontSize: 15 }}>
+        <Txt variant="bodyMedium" color={c.text}>
           {title}
         </Txt>
         {subText ? (
-          <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+          <Txt variant="small" color={c.textDim} style={{ marginTop: 1 }}>
             {subText}
           </Txt>
         ) : null}
@@ -1032,23 +970,18 @@ export function Empty({
   tone?: CardTone;
 }) {
   const c = useTheme();
-  const pal =
-    tone === 'default'
-      ? { ink: c.textDim, fill: c.well }
-      : { ink: TONES[tone](c).ink, fill: TONES[tone](c).fill };
+  const ink = tone === 'default' ? c.textDim : TONES[tone](c).ink;
 
   const actLabel = typeof action === 'string' ? action : action?.label;
   const actPress = typeof action === 'string' ? onAction : action?.onPress ?? onAction;
 
   return (
     <Card style={styles.emptyCard}>
-      <View style={[styles.emptyIcon, { backgroundColor: pal.fill, borderColor: c.lineStrong }]}>
-        <Icon name={icon} size={24} color={pal.ink} />
-      </View>
+      <Icon name={icon} size={32} color={ink} />
       <Txt variant="heading" color={c.text} align="center" style={{ marginTop: Space.base }}>
         {title}
       </Txt>
-      <Txt variant="body" color={c.textDim} align="center" style={{ marginTop: Space.xs, maxWidth: 340 }}>
+      <Txt variant="body" color={c.textDim} align="center" style={{ marginTop: Space.xs, maxWidth: 320 }}>
         {body}
       </Txt>
       {actLabel && actPress ? (
@@ -1093,12 +1026,11 @@ export function Notice({ tone, children }: { tone: 'error' | 'ok' | 'warn'; chil
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   tapFill: { flexGrow: 1, alignSelf: 'stretch' },
-  sticky: { borderTopWidth: 1, paddingTop: Space.sm },
+  sticky: { borderTopWidth: Hairline, paddingTop: Space.sm },
   columns: { flexDirection: 'row', alignItems: 'flex-start' },
   col: { flex: 1 },
   card: {
     borderRadius: Radius.lg,
-    borderWidth: 1,
     padding: Space.base,
   },
   btn: {
@@ -1110,14 +1042,15 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: Radius.full,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    minHeight: 38,
   },
   statValueRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  barTrack: { borderRadius: Radius.full, overflow: 'hidden', width: '100%' },
-  barFill: { borderRadius: Radius.full },
+  barTrack: { borderRadius: Radius.xs, overflow: 'hidden', width: '100%' },
+  barFill: { borderRadius: Radius.xs },
   pairedWrap: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -1129,10 +1062,10 @@ const styles = StyleSheet.create({
   header: { marginBottom: Space.base },
   headerTopRow: { flexDirection: 'row', alignItems: 'center' },
   backBtn: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: Radius.sm,
-    borderWidth: 1,
+    borderWidth: Hairline,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Space.md,
@@ -1141,8 +1074,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: Radius.md,
-    borderWidth: 1,
-    padding: 4,
+    padding: 3,
     marginBottom: Space.base,
   },
   segItem: {
@@ -1151,39 +1083,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.sm,
-    borderWidth: 1,
-    minHeight: 38,
-    paddingHorizontal: 8,
+    minHeight: 34,
+    paddingHorizontal: 6,
   },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: Radius.md,
-    borderWidth: 1,
-    padding: Space.md,
+    borderWidth: Hairline,
+    paddingHorizontal: Space.base,
+    paddingVertical: 13,
+    minHeight: 52,
     marginBottom: Space.sm,
-  },
-  navIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   navTrail: { flexDirection: 'row', alignItems: 'center' },
   emptyCard: {
     alignItems: 'center',
     paddingVertical: Space.xl,
     paddingHorizontal: Space.lg,
-  },
-  emptyIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   notice: {
     flexDirection: 'row',

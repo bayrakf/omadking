@@ -1,36 +1,44 @@
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (pointer: fine) {
+  html {
+    overscroll-behavior: none;
+  }
+}
 
 html, body, #root {
   height: 100%;
+  min-height: 100dvh;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
-/* Remove harsh rectangular focus boxes on pointer tap while preserving keyboard focus rings */
+/* 16px floor prevents iOS Safari auto-zooming on focused form inputs */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+/* Native touch response: remove 300ms click delay and long-press callouts on controls */
+button, a, [role="button"], [role="tab"], [role="checkbox"], [role="radio"] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Clear pointer click outlines while preserving keyboard focus rings */
 *:focus:not(:focus-visible) {
-  outline: none !important;
+  outline: none;
 }
 
 *:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 2px;
-}
-
-/* Crisp custom scrollbars matching dark & light polarity */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(128, 138, 154, 0.28);
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 138, 154, 0.45);
 }

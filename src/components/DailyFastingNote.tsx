@@ -42,19 +42,19 @@ export function DailyFastingNote({ embedded = false }: { embedded?: boolean }) {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Icon name="edit" size={14} color={c.accent} />
           <Eyebrow color={c.accent} style={{ marginLeft: 6 }}>
-            {lang === 'de' ? 'TAGES-NOTIZ & JOURNAL' : 'DAILY FASTING NOTE'}
+            {lang === 'de' ? 'Tages-Notiz & Journal' : 'Daily fasting note'}
           </Eyebrow>
         </View>
         {saved && (
-          <Txt variant="eyebrow" color={c.positive} style={{ fontSize: 10, fontWeight: '800' }}>
-            ✓ {lang === 'de' ? 'GESPEICHERT' : 'SAVED'}
+          <Txt variant="small" color={c.positive} style={{ fontSize: 11, fontWeight: '700' }}>
+            ✓ {lang === 'de' ? 'Gespeichert' : 'Saved'}
           </Txt>
         )}
       </View>
 
       <TextInput
         style={[s.input, { backgroundColor: c.well, borderColor: c.line, color: c.text }]}
-        placeholder={lang === 'de' ? 'Wie lief das Fasten heute? (z.B. Energie, Salz, Fokus)...' : 'How was your fast today?...'}
+        placeholder={lang === 'de' ? 'Wie lief das Fasten heute? (z. B. Energie, Salz, Fokus)…' : 'How was your fast today?…'}
         placeholderTextColor={c.textDim}
         value={note}
         onChangeText={(text) => {

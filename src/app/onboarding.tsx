@@ -145,34 +145,28 @@ export default function OnboardingScreen() {
 
             <View style={[s.benefitCard, { backgroundColor: c.well, borderColor: c.line }]}>
               <View style={s.benefitRow}>
-                <View style={[s.benefitIcon, { backgroundColor: c.emberWash, borderColor: c.line }]}>
-                  <Icon name="flame" size={18} color={c.ember} />
-                </View>
+                <Icon name="flame" size={20} color={c.ember} />
                 <View style={{ flex: 1, marginLeft: Space.md }}>
-                  <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Deep Ketosis & Fat Oxidation</Txt>
-                  <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
+                  <Txt variant="subheading" style={{ fontSize: 15 }}>Deep Ketosis & Fat Oxidation</Txt>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
                     23h daily fast trains metabolic flexibility and eliminates afternoon energy crashes.
                   </Txt>
                 </View>
               </View>
               <View style={[s.benefitRow, { marginTop: Space.md }]}>
-                <View style={[s.benefitIcon, { backgroundColor: c.bodyWash, borderColor: c.line }]}>
-                  <Icon name="shield" size={18} color={c.body} />
-                </View>
+                <Icon name="shield" size={20} color={c.body} />
                 <View style={{ flex: 1, marginLeft: Space.md }}>
-                  <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Autophagy & Cellular Renewal</Txt>
-                  <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
+                  <Txt variant="subheading" style={{ fontSize: 15 }}>Autophagy & Cellular Renewal</Txt>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
                     Accelerated systemic recovery and lower chronic inflammation for peak performance.
                   </Txt>
                 </View>
               </View>
               <View style={[s.benefitRow, { marginTop: Space.md }]}>
-                <View style={[s.benefitIcon, { backgroundColor: c.accentWash, borderColor: c.line }]}>
-                  <Icon name="bolt" size={18} color={c.accent} />
-                </View>
+                <Icon name="bolt" size={20} color={c.accent} />
                 <View style={{ flex: 1, marginLeft: Space.md }}>
-                  <Txt variant="subheading" style={{ fontSize: 14, fontWeight: '700' }}>Sharp Cognitive Focus</Txt>
-                  <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
+                  <Txt variant="subheading" style={{ fontSize: 15 }}>Sharp Cognitive Focus</Txt>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
                     Zero blood sugar spikes or digestive fatigue throughout the working day.
                   </Txt>
                 </View>
@@ -522,14 +516,6 @@ const s = StyleSheet.create({
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  benefitIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   footer: {
     padding: Space.lg, paddingBottom: Platform.OS === 'ios' ? Space.sm : Space.lg,

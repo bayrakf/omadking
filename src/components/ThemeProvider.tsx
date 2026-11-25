@@ -45,8 +45,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const colors = resolved === 'light' ? Colors.light : Colors.dark;
 
-  // Keep web root background and color-scheme synced with resolved theme polarity so
-  // margins outside ScrollViews and browser scrollbars never show a dark/light mismatch.
+  // Sync web root canvas, color-scheme, and dynamic meta theme-color tags
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const root = document.documentElement;
@@ -55,8 +54,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.color = colors.text;
     document.body.style.backgroundColor = colors.bg;
     document.body.style.color = colors.text;
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.setAttribute('content', colors.bg);
+    document.querySelectorAll('meta[name="theme-color"]').forEach((tag) => {
+      tag.setAttribute('content', colors.bg);
+    });
   }, [resolved, colors.bg, colors.text]);
 
   const value = useMemo(() => ({ mode, resolved, colors, setMode }), [mode, resolved, colors]);

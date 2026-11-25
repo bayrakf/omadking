@@ -162,9 +162,9 @@ export default function TimerScreen() {
               <Txt
                 variant="eyebrow"
                 color={fast.isEating ? c.ember : c.hydro}
-                style={{ marginLeft: 4, fontSize: 10, fontWeight: '800' }}
+                style={{ marginLeft: 4, fontSize: 11, fontWeight: '700' }}
               >
-                {fast.isEating ? 'ESSENSFENSTER' : 'FASTEN LÄUFT'}
+                {fast.isEating ? 'Essensfenster' : 'Fasten läuft'}
               </Txt>
             </View>
 
@@ -189,8 +189,8 @@ export default function TimerScreen() {
           style={[s.shiftBtn, { backgroundColor: c.well, borderColor: c.line }]}
         >
           <Icon name="clock" size={13} color={c.accent} />
-          <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 6, fontSize: 11, fontWeight: '800' }}>
-            {lang === 'de' ? 'FENSTER HEUTE VERSCHIEBEN' : 'SHIFT TODAY’S WINDOW'}
+          <Txt variant="eyebrow" color={c.accent} style={{ marginLeft: 6, fontSize: 12, fontWeight: '700' }}>
+            {lang === 'de' ? 'Fenster heute verschieben' : 'Shift today’s window'}
           </Txt>
         </TouchableOpacity>
       </Enter>

@@ -81,28 +81,19 @@ export default function ProfileScreen() {
       <Enter index={1}>
         <Tap onPress={() => !premium && router.push('/paywall')} disabled={premium} accessibilityLabel="Subscription">
           <View style={[s.plan, {
-            backgroundColor: premium ? c.surfaceElevated : c.surface,
+            backgroundColor: c.surface,
             borderColor: premium ? c.gold : c.line,
           }]}>
-            <View style={[s.crownBox, { backgroundColor: premium ? c.goldWash : c.well, borderColor: c.line }]}>
-              <Icon name="crown" size={22} color={premium ? c.gold : c.textFaint} />
-            </View>
+            <Icon name="crown" size={22} color={premium ? c.gold : c.textFaint} />
             <View style={{ flex: 1, marginLeft: Space.md }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Txt variant="subheading" color={premium ? c.gold : c.text} style={{ fontWeight: '700' }}>
-                  {premium ? t('you.premiumActive') : lang === 'de' ? 'Basis-Plan' : 'Free Plan'}
-                </Txt>
-                {premium && (
-                  <View style={[s.vipBadge, { backgroundColor: c.goldWash }]}>
-                    <Txt variant="data" color={c.gold} style={{ fontSize: 10, fontWeight: '700' }}>VIP</Txt>
-                  </View>
-                )}
-              </View>
+              <Txt variant="subheading" color={premium ? c.gold : c.text}>
+                {premium ? t('you.premiumActive') : lang === 'de' ? 'Basis-Plan' : 'Free Plan'}
+              </Txt>
               <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
                 {premium
                   ? lang === 'de'
-                    ? 'Unbegrenzte AI-Pläne & dynamischer Stoffwechsel'
-                    : 'Unlimited AI plans & measured maintenance'
+                    ? 'Unbegrenzte Pläne & gemessener Verbrauch'
+                    : 'Unlimited plans & measured maintenance'
                   : quota
                   ? lang === 'de'
                     ? `${quota.remaining} von ${quota.limit} Plänen diese Woche frei`
@@ -112,7 +103,7 @@ export default function ProfileScreen() {
             </View>
             {!premium && (
               <View style={[s.upgradeBtn, { backgroundColor: c.accent }]}>
-                <Txt variant="small" color={c.onAccent} style={{ fontWeight: '700' }}>{t('you.getPremium')}</Txt>
+                <Txt variant="small" color={c.onAccent} style={{ fontWeight: '600' }}>{t('you.getPremium')}</Txt>
               </View>
             )}
           </View>
@@ -219,7 +210,7 @@ export default function ProfileScreen() {
         {/* Theme mode selection */}
         <View style={{ marginTop: Space.md }}>
           <Eyebrow color={c.textDim} style={{ marginBottom: Space.xs, marginLeft: 2 }}>
-            {lang === 'de' ? 'DESIGN / THEMA' : 'THEME'}
+            {lang === 'de' ? 'Erscheinungsbild' : 'Theme'}
           </Eyebrow>
           <SegmentedControl
             values={[
@@ -284,23 +275,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', padding: Space.base,
     borderRadius: Radius.lg, borderWidth: 1,
   },
-  crownBox: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  vipBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-    marginLeft: Space.xs,
-  },
   upgradeBtn: {
     paddingHorizontal: Space.md,
-    paddingVertical: 7,
-    borderRadius: Radius.md,
+    paddingVertical: 8,
+    borderRadius: Radius.sm,
   },
 });

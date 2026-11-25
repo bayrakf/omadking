@@ -96,15 +96,15 @@ export function ShareableFastCardModal({
                 <Icon name="flame" size={28} color={c.ember} />
               </View>
               <View style={[s.streakPill, { backgroundColor: c.emberWash, borderColor: c.line }]}>
-                <Txt variant="eyebrow" color={c.ember} style={{ fontSize: 11, fontWeight: '800' }}>
-                  {streakDays} {lang === 'de' ? 'TAGE STREAK' : 'DAY STREAK'}
+                <Txt variant="small" color={c.ember} style={{ fontSize: 12, fontWeight: '700' }}>
+                  {streakDays} {lang === 'de' ? 'Tage Serie' : 'day streak'}
                 </Txt>
               </View>
             </View>
 
             <View style={s.statHeroBox}>
-              <Eyebrow color={c.accent} style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>
-                {lang === 'de' ? 'FASTEN GEMEISTERT' : 'FAST COMPLETED'}
+              <Eyebrow color={c.accent} style={{ fontSize: 12, fontWeight: '700' }}>
+                {lang === 'de' ? 'Fasten gemeistert' : 'Fast completed'}
               </Eyebrow>
               <Text style={[s.fastFigure, { color: c.text }]}>{fastText}</Text>
               <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 2 }}>
@@ -115,8 +115,8 @@ export function ShareableFastCardModal({
             <View style={[s.plateCard, { backgroundColor: c.well, borderColor: c.line }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Icon name="plate" size={14} color={c.plan} />
-                <Eyebrow color={c.plan} style={{ marginLeft: 5, fontSize: 9.5, fontWeight: '800' }}>
-                  {lang === 'de' ? 'OMAD TELLER' : 'OMAD PLATE'}
+                <Eyebrow color={c.plan} style={{ marginLeft: 5, fontSize: 11, fontWeight: '700' }}>
+                  {lang === 'de' ? 'OMAD Teller' : 'OMAD plate'}
                 </Eyebrow>
               </View>
               <Txt variant="heading" color={c.text} numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', marginTop: 4 }}>
@@ -134,8 +134,8 @@ export function ShareableFastCardModal({
             </View>
 
             <View style={s.footerBranding}>
-              <Txt variant="eyebrow" color={c.textFaint} style={{ fontSize: 9, letterSpacing: 1.2 }}>
-                OMADKING.VERCEL.APP
+              <Txt variant="small" color={c.textFaint} style={{ fontSize: 11 }}>
+                omadking.vercel.app
               </Txt>
             </View>
           </View>
