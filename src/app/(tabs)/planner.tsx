@@ -17,41 +17,61 @@ import {
   useTheme,
 } from '@/components/ui';
 import { Radius, Space } from '@/constants/theme';
-import { generateMealPlan, QuotaError, type MealComplexity, type MealPlan } from '@/lib/ai';
-import { effectiveMaintenance } from '@/lib/energy';
+import { generateMealPlan, type MealComplexity, type MealPlan, type RecipeEnergyContext } from '@/lib/recipes';
+import {
+  cycleWeek,
+  deficitSpell,
+  effectiveMaintenance,
+  proteinAdherence,
+  readPlateau,
+  trainingDaysPerWeek,
+  weekBudget,
+  type DeficitSpell,
+  type PlateauRead,
+  type ProteinAdherence,
+  type WeekBudget,
+} from '@/lib/energy';
 import type { CookedRecipe } from '@/lib/grocery';
 import { haptic } from '@/lib/haptic';
 import { resync } from '@/lib/notify';
 import {
+  adaptiveTarget,
+  bmr,
   breakFastSteps,
   dailyTargets,
   DEFAULT_PROFILE,
   mealTiming,
-  type Intensity, type Training, type UserProfile,
+  type AdaptiveMode,
+  type Intensity,
+  type Training,
+  type UserProfile,
 } from '@/lib/nutrition';
 import {
-  consumeQuota,
-  getQuota,
-  isPremium, loadCookedRecipes, loadFavoriteRecipes,
+  isPremium,
+  loadCookedRecipes,
+  loadFavoriteRecipes,
   loadIntakeLog,
   loadLastSession,
   loadPlanHistory,
   loadPortions,
   loadProfileOrDefault,
   loadWeightLog,
+  loadWorkoutLog,
   saveLastSession,
   savePlan,
   savePortions,
-  todayISO, type Quota,
+  todayISO,
 } from '@/lib/store';
+import type { WorkoutLogEntry } from '@/lib/workouts';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Platform, Share, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
 const SPORTS: { id: string; label: string; labelDe: string; icon: IconName }[] = [
-  { id: 'running', label: 'Running', labelDe: 'Laufen', icon: 'run' },
+  { id: 'calisthenics', label: 'Calisthenics', labelDe: 'Calisthenics', icon: 'bolt' },
   { id: 'weights', label: 'Weights', labelDe: 'Kraft', icon: 'dumbbell' },
+  { id: 'running', label: 'Running', labelDe: 'Laufen', icon: 'run' },
   { id: 'cycling', label: 'Cycling', labelDe: 'Radfahren', icon: 'bike' },
   { id: 'soccer', label: 'Football', labelDe: 'Fußball', icon: 'ball' },
   { id: 'boxing', label: 'Boxing', labelDe: 'Boxen', icon: 'boxing' },
@@ -143,10 +163,7 @@ export default function PlannerScreen() {
 
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-  const [quota, setQuota] = useState<Quota | null>(null);
   const [premium, setPremium] = useState(false);
-  /** One rejection per paid build. See the comment on `generate`. */
-  const [retryFree, setRetryFree] = useState(false);
 
   const [isRestDay, setIsRestDay] = useState(false);
   const [sport, setSport] = useState('weights');
@@ -155,7 +172,6 @@ export default function PlannerScreen() {
   const [trainingTime, setTrainingTime] = useState('18:00');
   const [complexity, setComplexity] = useState<MealComplexity>('balanced');
 
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [plan, setPlan] = useState<MealPlan | null>(null);
@@ -168,14 +184,21 @@ export default function PlannerScreen() {
   const [favorites, setFavorites] = useState<MealPlan[]>([]);
   const [plannerTab, setPlannerTab] = useState<'today' | 'week' | 'saved'>('today');
 
+  // Energy-tracking integration state
+  const [energyMode, setEnergyMode] = useState<AdaptiveMode>('standard');
+  const [intakeLog, setIntakeLog] = useState<any[]>([]);
+  const [stall, setStall] = useState<PlateauRead | null>(null);
+  const [spell, setSpell] = useState<DeficitSpell | null>(null);
+  const [adherence, setAdherence] = useState<ProteinAdherence>(null);
+  const [todayWorkout, setTodayWorkout] = useState<WorkoutLogEntry | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       let active = true;
       (async () => {
         const p = await loadProfileOrDefault();
-        const [h, q, batch, intake, weights, prem, cooked, last, favs] = await Promise.all([
+        const [h, batch, intake, weights, prem, cooked, last, favs, wLog] = await Promise.all([
           loadPlanHistory<MealPlan>(),
-          getQuota(),
           loadPortions(),
           loadIntakeLog(),
           loadWeightLog(),
@@ -183,23 +206,28 @@ export default function PlannerScreen() {
           loadCookedRecipes(),
           loadLastSession(p.default_training_time),
           loadFavoriteRecipes(),
+          loadWorkoutLog(),
         ]);
         if (!active) return;
+        const todayLog = wLog.find((w) => w.date === todayISO()) ?? null;
         setProfile(p);
+        setTodayWorkout(todayLog);
         setIsRestDay(last.restDay);
         setSport(last.sport);
         setDuration(last.duration_min);
         setIntensity(last.intensity);
         setTrainingTime(last.start_time);
         setHistory(h);
-        setQuota(q);
         setPremium(prem);
         setPortions(batch);
         setRotation(cooked);
         setFavorites(favs);
-        setMeasured(
-          effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem)
-        );
+        setIntakeLog(intake);
+        const m = effectiveMaintenance(intake, weights, dailyTargets(p, null).maintenance_kcal, prem);
+        setMeasured(m);
+        setStall(readPlateau(intake, weights, p.goal, 500));
+        setSpell(deficitSpell(intake, weights, p.goal));
+        setAdherence(proteinAdherence(intake));
         setMounted(true);
       })();
       return () => { active = false; };
@@ -212,17 +240,21 @@ export default function PlannerScreen() {
     ? null
     : { sport, duration_min: duration, intensity, start_time: trainingTime };
 
-  // Live preview — the figures move as you change the session, so it is obvious
-  // that intensity and duration actually drive the plan.
-  // Follows the measured maintenance once there is one; otherwise the formula.
-  const preview = dailyTargets(profile, training, measured);
+  const previewBase = dailyTargets(profile, training, measured);
+  const budget: WeekBudget | null = weekBudget(previewBase.kcal, intakeLog);
+  const floorKcal = bmr(profile);
+  const hasBudgetOption = Boolean(
+    budget && budget.daysLeft > 0 && budget.perDayLeft > 0 && Math.max(floorKcal, budget.perDayLeft) < previewBase.kcal - 40
+  );
+  const preview = adaptiveTarget(profile, previewBase, {
+    mode: energyMode,
+    plateauTarget: stall?.newTarget ?? null,
+    budgetPerDayLeft: budget?.perDayLeft ?? null,
+    maintenanceKcal: spell?.maintenanceKcal ?? null,
+  });
 
   /**
    * The numbers a re-cooked recipe hangs on when nothing is on screen yet.
-   *
-   * Tapping "Cooked before" used to spread the recipe onto `{}`, so the timing
-   * row and the macro row rendered `undefined`. Everything here is already
-   * computed above for the live preview.
    */
   const planShell = (): MealPlan => {
     const t = mealTiming(profile, training);
@@ -236,10 +268,10 @@ export default function PlannerScreen() {
       fat_g: preview.fat_g,
       pre_training_snack_time: t.pre_training_snack_time,
       main_meal_time: t.main_meal_time,
-      ai_reasoning: '',
+      ai_reasoning: t.reasoning,
       timing_warning: t.warning,
-      training_burn_kcal: preview.burn_kcal,
-      recipe_source: 'offline',
+      training_burn_kcal: previewBase.burn_kcal,
+      recipe_source: premium ? 'premium' : 'standard',
       recipe_note: null,
       timing_pattern: t.pattern,
       training_start_time: training?.start_time ?? null,
@@ -249,45 +281,36 @@ export default function PlannerScreen() {
     };
   };
 
-  /**
-   * ponytail: the free-rejection flag lives in screen state, not storage, so
-   * navigating away loses it. Persist it if anyone complains — a rejection is
-   * something you do within seconds of seeing the plate.
-   */
-  const generate = async (free = false) => {
-    if (quota && !quota.premium && quota.remaining <= 0) return router.push('/paywall');
-    setLoading(true);
+  const generate = async (swap = false) => {
     setError(null);
-    try {
-      const next = await generateMealPlan(profile, training, lang, measured, complexity);
-      // Remembered only once a plan was actually built, so idly tapping through
-      // the options does not overwrite what worked yesterday.
-      await saveLastSession({
-        restDay: isRestDay,
-        sport,
-        duration_min: duration,
-        intensity,
-        start_time: trainingTime,
-      });
-      setPlan(next);
-      haptic(next.recipe_source === 'ai' ? 'success' : 'medium');
-      setHistory(await savePlan(next));
-      // Only a real generated recipe costs one of the three weekly plans.
-      // Charging for the built-in fallback would bill the user for an outage —
-      // and neither should the one free rejection, or a recipe someone cannot
-      // eat would cost them a third of their week.
-      if (next.recipe_source === 'ai' && !free) await consumeQuota();
-      // A paid build earns a rejection; a rejection does not earn another.
-      setRetryFree(!free);
-      // Cook and meal times just moved, so the schedule has to follow.
-      await resync();
-      setQuota(await getQuota());
-    } catch (e) {
-      if (e instanceof QuotaError) router.push('/paywall');
-      else { setError('Could not reach the planner. Check your connection and try again.'); haptic('error'); }
-    } finally {
-      setLoading(false);
-    }
+    const energyCtx: RecipeEnergyContext = {
+      mode: energyMode,
+      plateauStalled: Boolean(stall?.stalled),
+      dietBreakDue: Boolean(spell?.breakDue),
+      proteinAdherenceLow: Boolean(adherence && adherence.days >= 5 && adherence.hit / adherence.days < 0.8),
+      budgetDeficitActive: energyMode === 'budget',
+      adjustedTargets: preview,
+    };
+    const next = generateMealPlan(profile, training, lang, {
+      measuredMaintenance: measured,
+      complexity,
+      isPremium: premium,
+      historyTitles: history.map((h) => h.recipe.title),
+      excludeRecipeId: swap ? plan?.recipe.id : undefined,
+      energy: energyCtx,
+      date: todayISO(),
+    });
+    await saveLastSession({
+      restDay: isRestDay,
+      sport,
+      duration_min: duration,
+      intensity,
+      start_time: trainingTime,
+    });
+    setPlan(next);
+    haptic('success');
+    setHistory(await savePlan(next));
+    await resync();
   };
 
   const share = async (p: MealPlan) => {
@@ -341,27 +364,82 @@ export default function PlannerScreen() {
 
       {plannerTab === 'today' ? (
         <>
-          {quota && !quota.premium && (
-            <Enter index={1}>
-              <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade">
-                <Card style={{ marginTop: Space.base }}>
-                  <View style={s.quotaRow}>
-                    {/* Exhausted is an error state, not a sales colour. */}
-                    <Eyebrow color={quota.remaining > 0 ? c.textDim : c.negative}>
-                      {quota.remaining > 0
+          {/* Quick link to Calisthenics & Rep-Log + today's energy signal */}
+          <Enter index={1}>
+            <Tap onPress={() => router.push('/workout')} accessibilityLabel="Workouts">
+              <Card style={{ marginTop: Space.base }}>
+                <View style={s.quotaRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Icon name="bolt" size={16} color={todayWorkout ? c.plan : c.accent} />
+                    <Txt variant="small" color={c.text} style={{ marginLeft: 8, fontWeight: '600' }}>
+                      {todayWorkout
                         ? lang === 'de'
-                          ? `${quota.remaining} von ${quota.limit} Plänen diese Woche verfügbar`
-                          : `${quota.remaining} of ${quota.limit} plans left this week`
+                          ? `Heute geloggt: ${todayWorkout.sport} (${todayWorkout.durationMin} Min)`
+                          : `Logged today: ${todayWorkout.sport} (${todayWorkout.durationMin}m)`
                         : lang === 'de'
-                          ? 'Wöchentliche Pläne aufgebraucht'
-                          : 'Weekly plans used'}
-                    </Eyebrow>
-                    {/* Gold: the upgrade is premium's own hue, not the
-                        interactive cyan. */}
-                    <Txt variant="small" color={c.gold} style={{ fontWeight: '700' }}>Upgrade</Txt>
+                        ? 'Calisthenics & Wiederholungen loggen'
+                        : 'Log Calisthenics & rep progress'}
+                    </Txt>
                   </View>
-                </Card>
-              </Tap>
+                  <Icon name="chevronRight" size={16} color={c.textFaint} />
+                </View>
+              </Card>
+            </Tap>
+          </Enter>
+
+          {(hasBudgetOption || (stall?.stalled && stall.newTarget) || spell?.breakDue || measured !== undefined) && (
+            <Enter index={1}>
+              <Card style={{ marginTop: Space.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Eyebrow color={c.body}>
+                    {lang === 'de' ? 'Energie- & Kalorien-Steuerung' : 'Adaptive calorie tracking'}
+                  </Eyebrow>
+                  {measured !== undefined && (
+                    <Txt variant="small" color={c.positive} style={{ fontSize: 11, fontWeight: '600' }}>
+                      {lang === 'de' ? 'Gemessen' : 'Measured'}
+                    </Txt>
+                  )}
+                </View>
+                <View style={[s.chips, { marginTop: Space.sm }]}>
+                  <Chip
+                    label={lang === 'de' ? `Standard (${previewBase.kcal})` : `Standard (${previewBase.kcal})`}
+                    selected={energyMode === 'standard'}
+                    onPress={() => setEnergyMode('standard')}
+                    style={s.chipGap}
+                  />
+                  {hasBudgetOption && budget ? (
+                    <Chip
+                      label={lang === 'de' ? `Wochenbudget (${Math.max(floorKcal, budget.perDayLeft)})` : `Week budget (${Math.max(floorKcal, budget.perDayLeft)})`}
+                      selected={energyMode === 'budget'}
+                      onPress={() => setEnergyMode('budget')}
+                      style={s.chipGap}
+                    />
+                  ) : null}
+                  {stall?.stalled && stall.newTarget ? (
+                    <Chip
+                      label={lang === 'de' ? `Plateau (${stall.newTarget})` : `Plateau (${stall.newTarget})`}
+                      selected={energyMode === 'plateau'}
+                      onPress={() => setEnergyMode('plateau')}
+                      style={s.chipGap}
+                    />
+                  ) : null}
+                  {spell?.breakDue ? (
+                    <Chip
+                      label={lang === 'de' ? 'Erhaltungswoche' : 'Diet break'}
+                      selected={energyMode === 'diet_break'}
+                      onPress={() => setEnergyMode('diet_break')}
+                      style={s.chipGap}
+                    />
+                  ) : null}
+                </View>
+                {adherence && adherence.days >= 5 && adherence.hit / adherence.days < 0.8 ? (
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: Space.xs }}>
+                    {lang === 'de'
+                      ? 'Hinweis: Protein war zuletzt unter Ziel — proteinreiche Rezepte werden bevorzugt.'
+                      : 'Protein adherence was low recently — boosting high-protein meals automatically.'}
+                  </Txt>
+                ) : null}
+              </Card>
             </Enter>
           )}
 
@@ -601,17 +679,15 @@ export default function PlannerScreen() {
                 label={plan
                   ? (lang === 'de' ? 'Neu generieren' : 'Generate new')
                   : (lang === 'de' ? 'Plan generieren' : 'Generate plan')}
-                onPress={() => generate()}
-                disabled={loading}
-                loading={loading}
+                onPress={() => generate(false)}
                 tone="plan"
                 style={s.generateBtn}
               />
             </View>
 
-            {plan && retryFree && (
+            {plan && (
               <Button
-                label={lang === 'de' ? 'Anderes Rezept (kostenlos)' : 'Different recipe (free)'}
+                label={lang === 'de' ? 'Anderes Rezept' : 'Swap recipe'}
                 variant="ghost"
                 onPress={() => generate(true)}
                 style={{ marginTop: Space.sm }}
@@ -626,13 +702,13 @@ export default function PlannerScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.sm }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Icon name="plate" size={14} color={c.plan} />
-                    <Eyebrow color={c.plan} style={{ marginLeft: 6, fontSize: 10, fontWeight: '800' }}>
-                      {lang === 'de' ? 'SCHON GEKOCHT & BEWÄHRT' : 'COOKED BEFORE & FAVORITES'}
+                    <Eyebrow color={c.plan} style={{ marginLeft: 6, fontSize: 11, fontWeight: '700' }}>
+                      {lang === 'de' ? 'Schon gekocht & bewährt' : 'Cooked before'}
                     </Eyebrow>
                   </View>
                   <View style={[s.freeBadge, { backgroundColor: c.planWash }]}>
-                    <Txt variant="eyebrow" color={c.plan} style={{ fontSize: 8.5, fontWeight: '800' }}>
-                      {lang === 'de' ? '0 PLAN-KOSTEN' : 'FREE TO RE-COOK'}
+                    <Txt variant="small" color={c.plan} style={{ fontSize: 11, fontWeight: '600' }}>
+                      {lang === 'de' ? 'Jederzeit frei' : 'Always free'}
                     </Txt>
                   </View>
                 </View>
@@ -653,7 +729,7 @@ export default function PlannerScreen() {
                           prep_time_min: 30,
                           is_meal_prep: true,
                         },
-                        recipe_source: 'offline',
+                        recipe_source: premium ? 'premium' : 'standard',
                         recipe_note: null,
                       });
                       haptic('medium');
@@ -785,22 +861,18 @@ export default function PlannerScreen() {
             </Enter>
           )}
 
-          {/* Weekly plan quota for free users — shown at bottom as soft upsell */}
-          {quota && !quota.premium && plan && (
+          {!premium && plan && (
             <Enter index={9}>
               <Tap onPress={() => router.push('/paywall')} accessibilityLabel="Upgrade to Premium">
-                {/* Gold, not ember: the palette's warm colour means "eat now",
-                    and a sales banner is exactly what that must never be spent
-                    on. Gold is premium's own hue. */}
                 <View style={[s.upsellBanner, { borderColor: c.gold, backgroundColor: c.goldWash }]}>
                   <View style={{ flex: 1 }}>
                     <Eyebrow color={c.gold}>
-                      {lang === 'de' ? 'UNBEGRENZTE PLÄNE + CHEF-LEVEL REZEPTE' : 'UNLIMITED PLANS + CHEF-LEVEL RECIPES'}
+                      {lang === 'de' ? 'Performance- & Chef-Rezeptbibliothek' : 'Performance & chef recipe catalog'}
                     </Eyebrow>
                     <Txt variant="small" color={c.textDim} style={{ marginTop: 3 }}>
                       {lang === 'de'
-                        ? 'Hole dir Premium und generiere täglich neue Gourmet-Rezepte vom KI-Koch.'
-                        : 'Get Premium to generate daily gourmet recipes with the AI chef.'}
+                        ? 'Schalte 20+ spezialisierte OMAD-Rezepte, Chef-Level und 7-Tage-Periodisierung frei.'
+                        : 'Unlock 20+ specialized OMAD plates, chef-level meals, and 7-day periodisation.'}
                     </Txt>
                   </View>
                   <Txt variant="small" color={c.gold} style={{ fontWeight: '700', marginLeft: Space.sm }}>
@@ -812,13 +884,13 @@ export default function PlannerScreen() {
           )}
         </>
       ) : plannerTab === 'week' ? (
-        /* 7-Day Week Planner Tab */
+        /* 7-Day Week Planner Tab using real cycleWeek() from energy.ts */
         <>
           <Enter index={1}>
             <Card style={{ marginTop: Space.base }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Space.md }}>
                 <View>
-                  <Eyebrow color={c.plan}>{lang === 'de' ? '7-TAGE MAHLZEIT-PERIODISIERUNG' : '7-DAY MEAL PERIODISATION'}</Eyebrow>
+                  <Eyebrow color={c.plan}>{lang === 'de' ? '7-Tage Makro-Periodisierung' : '7-day macro periodisation'}</Eyebrow>
                   <Txt variant="heading" style={{ fontSize: 20, marginTop: 2 }}>
                     {lang === 'de' ? 'Wochen-Mahlzeitenplan' : 'Weekly Meal Plan'}
                   </Txt>
@@ -835,8 +907,8 @@ export default function PlannerScreen() {
                 <>
                   <Txt variant="body" color={c.textDim} style={{ lineHeight: 22 }}>
                     {lang === 'de'
-                      ? 'Plane deine gesamte Trainings- & Fastenwoche im Voraus. Die KI passt Kalorien & Makros automatisch an harte Einheiten und Ruhetage an.'
-                      : 'Plan your entire training and fasting week in advance. AI automatically adjusts macros for hard training sessions vs. recovery days.'}
+                      ? 'Verteile deine Wochenkalorien über Trainingstage und Ruhetage (nie unter deinem Grundumsatz) und generiere mit einem Tipp die komplette Einkaufsliste.'
+                      : 'Distribute weekly energy across training and rest days cleanly (never below resting BMR) and prep your full weekly shopping list in one tap.'}
                   </Txt>
 
                   <View style={[s.weekFeatureGrid, { marginTop: Space.base }]}>
@@ -855,7 +927,7 @@ export default function PlannerScreen() {
                         {lang === 'de' ? 'Makro-Periodisierung' : 'Macro Periodisation'}
                       </Txt>
                       <Txt variant="small" color={c.textDim} style={{ fontSize: 11, marginTop: 2 }}>
-                        {lang === 'de' ? 'Mehr Carbs an Beintagen' : 'High carbs on workout days'}
+                        {lang === 'de' ? 'Mehr Carbs an Trainingstagen' : 'High carbs on workout days'}
                       </Txt>
                     </View>
                     <View style={[s.weekFeatureCard, { backgroundColor: c.well, borderColor: c.line }]}>
@@ -876,49 +948,87 @@ export default function PlannerScreen() {
                     style={{ marginTop: Space.base }}
                   />
                 </>
-              ) : (
-                /* Premium 7-Day Day-by-Day View */
-                <View style={{ marginTop: Space.sm }}>
-                  {['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'].map((dayName, idx) => {
-                    const isWorkoutDay = idx % 2 === 0;
-                    return (
-                      <View key={dayName} style={[s.weekDayRow, { borderColor: c.line }]}>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Txt variant="bodyMedium" style={{ fontWeight: '700' }}>{dayName}</Txt>
-                            <View style={[s.workoutDayBadge, {
-                              backgroundColor: isWorkoutDay ? c.planWash : c.well,
-                              borderColor: isWorkoutDay ? c.plan : c.line,
-                            }]}>
-                              <Txt variant="eyebrow" color={isWorkoutDay ? c.plan : c.textDim} style={{ fontSize: 9 }}>
-                                {isWorkoutDay ? (lang === 'de' ? 'TRAINING' : 'WORKOUT') : (lang === 'de' ? 'RUHETAG' : 'REST')}
-                              </Txt>
+              ) : (() => {
+                const daysOfWeek = lang === 'de'
+                  ? ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
+                  : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                const trainFreq = trainingDaysPerWeek(history) ?? 4;
+                const cycle = cycleWeek(previewBase.kcal * 7, trainFreq, floorKcal);
+                const workoutKcal = cycle ? cycle.trainingKcal : previewBase.kcal;
+                const restKcal = cycle ? cycle.restKcal : Math.max(floorKcal, dailyTargets(profile, null, measured).kcal);
+                const workoutCarbs = Math.max(20, Math.round((workoutKcal - previewBase.protein_g * 4 - previewBase.fat_g * 9) / 4));
+                const restCarbs = Math.max(20, Math.round((restKcal - previewBase.protein_g * 4 - previewBase.fat_g * 9) / 4));
+
+                return (
+                  <View style={{ marginTop: Space.sm }}>
+                    {cycle ? (
+                      <Txt variant="small" color={c.textDim} style={{ marginBottom: Space.sm }}>
+                        {cycle.note}
+                      </Txt>
+                    ) : null}
+                    {daysOfWeek.map((dayName, idx) => {
+                      const isWorkoutDay = idx < trainFreq && (idx % 2 === 0 || trainFreq > 4);
+                      const dKcal = isWorkoutDay ? workoutKcal : restKcal;
+                      const dCarbs = isWorkoutDay ? workoutCarbs : restCarbs;
+                      return (
+                        <View key={dayName} style={[s.weekDayRow, { borderColor: c.line }]}>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Txt variant="bodyMedium" style={{ fontWeight: '700' }}>{dayName}</Txt>
+                              <View style={[s.workoutDayBadge, {
+                                backgroundColor: isWorkoutDay ? c.planWash : c.well,
+                                borderColor: isWorkoutDay ? c.plan : c.line,
+                              }]}>
+                                <Txt variant="eyebrow" color={isWorkoutDay ? c.plan : c.textDim} style={{ fontSize: 10 }}>
+                                  {isWorkoutDay ? (lang === 'de' ? 'Training' : 'Workout') : (lang === 'de' ? 'Ruhetag' : 'Rest')}
+                                </Txt>
+                              </View>
                             </View>
-                          </View>
-                          <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
-                            {isWorkoutDay
-                              ? `${preview.kcal} kcal · ${preview.protein_g}g P · ${preview.carbs_g}g C`
-                              : `${Math.round(preview.kcal * 0.85)} kcal · ${preview.protein_g}g P · Moderate Carbs`}
-                          </Txt>
-                        </View>
-                        <Tap
-                          onPress={() => {
-                            setIsRestDay(!isWorkoutDay);
-                            setPlannerTab('today');
-                          }}
-                        >
-                          <View style={[s.dayPlanBtn, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
-                            <Icon name="plate" size={14} color={c.plan} />
-                            <Txt variant="eyebrow" color={c.plan} style={{ marginLeft: 4, fontSize: 10, fontWeight: '700' }}>
-                              {lang === 'de' ? 'PLANEN' : 'PLAN'}
+                            <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                              {`${dKcal} kcal · ${previewBase.protein_g}g P · ${dCarbs}g C`}
                             </Txt>
                           </View>
-                        </Tap>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
+                          <Tap
+                            onPress={() => {
+                              setIsRestDay(!isWorkoutDay);
+                              setPlannerTab('today');
+                            }}
+                          >
+                            <View style={[s.dayPlanBtn, { backgroundColor: c.surfaceElevated ?? c.surface, borderColor: c.line }]}>
+                              <Icon name="plate" size={14} color={c.plan} />
+                              <Txt variant="small" color={c.plan} style={{ marginLeft: 4, fontSize: 12, fontWeight: '600' }}>
+                                {lang === 'de' ? 'Planen' : 'Plan'}
+                              </Txt>
+                            </View>
+                          </Tap>
+                        </View>
+                      );
+                    })}
+                    <Button
+                      label={lang === 'de' ? 'Wocheneinkauf füllen (3 Tage-Mix)' : 'Prep 3-day rotated grocery list'}
+                      variant="secondary"
+                      icon="basket"
+                      onPress={async () => {
+                        const sess: Training = { sport, duration_min: duration, intensity, start_time: trainingTime };
+                        const usedTitles: string[] = [];
+                        for (let i = 0; i < 3; i++) {
+                          const pDay = generateMealPlan(profile, i % 2 === 0 ? sess : null, lang, {
+                            measuredMaintenance: measured,
+                            complexity,
+                            isPremium: true,
+                            historyTitles: usedTitles,
+                          });
+                          usedTitles.push(pDay.recipe.title);
+                          await savePlan(pDay);
+                        }
+                        setHistory(await loadPlanHistory<MealPlan>());
+                        router.push('/grocery');
+                      }}
+                      style={{ marginTop: Space.base }}
+                    />
+                  </View>
+                );
+              })()}
             </Card>
           </Enter>
         </>

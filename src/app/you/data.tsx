@@ -108,8 +108,8 @@ export default function DataScreen() {
       router.replace('/onboarding');
     };
     const msg =
-      'This deletes everything on this device: profile, weight log, fast log, plans, shopping list '
-      + 'and chat history — and, if you have one, your account and the encrypted copy on the server. '
+      'This deletes everything on this device: profile, weight log, workout log, fast log, plans and shopping list '
+      + '— and, if you have one, your account and the encrypted copy on the server. '
       + 'It cannot be undone. Export first if you want a copy.';
     if (Platform.OS === 'web') { if (window.confirm(msg)) run(); return; }
     Alert.alert('Delete all data', msg, [

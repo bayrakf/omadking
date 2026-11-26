@@ -5,9 +5,9 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { normalizeProfile, normalizeSession, type SessionDraft, type UserProfile } from './nutrition';
-import { todayISO, weekKey, currentStreak } from './dates';
-import { conversationOf, type StoredMessage } from './ai';
+import { todayISO, currentStreak } from './dates';
 import { recipeRotation, type CookedRecipe } from './grocery';
+import type { WorkoutLogEntry } from './workouts';
 
 export { todayISO, currentStreak };
 
@@ -20,14 +20,12 @@ export const KEYS = {
   groceryChecked: 'grocery_checked',
   hydration: 'hydration_today',
   premium: 'user_premium',
-  planQuota: 'plan_quota',
   fastLog: 'fast_log',
   outliers: 'outlier_days',
   remindersOffered: 'reminders_offered',
   measurementAnnounced: 'measurement_announced',
   measurementPreviewed: 'measurement_previewed',
   cookLog: 'cook_log',
-  chatLog: 'chat_log',
   lastSession: 'last_session',
   portions: 'cook_portions',
   intakeLog: 'intake_log',
@@ -36,9 +34,9 @@ export const KEYS = {
   todayWindowShift: 'today_window_shift',
   fastingNotes: 'fasting_notes_map',
   dailySteps: 'daily_steps_map',
+  workoutLog: 'workout_log',
   syncedAt: 'sync_last',
   themeMode: 'theme_mode',
-  coachMemory: 'coach_memory',
 } as const;
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -151,10 +149,7 @@ export async function savePlan<T>(plan: T, keep = 10): Promise<T[]> {
   return history;
 }
 
-// --- Free tier quota -------------------------------------------------------
-
-export const FREE_PLANS_PER_WEEK = 3;
-
+// --- Subscription entitlement ----------------------------------------------
 
 export async function isPremium(): Promise<boolean> {
   return (await AsyncStorage.getItem(KEYS.premium)) === 'true';
@@ -162,29 +157,6 @@ export async function isPremium(): Promise<boolean> {
 
 export async function setPremium(on: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.premium, String(on));
-}
-
-export type Quota = { used: number; limit: number; remaining: number; premium: boolean };
-
-export async function getQuota(): Promise<Quota> {
-  if (await isPremium()) {
-    return { used: 0, limit: Infinity, remaining: Infinity, premium: true };
-  }
-  const stored = await readJSON<{ week: string; used: number }>(KEYS.planQuota, { week: weekKey(), used: 0 });
-  const used = stored.week === weekKey() ? stored.used : 0;
-  return {
-    used,
-    limit: FREE_PLANS_PER_WEEK,
-    remaining: Math.max(0, FREE_PLANS_PER_WEEK - used),
-    premium: false,
-  };
-}
-
-/** Call after a plan is successfully generated. No-op for premium. */
-export async function consumeQuota(): Promise<void> {
-  if (await isPremium()) return;
-  const q = await getQuota();
-  await writeJSON(KEYS.planQuota, { week: weekKey(), used: q.used + 1 });
 }
 
 // --- Weight log ------------------------------------------------------------
@@ -362,30 +334,25 @@ export async function saveLastSession(session: SessionDraft): Promise<void> {
   await writeJSON(KEYS.lastSession, session);
 }
 
-// --- Coach conversation ----------------------------------------------------
+// --- Workout & repetition log ----------------------------------------------
 
-/**
- * The thread survives closing the app. Without this the coach reopened blank
- * every time and `askCoach` received an empty history, so it genuinely could
- * not remember a question asked two hours earlier.
- */
-export async function loadChat(): Promise<StoredMessage[]> {
-  const raw = await readJSON<StoredMessage[]>(KEYS.chatLog, []);
-  return Array.isArray(raw) ? conversationOf(raw) : [];
+export async function loadWorkoutLog(): Promise<WorkoutLogEntry[]> {
+  const raw = await readJSON<WorkoutLogEntry[]>(KEYS.workoutLog, []);
+  return Array.isArray(raw) ? raw.filter((w) => w && typeof w.date === 'string' && Array.isArray(w.exercises)) : [];
 }
 
-/** Stores only what counts as conversation, capped, via the same rule the
- *  coach's context uses. */
-export async function saveChat(messages: StoredMessage[]): Promise<void> {
-  const kept = conversationOf(messages);
-  // Nothing left is the same as never having had one; writing `[]` would leave
-  // a stray key behind after clearing.
-  if (kept.length === 0) return clearChat();
-  await writeJSON(KEYS.chatLog, kept);
+export async function saveWorkoutSession(entry: WorkoutLogEntry): Promise<WorkoutLogEntry[]> {
+  const existing = await loadWorkoutLog();
+  const next = [entry, ...existing.filter((e) => e.id !== entry.id)]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 120);
+  await writeJSON(KEYS.workoutLog, next);
+  return next;
 }
 
-export async function clearChat(): Promise<void> {
-  await AsyncStorage.removeItem(KEYS.chatLog);
+export async function todayWorkoutSession(date = todayISO()): Promise<WorkoutLogEntry | null> {
+  const log = await loadWorkoutLog();
+  return log.find((w) => w.date === date) ?? null;
 }
 
 // --- Meal prep -------------------------------------------------------------
@@ -546,27 +513,5 @@ export async function loadThemeMode(): Promise<ThemeMode> {
 
 export async function saveThemeMode(mode: ThemeMode): Promise<void> {
   await AsyncStorage.setItem(KEYS.themeMode, mode);
-}
-
-// --- KI-Coach Memory --------------------------------------------------------
-
-export type CoachMemoryEntry = {
-  date: string;           // ISO date of the conversation
-  summary: string;        // 1-2 sentence summary of what the coach noted
-};
-
-export async function loadCoachMemory(): Promise<CoachMemoryEntry[]> {
-  return readJSON<CoachMemoryEntry[]>(KEYS.coachMemory, []);
-}
-
-export async function saveCoachMemoryEntry(entry: CoachMemoryEntry): Promise<void> {
-  const existing = await loadCoachMemory();
-  // Keep last 20 entries; oldest fall off.
-  const updated = [entry, ...existing.filter((e) => e.date !== entry.date)].slice(0, 20);
-  await writeJSON(KEYS.coachMemory, updated);
-}
-
-export async function clearCoachMemory(): Promise<void> {
-  await writeJSON(KEYS.coachMemory, []);
 }
 

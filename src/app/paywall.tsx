@@ -6,7 +6,6 @@ import { Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Divider, Notice, useThe
 import { Icon } from '@/components/icons';
 import { getOfferings, isBillingAvailable, purchase, restore, type Package } from '@/lib/purchases';
 import { PREMIUM_CLAIMS } from '@/lib/offer';
-import { FREE_PLANS_PER_WEEK } from '@/lib/store';
 
 /**
  * The offer lives in src/lib/offer.ts, not here.
@@ -86,7 +85,7 @@ export default function PaywallScreen() {
           {/* Still said, just not first. What free gives you is a fact a buyer
               needs; it is not the reason anyone pays. */}
           <Txt variant="small" color={c.textFaint} style={{ marginTop: Space.sm }}>
-            The free plan gives you {FREE_PLANS_PER_WEEK} meal plans a week. Premium removes the cap.
+            Standard recipes, macro scaling, and calisthenics tracking are unlimited and free. Premium unlocks your measured metabolism and the full performance recipe catalog.
           </Txt>
         </View>
       </Enter>

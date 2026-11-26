@@ -10,7 +10,7 @@
  * - >= 44pt touch targets with `pressRetentionOffset` and crisp press feedback.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -42,7 +42,6 @@ import {
   Type,
   type ThemePalette,
 } from '@/constants/theme';
-import { parseMarkdown, plainText, type Block, type Span } from '@/lib/markdown';
 import { useThemeMode } from './ThemeProvider';
 import { Icon, type IconName } from './icons';
 
@@ -239,65 +238,6 @@ export function Txt({
     >
       {children}
     </RNText>
-  );
-}
-
-export function Markdown({ text, color }: { text: string; color?: string }) {
-  const c = useTheme();
-  const blocks = useMemo(() => parseMarkdown(text), [text]);
-  const fg = color ?? c.text;
-
-  if (blocks.length === 0) {
-    return <Txt variant="body" color={fg}>{text}</Txt>;
-  }
-
-  const inline = (spans: Span[]) =>
-    spans.map((span, i) => {
-      if (span.type === 'bold') return <RNText key={i} style={{ fontFamily: Font.bodySemi, fontWeight: '700' }}>{span.text}</RNText>;
-      if (span.type === 'italic') return <RNText key={i} style={{ fontStyle: 'italic' }}>{span.text}</RNText>;
-      if (span.type === 'code') {
-        return (
-          <RNText key={i} style={{ fontFamily: Font.mono, fontSize: 13, color: c.accent }}>
-            {span.text}
-          </RNText>
-        );
-      }
-      return <RNText key={i}>{span.text}</RNText>;
-    });
-
-  return (
-    <View accessible accessibilityLabel={plainText(blocks)}>
-      {blocks.map((b: Block, i) => {
-        const first = i === 0;
-        if (b.type === 'heading') {
-          return (
-            <RNText
-              key={i}
-              style={[Type.subheading, { color: fg, marginTop: first ? 0 : Space.base, marginBottom: Space.xs }]}
-            >
-              {inline(b.spans)}
-            </RNText>
-          );
-        }
-        if (b.type === 'bullet' || b.type === 'ordered') {
-          return (
-            <View key={i} style={[styles.mdRow, { marginTop: first ? 0 : Space.sm }]}>
-              {b.type === 'ordered' ? (
-                <RNText style={[Type.body, { color: c.textDim, width: 22 }]}>{b.index}.</RNText>
-              ) : (
-                <View style={[styles.mdDot, { backgroundColor: c.textFaint }]} />
-              )}
-              <RNText style={[Type.body, { color: fg, flex: 1 }]}>{inline(b.spans)}</RNText>
-            </View>
-          );
-        }
-        return (
-          <RNText key={i} style={[Type.body, { color: fg, marginTop: first ? 0 : Space.md }]}>
-            {inline(b.spans)}
-          </RNText>
-        );
-      })}
-    </View>
   );
 }
 

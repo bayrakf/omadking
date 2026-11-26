@@ -22,7 +22,7 @@ function walk(dir) {
   return out;
 }
 
-const MODULES = ['nutrition', 'onboarding', 'dates', 'grocery', 'agenda', 'ai', 'review', 'markdown', 'typography', 'legal', 'crypto', 'sync-merge', 'energy', 'offer', 'achievements', 'biohacks', 'i18n'];
+const MODULES = ['nutrition', 'workouts', 'recipes', 'onboarding', 'dates', 'grocery', 'agenda', 'review', 'typography', 'legal', 'crypto', 'sync-merge', 'energy', 'offer', 'achievements', 'biohacks', 'i18n'];
 
 // Inside the project, not the system temp dir: the compiled modules import
 // real packages now (@noble/ciphers), and node resolves those by walking up
@@ -301,25 +301,19 @@ try {
 
   if (failed) process.exit(1);
   
-// The recipe prompt has to carry the two things the client cannot compute for
-// it: which language the prose comes back in, and how long there is to eat the
-// food. Both are sent from the client; a prompt that stops reading them fails
-// silently — the model writes a perfectly good English recipe for a window it
-// knows nothing about, and nobody sees an error.
+// Deterministic recipes must still honor the athlete's exclusions, language,
+// window volume and free/premium boundary on every build.
 {
-  const src = readFileSync('supabase/functions/generate_meal_plan/index.ts', 'utf8');
-  const sent = readFileSync('src/lib/ai.ts', 'utf8');
+  const rec = readFileSync('src/lib/recipes.ts', 'utf8');
   const missing = [];
-  for (const field of ['language', 'window_hours']) {
-    if (!sent.includes(`${field}:`)) missing.push(`${field} (client never sends it)`);
-    else if (!src.includes(`p.${field}`)) missing.push(`${field} (function never reads it)`);
+  for (const needle of ['profile.avoid', 'omad_window_hours', 'lang', 'isPremium']) {
+    if (!rec.includes(needle)) missing.push(needle);
   }
   if (missing.length > 0) {
     failed = true;
-    console.error('❌ meal prompt — the recipe is generated without:', missing.join(', '),
-      '\n   A German user would get English prose, or a one-hour window would get a four-hour plate.');
+    console.error('❌ recipes — deterministic planner missing constraints:', missing.join(', '));
   } else {
-    console.log('✅ the recipe prompt is told the language and the length of the window');
+    console.log('✅ the deterministic recipe engine enforces avoid, window volume, language, and tier');
   }
 }
 

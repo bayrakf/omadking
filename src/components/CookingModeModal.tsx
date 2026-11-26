@@ -15,7 +15,7 @@ import { useLang } from './lang';
 import { splitSteps, scaleIngredients, splitAmount } from '@/lib/grocery';
 import { playZenChime } from '@/lib/sound';
 import { haptic } from '@/lib/haptic';
-import type { MealPlan } from '@/lib/ai';
+import type { MealPlan } from '@/lib/recipes';
 
 interface CookingModeModalProps {
   visible: boolean;

@@ -38,7 +38,7 @@ import {
 import { WindowShifterModal } from '@/components/WindowShifterModal';
 import { Hairline, Radius, Space, Type } from '@/constants/theme';
 import { dayAgenda, minutesUntil, type AgendaItem } from '@/lib/agenda';
-import type { MealPlan } from '@/lib/ai';
+import type { MealPlan } from '@/lib/recipes';
 import { formatReadableDate } from '@/lib/dates';
 import {
   effectiveMaintenance,
@@ -57,10 +57,12 @@ import {
   fastingStage,
   fastingState,
   hydrationTargetMl,
+  targetForDate,
   toMinutes,
   type FastingState,
   type UserProfile,
 } from '@/lib/nutrition';
+import { formatSetsSummary, type WorkoutLogEntry } from '@/lib/workouts';
 import { INTAKE_OPTIONS, intakeKcal, intakeLabel, intakeOptionLabel } from '@/lib/review';
 import { playZenChime } from '@/lib/sound';
 import {
@@ -72,7 +74,9 @@ import {
   loadHydration,
   loadIntakeLog,
   loadLastPlan,
+  loadPlanHistory,
   loadProfileOrDefault,
+  loadWorkoutLog,
   loadTodayWindowShift,
   loadWeightLog,
   markCooked,
@@ -114,6 +118,8 @@ export default function DashboardScreen() {
   const [fastLogged, setFastLogged] = useState(false);
   const [cooked, setCooked] = useState(false);
   const [plan, setPlan] = useState<MealPlan | null>(null);
+  const [workouts, setWorkouts] = useState<WorkoutLogEntry[]>([]);
+  const [plans, setPlans] = useState<MealPlan[]>([]);
   const [isShifted, setIsShifted] = useState(false);
 
   const [question, setQuestion] = useState<IntakeQuestion | null>(null);
@@ -132,7 +138,7 @@ export default function DashboardScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [p, h, fl, cl, last, weights, intake, prem, shift, st, remOffered] = await Promise.all([
+    const [p, h, fl, cl, last, weights, intake, prem, shift, st, remOffered, wLog, pHist] = await Promise.all([
       loadProfileOrDefault(),
       loadHydration(),
       loadFastLog(),
@@ -144,6 +150,8 @@ export default function DashboardScreen() {
       loadTodayWindowShift(),
       loadDailySteps(),
       remindersOffered(),
+      loadWorkoutLog(),
+      loadPlanHistory<MealPlan>(),
     ]);
     setIsShifted(Boolean(shift));
     const effectiveProfile = shift ? { ...p, omad_window_start: shift.window_start } : p;
@@ -159,6 +167,8 @@ export default function DashboardScreen() {
     setFastLogged(fl.includes(todayISO()));
     setCooked(cl.includes(todayISO()));
     setPlan(last?.date === todayISO() ? last : null);
+    setWorkouts(wLog);
+    setPlans(pHist);
     setWeighedToday(weights.some((w) => w.date === todayISO()));
     setSteps(st);
     setOfferReminders(!remOffered);
@@ -186,20 +196,14 @@ export default function DashboardScreen() {
 
   const { items, next } = dayAgenda(profile, plan, { cooked, fastLogged }, now, lang);
   const baseline = dailyTargets(profile, null, measured);
-  const kcal = plan ? plan.total_kcal : baseline.kcal;
-  const questionKcal = !question || question.date === todayISO() ? kcal : baseline.kcal;
-  const protein = plan ? plan.protein_g : baseline.protein_g;
-  const waterTarget = hydrationTargetMl(
-    profile,
-    plan?.training_start_time
-      ? {
-          sport: 'session',
-          duration_min: plan.training_duration_min,
-          intensity: 'medium',
-          start_time: plan.training_start_time,
-        }
-      : null
-  );
+  const todayTarget = targetForDate(profile, todayISO(), { workouts, plans, measuredMaintenance: measured });
+  const kcal = plan ? plan.total_kcal : todayTarget.kcal;
+  const questionTarget = question
+    ? targetForDate(profile, question.date, { workouts, plans, measuredMaintenance: measured }).kcal
+    : baseline.kcal;
+  const questionKcal = !question || question.date === todayISO() ? kcal : questionTarget;
+  const protein = plan ? plan.protein_g : todayTarget.protein_g;
+  const waterTarget = hydrationTargetMl(profile, todayTarget.training);
 
   const addWater = async (ml: number) => {
     const nextHydro = { ...hydration, date: todayISO(), ml: Math.max(0, hydration.ml + ml) };
@@ -333,11 +337,11 @@ export default function DashboardScreen() {
             </Tap>
 
             <Tap
-              onPress={() => router.push('/chat')}
-              accessibilityLabel="Coach"
+              onPress={() => router.push('/workout')}
+              accessibilityLabel="Workouts"
               style={s.iconTouch}
             >
-              <Icon name="coach" size={20} color={c.textDim} />
+              <Icon name="bolt" size={20} color={workouts.some((w) => w.date === todayISO()) ? c.plan : c.textDim} />
             </Tap>
 
             <Tap
@@ -613,6 +617,42 @@ export default function DashboardScreen() {
           </View>
         </Card>
       </Tap>
+
+      {/* Today's Workout & Calisthenics Row */}
+      {(() => {
+        const loggedToday = workouts.find((w) => w.date === todayISO());
+        const summary = loggedToday && loggedToday.exercises[0]
+          ? `${loggedToday.sport} · ${loggedToday.durationMin} Min · ${formatSetsSummary(loggedToday.exercises[0].sets, 'reps', lang)}`
+          : null;
+        return (
+          <Tap
+            onPress={() => router.push('/workout')}
+            accessibilityLabel={lang === 'de' ? 'Workouts & Calisthenics' : 'Workouts & Calisthenics'}
+            style={s.sectionGap}
+          >
+            <Card>
+              <View style={s.rowBetween}>
+                <View style={{ flex: 1, marginRight: Space.md }}>
+                  <View style={s.rowCenter}>
+                    <Icon name="bolt" size={17} color={loggedToday ? c.plan : c.accent} />
+                    <Txt variant="subheading" color={c.text} style={{ marginLeft: Space.sm }}>
+                      {lang === 'de' ? 'Calisthenics & Training' : 'Calisthenics & workouts'}
+                    </Txt>
+                  </View>
+                  <Txt variant="small" color={c.textDim} style={{ marginTop: 4 }}>
+                    {summary
+                      ? summary
+                      : lang === 'de'
+                      ? 'Sätze & Wiederholungen loggen — fließt in dein Kalorienziel ein'
+                      : 'Log sets & reps — feeds directly into your meal target'}
+                  </Txt>
+                </View>
+                <Icon name="chevronRight" size={16} color={c.textFaint} />
+              </View>
+            </Card>
+          </Tap>
+        );
+      })()}
 
       {/* Today's Agenda */}
       <Card style={s.sectionGap}>

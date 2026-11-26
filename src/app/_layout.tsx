@@ -117,7 +117,7 @@ function RootLayoutInner() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
         <Stack.Screen name="landing" />
-        <Stack.Screen name="chat" />
+        <Stack.Screen name="workout" />
         <Stack.Screen name="about" />
         <Stack.Screen name="legal" />
         <Stack.Screen name="recovery" />

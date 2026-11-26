@@ -5,7 +5,7 @@ import { Space, Radius } from '@/constants/theme';
 import { Screen, Card, Txt, Eyebrow, Enter, Bar, useTheme, PageHeader, SegmentedControl } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 import { useLang } from '@/components/lang';
-import { loadProfileOrDefault, loadFastLog, loadWeightLog, loadIntakeLog, isPremium, currentStreak } from '@/lib/store';
+import { loadProfileOrDefault, loadFastLog, loadWeightLog, loadIntakeLog, loadWorkoutLog, isPremium, currentStreak } from '@/lib/store';
 import { effectiveMaintenance } from '@/lib/energy';
 import { dailyTargets } from '@/lib/nutrition';
 import { evaluateAchievements, type AchievementBadge } from '@/lib/achievements';
@@ -19,12 +19,13 @@ export default function AchievementsScreen() {
   const [unlockedCount, setUnlockedCount] = useState(0);
 
   const refresh = useCallback(async () => {
-    const [p, fl, weights, intake, prem] = await Promise.all([
+    const [p, fl, weights, intake, prem, workouts] = await Promise.all([
       loadProfileOrDefault(),
       loadFastLog(),
       loadWeightLog(),
       loadIntakeLog(),
       isPremium(),
+      loadWorkoutLog(),
     ]);
 
     const streak = currentStreak(fl);
@@ -35,7 +36,7 @@ export default function AchievementsScreen() {
       streak,
       fastLog: fl,
       weighInCount: weights.length,
-      workoutsLogged: fl.length > 0 ? Math.floor(fl.length / 2) : 0, // estimate from fast activity
+      workoutsLogged: Math.max(workouts.length, fl.length > 0 ? Math.floor(fl.length / 2) : 0),
       measuredMaintenance: hasMeasured,
     });
 

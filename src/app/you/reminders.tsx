@@ -18,7 +18,7 @@ import {
 import { loadLastPlan, loadFastLog, loadCookLog, todayISO } from '@/lib/store';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import type { MealPlan } from '@/lib/ai';
+import type { MealPlan } from '@/lib/recipes';
 import { useT } from '@/components/lang';
 
 export default function RemindersScreen() {

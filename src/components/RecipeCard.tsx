@@ -1,5 +1,5 @@
 import { Radius, Space } from '@/constants/theme';
-import type { MealPlan } from '@/lib/ai';
+import type { MealPlan } from '@/lib/recipes';
 import { scaleIngredients, splitAmount, splitSteps } from '@/lib/grocery';
 import { isFavoriteRecipe, toggleFavoriteRecipe } from '@/lib/store';
 import { useEffect, useState } from 'react';
@@ -148,16 +148,14 @@ export default function RecipeCard({
       </View>
       <Txt variant="heading" style={s.recipeTitle}>{plan.recipe.title}</Txt>
 
-      {/* Stated plainly rather than hidden: a generic plate with no explanation
-          reads as a bad app, not as a service that was briefly unavailable. */}
-      {plan.recipe_source === 'offline' && plan.recipe_note && (
+      {plan.recipe_note ? (
         <View style={[s.fallback, { borderColor: c.line, backgroundColor: c.well }]}>
           <Icon name="alert" size={15} color={c.textDim} />
           <Txt variant="small" color={c.textDim} style={s.fallbackText}>
             {plan.recipe_note}
           </Txt>
         </View>
-      )}
+      ) : null}
 
       {/* Same macro language as the planner's daily-target card: neutral
           wells, one coloured dot each. Four full-colour boxes here fought the

@@ -29,30 +29,18 @@ export type Gate =
   | 'progress_best'
   /** `isPremium()` read before the redistributed figure for a planned big day. */
   | 'week_ahead'
-  /** `isPremium()` read before the coach is handed the user's own figures. */
-  | 'chat_context'
-  /** `getQuota()` / `consumeQuota()` in the planner. */
-  | 'plan_quota';
+  /** `isPremium()` read in the planner for the full performance/chef recipe catalog & periodisation. */
+  | 'premium_recipes';
 
 /** Every gate the app can enforce. Kept next to the type so it can be iterated. */
 export const ALL_GATES: Gate[] = [
   'progress_measured', 'progress_forecast', 'progress_months',
   'progress_pattern', 'progress_cycle', 'progress_best', 'week_ahead',
-  'chat_context', 'plan_quota',
+  'premium_recipes',
 ];
 
 /**
  * Where each gate is actually enforced.
- *
- * `SELL_GATE` covers the cards that ask for money, and `npm run check` reads
- * the screens for those. It could not see `chat_context`, because the chat does
- * not sell anything — it quietly answers with ranges instead of your numbers.
- * A gate that withholds without offering is the same defect as a claim nobody
- * enforces, only harder to notice: nobody complains about a feature they were
- * never told existed.
- *
- * The check below asserts every gate names a file, that the file is there, and
- * that it still reads the entitlement at all.
  */
 export const GATE_SITES: Record<Gate, string> = {
   progress_measured: 'src/app/(tabs)/progress.tsx',
@@ -62,8 +50,7 @@ export const GATE_SITES: Record<Gate, string> = {
   progress_cycle: 'src/app/(tabs)/progress.tsx',
   progress_best: 'src/app/(tabs)/progress.tsx',
   week_ahead: 'src/app/(tabs)/progress.tsx',
-  chat_context: 'src/app/chat.tsx',
-  plan_quota: 'src/app/(tabs)/planner.tsx',
+  premium_recipes: 'src/app/(tabs)/planner.tsx',
 };
 
 export type Claim = {
@@ -74,8 +61,7 @@ export type Claim = {
 
 /**
  * Ordered as an argument, not as a feature grid: what the app measured comes
- * first, because it is the thing a formula cannot give them. The quota is last
- * because it is a limit being lifted, not a capability being gained.
+ * first, because it is the thing a formula cannot give them.
  */
 export const PREMIUM_CLAIMS: Claim[] = [
   {
@@ -123,44 +109,27 @@ export const PREMIUM_CLAIMS: Claim[] = [
     gate: 'week_ahead',
   },
   {
-    title: 'A coach that knows your numbers',
-    body: 'Your measured maintenance, your trend, how long the scale has held and which weekday runs '
-      + 'over go into the answer, so it stops replying with the ranges that fit anybody.',
-    gate: 'chat_context',
-  },
-  {
-    title: 'Unlimited plans',
-    body: 'No weekly cap on meal plans.',
-    gate: 'plan_quota',
+    title: 'Performance & Chef recipe library',
+    body: 'Unlock 20+ specialized OMAD chef plates, glycogen reload meals, high-satiety cuts, and 7-day periodised rotation.',
+    gate: 'premium_recipes',
   },
 ];
 
 /**
  * Things the free plan does, in the words someone might be tempted to sell them
  * in. Written as fragments to match on, not as sentences to display.
- *
- * Each entry earned its place by having been advertised as paid at some point,
- * or by being an obvious candidate for it.
  */
 export const FREE_CAPABILITIES: string[] = [
-  // Computed on device by nutrition.ts for every user.
   'session-aware macros',
   'macros that follow',
-  // Part of every recipe the model returns.
+  'standard recipes',
+  'calisthenics',
+  'workout tracking',
   'reheat',
   'meal-prep instruction',
-  // The coach has no client-side or server-side cap.
-  'unlimited coaching',
-  'unlimited coach',
-  // weeklyDecision marks this premiumOnly: false on purpose.
   'eating window suggestion',
   'move your eating window',
-  // rateGap, shown to everyone. Charging to be told the plan is not landing is
-  // charging someone to learn that what they already pay for is not working,
-  // and it is an obvious candidate for the paywall, which is what this list is
-  // for.
   'plan against scale',
-  // The dial, the fasting stages and the timeline are the free core.
   'fasting stage',
   'countdown',
   'shopping list',
@@ -212,15 +181,12 @@ export function demo() {
   // The defect this module exists for.
   assert(overpromises().length === 0, `the shipped offer sells nothing free: ${overpromises().join('; ')}`);
 
-  // And proof the check can actually fail — the three claims that used to ship.
+  // And proof the check can actually fail — three claims covering free features.
   const old: Claim[] = [
-    { title: 'Session-aware macros', body: 'Targets that follow duration and intensity.', gate: 'plan_quota' },
-    { title: 'Meal-prep instructions', body: 'Reheat guidance for skillet, air fryer and microwave.', gate: 'plan_quota' },
-    { title: 'Unlimited coaching', body: 'Ask as much as you want.', gate: 'plan_quota' },
+    { title: 'Session-aware macros', body: 'Targets that follow duration and intensity.', gate: 'premium_recipes' },
+    { title: 'Meal-prep instructions', body: 'Reheat guidance for skillet, air fryer and microwave.', gate: 'premium_recipes' },
+    { title: 'Calisthenics tracking', body: 'Standard recipes and workout tracking across levels.', gate: 'premium_recipes' },
   ];
-  // Counted by claim, not by hit: one claim can name several free things at
-  // once ("meal-prep instructions" also says "reheat"), and asserting on the
-  // hit count made this check fail for the wrong reason.
   const caught = new Set(overpromises(old).map((s) => s.split(' — ')[0]));
   assert(caught.size === 3, `every one of the old claims is caught: ${[...caught]}`);
   assert(overpromises([]).length === 0, 'an empty offer promises nothing');
@@ -233,18 +199,14 @@ export function demo() {
 
   // The measured maintenance is the argument for paying, so it leads.
   assert(PREMIUM_CLAIMS[0].gate === 'progress_measured', 'the measurement is the first thing said');
-  // And the quota is a lifted limit, not the pitch.
-  assert(PREMIUM_CLAIMS[PREMIUM_CLAIMS.length - 1].gate === 'plan_quota', 'the cap comes last');
+  // And the expanded recipe library supplements it.
+  assert(PREMIUM_CLAIMS[PREMIUM_CLAIMS.length - 1].gate === 'premium_recipes', 'recipe tier comes last');
 
-  // The defect that made this check worth widening: three cards were put behind
-  // the paywall without ever being offered on it, so people paid for functions
-  // nobody had told them about. A gate the offer does not name is money taken
-  // for something unsold.
   const unsold = ALL_GATES.filter((g) => !gatesUsed().includes(g));
   assert(unsold.length === 0, `every gate the app enforces is also offered: ${unsold}`);
   assert(gatesUsed().length === ALL_GATES.length, `all gates are used: ${gatesUsed()}`);
   assert(
-    gatesUsed([{ title: 'x', body: 'x'.repeat(21), gate: 'plan_quota' }]).length === 1,
+    gatesUsed([{ title: 'x', body: 'x'.repeat(21), gate: 'premium_recipes' }]).length === 1,
     'and the check reads the claims rather than the constant'
   );
   assert(new Set(PREMIUM_CLAIMS.map((c) => c.title)).size === PREMIUM_CLAIMS.length, 'no claim is made twice');

@@ -24,7 +24,7 @@ import { useOverrideTheme } from '@/components/ThemeProvider';
 import { LANGS } from '@/lib/i18n';
 import { Icon } from '@/components/icons';
 import { toMinutes, fromMinutes, dailyTargets, DEFAULT_PROFILE, type UserProfile } from '@/lib/nutrition';
-import { loadProfileOrDefault, getQuota, isPremium, type Quota } from '@/lib/store';
+import { loadProfileOrDefault, isPremium } from '@/lib/store';
 import { isEnabled as remindersOn, isSupported as remindersSupported, scheduledCount } from '@/lib/notify';
 import { lastSyncedAt } from '@/lib/sync';
 
@@ -47,7 +47,6 @@ export default function ProfileScreen() {
 
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-  const [quota, setQuota] = useState<Quota | null>(null);
   const [premium, setPremium] = useState(false);
   const [remindOn, setRemindOn] = useState(false);
   const [queued, setQueued] = useState(0);
@@ -57,12 +56,12 @@ export default function ProfileScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const [p, q, prem, rOn, n, sy] = await Promise.all([
-          loadProfileOrDefault(), getQuota(), isPremium(), remindersOn(), scheduledCount(),
+        const [p, prem, rOn, n, sy] = await Promise.all([
+          loadProfileOrDefault(), isPremium(), remindersOn(), scheduledCount(),
           lastSyncedAt(),
         ]);
         if (!active) return;
-        setProfile(p); setQuota(q); setPremium(prem);
+        setProfile(p); setPremium(prem);
         setRemindOn(rOn); setQueued(n); setSyncedAt(sy); setMounted(true);
       })();
       return () => { active = false; };
@@ -92,13 +91,11 @@ export default function ProfileScreen() {
               <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
                 {premium
                   ? lang === 'de'
-                    ? 'Unbegrenzte Pläne & gemessener Verbrauch'
-                    : 'Unlimited plans & measured maintenance'
-                  : quota
-                  ? lang === 'de'
-                    ? `${quota.remaining} von ${quota.limit} Plänen diese Woche frei`
-                    : `${quota.remaining} of ${quota.limit} free plans remaining this week`
-                  : ''}
+                    ? 'Chef-Rezepte, Wochenrotation & gemessener Verbrauch'
+                    : 'Performance recipe library & measured maintenance'
+                  : lang === 'de'
+                    ? 'Unbegrenzte Standard-Rezepte & Calisthenics-Tracking'
+                    : 'Unlimited standard recipes & calisthenics tracking'}
               </Txt>
             </View>
             {!premium && (

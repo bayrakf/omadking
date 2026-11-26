@@ -14,7 +14,7 @@ const ROUTES = [
   ['progress', '/progress', SEED_WITH_PLAN],
   ['grocery', '/grocery', SEED_WITH_PLAN],
   ['profile', '/profile', SEED_WITH_PLAN],
-  ['chat', '/chat', SEED_WITH_PLAN],
+  ['workout', '/workout', SEED_WITH_PLAN],
   ['paywall', '/paywall', SEED_WITH_PLAN],
   ['landing', '/landing', SEED_WITH_PLAN],
   ['about', '/about', SEED_WITH_PLAN],

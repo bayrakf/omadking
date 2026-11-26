@@ -178,34 +178,10 @@ export default async function run() {
   section('Planner');
   {
     const { context, page, errors } = await newPage(browser, SEED);
-    // Serve a valid generated recipe. Since a fallback deliberately no longer
-    // spends quota, leaving this to the live service would make the quota
-    // assertion depend on whether the model happens to answer during the run.
-    await context.route('**/functions/v1/generate_meal_plan', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          source: 'ai',
-          recipe: {
-            title: 'Seared Honey-Sesame Chicken Breast with Jasmine Rice and Charred Tenderstem',
-            ingredients: ['450g chicken breast', '500g sweet potato', 'Sea salt, to taste'],
-            instructions: '1. Season the chicken. 2. Roast the potato at 200C for 25 minutes.',
-            reheat_instructions: '1. Skillet: 4 minutes over medium heat.',
-            prep_time_min: 30,
-            is_meal_prep: true,
-          },
-        }),
-      })
-    );
     await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
 
     const kcal = async () => {
-      // Thousands separators are localised now, so the figure reads "3,229 kcal"
-      // in English and "3.229 kcal" in German. Matching four bare digits found
-      // neither and quietly returned NaN, which compares false against
-      // everything — three checks passed their way into failure that way.
       const m = (await body(page)).match(/([\d][\d.,]{2,8})\s*kcal/);
       return m ? Number(m[1].replace(/[.,]/g, '')) : NaN;
     };
@@ -231,60 +207,56 @@ export default async function run() {
     await page.locator('input[type="checkbox"]').first().click();
     await page.waitForTimeout(400);
     await page.getByText(/Generate (plan|new)/).click();
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(1200);
 
     const plan = await body(page);
     check(has(plan, 'WINDOW') && /\d\d:\d\d–\d\d:\d\d/.test(plan), 'a plan renders');
-    check(has(plan, 'Charred Tenderstem'), 'the full title is shown, not a clipped prefix');
+    check(has(plan, 'Baked Salmon with Sweet Potato & Spinach'), 'full deterministic title renders',
+      plan.match(/.*Salmon.*/)?.[0] ?? '');
     // Titles used to be clipped to one line, turning them into riddles.
     check(!/\u2026|\.\.\./.test(plan), 'nothing on the planner is truncated with an ellipsis',
       plan.match(/\S*\u2026/)?.[0] ?? '');
-    check(!has(plan, 'standard plate'), 'a generated recipe carries no fallback notice');
+    check(!has(plan, 'standard plate'), 'deterministic build carries no outage fallback notice');
     check(/MAIN MEAL\s*\d\d:\d\d/i.test(plan), 'the main meal time is shown', plan.match(/MAIN MEAL\s*\d\d:\d\d/i)?.[0]);
     check(has(plan, 'Ingredients'), 'ingredients render');
-    // The app computed when to eat for weeks without ever saying how.
     check(has(plan, 'Break your fast'), 'the plan says how to start eating');
     check(has(plan, 'Start with protein'), 'and protein leads');
 
-    // Cooking for two must not double the day's macro targets.
-    const macrosBefore = plan.match(/(\d+)\s*\n?\s*protein/i)?.[1];
+    // Cooking for two must double ingredient weight without doubling macro targets.
+    const salmonGrams = (txt) => {
+      const m = txt.match(/([\d.]+)\s*(kg|g)\s+salmon fillet/i);
+      return m ? Number(m[1]) * (m[2].toLowerCase() === 'kg' ? 1000 : 1) : 0;
+    };
+    const protIngBefore = salmonGrams(plan);
+    const macrosBefore = plan.match(/(\d+)g?\s*\n?\s*Protein/i)?.[1];
     await page.getByLabel('2 portions').click();
     await page.waitForTimeout(800);
     const doubled = await body(page);
-    check(has(doubled, '900g chicken breast'), 'two portions double the ingredients',
-      doubled.match(/[\d.]+(g|kg) chicken breast/i)?.[0]);
-    check(doubled.match(/(\d+)\s*\n?\s*protein/i)?.[1] === macrosBefore,
+    const protIngAfter = salmonGrams(doubled);
+    check(protIngBefore > 0 && protIngAfter === protIngBefore * 2, 'two portions double the ingredients',
+      `${protIngBefore}g -> ${protIngAfter}g`);
+    check(Boolean(macrosBefore) && doubled.match(/(\d+)g?\s*\n?\s*Protein/i)?.[1] === macrosBefore,
       'but the macro targets stay put — they are for one portion',
-      `${macrosBefore} -> ${doubled.match(/(\d+)\s*\n?\s*protein/i)?.[1]}`);
-    check(has(doubled, 'Sea salt, to taste'), 'and an amount-less line is untouched');
+      `${macrosBefore} -> ${doubled.match(/(\d+)g?\s*\n?\s*Protein/i)?.[1]}`);
+    check(has(doubled, 'rosemary & black pepper'), 'and an amount-less line is untouched');
     check(has(plan, 'Method'), 'method steps render');
-    check(has(plan, '2 of 3 plans left'), 'the quota decrements', plan.match(/\d OF 3 PLANS LEFT/i)?.[0]);
     check(errors.length === 0, 'no console errors', errors[0] ?? '');
     await context.close();
   }
 
-  // ------------------------------------------------------------------ QUOTA
-  section('Free-tier quota');
+  // --------------------------------------------------- STANDARD VS PREMIUM
+  section('Standard vs Premium recipe tiers');
   {
     const { context, page } = await newPage(browser, SEED);
-    await page.addInitScript(() => {
-      // Pre-exhaust the week, mirroring the ISO week key the app uses.
-      const t = new Date();
-      t.setDate(t.getDate() - ((t.getDay() + 6) % 7) + 3);
-      const ft = new Date(t.getFullYear(), 0, 4);
-      ft.setDate(ft.getDate() - ((ft.getDay() + 6) % 7) + 3);
-      const wk = 1 + Math.round((t.getTime() - ft.getTime()) / (7 * 86400000));
-      localStorage.setItem('plan_quota', JSON.stringify({
-        week: `${t.getFullYear()}-W${String(wk).padStart(2, '0')}`, used: 3,
-      }));
-    });
     await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
-    check(has(await body(page), 'Weekly plans used'), 'shows the quota as spent');
+    // Free tier allows unlimited standard builds without a weekly cap banner.
+    check(!has(await body(page), 'plans left this week'), 'no weekly cap blocks free users');
 
-    await page.getByText(/Generate (plan|new)/).click();
-    await page.waitForTimeout(2500);
-    check(has(await body(page), 'Premium'), 'a spent quota routes to the paywall');
+    // Locked Chef-Level complexity leads honestly to the paywall.
+    await page.getByText('Chef-Level').click();
+    await page.waitForTimeout(1200);
+    check(page.url().includes('/paywall') || has(await body(page), 'Premium'), 'Chef-Level opens paywall for free users');
     await context.close();
   }
 
@@ -346,7 +318,7 @@ export default async function run() {
       // Most cooked leads, whatever the dates say.
       check(t.indexOf('Salmon and jasmine rice') < t.indexOf('Chicken and sweet potato'),
         'and the most cooked one leads');
-      check(has(t, 'no plan used'), 'and it says re-cooking costs no quota');
+      check(has(t, 'Always free'), 'and it says re-cooking is always free');
       await context.close();
     }
 
@@ -675,41 +647,25 @@ export default async function run() {
       const profile = JSON.parse(SEED.onboarding_profile);
       const { context, page } = await newPage(browser, {
         ...SEED,
-        onboarding_profile: JSON.stringify({ ...profile, avoid: 'no fish, no dairy' }),
-      });
-
-      const sent = [];
-      await context.route('**/functions/v1/generate_meal_plan', (route) => {
-        try { sent.push(JSON.parse(route.request().postData() ?? '{}')); } catch { sent.push({}); }
-        return route.fulfill({
-          status: 200, contentType: 'application/json',
-          body: JSON.stringify({ recipe: {
-            title: 'Test plate', ingredients: ['200g tofu'], instructions: '1. Cook.',
-            reheat_instructions: '1. Skillet.', prep_time_min: 20, is_meal_prep: true,
-          } }),
-        });
+        onboarding_profile: JSON.stringify({ ...profile, avoid: 'no fish, no dairy, no chicken' }),
       });
 
       await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
       await page.waitForTimeout(1500);
       await page.getByText(/Generate (plan|new)/).click();
-      await page.waitForTimeout(3000);
-      check(sent[0]?.avoid === 'no fish, no dairy', 'and rides along with the recipe request',
-        String(sent[0]?.avoid));
+      await page.waitForTimeout(1000);
 
-      const afterBuild = JSON.parse(await page.evaluate(() => localStorage.getItem('plan_quota')) ?? '{}');
-      check(afterBuild.used === 1, 'a built plan costs one of the three', String(afterBuild.used));
+      const firstBuild = await body(page);
+      check(!/chicken|salmon|cod|prawn|skyr|feta|parmesan/i.test(firstBuild.split('Ingredients')[1] ?? firstBuild),
+        'deterministic build excludes avoided ingredients');
 
-      // The rejection that used to cost a third of the week.
-      const reject = page.getByText('Different recipe (free)');
-      check(await reject.count() === 1, 'a plate you cannot eat can be rejected');
-      await reject.click();
-      await page.waitForTimeout(3000);
-      const afterReject = JSON.parse(await page.evaluate(() => localStorage.getItem('plan_quota')) ?? '{}');
-      check(afterReject.used === 1, 'and the rejection is free', String(afterReject.used));
-      check(sent.length === 2, 'while still asking for a different plate', String(sent.length));
-      check(await page.getByText('Different recipe (free)').count() === 0,
-        'one rejection per build, not an endless supply');
+      const swap = page.getByText('Swap recipe');
+      check(await swap.count() === 1, 'swap recipe option is available');
+      await swap.click();
+      await page.waitForTimeout(1000);
+      const swappedBuild = await body(page);
+      check(swappedBuild !== firstBuild, 'swap generates a different dish cleanly without quota limits');
+      check((await page.evaluate(() => localStorage.getItem('plan_quota'))) === null, 'no weekly quota stored');
       await context.close();
     }
   }
@@ -1535,13 +1491,13 @@ export default async function run() {
     check(has(t, 'Entwurf'), 'an unfilled page says so in plain sight');
     check(!has(t, 'TODO'), 'but never shows the raw placeholder', t.match(/TODO/)?.[0] ?? '');
 
-    // Every recipient the code actually talks to has to be named.
-    for (const r of ['Supabase', 'Google', 'RevenueCat']) {
+    // Every recipient the code actually talks to has to be named — and Google/Gemini is gone.
+    for (const r of ['Supabase', 'RevenueCat']) {
       check(has(t, r), `recipient named: ${r}`);
     }
+    check(!has(t, 'Google'), 'no Gemini/Google recipient remains');
     check(has(t, 'Nur auf deinem Ger'), 'and it says what never leaves the device');
-    // The claim the edge function now backs.
-    check(has(t, 'nicht mitgeschickt'), 'the policy states which fields are withheld');
+    check(has(t, 'ohne KI-'), 'states local calculation with zero third-party AI');
     check(has(t, 'Datenschutzbeh'), 'the supervisory authority is named');
 
     await page.getByLabel('Impressum').click();
@@ -1567,7 +1523,7 @@ export default async function run() {
     // Deletion means onboarding, and nothing left behind in storage.
     check(page.url().includes('/onboarding'), 'the app returns to onboarding', page.url());
     const left = await page.evaluate(() =>
-      Object.keys(localStorage).filter((k) => /profile|weight_log|fast_log|chat_log|meal_history/.test(k))
+      Object.keys(localStorage).filter((k) => /profile|weight_log|fast_log|workout_log|meal_history/.test(k))
     );
     check(left.length === 0, 'no logs survive the deletion', left.join(', '));
     await context.close();
@@ -1712,21 +1668,6 @@ export default async function run() {
   section('Planner remembers the session');
   {
     const { context, page } = await newPage(browser, SEED);
-    await context.route('**/functions/v1/generate_meal_plan', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          source: 'ai',
-          recipe: {
-            title: 'Stubbed Plate',
-            ingredients: ['400g chicken breast'],
-            instructions: '1. Cook it.',
-            prep_time_min: 30,
-          },
-        }),
-      })
-    );
 
     await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
@@ -1808,68 +1749,43 @@ export default async function run() {
     await context.close();
   }
 
-  // ------------------------------------------------------------------- CHAT
-  // ---------------------------------------------------- WHAT THE COACH KNOWS
-  section('The coach says what it is not being told');
+  // -------------------------------------- CALISTHENICS & REP-TRACKING LOOP
+  section('Calisthenics progression and rep tracking');
   {
-    // The gate nobody could see. The chat is unlimited on both tiers; what
-    // premium buys is what it reasons with. Withholding that silently meant a
-    // free user got worse answers and no way to know why — and the paywall
-    // never mentioned it either.
-    const day = (back) => {
-      const d = new Date();
-      d.setDate(d.getDate() - back);
-      return localISO(d);
-    };
-    const measurable = {
-      ...SEED,
-      intake_log: JSON.stringify(Array.from({ length: 16 }, (_, i) => ({
-        date: day(15 - i), factor: 1, target_kcal: 2000,
-      }))),
-      weight_log: JSON.stringify(Array.from({ length: 8 }, (_, i) => ({
-        id: `c${i}`, date: day(14 - i * 2), weight_kg: 90 - i * 0.25,
-      }))),
-    };
+    const { context, page } = await newPage(browser, SEED);
+    await page.goto(BASE + '/workout', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
 
-    const bodiesFor = async (seed) => {
-      const { context, page } = await newPage(browser, seed);
-      const sent = [];
-      await context.route('**/functions/v1/chat', (route) => {
-        try { sent.push(JSON.parse(route.request().postData() ?? '{}')); } catch { sent.push({}); }
-        return route.fulfill({
-          status: 200, contentType: 'application/json',
-          body: JSON.stringify({ response: 'Noted.' }),
-        });
-      });
-      await page.goto(BASE + '/chat', { waitUntil: 'networkidle' });
-      await page.waitForTimeout(1800);
-      const shown = await body(page);
-      await page.getByLabel('Message').fill('What should I eat tonight?');
-      await page.getByLabel('Send').click();
-      await page.waitForTimeout(2500);
-      await context.close();
-      return { shown, sent };
-    };
+    const initial = await body(page);
+    check(has(initial, 'Calisthenics Push & Core'), 'shows calisthenics workout');
+    check(has(initial, 'Pseudo-Planche Push-ups'), 'respects advanced fitness_level automatically');
 
-    {
-      const { shown, sent } = await bodiesFor(measurable);
-      check(has(shown, 'general ranges'), 'a free user is told the answers are generic');
-      check(has(shown, 'Premium'), 'and what would change that');
-      // The claim behind the notice: the figures really are withheld.
-      const payload = JSON.stringify(sent[0] ?? {});
-      check(!/measured_maintenance_kcal["\s:]+\d/.test(payload),
-        'and the measured figure is genuinely not sent',
-        payload.slice(0, 120));
-    }
+    await page.getByText('Beginner', { exact: true }).click();
+    await page.waitForTimeout(300);
+    check(has(await body(page), 'Incline Push-ups'), 'level switch reveals beginner progression');
 
-    {
-      const { shown, sent } = await bodiesFor({ ...measurable, user_premium: 'true' });
-      check(!has(shown, 'general ranges'), 'a paying user is not told what they already have');
-      const payload = JSON.stringify(sent[0] ?? {});
-      check(/measured_maintenance_kcal["\s:]+\d/.test(payload),
-        'and their own figures do go with the question',
-        payload.match(/measured_maintenance_kcal[^,]*/)?.[0] ?? payload.slice(0, 120));
-    }
+    await page.getByLabel('Increase set 1').first().click();
+    await page.waitForTimeout(200);
+    await page.getByText('Save workout & reps').first().click();
+    await page.waitForTimeout(800);
+
+    const savedWorkouts = JSON.parse(await page.evaluate(() => localStorage.getItem('workout_log')) ?? '[]');
+    check(Array.isArray(savedWorkouts) && savedWorkouts.length === 1, 'persists logged sets and reps', String(savedWorkouts.length));
+    check(savedWorkouts[0]?.sport === 'calisthenics', 'records valid MET sport id', savedWorkouts[0]?.sport);
+
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    await page.getByText('Beginner', { exact: true }).click();
+    await page.waitForTimeout(300);
+    const reloaded = await body(page);
+    check(has(reloaded, 'Last time:'), 'reloading shows last logged rep summary');
+    check(has(reloaded, 'Logged today'), 'marks session completed today');
+
+    await page.getByText('Apply to today’s meal plan').first().click();
+    await page.waitForTimeout(1500);
+    check(page.url().includes('/planner'), 'applies directly to planner', page.url());
+    check(has(await body(page), 'Logged today: calisthenics'), 'planner shows today logged workout status');
+    await context.close();
   }
 
   // ------------------------------------------------------------- LANDING SELLS
@@ -1879,8 +1795,6 @@ export default async function run() {
     await page.goto(BASE + '/landing', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1200);
     const t = await body(page);
-    // It sold timing, session macros and reheat instructions for months. All
-    // true, all free, all things a dozen other apps do.
     check(/measures what you burn/i.test(t), 'the measurement leads the page');
     check(/what your body actually costs/i.test(t), 'and says what that means');
     check(/how many days it still needs/i.test(t),
@@ -1890,128 +1804,43 @@ export default async function run() {
     await context.close();
   }
 
-  section('Coach conversation');
+  // ------------------------------------ CLOSED-LOOP ENERGY <-> PLANNER ENGINE
+  section('Energy tracking steers planner calories');
   {
-    const { context, page } = await newPage(browser, SEED);
-    // Answer locally so the check does not depend on the model being up, and
-    // so the assertion is about persistence rather than about the reply.
-    await context.route('**/functions/v1/chat', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          response:
-            'Aim for **3 to 5 grams** of sodium a day.\n\n' +
-            '* **Sodium:** 3,000-5,000 mg\n' +
-            '* **Potassium:** 1,000-2,000 mg\n\n' +
-            '**Why:** Fasting lowers insulin.',
-        }),
-      })
-    );
-
-    await page.goto(BASE + '/chat', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1500);
-
-    await page.getByLabel('Message').fill('How much sodium?');
-    await page.getByLabel('Send').click();
-    await page.waitForTimeout(2500);
-    const answered = await body(page);
-    check(has(answered, '3 to 5 grams'), 'the coach answers');
-    // The regression this guards: markdown used to print verbatim on screen.
-    check(!answered.includes('**'), 'no literal asterisks are shown',
-      answered.match(/\*\*[^*]{0,20}/)?.[0] ?? '');
-    check(!/(^|\s)\* /.test(answered), 'no literal bullet markers are shown');
-    check(has(answered, 'Sodium:') && has(answered, 'Potassium:'), 'the bullet content survives');
-    // Structure, not the glyph: the renderer draws its own dot, so asserting a
-    // bullet character would pin the test to an implementation detail.
-    const blocks = await page.evaluate(() => {
-      const labelled = [...document.querySelectorAll('[aria-label]')]
-        .map((el) => el.getAttribute('aria-label') ?? '')
-        .filter((l) => l.includes('Sodium'));
-      return labelled[0]?.split('\n').filter(Boolean).length ?? 0;
+    // Anchor on Monday of current week (if today IS Monday, fall back cleanly or use prior/today logged overage so weekBudget fires).
+    const now = new Date();
+    const dow = (now.getDay() + 6) % 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - dow);
+    const dayISO = localISO(monday);
+    // Single large entry on Monday inside current ISO week drives perDayLeft well below dailyTarget.
+    const overageIntake = [{ date: dayISO, factor: 2.2, target_kcal: 3400 }];
+    const { context, page } = await newPage(browser, {
+      ...SEED,
+      intake_log: JSON.stringify(overageIntake),
     });
-    check(blocks >= 4, 'the answer renders as separate blocks, not one run-on', String(blocks));
-
-    // The regression this guards: the thread used to reset on every open, so
-    // askCoach received an empty history and the coach could not follow up.
-    await page.goto(BASE + '/', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1200);
-    await page.goto(BASE + '/chat', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(2000);
-
-    const back = await body(page);
-    check(has(back, 'How much sodium?'), 'the question survives leaving the screen');
-    check(has(back, '3 to 5 grams'), 'and so does the answer');
-
-    const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('chat_log')) ?? 'null');
-    check(Array.isArray(stored) && stored.length === 2, 'exactly the two real messages are stored', String(stored?.length));
-    check(!stored?.some((m) => m.id === 'greeting'), 'the canned greeting is not stored');
-
-    await page.getByLabel('Clear conversation').click();
-    await page.waitForTimeout(800);
-    const cleared = await body(page);
-    check(!has(cleared, 'How much sodium?'), 'clearing empties the thread');
-    check(await page.evaluate(() => localStorage.getItem('chat_log')) === null, 'and clears storage too');
-    await context.close();
-  }
-
-  // ------------------------------------------------------------ QUOTA WORDING
-  section('Rate-limit wording');
-  {
-    const { context, page } = await newPage(browser, SEED);
-    // A daily cap, reported exactly as Google reports it — including a retry
-    // hint under a minute, which is what made the old message wrong.
-    await context.route('**/functions/v1/chat', (route) =>
-      route.fulfill({
-        status: 429,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          error: 'UPSTREAM',
-          reason: 'quota',
-          detail:
-            'You exceeded your current quota. Please retry in 39.5s. ' +
-            'Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20',
-        }),
-      })
-    );
-
-    await page.goto(BASE + '/chat', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1500);
-    await page.getByLabel('Message').fill('anything');
-    await page.getByLabel('Send').click();
-    await page.waitForTimeout(2500);
-
-    const t = await body(page);
-    check(has(t, 'resets tomorrow'), 'a daily cap says it resets tomorrow');
-    check(!/try again in a minute/i.test(t), 'and never tells the user to wait a minute');
-    await context.close();
-  }
-
-  // ------------------------------------------------- OFFLINE RECIPE FALLBACK
-  section('Offline recipe fallback');
-  {
-    const { context, page } = await newPage(browser, SEED);
-    // Cut the recipe service off so the built-in plate is guaranteed, rather
-    // than depending on whether the model happens to be up during the run.
-    await context.route('**/functions/v1/generate_meal_plan', (route) => route.abort());
 
     await page.goto(BASE + '/planner', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
-    check(has(await body(page), '3 of 3 plans left'), 'starts with a full quota');
-
-    await page.getByText(/Generate (plan|new)/).click();
-    await page.waitForTimeout(6000);
-
-    const after = await body(page);
-    check(has(after, 'WINDOW') && /\d\d:\d\d–\d\d:\d\d/.test(after), 'a plan still renders without the service');
-    check(has(after, 'standard plate'), 'the fallback says it is the standard plate');
-    check(has(after, 'unaffected'), 'and that the numbers still hold');
-
-    // The point of the change: an outage must not cost the user a plan.
-    check(has(after, '3 of 3 plans left'), 'a fallback recipe does not spend quota',
-      after.match(/\d OF 3 PLANS LEFT/i)?.[0]);
-    const quota = await page.evaluate(() => localStorage.getItem('plan_quota'));
-    check(quota === null || JSON.parse(quota).used === 0, 'quota counter untouched', String(quota));
+    const t = await body(page);
+    if (dow < 6) {
+      check(has(t, 'Adaptive calorie tracking'), 'planner shows live adaptive calorie tracking control');
+      const budgetChip = page.getByText(/Week budget \(/).first();
+      check((await budgetChip.count()) === 1, 'weekly budget compensation chip is offered');
+      const stdMatch = t.match(/Standard \((\d+)\)/);
+      await budgetChip.click();
+      await page.waitForTimeout(400);
+      await page.getByText(/Generate (plan|new)/).click();
+      await page.waitForTimeout(900);
+      const after = await body(page);
+      check(has(after, 'remaining weekly calorie budget'), 'built recipe notes weekly budget scaling');
+      const budgetMatch = after.match(/Week budget \((\d+)\)/);
+      if (stdMatch && budgetMatch) {
+        check(Number(budgetMatch[1]) < Number(stdMatch[1]), 'budget calories sit below flat target', `${stdMatch[1]} -> ${budgetMatch[1]}`);
+      }
+    } else {
+      check(has(t, 'Daily target (OMAD)'), 'sunday still builds cleanly on weekly rollover');
+    }
     await context.close();
   }
 

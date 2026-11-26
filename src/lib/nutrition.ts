@@ -315,6 +315,8 @@ const MET: Record<string, number> = {
   cycling: 8.0,
   soccer: 7.0,
   boxing: 9.0,
+  calisthenics: 6.0,
+  hiit: 8.5,
   weights: 5.0,
   yoga: 3.0,
 };
@@ -323,6 +325,120 @@ const MET: Record<string, number> = {
  *  is validated against, so a hand-edited store cannot smuggle in an unknown
  *  sport that would silently fall back to a generic MET value. */
 export const SPORT_IDS = Object.keys(MET);
+
+export type LoggedTrainingLike = {
+  date: string;
+  sport?: string | null;
+  durationMin?: number | null;
+  duration_min?: number | null;
+  training_start_time?: string | null;
+  training_duration_min?: number | null;
+  intensity?: Intensity | null;
+  start_time?: string | null;
+};
+
+/** Resolve what training happened on a specific ISO date: logged workout overrides saved plan session. */
+export function trainingForDate(
+  date: string,
+  workouts: LoggedTrainingLike[] = [],
+  plans: LoggedTrainingLike[] = [],
+  fallbackStartTime = '18:00'
+): Training | null {
+  const logged = (Array.isArray(workouts) ? workouts : []).find(
+    (w) => w && w.date === date && ((w.durationMin ?? w.duration_min ?? 0) > 0)
+  );
+  if (logged) {
+    const rawSport = String(logged.sport ?? 'weights').toLowerCase();
+    const sport = SPORT_IDS.includes(rawSport) ? rawSport : 'weights';
+    return {
+      sport,
+      duration_min: Math.round(normNumber(logged.durationMin ?? logged.duration_min, 45, 5, 360)),
+      intensity: (['low', 'medium', 'high', 'max'] as const).includes((logged.intensity ?? '') as Intensity)
+        ? (logged.intensity as Intensity)
+        : 'medium',
+      start_time: normTime(logged.start_time ?? fallbackStartTime, fallbackStartTime),
+    };
+  }
+
+  const planned = (Array.isArray(plans) ? plans : []).find(
+    (p) => p && p.date === date && p.training_start_time && (p.training_duration_min ?? 0) > 0
+  );
+  if (planned) {
+    const rawSport = String(planned.sport ?? 'weights').toLowerCase();
+    return {
+      sport: SPORT_IDS.includes(rawSport) ? rawSport : 'weights',
+      duration_min: Math.round(normNumber(planned.training_duration_min, 45, 5, 360)),
+      intensity: (['low', 'medium', 'high', 'max'] as const).includes((planned.intensity ?? '') as Intensity)
+        ? (planned.intensity as Intensity)
+        : 'medium',
+      start_time: normTime(planned.training_start_time!, fallbackStartTime),
+    };
+  }
+
+  return null;
+}
+
+/** Single-source calorie & macro lookup for a specific ISO date (for Today intake, corrections, hydration). */
+export function targetForDate(
+  profile: UserProfile,
+  date: string,
+  ctx: {
+    workouts?: LoggedTrainingLike[];
+    plans?: LoggedTrainingLike[];
+    measuredMaintenance?: number;
+  } = {}
+): Macros & { burn_kcal: number; maintenance_kcal: number; measured: boolean; training: Training | null } {
+  const training = trainingForDate(date, ctx.workouts, ctx.plans, profile.default_training_time);
+  return {
+    ...dailyTargets(profile, training, ctx.measuredMaintenance),
+    training,
+  };
+}
+
+export type AdaptiveMode = 'standard' | 'plateau' | 'diet_break' | 'budget';
+
+/** Adjust daily target for weekly budget balance, plateau, or diet break without touching protein or dropping under BMR. */
+export function adaptiveTarget(
+  profile: UserProfile,
+  base: Macros & { burn_kcal: number; maintenance_kcal: number; measured: boolean },
+  opts: {
+    mode?: AdaptiveMode;
+    plateauTarget?: number | null;
+    budgetPerDayLeft?: number | null;
+    maintenanceKcal?: number | null;
+  } = {}
+): Macros & { burn_kcal: number; maintenance_kcal: number; measured: boolean; mode: AdaptiveMode } {
+  const mode: AdaptiveMode = opts.mode ?? 'standard';
+  const floor = bmr(profile);
+  let targetKcal = base.kcal;
+
+  if (mode === 'plateau' && typeof opts.plateauTarget === 'number' && isFinite(opts.plateauTarget) && opts.plateauTarget > 0) {
+    targetKcal = opts.plateauTarget;
+  } else if (mode === 'budget' && typeof opts.budgetPerDayLeft === 'number' && isFinite(opts.budgetPerDayLeft)) {
+    targetKcal = opts.budgetPerDayLeft;
+  } else if (mode === 'diet_break') {
+    targetKcal = typeof opts.maintenanceKcal === 'number' && isFinite(opts.maintenanceKcal) && opts.maintenanceKcal > 0
+      ? opts.maintenanceKcal + base.burn_kcal
+      : base.maintenance_kcal;
+  }
+
+  const clampedKcal = Math.max(floor, Math.round(targetKcal));
+  if (clampedKcal === base.kcal) return { ...base, mode };
+
+  const protein_g = base.protein_g;
+  const fatFloor = Math.round(profile.weight_kg * 0.65);
+  const fat_g = Math.max(fatFloor, Math.min(base.fat_g, Math.round((clampedKcal * 0.25) / 9)));
+  const carbs_g = Math.max(0, Math.round((clampedKcal - (protein_g * 4 + fat_g * 9)) / 4));
+
+  return {
+    ...base,
+    kcal: clampedKcal,
+    protein_g,
+    fat_g,
+    carbs_g,
+    mode,
+  };
+}
 
 const INTENSITY_FACTOR: Record<Intensity, number> = {
   low: 0.8,
@@ -1144,6 +1260,32 @@ export function demo() {
     const many = noisy(12);
     assert(few.stdErr !== null && many.stdErr !== null, 'both fits report an error');
     assert(many.stdErr! < few.stdErr!, `more weigh-ins narrow the band: ${many.stdErr} vs ${few.stdErr}`);
+  }
+
+  {
+    assert(SPORT_IDS.includes('calisthenics'), 'calisthenics is a first-class sport MET');
+    assert(SPORT_IDS.includes('hiit'), 'hiit is a first-class sport MET');
+    const calBurn = trainingBurnKcal(DEFAULT_PROFILE, { sport: 'calisthenics', duration_min: 45, intensity: 'high', start_time: '17:00' });
+    assert(calBurn > 0 && calBurn > trainingBurnKcal(DEFAULT_PROFILE, { sport: 'yoga', duration_min: 45, intensity: 'high', start_time: '17:00' }), 'calisthenics burns more than yoga');
+
+    const resolved = trainingForDate(
+      '2026-11-26',
+      [{ date: '2026-11-26', sport: 'calisthenics', durationMin: 50, intensity: 'high', start_time: '17:30' }],
+      [{ date: '2026-11-26', training_start_time: '18:00', training_duration_min: 30 }],
+      DEFAULT_PROFILE.default_training_time
+    );
+    assert(resolved?.sport === 'calisthenics' && resolved.duration_min === 50, 'logged workout overrides plan session');
+
+    const dateRes = targetForDate(DEFAULT_PROFILE, '2026-11-26', {
+      workouts: [{ date: '2026-11-26', sport: 'calisthenics', durationMin: 50, intensity: 'high' }],
+    });
+    assert(dateRes.kcal > dailyTargets(DEFAULT_PROFILE, null).kcal, 'targetForDate adds logged workout burn');
+
+    const floor = bmr(DEFAULT_PROFILE);
+    const std = dailyTargets(DEFAULT_PROFILE, null);
+    const tightBudget = adaptiveTarget(DEFAULT_PROFILE, std, { mode: 'budget', budgetPerDayLeft: 900 });
+    assert(tightBudget.kcal === floor, `budget adjustment never drops below BMR (${floor}), got ${tightBudget.kcal}`);
+    assert(tightBudget.protein_g === std.protein_g, 'budget adjustment preserves protein target');
   }
 
   return 'nutrition.ts: all checks passed';

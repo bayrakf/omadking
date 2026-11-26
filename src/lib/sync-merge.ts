@@ -29,7 +29,7 @@ export type State = Record<string, unknown>;
  * `sync_last` is device bookkeeping. Syncing it would make every sync change
  * the payload, which would look like a change worth syncing.
  */
-export const NEVER_RESTORED: readonly string[] = [KEYS.premium, KEYS.planQuota, KEYS.syncedAt];
+export const NEVER_RESTORED: readonly string[] = [KEYS.premium, KEYS.syncedAt];
 
 /** Append-only day logs: a date appearing on either device happened. */
 const DATE_LOGS: readonly string[] = [KEYS.fastLog, KEYS.cookLog];
@@ -42,7 +42,7 @@ const DATED_RECORDS: readonly { key: string; by: string }[] = [
 ];
 
 /** Free-form lists deduplicated by id, order preserved. */
-const ID_LISTS: readonly { key: string; by: string }[] = [{ key: KEYS.chatLog, by: 'id' }];
+const ID_LISTS: readonly { key: string; by: string }[] = [{ key: KEYS.workoutLog, by: 'id' }];
 
 const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
@@ -213,17 +213,21 @@ export function demo() {
     mergeStates({ state: { [KEYS.premium]: 'true' }, at: OLD }, honest)[KEYS.premium] === 'true',
     'a real purchase on this device is left alone'
   );
-  assert(
-    mergeStates({ state: { [KEYS.planQuota]: 9 }, at: OLD }, { state: { [KEYS.planQuota]: 0 }, at: NEW })[
-      KEYS.planQuota
-    ] === 9,
-    'and quota cannot be rolled back by restoring an older state'
-  );
+
+  const wLogA = {
+    state: { [KEYS.workoutLog]: [{ id: 'wo1', date: '2026-08-01', workoutId: 'calisthenics-push', sport: 'calisthenics', durationMin: 45, intensity: 'high', exercises: [] }] },
+    at: OLD,
+  };
+  const wLogB = {
+    state: { [KEYS.workoutLog]: [{ id: 'wo2', date: '2026-08-03', workoutId: 'calisthenics-pull', sport: 'calisthenics', durationMin: 45, intensity: 'high', exercises: [] }] },
+    at: NEW,
+  };
+  const mergedWorkouts = mergeStates(wLogA, wLogB)[KEYS.workoutLog] as any[];
+  assert(mergedWorkouts.length === 2, 'workout logs from both devices merge cleanly');
 
   // The same rule has to hold for the file path, which is where the hole
   // actually was: a hand-edited backup granted premium until now.
   assert(NEVER_RESTORED.includes(KEYS.premium), 'entitlement is on the never-restored list');
-  assert(NEVER_RESTORED.includes(KEYS.planQuota), 'so is the quota counter');
   assert(NEVER_RESTORED.includes(KEYS.syncedAt), 'and the sync timestamp, or every sync would dirty the payload');
 
   // --- hostile and empty input ---------------------------------------------

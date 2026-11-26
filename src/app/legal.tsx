@@ -110,8 +110,8 @@ export default function LegalScreen() {
             <Eyebrow style={s.section}>Empfänger</Eyebrow>
             <Card>
               <Txt variant="body" color={c.textDim}>
-                {recipients().join(', ')}. Google verarbeitet in den USA; für diese Übermittlung ist
-                eine gesonderte Rechtsgrundlage erforderlich.
+                {recipients().join(', ')}. Rezepte, Trainingsdaten und Stoffwechsel-Berechnungen
+                bleiben lokal auf deinem Gerät — ohne KI-Übermittlung an Drittanbieter.
               </Txt>
             </Card>
           </Enter>

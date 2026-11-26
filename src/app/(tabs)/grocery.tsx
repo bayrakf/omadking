@@ -12,7 +12,7 @@ import { Icon } from '@/components/icons';
 import { loadPlanHistory, loadPortions, KEYS } from '@/lib/store';
 import { buildGroceryList, scaleIngredients, type GroceryCategory } from '@/lib/grocery';
 import { haptic } from '@/lib/haptic';
-import type { MealPlan } from '@/lib/ai';
+import type { MealPlan } from '@/lib/recipes';
 
 export default function GroceryScreen() {
   const c = useTheme();

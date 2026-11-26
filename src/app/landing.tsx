@@ -6,7 +6,6 @@ import { Colors, Space, Radius, MaxContentWidth } from '@/constants/theme';
 import { Txt, Eyebrow, Enter, Button, Divider } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import DayDial from '@/components/DayDial';
-import { FREE_PLANS_PER_WEEK } from '@/lib/store';
 
 /**
  * The hero is the dial itself, showing a real 18:00–20:00 window against a
@@ -99,7 +98,7 @@ export default function LandingPage() {
           <View style={{ marginTop: Space.section }}>
             <Button label="Get started — free" onPress={() => router.replace('/onboarding')} />
             <Txt variant="small" color={c.textFaint} style={s.note}>
-              {FREE_PLANS_PER_WEEK} meal plans a week on the free tier. No account needed — your data stays on
+              Standard meal scaling and calisthenics tracking are free. No account needed — your data stays on
               your device.
             </Txt>
           </View>

@@ -58,31 +58,17 @@ export type DataFlow = {
 export const DATA_FLOWS: DataFlow[] = [
   {
     id: 'device',
-    what: 'Profil (Gewicht, Größe, Alter, Geschlecht, Ziel, Essfenster, Trainingszeit), Gewichtsverlauf, Fasten- und Kochprotokoll, Pläne, Einkaufsliste, Chatverlauf',
+    what: 'Profil (Gewicht, Größe, Alter, Geschlecht, Ziel, Essfenster, Trainingszeit), Gewichts-, Trainings- & Wiederholungsverlauf, Fasten- und Kochprotokoll, Pläne, Einkaufsliste',
     where: 'Nur auf deinem Gerät',
-    why: 'Die App rechnet damit. Ohne Konto verlässt nichts davon das Gerät, und der Betreiber sieht es nie.',
+    why: 'Die App rechnet damit lokal auf dem Gerät — einschließlich aller skalierten Rezepte. Ohne Konto verlässt nichts das Gerät, und der Betreiber sieht es nie.',
     howLong: 'Bis du es löschst oder die App entfernst.',
   },
   {
-    id: 'coach',
-    what: 'Deine Frage an den Coach, die letzten Gesprächszüge, dazu Gewicht, Ziel, Trainingsniveau, Essfenster und Trainingszeit — bei aktivem Premium zusätzlich die auf dem Gerät berechneten Kennzahlen: gemessener Erhaltungsbedarf, Gewichtstrend, Plateau-Dauer, Anzahl beantworteter Tage und dein Wochentagsmuster',
-    where: 'Supabase (EU) → Google Gemini (USA)',
-    why: 'Damit der Coach mit deinen Zahlen antworten kann statt mit allgemeinen Bereichen. Übermittelt werden nur die abgeleiteten Kennzahlen, nie die Protokolle, aus denen sie stammen.',
-    howLong: 'Nicht vom Betreiber gespeichert. Die Aufbewahrung bei Google richtet sich nach dessen Bedingungen.',
-  },
-  {
-    id: 'plan',
-    what: 'Dein Ziel, die Trainingseinheit und die bereits berechneten Nährwertziele',
-    where: 'Supabase (EU) → Google Gemini (USA)',
-    why: 'Damit ein Rezept um genau diese Werte gebaut wird. Gewicht, Größe, Alter und Geschlecht werden bewusst NICHT mitgeschickt — die Zielwerte enthalten sie bereits.',
-    howLong: 'Nicht vom Betreiber gespeichert.',
-  },
-  {
     id: 'logs',
-    what: 'Technische Zugriffsprotokolle der Serverfunktionen, einschließlich IP-Adresse',
+    what: 'Optionale verschlüsselte Cloud-Sicherung sowie technische Zugriffsprotokolle bei Synchronisierung oder Kontolöschung',
     where: 'Supabase (EU)',
-    why: 'Betrieb und Fehlersuche. Entsteht automatisch beim Aufruf, nicht durch eine Einstellung.',
-    howLong: 'Nach den Vorgaben von Supabase.',
+    why: 'Optionale Ende-zu-Ende-verschlüsselte Sicherung und Art.-17-Kontolöschung. Ohne aktiven Sync werden keine Nutzerdaten gesendet.',
+    howLong: 'Bis zur Kontolöschung; Serverprotokolle nach den Vorgaben von Supabase.',
   },
   {
     id: 'purchase',
@@ -98,7 +84,6 @@ export function recipients(flows: DataFlow[] = DATA_FLOWS): string[] {
   const found = new Set<string>();
   for (const f of flows) {
     if (/supabase/i.test(f.where)) found.add('Supabase');
-    if (/google|gemini/i.test(f.where)) found.add('Google');
     if (/revenuecat/i.test(f.where)) found.add('RevenueCat');
   }
   return [...found].sort();
@@ -131,8 +116,9 @@ export function demo() {
   assert(missingOperatorFields({ ...filled, city: TODO }).includes('city'), 'a leftover TODO is caught');
 
   // The inventory has to be usable as the page's source.
-  assert(DATA_FLOWS.length >= 5, 'every known flow is listed');
+  assert(DATA_FLOWS.length >= 3, 'every known flow is listed');
   assert(new Set(DATA_FLOWS.map((f) => f.id)).size === DATA_FLOWS.length, 'flow ids are unique');
+  assert(!recipients().includes('Google'), 'no Google/Gemini transfer remains');
   for (const f of DATA_FLOWS) {
     assert(f.what.length > 20 && f.why.length > 20, `${f.id} explains itself`);
     assert(f.howLong.length > 0, `${f.id} says how long`);
@@ -140,7 +126,7 @@ export function demo() {
 
   // Recipients are derived, not hand-listed, so the page cannot fall behind.
   const r = recipients();
-  assert(r.includes('Google') && r.includes('Supabase') && r.includes('RevenueCat'), `all three recipients: ${r}`);
+  assert(r.includes('Supabase') && r.includes('RevenueCat') && !r.includes('Google'), `expected recipients: ${r}`);
   assert(recipients([]).length === 0, 'no flows means no recipients to name');
 
   // What stays put must be visible as such.
@@ -148,9 +134,9 @@ export function demo() {
   assert(stays.length === 1 && stays[0].id === 'device', 'exactly one flow never leaves the device');
   assert(leavesDevice().length === DATA_FLOWS.length - 1, 'the rest do leave');
 
-  // The claim the code now backs: body metrics no longer go to the recipe model.
-  const plan = DATA_FLOWS.find((f) => f.id === 'plan')!;
-  assert(/nicht mitgeschickt/i.test(plan.why), 'the plan flow states what is withheld');
+  // The claim the code now backs: local calculation keeps meal/profile data on device.
+  const deviceFlow = DATA_FLOWS.find((f) => f.id === 'device')!;
+  assert(/verlässt nichts das gerät/i.test(deviceFlow.why), 'the device flow states what never leaves');
 
   return 'legal.ts: all checks passed';
 }

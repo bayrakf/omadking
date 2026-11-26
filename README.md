@@ -65,12 +65,8 @@ src/
                    one decision a week, what Progress may show               ← pure, self-checked
     energy.ts      measured maintenance, trend, plateau, forecast, diet break ← pure, self-checked
     offer.ts       what Premium actually buys, tied to the gates that enforce it ← pure, self-checked
-    markdown.ts    the small subset of markdown a chat model actually writes  ← pure, self-checked
-    typography.ts  system font scale, clamped                                 ← pure, self-checked
-    legal.ts       the data-flow inventory the privacy page is built from    ← pure, self-checked
-    crypto.ts      XChaCha20-Poly1305 envelope + recovery phrase             ← pure, self-checked
-    sync-merge.ts  merging two devices' state without a server               ← pure, self-checked
-    ai.ts          edge function calls, offline fallbacks, quota wording      ← pure, self-checked
+    recipes.ts     curated deterministic recipes, allergen filter, scaling  ← pure, self-checked
+    workouts.ts    staged calisthenics & strength programs + rep progression ← pure, self-checked
     sync.ts        pull, merge, push — the only place the blob moves
     account.ts     anonymous sign-in; an id, never an identity
     store.ts       every AsyncStorage read/write
@@ -82,7 +78,7 @@ src/
   components/      shared primitives (ui.tsx) and screen-sized pieces
 e2e/               harness, smoke suite, interaction suite
 supabase/
-  functions/       Deno edge functions (chat, generate_meal_plan, delete_account)
+  functions/       Deno edge functions (delete_account)
   migrations/      schema + row-level security
 ```
 
@@ -92,9 +88,8 @@ supabase/
 screen and edge function each had their own TDEE formula, so one user saw four different calorie targets. Screens
 read from it; they never do arithmetic on profile fields themselves.
 
-**Macros and timing are computed on the client; only recipe prose comes from the model.** The edge function
-receives the already-decided targets and writes a recipe around them. A model outage therefore degrades the meal
-*suggestion* (there's a deterministic offline recipe) and never the plan.
+**Macros, timing, recipes, and calisthenics progression all run 100% deterministically on the device.** No LLM calls,
+zero server latency, offline-ready, and linked directly to `energy.ts`.
 
 **Native-only modules get a `.web.ts` twin.** Metro resolves `.web.ts` first, so the web bundle never sees the
 native package. This is not a preference: importing `react-native-purchases` unconditionally put ~900KB of dead
@@ -118,13 +113,10 @@ every user and is readable in devtools.
 | `EXPO_PUBLIC_SUPABASE_URL` | client | edge function base URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | client | anon key (public by design; guarded by RLS) |
 | `EXPO_PUBLIC_REVENUECAT_IOS_KEY` / `_ANDROID_KEY` | client | RevenueCat SDK keys (public) |
-| `GEMINI_API_KEY` | **server** | `supabase secrets set GEMINI_API_KEY=…` |
-| `GEMINI_MODEL` | server, optional | defaults to `gemini-flash-latest`, an alias that tracks the current Flash model so a retirement cannot break the app |
 | `SERVICE_ROLE_KEY` | **server** | `supabase secrets set SERVICE_ROLE_KEY=…` |
 
 ```bash
-supabase functions deploy chat generate_meal_plan delete_account
-supabase secrets set GEMINI_API_KEY=...
+supabase functions deploy delete_account
 ```
 
 ## Deploying
@@ -160,10 +152,11 @@ up, and confirm before shipping: install the build, open **You → Sync**, and c
 ## Current state
 
 Works today: onboarding with named fasting protocols, a fasting dial that says which band the fast is in, the day
-as a timeline of moments, meal planning with AI recipes, batch cooking with portion scaling, a shopping list that
+as a timeline of moments, deterministic tailored meal planning (standard vs. premium recipe catalog), calisthenics &
+strength set/rep tracking coupled to energy balance, batch cooking with portion scaling, a shopping list that
 merges amounts and is ordered the way a shop is walked, weight tracking with trend, a correctable fast log, a
-weekly review, an adaptation phase read from the log, hydration, an AI coach that renders its markdown, reminders,
-local backup, an "About OMAD" reference page, and a free-tier quota.
+weekly review, an adaptation phase read from the log, hydration, reminders, local backup, and an "About OMAD"
+reference page.
 
 ### Sync, and what the server holds
 
@@ -190,9 +183,6 @@ accounts. Verified: a caller passing someone else's id deletes their own account
 
 Not built yet:
 
-- **Quota is still device-local.** Anonymous accounts give a stable id, but a new one is free to
-  create, so server-side counting would raise the effort and not much else. Clearing storage still
-  resets it. Stated here rather than sold as solved.
 - **Email is not attachable yet.** `auth.updateUser({email})` would upgrade an anonymous account in
   place, keeping the id and the data. Worth doing when someone asks for recovery that does not
   depend on a piece of paper.
@@ -200,8 +190,6 @@ Not built yet:
   cannot complete. Web has no billing at all.
 - **No push notifications.** Reminders are local notifications scheduled on the device, so nothing arrives if the
   app is uninstalled and nothing is scheduled on the web at all.
-- **The Gemini free tier allows 20 requests a day.** Past that the coach and the recipe generator stop until the
-  next day; the app now says which limit was hit rather than telling you to wait a minute.
 
 ## A note on the legal pages
 

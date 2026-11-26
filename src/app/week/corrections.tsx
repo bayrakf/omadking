@@ -24,13 +24,17 @@ import { Space, Radius, Type } from '@/constants/theme';
 import {
   Screen, Card, Txt, Eyebrow, Enter, Button, Tap, Notice, PageHeader, useTheme,
 } from '@/components/ui';
-import { DEFAULT_PROFILE, dailyTargets, type UserProfile } from '@/lib/nutrition';
+import { DEFAULT_PROFILE, dailyTargets, targetForDate, type UserProfile } from '@/lib/nutrition';
+import { effectiveMaintenance } from '@/lib/energy';
 import {
   loadProfileOrDefault, saveProfile, loadWeightLog, saveWeightLog,
   loadFastLog, markFastComplete, unmarkFastComplete,
   loadIntakeLog, recordIntake, clearIntake,
-  loadOutliers, markOutlier, unmarkOutlier, todayISO, type WeightEntry,
+  loadOutliers, markOutlier, unmarkOutlier,
+  loadWorkoutLog, loadPlanHistory, isPremium, todayISO, type WeightEntry,
 } from '@/lib/store';
+import type { WorkoutLogEntry } from '@/lib/workouts';
+import type { MealPlan } from '@/lib/recipes';
 import {
   intakeWeek, fastWeek, nextIntakeFactor, intakeLabel, intakeGlyph,
   type IntakeDay, type FastDay,
@@ -44,7 +48,9 @@ export default function CorrectionsScreen() {
   const [eaten, setEaten] = useState<IntakeDay[]>([]);
   const [week, setWeek] = useState<FastDay[]>([]);
   const [outliers, setOutliers] = useState<string[]>([]);
-  const [dayKcal, setDayKcal] = useState(0);
+  const [workouts, setWorkouts] = useState<WorkoutLogEntry[]>([]);
+  const [plans, setPlans] = useState<MealPlan[]>([]);
+  const [measured, setMeasured] = useState<number | undefined>(undefined);
   const [weightInput, setWeightInput] = useState('');
   const [dateInput, setDateInput] = useState(todayISO());
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -54,8 +60,9 @@ export default function CorrectionsScreen() {
       let active = true;
       (async () => {
         const p = await loadProfileOrDefault();
-        const [log, fasts, intake, skip] = await Promise.all([
+        const [log, fasts, intake, skip, wLog, pHist, prem] = await Promise.all([
           loadWeightLog(), loadFastLog(), loadIntakeLog(), loadOutliers(),
+          loadWorkoutLog(), loadPlanHistory<MealPlan>(), isPremium(),
         ]);
         if (!active) return;
         setProfile(p);
@@ -63,7 +70,9 @@ export default function CorrectionsScreen() {
         setEaten(intakeWeek(intake));
         setWeek(fastWeek(fasts));
         setOutliers(skip);
-        setDayKcal(dailyTargets(p, null).kcal);
+        setWorkouts(wLog);
+        setPlans(pHist);
+        setMeasured(effectiveMaintenance(intake, log, dailyTargets(p, null).maintenance_kcal, prem));
         setDateInput(todayISO());
         setMounted(true);
       })();
@@ -80,7 +89,8 @@ export default function CorrectionsScreen() {
 
   const cycleIntake = async (dayDate: string, current: number | null) => {
     const next = nextIntakeFactor(current);
-    const log = next === null ? await clearIntake(dayDate) : await recordIntake(next, dayKcal, dayDate);
+    const kcalForDay = targetForDate(profile, dayDate, { workouts, plans, measuredMaintenance: measured }).kcal;
+    const log = next === null ? await clearIntake(dayDate) : await recordIntake(next, kcalForDay, dayDate);
     setEaten(intakeWeek(log));
   };
 

@@ -1,356 +1,380 @@
-import { Icon, type IconName } from '@/components/icons';
+import { useCallback, useState } from 'react';
+import { View, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { Space, Radius } from '@/constants/theme';
+import {
+  Screen, Card, Txt, Eyebrow, Button, SegmentedControl, Tap, PageHeader, Notice, useTheme, washOf,
+} from '@/components/ui';
+import { Icon } from '@/components/icons';
 import { useLang } from '@/components/lang';
-import { Button, Card, Enter, Eyebrow, PageHeader, Screen, SegmentedControl, Txt, useTheme, washOf } from '@/components/ui';
-import { Radius, Space } from '@/constants/theme';
-import type { SessionDraft } from '@/lib/nutrition';
-import { saveLastSession } from '@/lib/store';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-
-export type WorkoutCategory = 'all' | 'strength' | 'cardio' | 'hiit' | 'mobility';
-
-interface Exercise {
-  name: string;
-  sets: string;
-  notes?: string;
-}
-
-interface WorkoutPlan {
-  id: string;
-  title: string;
-  category: 'strength' | 'cardio' | 'hiit' | 'mobility';
-  durationMin: number;
-  intensity: 'low' | 'medium' | 'high' | 'max';
-  estBurnKcal: number;
-  icon: IconName;
-  /**
-   * A palette slot, not a colour. Module scope has no theme, so the literals
-   * that used to sit here could never follow the scheme — and being raw
-   * Tailwind swatches they did not match the one the app had chosen either.
-   */
-  hue: 'ember' | 'hydro' | 'body' | 'plan';
-  fastingNote: string;
-  exercises: Exercise[];
-}
-
-const WORKOUTS: WorkoutPlan[] = [
-  {
-    id: 'push-fasted',
-    title: 'Gefastetes Push-Hypertrophie',
-    category: 'strength',
-    durationMin: 50,
-    intensity: 'high',
-    estBurnKcal: 380,
-    icon: 'flame',
-    hue: 'ember' as const,
-    fastingNote: '500ml Wasser + 500mg Natrium 30 Minuten vor dem Training trinken. Maximale Insulinsensitivität für das anschließende Essensfenster.',
-    exercises: [
-      { name: 'Schrägbankdrücken (Kurzhantel)', sets: '4 Sätze × 8–10 Wiederholungen', notes: '2 Minuten Satzpause' },
-      { name: 'Dips / Barrenstütz', sets: '3 Sätze × 10–12 Wiederholungen', notes: 'Körpergewicht oder Zusatzlast' },
-      { name: 'Überkopfdrücken (Military Press)', sets: '3 Sätze × 8–10 Wiederholungen', notes: 'Fokus auf Rumpfspannung' },
-      { name: 'Seitheben am Kabel / Kurzhantel', sets: '4 Sätze × 12–15 Wiederholungen', notes: 'Kurze Pausen 60 Sekunden' },
-      { name: 'Trizepsdrücken am Seil', sets: '3 Sätze × 12–15 Wiederholungen', notes: 'Spitzenkontraktion halten' },
-    ],
-  },
-  {
-    id: 'pull-fasted',
-    title: 'Gefastetes Pull & Rücken-Power',
-    category: 'strength',
-    durationMin: 50,
-    intensity: 'high',
-    estBurnKcal: 390,
-    icon: 'flame',
-    hue: 'body' as const,
-    fastingNote: 'Ausreichend Salz vorab schützt vor Kraftverlust bei schweren Grundübungen.',
-    exercises: [
-      { name: 'Klimmzüge (breiter Griff)', sets: '4 Sätze × 6–8 Wiederholungen', notes: 'Saubere Dehnung im Lat' },
-      { name: 'Langhantel-Rudern vorgebeugt', sets: '4 Sätze × 8–10 Wiederholungen', notes: 'Stabiler unterer Rücken' },
-      { name: 'Latzug zur Brust (enger Griff)', sets: '3 Sätze × 10–12 Wiederholungen', notes: 'Kontrollierte Exzentrik' },
-      { name: 'Face Pulls für hintere Schulter', sets: '4 Sätze × 15 Wiederholungen', notes: 'Schultergesundheit' },
-      { name: 'Schrägbank-Bizepscurls', sets: '3 Sätze × 10–12 Wiederholungen', notes: 'Voller Bewegungsumfang' },
-    ],
-  },
-  {
-    id: 'legs-fasted',
-    title: 'Gefastetes Unterkörper & Beine',
-    category: 'strength',
-    durationMin: 55,
-    intensity: 'high',
-    estBurnKcal: 460,
-    icon: 'flame',
-    hue: 'ember' as const,
-    fastingNote: 'Größter Glykogen-Verbrauch. Plane das Fastenbrechen innerhalb von 45–60 Minuten nach Trainingsende.',
-    exercises: [
-      { name: 'Kniebeugen (Barbell Squat)', sets: '4 Sätze × 6–8 Wiederholungen', notes: '3 Minuten Satzpause' },
-      { name: 'Rumänisches Kreuzheben (RDL)', sets: '3 Sätze × 8–10 Wiederholungen', notes: 'Fokus auf Beinbeuger & Gluteus' },
-      { name: 'Beinpresse 45°', sets: '3 Sätze × 10–12 Wiederholungen', notes: 'Tiefe Ausführung' },
-      { name: 'Beinstrecker & Beinbeuger Supersatz', sets: '3 Sätze × 12–15 Wiederholungen', notes: 'Maximaler Pump' },
-      { name: 'Wadenheben stehend', sets: '4 Sätze × 15 Wiederholungen', notes: '2 Sekunden Halt am obersten Punkt' },
-    ],
-  },
-  {
-    id: 'zone2-cardio',
-    title: 'Zone-2 Fettverbrennung & Ketose',
-    category: 'cardio',
-    durationMin: 45,
-    intensity: 'medium',
-    estBurnKcal: 340,
-    icon: 'drop',
-    hue: 'hydro' as const,
-    fastingNote: 'Herzfrequenz bei 60–70% HFmax halten (Nasenatmung möglich). Maximiert Fettfluss und schont Muskelmasse.',
-    exercises: [
-      { name: 'Lockerer Dauerlauf / Joggen', sets: '45 Minuten kontinuierlich', notes: 'Gleichmäßiges Tempo' },
-      { name: 'Alternativ: Radergometer / Stairmaster', sets: '45 Minuten gleichmäßig', notes: 'Trittfrequenz ~85 RPM' },
-      { name: 'Alternativ: Rucking (Rucksack 10-15kg)', sets: '45 Minuten zügiges Gehen', notes: 'Hervorragende Gelenkschonung' },
-    ],
-  },
-  {
-    id: 'hiit-fasted',
-    title: 'Fasten-Booster HIIT Zirkel',
-    category: 'hiit',
-    durationMin: 25,
-    intensity: 'max',
-    estBurnKcal: 290,
-    icon: 'flame',
-    hue: 'body' as const,
-    fastingNote: 'Extrem intensiver Stoffwechsel-Reiz. 20g schnelle Kohlenhydrate vorab empfohlen, falls 18h+ gefastet.',
-    exercises: [
-      { name: 'Kettlebell Swings', sets: '5 Runden: 40 Sekunden Belastung / 20 Sekunden Pause', notes: 'Explosive Hüftstreckung' },
-      { name: 'Burpees ohne Liegestütz', sets: '5 Runden: 40 Sekunden Belastung / 20 Sekunden Pause', notes: 'Rhythmus halten' },
-      { name: 'Assault Bike / Rower Sprints', sets: '5 Runden: 30 Sekunden All-Out / 30 Sekunden Pause', notes: 'Maximaler Laktatausstoß' },
-      { name: 'Plank to Push-up', sets: '5 Runden: 40 Sekunden Belastung / 20 Sekunden Pause', notes: 'Rumpfstabilität' },
-    ],
-  },
-  {
-    id: 'mobility-fasted',
-    title: 'Autophagie & Mobilitäts-Flow',
-    category: 'mobility',
-    durationMin: 30,
-    intensity: 'low',
-    estBurnKcal: 110,
-    icon: 'check',
-    hue: 'plan' as const,
-    fastingNote: 'Perfekt für Fasten-Ruhetage. Fördert Lymphfluss, Durchblutung und zelluläre Regeneration ohne Cortisol-Anstieg.',
-    exercises: [
-      { name: 'World’s Greatest Stretch', sets: '3 Durchgänge pro Seite', notes: 'Tiefe Atmung' },
-      { name: '90/90 Hüftrotationen', sets: '2 Minuten dynamischer Wechsel', notes: 'Hüftöffner' },
-      { name: 'Katze-Kuh & Thorakale Rotation', sets: '10 kontrollierte Wiederholungen', notes: 'Wirbelsäulen-Mobilisation' },
-      { name: 'Couch Stretch (Hüftbeuger)', sets: '2 Minuten Halten pro Seite', notes: 'Gegen sitzende Haltung' },
-      { name: 'Tiefe Kniebeuge im Sitzen (Deep Squat Hold)', sets: '2 Minuten Halten', notes: 'Knöchel- & Hüftbeweglichkeit' },
-    ],
-  },
-];
+import {
+  saveLastSession, loadProfileOrDefault, loadWorkoutLog, saveWorkoutSession,
+  loadIntakeLog, loadWeightLog, todayISO,
+} from '@/lib/store';
+import { DEFAULT_PROFILE, type FitnessLevel, type SessionDraft, type UserProfile } from '@/lib/nutrition';
+import { deficitSpell } from '@/lib/energy';
+import {
+  WORKOUT_PROGRAMS,
+  exercisesForLevel,
+  formatSetsSummary,
+  isProgressionReady,
+  lastExercisePerformance,
+  recoveryAdvisory,
+  type LoggedExercise,
+  type LoggedSet,
+  type WorkoutCategory,
+  type WorkoutLogEntry,
+  type WorkoutProgram,
+} from '@/lib/workouts';
+import { haptic } from '@/lib/haptic';
 
 export default function WorkoutScreen() {
   const c = useTheme();
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const router = useRouter();
 
-  const [category, setCategory] = useState<WorkoutCategory>('all');
-  const [expandedId, setExpandedId] = useState<string | null>('push-fasted');
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [level, setLevel] = useState<FitnessLevel>('intermediate');
+  const [category, setCategory] = useState<WorkoutCategory | 'all'>('all');
+  const [expandedId, setExpandedId] = useState<string | null>('calisthenics-push');
   const [appliedId, setAppliedId] = useState<string | null>(null);
-  const [checkedExercises, setCheckedExercises] = useState<Record<string, boolean>>({});
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [workoutLog, setWorkoutLog] = useState<WorkoutLogEntry[]>([]);
+  const [dietBreakDue, setDietBreakDue] = useState(false);
 
-  const toggleCheck = (key: string) => {
-    setCheckedExercises((p) => ({ ...p, [key]: !p[key] }));
+  // Per-exercise active set inputs keyed by `${workoutId}:${exerciseId}`
+  const [draftSets, setDraftSets] = useState<Record<string, LoggedSet[]>>({});
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const [p, log, intake, weights] = await Promise.all([
+          loadProfileOrDefault(),
+          loadWorkoutLog(),
+          loadIntakeLog(),
+          loadWeightLog(),
+        ]);
+        if (!active) return;
+        setProfile(p);
+        setLevel(p.fitness_level);
+        setWorkoutLog(log);
+        const spell = deficitSpell(intake, weights, p.goal);
+        setDietBreakDue(spell.breakDue);
+      })();
+      return () => { active = false; };
+    }, [])
+  );
+
+  const getDraft = (wId: string, exId: string, setsCount: number, defaultReps: number): LoggedSet[] => {
+    const key = `${wId}:${exId}`;
+    const existing = draftSets[key];
+    if (existing && existing.length === setsCount) return existing;
+    const prev = lastExercisePerformance(exId, workoutLog);
+    if (prev && prev.length >= setsCount) return prev.slice(0, setsCount).map((s) => ({ ...s }));
+    return Array.from({ length: setsCount }, () => ({ reps: defaultReps }));
   };
 
-  const applyWorkout = async (w: WorkoutPlan) => {
+  const updateSetReps = (wId: string, exId: string, setsCount: number, defaultReps: number, setIdx: number, nextReps: number) => {
+    const key = `${wId}:${exId}`;
+    const base = getDraft(wId, exId, setsCount, defaultReps);
+    const updated = base.map((s, idx) => (idx === setIdx ? { ...s, reps: Math.max(0, Math.min(200, nextReps)) } : s));
+    setDraftSets((prev) => ({ ...prev, [key]: updated }));
+  };
+
+  const logWorkout = async (w: WorkoutProgram) => {
+    const specs = exercisesForLevel(w, level);
+    const loggedExercises: LoggedExercise[] = specs.map((ex) => ({
+      exerciseId: ex.id,
+      name: ex.name[lang],
+      sets: getDraft(w.id, ex.id, ex.targetSets, ex.targetRepsMin),
+    }));
+    const entry: WorkoutLogEntry = {
+      id: `${todayISO()}-${w.id}-${Date.now()}`,
+      date: todayISO(),
+      workoutId: w.id,
+      sport: w.sport,
+      durationMin: w.durationMin,
+      intensity: w.intensity,
+      startTime: profile.default_training_time,
+      exercises: loggedExercises,
+    };
+    const nextLog = await saveWorkoutSession(entry);
+    setWorkoutLog(nextLog);
+    setSavedId(w.id);
+    haptic('success');
+  };
+
+  const applyWorkout = async (w: WorkoutProgram) => {
     const session: SessionDraft = {
-      sport: w.title,
+      sport: w.sport,
       duration_min: w.durationMin,
       intensity: w.intensity,
-      start_time: '17:00', // standard timing
+      start_time: profile.default_training_time,
       restDay: false,
     };
     await saveLastSession(session);
     setAppliedId(w.id);
+    haptic('medium');
     setTimeout(() => {
       router.push('/planner');
-    }, 400);
+    }, 250);
   };
 
-  const filtered = category === 'all' ? WORKOUTS : WORKOUTS.filter((w) => w.category === category);
+  const filtered = category === 'all' ? WORKOUT_PROGRAMS : WORKOUT_PROGRAMS.filter((w) => w.category === category);
+  const advisory = recoveryAdvisory(dietBreakDue, lang);
 
   return (
     <Screen wide>
-      <Enter index={0}>
-        <PageHeader
-          back
-          eyebrow="OMAD Training"
-          title={t('workout.title')}
-          sub={t('workout.sub')}
-        />
-        <Image
-          source={require('../../assets/images/fasted_workout_hero.jpg')}
-          style={s.heroImage}
-          resizeMode="cover"
-        />
+      <PageHeader
+        back
+        title={t('workout.title')}
+        subtitle={t('workout.sub')}
+      />
 
-        {/* Filter Chips */}
+      {advisory ? (
+        <View style={{ marginBottom: Space.base }}>
+          <Notice tone="warn">{advisory}</Notice>
+        </View>
+      ) : null}
+
+      {/* Level Switcher for Calisthenics Progression */}
+      <View style={{ marginBottom: Space.md }}>
+        <Eyebrow color={c.textDim} style={{ marginBottom: Space.xs }}>
+          {lang === 'de' ? 'Calisthenics & Kraft-Level' : 'Calisthenics & strength level'}
+        </Eyebrow>
         <SegmentedControl
-          selected={category}
-          onSelect={(id) => setCategory(id as WorkoutCategory)}
+          selected={level}
+          onSelect={(v) => setLevel(v as FitnessLevel)}
           values={[
-            { id: 'all', label: t('workout.all') },
-            { id: 'strength', label: t('workout.strength') },
-            { id: 'cardio', label: t('workout.cardio') },
-            { id: 'hiit', label: t('workout.hiit') },
-            { id: 'mobility', label: t('workout.mobility') },
+            { id: 'beginner', label: lang === 'de' ? 'Einsteiger' : 'Beginner' },
+            { id: 'intermediate', label: lang === 'de' ? 'Fortgeschritten' : 'Intermediate' },
+            { id: 'advanced', label: lang === 'de' ? 'Profi' : 'Advanced' },
           ]}
-          style={{ marginBottom: Space.base }}
+          tone="body"
         />
-      </Enter>
+      </View>
 
-      {/* Workout Cards */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-        {filtered.map((w, index) => {
-          const isExpanded = expandedId === w.id;
-          const isApplied = appliedId === w.id;
-
-          return (
-            <Enter key={w.id} index={index + 1}>
-              <Card
+      {/* Filter Categories */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Space.base }}>
+        <View style={{ flexDirection: 'row' }}>
+          {([
+            ['all', t('workout.all')],
+            ['calisthenics', t('workout.calisthenics')],
+            ['strength', t('workout.strength')],
+            ['hiit', t('workout.hiit')],
+            ['cardio', t('workout.cardio')],
+            ['mobility', t('workout.mobility')],
+          ] as const).map(([id, label], idx) => {
+            const active = category === id;
+            return (
+              <Tap
+                key={id}
+                onPress={() => setCategory(id)}
+                accessibilityLabel={label}
                 style={[
-                  s.card,
+                  s.catChip,
                   {
-                    borderColor: isExpanded ? c[w.hue] : c.line,
-                    backgroundColor: c.surfaceElevated ?? c.surface,
+                    backgroundColor: active ? c.accent : c.surface,
+                    borderColor: active ? c.accent : c.line,
+                    marginRight: idx < 5 ? Space.xs : 0,
                   },
                 ]}
               >
-                {/* Header */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setExpandedId(isExpanded ? null : w.id)}
-                  style={s.cardHead}
-                >
-                  <View style={[s.iconBox, { backgroundColor: washOf(c[w.hue]) }]}>
-                    <Icon name={w.icon} size={20} color={c[w.hue]} />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: Space.md }}>
-                    <Txt variant="subheading" style={{ fontSize: 17, fontWeight: '800' }}>
-                      {w.title}
-                    </Txt>
-                    <View style={s.metaRow}>
-                      <Txt variant="data" color={c.textDim} style={{ fontSize: 12 }}>
-                        {w.durationMin} Min · ~{w.estBurnKcal} kcal · {w.intensity.toUpperCase()}
-                      </Txt>
-                    </View>
-                  </View>
-                  <View style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}>
-                    <Icon name="chevronRight" size={18} color={c.textDim} />
-                  </View>
-                </TouchableOpacity>
-
-                {/* Expanded Details */}
-                {isExpanded && (
-                  <View style={[s.expandedBody, { borderTopColor: c.line }]}>
-                    {/* Fasting Note */}
-                    <View style={[s.fastingBox, { backgroundColor: washOf(c[w.hue]), borderColor: c[w.hue] }]}>
-                      <Eyebrow color={c[w.hue]}>{t('workout.fastingNote')}</Eyebrow>
-                      <Txt variant="small" color={c.text} style={{ marginTop: 4, lineHeight: 18 }}>
-                        {w.fastingNote}
-                      </Txt>
-                    </View>
-
-                    {/* Exercise Breakdown */}
-                    <Eyebrow style={{ marginTop: Space.base, marginBottom: Space.sm }}>
-                      {t('workout.exercises')} ({w.exercises.length})
-                    </Eyebrow>
-
-                    {w.exercises.map((ex, i) => {
-                      const exKey = `${w.id}-${i}`;
-                      const isDone = checkedExercises[exKey];
-
-                      return (
-                        <TouchableOpacity
-                          key={i}
-                          activeOpacity={0.7}
-                          onPress={() => toggleCheck(exKey)}
-                          style={[
-                            s.exerciseRow,
-                            {
-                              backgroundColor: isDone ? c.well : 'transparent',
-                              borderColor: c.line,
-                            },
-                          ]}
-                        >
-                          <View
-                            style={[
-                              s.checkbox,
-                              {
-                                backgroundColor: isDone ? c[w.hue] : 'transparent',
-                                borderColor: isDone ? c[w.hue] : c.lineStrong,
-                              },
-                            ]}
-                          >
-                            {isDone && <Icon name="check" size={12} color={c.onAccent} strokeWidth={3} />}
-                          </View>
-                          <View style={{ flex: 1, marginLeft: Space.sm }}>
-                            <Txt
-                              variant="bodyMedium"
-                              color={isDone ? c.textFaint : c.text}
-                              style={isDone ? s.struck : { fontWeight: '600' }}
-                            >
-                              {ex.name}
-                            </Txt>
-                            <Txt variant="small" color={c.textDim} style={{ fontSize: 12, marginTop: 1 }}>
-                              {ex.sets} {ex.notes ? `· ${ex.notes}` : ''}
-                            </Txt>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-
-                    {/* Apply to Meal Planner Button */}
-                    <Button
-                      label={isApplied ? t('workout.applied') : t('workout.applyToPlan')}
-                      icon="plate"
-                      variant={isApplied ? 'ghost' : 'secondary'}
-                      onPress={() => applyWorkout(w)}
-                      style={{ marginTop: Space.base }}
-                    />
-                  </View>
-                )}
-              </Card>
-            </Enter>
-          );
-        })}
+                <Txt variant="small" color={active ? c.onAccent : c.text} style={{ fontWeight: active ? '600' : '400' }}>
+                  {label}
+                </Txt>
+              </Tap>
+            );
+          })}
+        </View>
       </ScrollView>
+
+      {/* Workout Programs */}
+      {filtered.map((w) => {
+        const isExpanded = expandedId === w.id;
+        const isApplied = appliedId === w.id;
+        const isSaved = savedId === w.id;
+        const specs = exercisesForLevel(w, level);
+        const loggedToday = workoutLog.some((e) => e.date === todayISO() && e.workoutId === w.id);
+
+        return (
+          <Card
+            key={w.id}
+            style={[
+              s.card,
+              {
+                borderColor: isExpanded ? c[w.hue] : c.line,
+                backgroundColor: c.surface,
+              },
+            ]}
+          >
+            <Tap
+              onPress={() => setExpandedId(isExpanded ? null : w.id)}
+              accessibilityLabel={w.title[lang]}
+              style={s.cardHead}
+            >
+              <Icon name={w.icon} size={20} color={c[w.hue]} />
+              <View style={{ flex: 1, marginLeft: Space.md }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Txt variant="subheading" style={{ flex: 1 }}>
+                    {w.title[lang]}
+                  </Txt>
+                  {loggedToday ? (
+                    <View style={[s.badgePill, { backgroundColor: washOf(c.positive), borderColor: c.positive }]}>
+                      <Txt variant="small" color={c.positive} style={{ fontSize: 11, fontWeight: '600' }}>
+                        {lang === 'de' ? 'Heute geloggt' : 'Logged today'}
+                      </Txt>
+                    </View>
+                  ) : null}
+                </View>
+                <Txt variant="small" color={c.textDim} style={{ marginTop: 2 }}>
+                  {w.durationMin} Min · ~{w.estBurnKcal} kcal · {w.category === 'calisthenics' ? (lang === 'de' ? 'Eigengewicht' : 'Bodyweight') : w.sport}
+                </Txt>
+              </View>
+              <View style={{ marginLeft: Space.sm, transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}>
+                <Icon name="chevronRight" size={18} color={c.textDim} />
+              </View>
+            </Tap>
+
+            {isExpanded && (
+              <View style={[s.expandedBody, { borderTopColor: c.line }]}>
+                <View style={[s.fastingBox, { backgroundColor: washOf(c[w.hue]), borderColor: c.line }]}>
+                  <Eyebrow color={c[w.hue]}>{t('workout.fastingNote')}</Eyebrow>
+                  <Txt variant="small" color={c.text} style={{ marginTop: 4, lineHeight: 19 }}>
+                    {w.fastingNote[lang]}
+                  </Txt>
+                </View>
+
+                <Eyebrow color={c.textDim} style={{ marginTop: Space.base, marginBottom: Space.sm }}>
+                  {t('workout.exercises')} ({specs.length})
+                </Eyebrow>
+
+                {specs.map((ex) => {
+                  const sets = getDraft(w.id, ex.id, ex.targetSets, ex.targetRepsMin);
+                  const prev = lastExercisePerformance(ex.id, workoutLog);
+                  const ready = isProgressionReady(ex, prev);
+                  const unitSuffix = ex.unit === 'sec' ? 's' : '';
+
+                  return (
+                    <View key={ex.id} style={[s.exerciseCard, { backgroundColor: c.well, borderColor: c.line }]}>
+                      <View style={s.rowBetween}>
+                        <Txt variant="bodyMedium" style={{ fontWeight: '600', flex: 1 }}>
+                          {ex.name[lang]}
+                        </Txt>
+                        <Txt variant="small" color={c.textDim}>
+                          {ex.targetSets} × {ex.targetRepsMin}–{ex.targetRepsMax}{unitSuffix}
+                        </Txt>
+                      </View>
+                      <Txt variant="small" color={c.textFaint} style={{ marginTop: 2 }}>
+                        {ex.notes[lang]}
+                      </Txt>
+
+                      {prev ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Space.xs, flexWrap: 'wrap' }}>
+                          <Txt variant="small" color={c.textDim}>
+                            {lang === 'de' ? 'Letztes Mal: ' : 'Last time: '}
+                            {formatSetsSummary(prev, ex.unit, lang)}
+                          </Txt>
+                          {ready ? (
+                            <View style={[s.badgePill, { backgroundColor: washOf(c.positive), borderColor: c.positive, marginLeft: Space.xs }]}>
+                              <Txt variant="small" color={c.positive} style={{ fontSize: 11, fontWeight: '600' }}>
+                                {lang === 'de' ? '+1–2 Wdh. / Stufe hoch' : 'Ready to progress'}
+                              </Txt>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
+
+                      {/* Per-Set Rep Tracker */}
+                      <View style={s.setsGrid}>
+                        {sets.map((st, sIdx) => (
+                          <View key={sIdx} style={[s.setBox, { backgroundColor: c.surface, borderColor: c.line }]}>
+                            <Txt variant="small" color={c.textFaint} style={{ fontSize: 11 }}>
+                              {lang === 'de' ? `Satz ${sIdx + 1}` : `Set ${sIdx + 1}`}
+                            </Txt>
+                            <View style={s.stepperRow}>
+                              <Tap
+                                onPress={() => updateSetReps(w.id, ex.id, ex.targetSets, ex.targetRepsMin, sIdx, st.reps - 1)}
+                                accessibilityLabel={`Decrease set ${sIdx + 1}`}
+                                style={[s.stepBtn, { borderColor: c.line }]}
+                              >
+                                <Txt variant="bodyMedium" color={c.text}>-</Txt>
+                              </Tap>
+                              <TextInput
+                                value={String(st.reps)}
+                                onChangeText={(v) => {
+                                  const n = parseInt(v.replace(/\D/g, ''), 10);
+                                  updateSetReps(w.id, ex.id, ex.targetSets, ex.targetRepsMin, sIdx, Number.isFinite(n) ? n : 0);
+                                }}
+                                keyboardType="numeric"
+                                inputMode="numeric"
+                                accessibilityLabel={`${ex.name[lang]} set ${sIdx + 1}`}
+                                style={[s.repInput, { color: c.text }]}
+                              />
+                              <Tap
+                                onPress={() => updateSetReps(w.id, ex.id, ex.targetSets, ex.targetRepsMin, sIdx, st.reps + 1)}
+                                accessibilityLabel={`Increase set ${sIdx + 1}`}
+                                style={[s.stepBtn, { borderColor: c.line }]}
+                              >
+                                <Txt variant="bodyMedium" color={c.text}>+</Txt>
+                              </Tap>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })}
+
+                <View style={s.actionRow}>
+                  <Button
+                    label={
+                      isSaved
+                        ? lang === 'de' ? 'Gespeichert ✓' : 'Saved ✓'
+                        : lang === 'de' ? 'Wiederholungen speichern' : 'Save workout & reps'
+                    }
+                    variant={isSaved ? 'secondary' : 'primary'}
+                    onPress={() => logWorkout(w)}
+                    style={{ marginBottom: Space.sm }}
+                  />
+                  <Button
+                    label={isApplied ? t('workout.applied') : t('workout.applyToPlan')}
+                    icon="plate"
+                    variant="secondary"
+                    onPress={() => applyWorkout(w)}
+                  />
+                </View>
+              </View>
+            )}
+          </Card>
+        );
+      })}
     </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  heroImage: {
-    width: '100%',
-    height: 160,
-    borderRadius: Radius.lg,
-    marginBottom: Space.base,
+  catChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    minHeight: 38,
+    justifyContent: 'center',
   },
   card: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Space.base,
-    marginBottom: Space.base,
+    marginBottom: Space.md,
   },
   cardHead: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 44,
   },
-  iconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metaRow: {
+  rowBetween: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 3,
+    justifyContent: 'space-between',
   },
   expandedBody: {
     marginTop: Space.base,
@@ -362,23 +386,54 @@ const s = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
   },
-  exerciseRow: {
+  exerciseCard: {
+    padding: Space.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginBottom: Space.sm,
+  },
+  badgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  setsGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: Space.sm,
+    flexWrap: 'wrap',
+    marginTop: Space.sm,
+  },
+  setBox: {
     borderRadius: Radius.sm,
     borderWidth: 1,
-    marginBottom: 6,
+    paddingHorizontal: Space.xs,
+    paddingVertical: 6,
+    marginRight: Space.xs,
+    marginBottom: Space.xs,
+    alignItems: 'center',
+    minWidth: 94,
   },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  stepBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  struck: {
-    textDecorationLine: 'line-through',
+  repInput: {
+    width: 36,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
+    paddingVertical: 2,
+  },
+  actionRow: {
+    marginTop: Space.sm,
   },
 });
